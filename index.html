@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多基金定投组合推演计算器</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f8fafc;
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .fund-row {
+            transition: background-color 0.2s;
+        }
+        .fund-row:hover {
+            background-color: #f8fafc;
+        }
+        .input-highlight:focus {
+            ring: 2px solid #6366f1;
+            border-color: #6366f1;
+        }
+    </style>
+</head>
+<body class="text-gray-800 pb-12">
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        
+        <!-- Header -->
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-slate-800 mb-2">
+                <i class="fa-solid fa-layer-group mr-2 text-indigo-600"></i>基金组合定投推演
+            </h1>
+            <p class="text-gray-500 text-sm">日定投复利计算 · 多资产配置模型</p>
+        </header>
+
+        <!-- Main Configuration Section -->
+        <div class="card p-6 mb-6 border-t-4 border-indigo-500">
+            <div class="flex justify-between items-center mb-4 border-b pb-2">
+                <h2 class="text-lg font-bold text-gray-800">
+                    <i class="fa-solid fa-sliders mr-2 text-indigo-500"></i>定投配置
+                </h2>
+                <div class="text-xs bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full border border-yellow-200">
+                    <i class="fa-solid fa-circle-info mr-1"></i> 按每年 250 个交易日计算
+                </div>
+            </div>
+            
+            <!-- Global Settings -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-50 p-4 rounded-lg">
+                <!-- Daily Amount -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">日定投总金额 (元)</label>
+                    <div class="relative rounded-md shadow-sm">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                            <span class="text-gray-500 font-bold">¥</span>
+                        </div>
+                        <input type="number" id="dailyInput" value="100" step="10"
+                            class="block w-full rounded-md border-gray-300 pl-8 pr-4 py-2 text-lg border focus:ring-indigo-500 focus:border-indigo-500" 
+                            placeholder="100">
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        ≈ 月投 <span id="monthlyEst">2166</span> 元 | 年投 <span id="annualEst">25000</span> 元
+                    </div>
+                </div>
+
+                <!-- Investment Years -->
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">计划坚持年数</label>
+                    <div class="relative rounded-md shadow-sm">
+                        <input type="number" id="yearsInput" value="10" min="1" max="50"
+                            class="block w-full rounded-md border-gray-300 px-4 py-2 text-lg border focus:ring-indigo-500 focus:border-indigo-500" 
+                            placeholder="10">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                            <span class="text-gray-500">年</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fund Allocation Grid -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm text-left text-gray-500">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 rounded-tl-lg">基金名称 / 代码</th>
+                            <th scope="col" class="px-4 py-3 w-32">定投比例 (%)</th>
+                            <th scope="col" class="px-4 py-3 w-32">每日投入 (元)</th>
+                            <th scope="col" class="px-4 py-3 w-32 rounded-tr-lg">预期年化 (%)</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <!-- Fund 1 -->
+                        <tr class="fund-row bg-white">
+                            <td class="px-4 py-3 font-medium text-gray-900">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
+                                    <div>
+                                        <div class="text-base font-bold">广发纳斯达克100ETF</div>
+                                        <div class="text-xs text-gray-400">270042 · 科技成长</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-blue-500 outline-none" 
+                                    data-idx="0" value="40">
+                            </td>
+                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-0">--</td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-blue-600 font-bold bg-blue-50 focus:border-blue-500 outline-none" 
+                                    data-idx="0" value="15">
+                            </td>
+                        </tr>
+                        <!-- Fund 2 -->
+                        <tr class="fund-row bg-white">
+                            <td class="px-4 py-3 font-medium text-gray-900">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span>
+                                    <div>
+                                        <div class="text-base font-bold">易方达恒生红利低波</div>
+                                        <div class="text-xs text-gray-400">021457 · 港股收息</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-emerald-500 outline-none" 
+                                    data-idx="1" value="20">
+                            </td>
+                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-1">--</td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-emerald-600 font-bold bg-emerald-50 focus:border-emerald-500 outline-none" 
+                                    data-idx="1" value="8">
+                            </td>
+                        </tr>
+                        <!-- Fund 3 -->
+                        <tr class="fund-row bg-white">
+                            <td class="px-4 py-3 font-medium text-gray-900">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
+                                    <div>
+                                        <div class="text-base font-bold">易方达中证A500ETF</div>
+                                        <div class="text-xs text-gray-400">022459 · A股核心</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-red-500 outline-none" 
+                                    data-idx="2" value="20">
+                            </td>
+                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-2">--</td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-red-600 font-bold bg-red-50 focus:border-red-500 outline-none" 
+                                    data-idx="2" value="10">
+                            </td>
+                        </tr>
+                        <!-- Fund 4 -->
+                        <tr class="fund-row bg-white">
+                            <td class="px-4 py-3 font-medium text-gray-900">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>
+                                    <div>
+                                        <div class="text-base font-bold">摩根标普500</div>
+                                        <div class="text-xs text-gray-400">017641 · 美股稳健</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-orange-500 outline-none" 
+                                    data-idx="3" value="20">
+                            </td>
+                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-3">--</td>
+                            <td class="px-4 py-3">
+                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-orange-600 font-bold bg-orange-50 focus:border-orange-500 outline-none" 
+                                    data-idx="3" value="12">
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot class="bg-gray-50 font-bold text-gray-900">
+                        <tr>
+                            <td class="px-4 py-3 text-right">合计</td>
+                            <td class="px-4 py-3 text-center">
+                                <span id="totalPercent" class="text-green-600">100</span>%
+                            </td>
+                            <td class="px-4 py-3 font-mono" id="totalDailyCheck">--</td>
+                            <td class="px-4 py-3 text-center text-xs font-normal text-gray-500">
+                                组合加权年化: <span id="weightedRate" class="font-bold text-indigo-600 text-sm">--%</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div id="percentWarning" class="hidden mt-2 text-xs text-red-500 font-bold text-center">
+                <i class="fa-solid fa-triangle-exclamation"></i> 警告：定投比例之和不等于 100%，请调整。
+            </div>
+        </div>
+
+        <!-- Dashboard / Results -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- Left: Big Summary Card -->
+            <div class="card p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex flex-col justify-center">
+                <div class="text-indigo-200 text-sm font-medium mb-1">
+                    <span id="resultYearLabel">10</span> 年后资产预估
+                </div>
+                <div class="text-4xl md:text-5xl font-bold mb-4 tracking-tight" id="finalAssets">
+                    --
+                </div>
+                <div class="grid grid-cols-2 gap-4 border-t border-indigo-500/30 pt-4">
+                    <div>
+                        <div class="text-indigo-200 text-xs">累计投入本金</div>
+                        <div class="text-xl font-bold" id="finalPrincipal">--</div>
+                    </div>
+                    <div>
+                        <div class="text-indigo-200 text-xs">累计投资收益</div>
+                        <div class="text-xl font-bold text-green-300" id="finalProfit">--</div>
+                    </div>
+                </div>
+                <div class="mt-4 inline-block bg-white/10 rounded px-2 py-1 text-xs text-center">
+                    总收益率: <span id="finalYield" class="font-bold">--%</span>
+                </div>
+            </div>
+
+            <!-- Right: Chart -->
+            <div class="card p-4 lg:col-span-2">
+                <h3 class="text-sm font-bold text-gray-500 mb-2">资产增长曲线 (含各基金贡献)</h3>
+                <div class="relative h-[250px] w-full">
+                    <canvas id="portfolioChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Goal Calculator -->
+        <div class="card p-6 mb-8 border-l-4 border-emerald-500 bg-emerald-50/30">
+            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                <i class="fa-solid fa-bullseye mr-2 text-emerald-600"></i> 财富目标反推
+            </h2>
+            <div class="flex flex-col md:flex-row items-center gap-4">
+                <div class="flex-grow w-full md:w-auto">
+                    <label class="text-xs text-gray-500 mb-1 block">设定目标金额 (元)</label>
+                    <div class="relative">
+                        <input type="number" id="goalAmount" value="1000000" class="block w-full rounded border-gray-300 py-2 pl-3 pr-10 text-emerald-800 font-bold focus:ring-emerald-500 focus:border-emerald-500" placeholder="1000000">
+                    </div>
+                </div>
+                <div class="hidden md:block text-gray-400 text-2xl">→</div>
+                <div class="bg-white p-3 rounded shadow-sm border border-emerald-100 flex-1 w-full text-center">
+                    <div class="text-xs text-gray-500">按当前组合 (<span id="goalRateDisplay">--%</span>) 需坚持</div>
+                    <div class="text-2xl font-bold text-emerald-600" id="goalYears">-- 年</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Table -->
+        <div class="card overflow-hidden">
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <h3 class="font-bold text-gray-700">年度资产明细表</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left font-medium text-gray-500">年份</th>
+                            <th class="px-4 py-2 text-right font-medium text-gray-500">累计本金</th>
+                            <th class="px-4 py-2 text-right font-bold text-gray-800 bg-gray-200/50">组合总资产</th>
+                            <th class="px-4 py-2 text-right font-medium text-blue-600 hidden md:table-cell">纳指100</th>
+                            <th class="px-4 py-2 text-right font-medium text-emerald-600 hidden md:table-cell">恒生红利</th>
+                            <th class="px-4 py-2 text-right font-medium text-red-600 hidden md:table-cell">中证A500</th>
+                            <th class="px-4 py-2 text-right font-medium text-orange-600 hidden md:table-cell">标普500</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detailTableBody" class="divide-y divide-gray-200 bg-white">
+                        <!-- JS Generated -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Configuration ---
+        const TRADING_DAYS_PER_YEAR = 250;
+        
+        // Fund Metadata
+        const funds = [
+            { name: "广发纳斯达克100", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)" }, // Blue
+            { name: "易方达恒生红利", color: "#10b981", bg: "rgba(16, 185, 129, 0.1)" }, // Emerald
+            { name: "易方达中证A500", color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)" }, // Red
+            { name: "摩根标普500", color: "#f97316", bg: "rgba(249, 115, 22, 0.1)" }   // Orange
+        ];
+
+        // --- DOM Elements ---
+        const dailyInput = document.getElementById('dailyInput');
+        const yearsInput = document.getElementById('yearsInput');
+        const monthlyEst = document.getElementById('monthlyEst');
+        const annualEst = document.getElementById('annualEst');
+        
+        const percentInputs = document.querySelectorAll('.fund-percent');
+        const rateInputs = document.querySelectorAll('.fund-rate');
+        
+        const totalPercentEl = document.getElementById('totalPercent');
+        const percentWarning = document.getElementById('percentWarning');
+        const totalDailyCheck = document.getElementById('totalDailyCheck');
+        const weightedRateEl = document.getElementById('weightedRate');
+        
+        // Results
+        const resultYearLabel = document.getElementById('resultYearLabel');
+        const finalAssets = document.getElementById('finalAssets');
+        const finalPrincipal = document.getElementById('finalPrincipal');
+        const finalProfit = document.getElementById('finalProfit');
+        const finalYield = document.getElementById('finalYield');
+        
+        // Goal
+        const goalAmountInput = document.getElementById('goalAmount');
+        const goalYearsEl = document.getElementById('goalYears');
+        const goalRateDisplay = document.getElementById('goalRateDisplay');
+        
+        // Table & Chart
+        const detailTableBody = document.getElementById('detailTableBody');
+        const ctx = document.getElementById('portfolioChart').getContext('2d');
+        let chartInstance = null;
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', updateAll);
+        
+        // Listeners
+        dailyInput.addEventListener('input', updateAll);
+        yearsInput.addEventListener('input', updateAll);
+        goalAmountInput.addEventListener('input', updateGoalOnly);
+        
+        percentInputs.forEach(input => input.addEventListener('input', updateAll));
+        rateInputs.forEach(input => input.addEventListener('input', updateAll));
+
+        // --- Logic ---
+
+        function updateAll() {
+            // 1. Basic Inputs
+            const daily = parseFloat(dailyInput.value) || 0;
+            const years = parseInt(yearsInput.value) || 10;
+            
+            // Estimates
+            const annual = daily * TRADING_DAYS_PER_YEAR;
+            monthlyEst.textContent = (annual / 12).toFixed(0);
+            annualEst.textContent = (annual).toFixed(0);
+            resultYearLabel.textContent = years;
+
+            // 2. Fund Config Parsing
+            let totalPct = 0;
+            const fundConfigs = [];
+            
+            percentInputs.forEach((input, idx) => {
+                const pct = parseFloat(input.value) || 0;
+                const rate = parseFloat(rateInputs[idx].value) || 0;
+                totalPct += pct;
+                
+                // Update row daily amount display
+                const dailyShare = daily * (pct / 100);
+                document.getElementById(`amount-${idx}`).textContent = dailyShare.toFixed(1);
+                
+                fundConfigs.push({
+                    pct: pct / 100,
+                    rate: rate / 100,
+                    dailyShare: dailyShare,
+                    annualShare: dailyShare * TRADING_DAYS_PER_YEAR
+                });
+            });
+
+            // 3. Validation & UI Updates
+            totalPercentEl.textContent = totalPct.toFixed(1);
+            totalDailyCheck.textContent = daily.toFixed(1); // Sum check
+            
+            if (Math.abs(totalPct - 100) > 0.1) {
+                totalPercentEl.classList.remove('text-green-600');
+                totalPercentEl.classList.add('text-red-600');
+                percentWarning.classList.remove('hidden');
+            } else {
+                totalPercentEl.classList.add('text-green-600');
+                totalPercentEl.classList.remove('text-red-600');
+                percentWarning.classList.add('hidden');
+            }
+
+            // Weighted Rate Calculation
+            const weightedRate = fundConfigs.reduce((acc, curr) => acc + (curr.rate * curr.pct), 0);
+            weightedRateEl.textContent = (weightedRate * 100).toFixed(2) + "%";
+
+            // 4. Projection Calculation
+            const projection = calculateProjection(fundConfigs, years);
+            
+            // 5. Render Results
+            renderSummary(projection, years);
+            renderChart(projection, years);
+            renderTable(projection, years);
+            
+            // 6. Update Goal (uses the weighted rate)
+            updateGoalLogic(daily, weightedRate);
+        }
+
+        function calculateProjection(fundConfigs, maxYears) {
+            // We calculate month by month for smoother charts, but displayed by year
+            // Monthly Rate = (1+Annual)^(1/12) - 1 ?? Or simpler Annual/12?
+            // For simple calculators, Rate/12 is standard.
+            
+            const dataPoints = []; // Index 0 = Year 0
+            
+            // Initialize Year 0
+            let currentFundsFV = [0, 0, 0, 0]; 
+            
+            dataPoints.push({
+                year: 0,
+                fundsFV: [...currentFundsFV],
+                totalFV: 0,
+                totalPrincipal: 0
+            });
+
+            for (let y = 1; y <= maxYears; y++) {
+                let yearTotalPrincipal = 0;
+                
+                // Calculate FV for each fund independently
+                // FV = FV_prev * (1+r) + Annual_Contribution (End of period)
+                // Actually, let's use the annuity formula for precision on "Annual Contribution"
+                // But since we want the path, we iterate.
+                
+                fundConfigs.forEach((fund, idx) => {
+                    // P = Annual Contribution for this fund
+                    // r = Annual Rate
+                    // FV_new = (FV_old + P) * (1+r)? No, usually contributions happen throughout.
+                    // Simpler approximation: FV_end = FV_start * (1+r) + P * (1 + r/2) (Mid-year convention)
+                    // Or Monthly iteration. Let's do standard FV formula for year 'y' from scratch to be precise.
+                    
+                    const monthlyPmt = fund.annualShare / 12;
+                    const r_month = fund.rate / 12;
+                    const months = y * 12;
+                    
+                    // FV = Pmt * ((1+r)^n - 1) / r
+                    let fv = 0;
+                    if (fund.rate === 0) {
+                        fv = monthlyPmt * months;
+                    } else {
+                        fv = monthlyPmt * ((Math.pow(1 + r_month, months) - 1) / r_month);
+                    }
+                    
+                    currentFundsFV[idx] = fv;
+                });
+
+                const totalPrincipal = (dailyInput.value * TRADING_DAYS_PER_YEAR) * y;
+                const totalFV = currentFundsFV.reduce((a, b) => a + b, 0);
+
+                dataPoints.push({
+                    year: y,
+                    fundsFV: [...currentFundsFV],
+                    totalFV: totalFV,
+                    totalPrincipal: totalPrincipal
+                });
+            }
+            
+            return dataPoints;
+        }
+
+        function renderSummary(data, year) {
+            const final = data[data.length - 1];
+            finalAssets.textContent = formatCurrency(final.totalFV);
+            finalPrincipal.textContent = formatCurrency(final.totalPrincipal);
+            finalProfit.textContent = "+" + formatCurrency(final.totalFV - final.totalPrincipal);
+            
+            const yieldRate = final.totalPrincipal > 0 
+                ? ((final.totalFV - final.totalPrincipal) / final.totalPrincipal * 100) 
+                : 0;
+            finalYield.textContent = yieldRate.toFixed(2) + "%";
+            
+            if (yieldRate > 0) finalYield.className = "font-bold text-red-300";
+            else finalYield.className = "font-bold text-gray-200";
+        }
+
+        function renderChart(data, maxYears) {
+            const labels = data.map(d => d.year + '年');
+            const totalData = data.map(d => d.totalFV);
+            const principalData = data.map(d => d.totalPrincipal);
+            
+            // Datasets for individual funds (Optional: Stacked area or just lines)
+            // Let's do Stacked Area to show composition
+            const ds0 = data.map(d => d.fundsFV[0]);
+            const ds1 = data.map(d => d.fundsFV[1]);
+            const ds2 = data.map(d => d.fundsFV[2]);
+            const ds3 = data.map(d => d.fundsFV[3]);
+
+            if (chartInstance) chartInstance.destroy();
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '本金投入',
+                            data: principalData,
+                            borderColor: '#94a3b8',
+                            borderDash: [5, 5],
+                            borderWidth: 2,
+                            pointRadius: 0,
+                            fill: false,
+                            order: 0
+                        },
+                        {
+                            label: '组合总资产',
+                            data: totalData,
+                            borderColor: '#4f46e5', // Indigo
+                            borderWidth: 3,
+                            backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 0,
+                            pointHoverRadius: 6,
+                            order: 1
+                        },
+                        // Hidden individual lines for tooltip info mostly, or we can show them
+                        { label: funds[0].name, data: ds0, borderColor: funds[0].color, borderWidth: 1, hidden: true },
+                        { label: funds[1].name, data: ds1, borderColor: funds[1].color, borderWidth: 1, hidden: true },
+                        { label: funds[2].name, data: ds2, borderColor: funds[2].color, borderWidth: 1, hidden: true },
+                        { label: funds[3].name, data: ds3, borderColor: funds[3].color, borderWidth: 1, hidden: true }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ": " + formatCompact(context.parsed.y);
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            ticks: { callback: val => formatCompact(val) }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTable(data, maxYears) {
+            detailTableBody.innerHTML = '';
+            // Filter to show sensible rows (not every year if 50 years)
+            // Always show 1-5, then every 5
+            const rowsToShow = data.filter(d => d.year <= 5 || d.year % 5 === 0 || d.year === maxYears);
+            
+            rowsToShow.forEach(row => {
+                if (row.year === 0) return;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="px-4 py-2 font-medium text-gray-900">第 ${row.year} 年</td>
+                    <td class="px-4 py-2 text-right text-gray-500 font-mono">${formatCurrency(row.totalPrincipal)}</td>
+                    <td class="px-4 py-2 text-right font-bold text-gray-800 bg-gray-50 font-mono">${formatCurrency(row.totalFV)}</td>
+                    <td class="px-4 py-2 text-right text-blue-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[0])}</td>
+                    <td class="px-4 py-2 text-right text-emerald-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[1])}</td>
+                    <td class="px-4 py-2 text-right text-red-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[2])}</td>
+                    <td class="px-4 py-2 text-right text-orange-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[3])}</td>
+                `;
+                detailTableBody.appendChild(tr);
+            });
+        }
+
+        // Goal Logic
+        function updateGoalOnly() {
+            // Triggered when only goal amount changes, no need to recalc whole projection
+            const daily = parseFloat(dailyInput.value) || 0;
+            const weightedRateStr = weightedRateEl.textContent.replace('%', '');
+            const weightedRate = parseFloat(weightedRateStr) / 100;
+            updateGoalLogic(daily, weightedRate);
+        }
+
+        function updateGoalLogic(daily, weightedRate) {
+            const goal = parseFloat(goalAmountInput.value) || 0;
+            goalRateDisplay.textContent = (weightedRate * 100).toFixed(2) + "%";
+            
+            if (daily <= 0 || goal <= 0) {
+                goalYearsEl.textContent = "-- 年";
+                return;
+            }
+            
+            // Total Annual Contribution
+            const P_annual = daily * TRADING_DAYS_PER_YEAR;
+            const P_monthly = P_annual / 12;
+            const r_monthly = weightedRate / 12;
+
+            // n = ln(FV*r/P + 1) / ln(1+r)
+            let years = 0;
+            if (weightedRate === 0) {
+                years = goal / P_annual;
+            } else {
+                const months = Math.log((goal * r_monthly / P_monthly) + 1) / Math.log(1 + r_monthly);
+                years = months / 12;
+            }
+            
+            if (!isFinite(years)) goalYearsEl.textContent = "∞";
+            else if (years > 100) goalYearsEl.textContent = ">100 年";
+            else goalYearsEl.textContent = years.toFixed(1) + " 年";
+        }
+
+        // --- Formatters ---
+        function formatCurrency(num) {
+            return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(num);
+        }
+        function formatCompact(num) {
+            if (num >= 100000000) return (num / 100000000).toFixed(2) + '亿';
+            if (num >= 10000) return (num / 10000).toFixed(1) + '万';
+            return num.toFixed(0);
+        }
+
+    </script>
+</body>
+</html>
