@@ -3,624 +3,324 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多基金定投组合推演计算器</title>
-    <!-- Tailwind CSS -->
+    <title>我们的恋爱抽卡机 💖</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
     <style>
         body {
-            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f8fafc;
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #fdf2f8; /* Tailwind pink-50 */
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow-x: hidden;
         }
-        .card {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+        /* Card Flip Animation */
+        .perspective-1000 {
+            perspective: 1000px;
         }
-        .fund-row {
-            transition: background-color 0.2s;
+        .transform-style-3d {
+            transform-style: preserve-3d;
         }
-        .fund-row:hover {
-            background-color: #f8fafc;
+        .backface-hidden {
+            backface-visibility: hidden;
         }
-        .input-highlight:focus {
-            ring: 2px solid #6366f1;
-            border-color: #6366f1;
+        .rotate-y-180 {
+            transform: rotateY(180deg);
+        }
+        .card-transition {
+            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
+        }
+
+        /* Floating Animation */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+
+        /* Toast Animation */
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        .toast-animate {
+            animation: slideUpFade 3s forwards;
         }
     </style>
 </head>
-<body class="text-gray-800 pb-12">
+<body class="min-h-screen flex flex-col items-center justify-center py-10 px-4">
 
-    <div class="max-w-6xl mx-auto p-4 md:p-8">
-        
-        <!-- Header -->
-        <header class="mb-6 text-center">
-            <h1 class="text-3xl font-bold text-slate-800 mb-2">
-                <i class="fa-solid fa-layer-group mr-2 text-indigo-600"></i>基金组合定投推演
-            </h1>
-            <p class="text-gray-500 text-sm">日定投复利计算 · 多资产配置模型</p>
-        </header>
+    <header class="text-center mb-8 max-w-md animate-float">
+        <h1 class="text-3xl md:text-4xl font-bold text-rose-500 mb-2 drop-shadow-sm">
+            💌 我们的心动盲盒
+        </h1>
+        <p class="text-rose-400 text-sm md:text-base">
+            不知道聊什么？点击抽卡，解锁今天的专属任务！
+        </p>
+    </header>
 
-        <!-- Main Configuration Section -->
-        <div class="card p-6 mb-6 border-t-4 border-indigo-500">
-            <div class="flex justify-between items-center mb-4 border-b pb-2">
-                <h2 class="text-lg font-bold text-gray-800">
-                    <i class="fa-solid fa-sliders mr-2 text-indigo-500"></i>定投配置
-                </h2>
-                <div class="text-xs bg-yellow-50 text-yellow-700 px-3 py-1 rounded-full border border-yellow-200">
-                    <i class="fa-solid fa-circle-info mr-1"></i> 按每年 250 个交易日计算
+    <main class="w-full max-w-sm flex flex-col items-center">
+        <!-- Card Container -->
+        <div class="relative w-72 h-96 cursor-pointer perspective-1000 group" id="cardContainer" onclick="drawCard()">
+            <div id="cardInner" class="w-full h-full relative transform-style-3d card-transition shadow-xl rounded-2xl">
+                
+                <!-- Front of Card (Cover) -->
+                <div class="absolute w-full h-full bg-gradient-to-br from-rose-300 to-pink-400 rounded-2xl backface-hidden flex flex-col items-center justify-center border-4 border-white border-opacity-50">
+                    <div class="text-6xl mb-4">🎁</div>
+                    <h2 class="text-white text-2xl font-bold tracking-widest">点击抽取</h2>
+                    <p class="text-pink-100 text-sm mt-2">100件恋爱小事</p>
                 </div>
-            </div>
-            
-            <!-- Global Settings -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 bg-slate-50 p-4 rounded-lg">
-                <!-- Daily Amount -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">日定投总金额 (元)</label>
-                    <div class="relative rounded-md shadow-sm">
-                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                            <span class="text-gray-500 font-bold">¥</span>
-                        </div>
-                        <input type="number" id="dailyInput" value="100" step="10"
-                            class="block w-full rounded-md border-gray-300 pl-8 pr-4 py-2 text-lg border focus:ring-indigo-500 focus:border-indigo-500" 
-                            placeholder="100">
+
+                <!-- Back of Card (Result) -->
+                <div class="absolute w-full h-full bg-white rounded-2xl backface-hidden rotate-y-180 flex flex-col items-center justify-between p-6 border-4 border-rose-200">
+                    <div class="text-center w-full">
+                        <span id="cardCategory" class="inline-block px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold mb-4">
+                            类别
+                        </span>
+                        <div id="cardEmoji" class="text-5xl mb-4 mt-2">✨</div>
                     </div>
-                    <div class="text-xs text-gray-500 mt-1">
-                        ≈ 月投 <span id="monthlyEst">2166</span> 元 | 年投 <span id="annualEst">25000</span> 元
+                    
+                    <div class="flex-grow flex items-center justify-center">
+                        <p id="cardText" class="text-gray-700 text-lg font-medium text-center leading-relaxed">
+                            任务内容将在这里显示...
+                        </p>
                     </div>
-                </div>
 
-                <!-- Investment Years -->
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">计划坚持年数</label>
-                    <div class="relative rounded-md shadow-sm">
-                        <input type="number" id="yearsInput" value="10" min="1" max="50"
-                            class="block w-full rounded-md border-gray-300 px-4 py-2 text-lg border focus:ring-indigo-500 focus:border-indigo-500" 
-                            placeholder="10">
-                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                            <span class="text-gray-500">年</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Fund Allocation Grid -->
-            <div class="overflow-x-auto">
-                <table class="min-w-full text-sm text-left text-gray-500">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-100">
-                        <tr>
-                            <th scope="col" class="px-4 py-3 rounded-tl-lg">基金名称 / 代码</th>
-                            <th scope="col" class="px-4 py-3 w-32">定投比例 (%)</th>
-                            <th scope="col" class="px-4 py-3 w-32">每日投入 (元)</th>
-                            <th scope="col" class="px-4 py-3 w-32 rounded-tr-lg">预期年化 (%)</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-gray-200">
-                        <!-- Fund 1 -->
-                        <tr class="fund-row bg-white">
-                            <td class="px-4 py-3 font-medium text-gray-900">
-                                <div class="flex items-center">
-                                    <span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>
-                                    <div>
-                                        <div class="text-base font-bold">广发纳斯达克100ETF</div>
-                                        <div class="text-xs text-gray-400">270042 · 科技成长</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-blue-500 outline-none" 
-                                    data-idx="0" value="40">
-                            </td>
-                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-0">--</td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-blue-600 font-bold bg-blue-50 focus:border-blue-500 outline-none" 
-                                    data-idx="0" value="15">
-                            </td>
-                        </tr>
-                        <!-- Fund 2 -->
-                        <tr class="fund-row bg-white">
-                            <td class="px-4 py-3 font-medium text-gray-900">
-                                <div class="flex items-center">
-                                    <span class="w-3 h-3 rounded-full bg-emerald-500 mr-2"></span>
-                                    <div>
-                                        <div class="text-base font-bold">易方达恒生红利低波</div>
-                                        <div class="text-xs text-gray-400">021457 · 港股收息</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-emerald-500 outline-none" 
-                                    data-idx="1" value="20">
-                            </td>
-                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-1">--</td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-emerald-600 font-bold bg-emerald-50 focus:border-emerald-500 outline-none" 
-                                    data-idx="1" value="8">
-                            </td>
-                        </tr>
-                        <!-- Fund 3 -->
-                        <tr class="fund-row bg-white">
-                            <td class="px-4 py-3 font-medium text-gray-900">
-                                <div class="flex items-center">
-                                    <span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>
-                                    <div>
-                                        <div class="text-base font-bold">易方达中证A500ETF</div>
-                                        <div class="text-xs text-gray-400">022459 · A股核心</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-red-500 outline-none" 
-                                    data-idx="2" value="20">
-                            </td>
-                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-2">--</td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-red-600 font-bold bg-red-50 focus:border-red-500 outline-none" 
-                                    data-idx="2" value="10">
-                            </td>
-                        </tr>
-                        <!-- Fund 4 -->
-                        <tr class="fund-row bg-white">
-                            <td class="px-4 py-3 font-medium text-gray-900">
-                                <div class="flex items-center">
-                                    <span class="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>
-                                    <div>
-                                        <div class="text-base font-bold">摩根标普500</div>
-                                        <div class="text-xs text-gray-400">017641 · 美股稳健</div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-percent w-full p-2 border rounded text-center focus:border-orange-500 outline-none" 
-                                    data-idx="3" value="20">
-                            </td>
-                            <td class="px-4 py-3 font-mono text-gray-900 font-bold" id="amount-3">--</td>
-                            <td class="px-4 py-3">
-                                <input type="number" class="fund-rate w-full p-2 border rounded text-center text-orange-600 font-bold bg-orange-50 focus:border-orange-500 outline-none" 
-                                    data-idx="3" value="12">
-                            </td>
-                        </tr>
-                    </tbody>
-                    <tfoot class="bg-gray-50 font-bold text-gray-900">
-                        <tr>
-                            <td class="px-4 py-3 text-right">合计</td>
-                            <td class="px-4 py-3 text-center">
-                                <span id="totalPercent" class="text-green-600">100</span>%
-                            </td>
-                            <td class="px-4 py-3 font-mono" id="totalDailyCheck">--</td>
-                            <td class="px-4 py-3 text-center text-xs font-normal text-gray-500">
-                                组合加权年化: <span id="weightedRate" class="font-bold text-indigo-600 text-sm">--%</span>
-                            </td>
-                        </tr>
-                    </tfoot>
-                </table>
-            </div>
-            <div id="percentWarning" class="hidden mt-2 text-xs text-red-500 font-bold text-center">
-                <i class="fa-solid fa-triangle-exclamation"></i> 警告：定投比例之和不等于 100%，请调整。
-            </div>
-        </div>
-
-        <!-- Dashboard / Results -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            <!-- Left: Big Summary Card -->
-            <div class="card p-6 bg-gradient-to-br from-indigo-600 to-purple-700 text-white flex flex-col justify-center">
-                <div class="text-indigo-200 text-sm font-medium mb-1">
-                    <span id="resultYearLabel">10</span> 年后资产预估
-                </div>
-                <div class="text-4xl md:text-5xl font-bold mb-4 tracking-tight" id="finalAssets">
-                    --
-                </div>
-                <div class="grid grid-cols-2 gap-4 border-t border-indigo-500/30 pt-4">
-                    <div>
-                        <div class="text-indigo-200 text-xs">累计投入本金</div>
-                        <div class="text-xl font-bold" id="finalPrincipal">--</div>
-                    </div>
-                    <div>
-                        <div class="text-indigo-200 text-xs">累计投资收益</div>
-                        <div class="text-xl font-bold text-green-300" id="finalProfit">--</div>
-                    </div>
-                </div>
-                <div class="mt-4 inline-block bg-white/10 rounded px-2 py-1 text-xs text-center">
-                    总收益率: <span id="finalYield" class="font-bold">--%</span>
-                </div>
-            </div>
-
-            <!-- Right: Chart -->
-            <div class="card p-4 lg:col-span-2">
-                <h3 class="text-sm font-bold text-gray-500 mb-2">资产增长曲线 (含各基金贡献)</h3>
-                <div class="relative h-[250px] w-full">
-                    <canvas id="portfolioChart"></canvas>
+                    <div class="text-gray-400 text-xs mt-4" id="cardNumber">#000</div>
                 </div>
             </div>
         </div>
 
-        <!-- Goal Calculator -->
-        <div class="card p-6 mb-8 border-l-4 border-emerald-500 bg-emerald-50/30">
-            <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                <i class="fa-solid fa-bullseye mr-2 text-emerald-600"></i> 财富目标反推
-            </h2>
-            <div class="flex flex-col md:flex-row items-center gap-4">
-                <div class="flex-grow w-full md:w-auto">
-                    <label class="text-xs text-gray-500 mb-1 block">设定目标金额 (元)</label>
-                    <div class="relative">
-                        <input type="number" id="goalAmount" value="1000000" class="block w-full rounded border-gray-300 py-2 pl-3 pr-10 text-emerald-800 font-bold focus:ring-emerald-500 focus:border-emerald-500" placeholder="1000000">
-                    </div>
-                </div>
-                <div class="hidden md:block text-gray-400 text-2xl">→</div>
-                <div class="bg-white p-3 rounded shadow-sm border border-emerald-100 flex-1 w-full text-center">
-                    <div class="text-xs text-gray-500">按当前组合 (<span id="goalRateDisplay">--%</span>) 需坚持</div>
-                    <div class="text-2xl font-bold text-emerald-600" id="goalYears">-- 年</div>
-                </div>
-            </div>
+        <!-- Actions -->
+        <div class="mt-8 flex gap-4 opacity-0 transition-opacity duration-500" id="actionButtons">
+            <button onclick="resetCard()" class="px-6 py-3 bg-white text-rose-500 font-bold rounded-full shadow-md hover:bg-rose-50 transition-colors border border-rose-100">
+                再抽一次
+            </button>
+            <button onclick="copyTask()" class="px-6 py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold rounded-full shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
+                复制发给亲彦 💬
+            </button>
         </div>
+    </main>
 
-        <!-- Detailed Table -->
-        <div class="card overflow-hidden">
-            <div class="p-4 border-b border-gray-200 bg-gray-50">
-                <h3 class="font-bold text-gray-700">年度资产明细表</h3>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200 text-sm">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-2 text-left font-medium text-gray-500">年份</th>
-                            <th class="px-4 py-2 text-right font-medium text-gray-500">累计本金</th>
-                            <th class="px-4 py-2 text-right font-bold text-gray-800 bg-gray-200/50">组合总资产</th>
-                            <th class="px-4 py-2 text-right font-medium text-blue-600 hidden md:table-cell">纳指100</th>
-                            <th class="px-4 py-2 text-right font-medium text-emerald-600 hidden md:table-cell">恒生红利</th>
-                            <th class="px-4 py-2 text-right font-medium text-red-600 hidden md:table-cell">中证A500</th>
-                            <th class="px-4 py-2 text-right font-medium text-orange-600 hidden md:table-cell">标普500</th>
-                        </tr>
-                    </thead>
-                    <tbody id="detailTableBody" class="divide-y divide-gray-200 bg-white">
-                        <!-- JS Generated -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
+    <!-- Custom Toast Message -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50">
+        复制成功！快去发给他吧~
     </div>
 
+    <!-- Hidden input for clipboard fallback -->
+    <input type="text" id="clipboardInput" class="hidden absolute -left-9999">
+
     <script>
-        // --- Configuration ---
-        const TRADING_DAYS_PER_YEAR = 250;
-        
-        // Fund Metadata
-        const funds = [
-            { name: "广发纳斯达克100", color: "#3b82f6", bg: "rgba(59, 130, 246, 0.1)" }, // Blue
-            { name: "易方达恒生红利", color: "#10b981", bg: "rgba(16, 185, 129, 0.1)" }, // Emerald
-            { name: "易方达中证A500", color: "#ef4444", bg: "rgba(239, 68, 68, 0.1)" }, // Red
-            { name: "摩根标普500", color: "#f97316", bg: "rgba(249, 115, 22, 0.1)" }   // Orange
+        // The 100 romantic tasks
+        const tasks = [
+            // 一、 刷存在感：日常分享与互动
+            { id: 1, category: "日常分享", emoji: "☀️", text: "互道专属的“早安”和“晚安”，让对方成为一天开头和结尾的人。" },
+            { id: 2, category: "日常分享", emoji: "🍱", text: "拍下每天的第一顿饭发给对方看。" },
+            { id: 3, category: "日常分享", emoji: "☁️", text: "看到形状奇特或好看的云彩，随手拍下发过去。" },
+            { id: 4, category: "日常分享", emoji: "💧", text: "互相汇报今天喝了几杯水，互相监督健康。" },
+            { id: 5, category: "日常分享", emoji: "🎵", text: "分享今天听到的一首最喜欢的歌。" },
+            { id: 6, category: "日常分享", emoji: "😆", text: "在网上看到超级好笑的段子或搞笑视频，第一时间转发给对方。" },
+            { id: 7, category: "日常分享", emoji: "📱", text: "截屏分享自己手机目前的壁纸，并说说为什么选这张。" },
+            { id: 8, category: "日常分享", emoji: "🤦‍♀️", text: "吐槽今天遇到的一个倒霉或尴尬的小瞬间。" },
+            { id: 9, category: "日常分享", emoji: "👣", text: "晚上互发今天的微信步数排行榜，看谁走得多。" },
+            { id: 10, category: "日常分享", emoji: "🍫", text: "用文字交换一份自己最爱的“零食红黑榜”。" },
+            { id: 11, category: "日常分享", emoji: "💻", text: "拍下自己书桌、电脑桌面或工作台的现状。" },
+            { id: 12, category: "日常分享", emoji: "💎", text: "互相推荐一个自己手机里觉得最好用的冷门App。" },
+            { id: 13, category: "日常分享", emoji: "💭", text: "醒来后聊聊昨晚有没有做梦，梦到了什么。" },
+            { id: 14, category: "日常分享", emoji: "🧩", text: "只用Emoji表情拼一段话，让对方猜是什么意思。" },
+            { id: 15, category: "日常分享", emoji: "📖", text: "分享今天在书上或网上看到的一句很有感触的句子。" },
+            { id: 16, category: "日常分享", emoji: "👶", text: "互相发一张自己小时候最逗的一张照片。" },
+            { id: 17, category: "日常分享", emoji: "👟", text: "拍一段自己走在路上、只拍自己脚下的“第一视角”小视频。" },
+            { id: 18, category: "日常分享", emoji: "😊", text: "睡前聊聊今天最开心的一件小事是什么。" },
+            { id: 19, category: "日常分享", emoji: "🎬", text: "互相分享自己最近在追的一部剧或动漫。" },
+            { id: 20, category: "日常分享", emoji: "🔥", text: "互相发自己收藏夹里最搞笑的一组表情包来“斗图”。" },
+
+            // 二、 趣味培养：文字游戏与默契测试
+            { id: 21, category: "趣味游戏", emoji: "🤐", text: "玩文字版的“真心话大冒险”（大冒险可以是发一张搞怪自拍）。" },
+            { id: 22, category: "趣味游戏", emoji: "🎨", text: "玩“你画我猜”（用手机自带的画图工具画完发图片，让对方猜）。" },
+            { id: 23, category: "趣味游戏", emoji: "⚡", text: "进行“快问快答”测试（比如：甜豆腐脑还是咸豆腐脑？）。" },
+            { id: 24, category: "趣味游戏", emoji: "👻", text: "互相给对方起3个专属的奇怪昵称，并轮流叫着玩。" },
+            { id: 25, category: "趣味游戏", emoji: "🔗", text: "玩线上成语接龙，或者拼音首字母接龙。" },
+            { id: 26, category: "趣味游戏", emoji: "💰", text: "聊聊“如果你中了500万，你会怎么花”的脑洞题。" },
+            { id: 27, category: "趣味游戏", emoji: "🎒", text: "假设末日来临，讨论你们各自逃生会带哪三样东西。" },
+            { id: 28, category: "趣味游戏", emoji: "🎲", text: "用微信自带的“掷骰子”或“猜拳”表情决定今天谁先找话题。" },
+            { id: 29, category: "趣味游戏", emoji: "❓", text: "互相出3道关于自己的单选题，看对方能不能猜对。" },
+            { id: 30, category: "趣味游戏", emoji: "🎧", text: "一起建立一个属于你们俩的“共同歌单”。" },
+            { id: 31, category: "趣味游戏", emoji: "🧘", text: "互相凭空推测对方此刻的坐姿或表情，看谁猜得准。" },
+            { id: 32, category: "趣味游戏", emoji: "🙅‍♂️", text: "玩“我从来没有过……”游戏。" },
+            { id: 33, category: "趣味游戏", emoji: "🤫", text: "约定一个只有你们俩懂的“暗号”（比如发个特定表情代表想你）。" },
+            { id: 34, category: "趣味游戏", emoji: "✍️", text: "尝试用对方的名字作一首搞笑的打油诗。" },
+            { id: 35, category: "趣味游戏", emoji: "♈", text: "互相分享自己生肖或星座的性格解析，讨论准不准。" },
+            { id: 36, category: "趣味游戏", emoji: "⚖️", text: "玩极端的“二选一”游戏（比如：一辈子不吃肉 vs 不吃糖）。" },
+            { id: 37, category: "趣味游戏", emoji: "🛋️", text: "用文字详细描述自己最理想的周末应该怎么度过。" },
+            { id: 38, category: "趣味游戏", emoji: "🙈", text: "交换彼此觉得最好笑的一个童年糗事。" },
+            { id: 39, category: "趣味游戏", emoji: "🖼️", text: "互相给对方挑选一张微信头像，并强制对方换上一天。" },
+            { id: 40, category: "趣味游戏", emoji: "🦸‍♂️", text: "聊聊如果可以拥有一个超能力，最想要什么以及为什么。" },
+
+            // 三、 异地同频：制造“云约会”的浪漫
+            { id: 41, category: "云约会", emoji: "🍿", text: "约定同一时间看同一部电影，边看边用文字疯狂吐槽剧情。" },
+            { id: 42, category: "云约会", emoji: "🍗", text: "晚上同时点一份相同口味的外卖，假装在同一张餐桌。" },
+            { id: 43, category: "云约会", emoji: "🎯", text: "设定一个共同的短期目标（如背单词），每天互相打卡。" },
+            { id: 44, category: "云约会", emoji: "🐾", text: "下载带有情侣互动小游戏的App，一起养一只“电子宠物”。" },
+            { id: 45, category: "云约会", emoji: "🛌", text: "约定今晚绝不熬夜，同一时间发“晚安”然后放下手机睡觉。" },
+            { id: 46, category: "云约会", emoji: "🎮", text: "找一个两人都可以玩的小游戏（比如五子棋），互加好友对战。" },
+            { id: 47, category: "云约会", emoji: "🗺️", text: "在地图上搜索对方的城市，互相介绍自己常去的地方。" },
+            { id: 48, category: "云约会", emoji: "🎤", text: "一起看同一场晚会直播，在文字框里当对方的观众。" },
+            { id: 49, category: "云约会", emoji: "🚶‍♀️", text: "约定每天同一时间去散步，边走边发文字分享路上的风景。" },
+            { id: 50, category: "云约会", emoji: "📚", text: "一起看同一本小说或漫画，每天分享最新一话的感受。" },
+            { id: 51, category: "云约会", emoji: "👕", text: "互相在淘宝上给对方挑一件衣服（只发链接，看眼光）。" },
+            { id: 52, category: "云约会", emoji: "🌅", text: "同时去看各自城市的日落，拍下来发给对方。" },
+            { id: 53, category: "云约会", emoji: "🌍", text: "一起在B站上找一部高质量的纪录片同步观看。" },
+            { id: 54, category: "云约会", emoji: "🔐", text: "开通情侣空间，建立两人的专属小天地。" },
+            { id: 55, category: "云约会", emoji: "👏", text: "约定某天为“对方夸夸日”，这一天只能发赞美对方的话。" },
+            { id: 56, category: "云约会", emoji: "⛅", text: "每天互相分享所在城市的天气，提醒对方增减衣物。" },
+            { id: 57, category: "云约会", emoji: "🛒", text: "讨论如果一起去逛超市，购物车里必须要放的三样东西。" },
+            { id: 58, category: "云约会", emoji: "✈️", text: "虚拟规划一次未来的双人旅行路线（去哪吃、玩什么）。" },
+            { id: 59, category: "云约会", emoji: "🗣️", text: "互相教对方一句自己家乡的方言，用拼音打出来让对方读。" },
+            { id: 60, category: "云约会", emoji: "🧋", text: "约定一个星期都不喝奶茶或吃夜宵，互相监督。" },
+
+            // 四、 灵魂共鸣：深度沟通与情感建立
+            { id: 61, category: "深度沟通", emoji: "❤️‍🩹", text: "坦诚地聊一次：第一次谈恋爱，你内心最害怕或担心什么？" },
+            { id: 62, category: "深度沟通", emoji: "👀", text: "告诉对方，刚认识时对他的第一印象是什么，现在有什么改变。" },
+            { id: 63, category: "深度沟通", emoji: "🏆", text: "分享自己人生中觉得最骄傲、最有成就感的一瞬间。" },
+            { id: 64, category: "深度沟通", emoji: "👨‍👩‍👧‍👦", text: "聊聊彼此家庭里最有趣或者最古怪的一个亲戚。" },
+            { id: 65, category: "深度沟通", emoji: "🫂", text: "互相倾诉最近生活上的一个压力来源，并给对方安慰。" },
+            { id: 66, category: "深度沟通", emoji: "✨", text: "讨论你们各自对“完美爱情”的定义是什么样的。" },
+            { id: 67, category: "深度沟通", emoji: "👯", text: "聊聊彼此现实中最好的朋友是个什么样的人。" },
+            { id: 68, category: "深度沟通", emoji: "🥺", text: "坦白分享自己如果生气了，希望对方用什么方式哄。" },
+            { id: 69, category: "深度沟通", emoji: "💘", text: "告诉他，他身上的哪一个特质最吸引你。" },
+            { id: 70, category: "深度沟通", emoji: "🚀", text: "聊聊自己从小到大，一直没有放弃的一个梦想是什么。" },
+            { id: 71, category: "深度沟通", emoji: "🛑", text: "互相确认彼此的底线（比如：什么玩笑绝对不能开）。" },
+            { id: 72, category: "深度沟通", emoji: "🧊", text: "讨论一下，如果以后产生了误会或冷战，应该怎么破冰。" },
+            { id: 73, category: "深度沟通", emoji: "🥊", text: "聊聊如果心情极度糟糕，最想做什么事来发泄情绪。" },
+            { id: 74, category: "深度沟通", emoji: "💡", text: "分享一部曾经深刻改变过你某项认知的电影。" },
+            { id: 75, category: "深度沟通", emoji: "😌", text: "告诉对方，你觉得谈恋爱最舒服的状态是什么样的。" },
+            { id: 76, category: "深度沟通", emoji: "🤐", text: "互相分享一个自己从未告诉过别人的无伤大雅的小秘密。" },
+            { id: 77, category: "深度沟通", emoji: "💳", text: "聊聊彼此对金钱消费的看法（攒钱还是享受当下）。" },
+            { id: 78, category: "深度沟通", emoji: "☕", text: "谈谈如果你有一整天空闲，没任何人打扰，你会怎么安排。" },
+            { id: 79, category: "深度沟通", emoji: "💌", text: "感谢对方这段时间的陪伴，说出具体因为哪件小事觉得暖心。" },
+            { id: 80, category: "深度沟通", emoji: "📝", text: "互相写一封几百字的小短信，正式表达心意。" },
+
+            // 五、 慢慢突破文字，建立真实感
+            { id: 81, category: "真实触感", emoji: "🎙️", text: "尝试在早晨发一条3秒钟的短语音说“早安”。" },
+            { id: 82, category: "真实触感", emoji: "🍂", text: "录下自己走路时踩在树叶上的声音，或环境白噪音发给对方。" },
+            { id: 83, category: "真实触感", emoji: "🐈", text: "拍一段自己逗流浪猫或小狗的短视频发给对方。" },
+            { id: 84, category: "真实触感", emoji: "✒️", text: "手写一句简短的日常问候，拍照发给他。" },
+            { id: 85, category: "真实触感", emoji: "🗣️", text: "打字累的时候，尝试不用文字，改用语音输入法发信息。" },
+            { id: 86, category: "真实触感", emoji: "🎮", text: "约着打一局需要开麦交流的游戏，听听彼此的声音。" },
+            { id: 87, category: "真实触感", emoji: "🌙", text: "睡前互相发一段轻柔的语音“晚安，好梦”。" },
+            { id: 88, category: "真实触感", emoji: "🎤", text: "互相发一段自己清唱的歌的语音（跑调也没关系）。" },
+            { id: 89, category: "真实触感", emoji: "😂", text: "遇到好笑的事，不要打“哈哈哈”，直接发语音笑给对方听。" },
+            { id: 90, category: "真实触感", emoji: "📞", text: "尝试在周末进行一次5分钟的简短语音通话，随便聊两句。" },
+            { id: 91, category: "真实触感", emoji: "📮", text: "如果愿意，互相邮寄一张明信片到对方城市的快递代收点。" },
+            { id: 92, category: "真实触感", emoji: "🎶", text: "互加音乐App的好友，查看对方平时的听歌动态。" },
+            { id: 93, category: "真实触感", emoji: "🥤", text: "给对方点一次惊喜外卖（如奶茶，前提是愿意分享地址）。" },
+            { id: 94, category: "真实触感", emoji: "📱", text: "做好心理准备后，尝试一次短暂的视频通话（可开特效）。" },
+            { id: 95, category: "真实触感", emoji: "🎧", text: "语音通话时一起听一首歌，不说话，只感受对方的陪伴。" },
+            { id: 96, category: "真实触感", emoji: "📻", text: "互相给对方朗读一段喜欢的文章发语音，假装电台主播。" },
+            { id: 97, category: "真实触感", emoji: "🧸", text: "尝试在对方失眠的时候，打语音电话讲无聊的睡前故事。" },
+            { id: 98, category: "真实触感", emoji: "🎁", text: "互送一份不贵重但很有心意的小礼物（如钥匙扣）。" },
+            { id: 99, category: "真实触感", emoji: "🤝", text: "一起讨论如果未来能在现实中见面，第一件要做的事是什么。" },
+            { id: 100, category: "真实触感", emoji: "💖", text: "勇敢地打字告诉他：“虽然我们都是第一次谈恋爱，但我很高兴遇到的是你。”" }
         ];
 
-        // --- DOM Elements ---
-        const dailyInput = document.getElementById('dailyInput');
-        const yearsInput = document.getElementById('yearsInput');
-        const monthlyEst = document.getElementById('monthlyEst');
-        const annualEst = document.getElementById('annualEst');
-        
-        const percentInputs = document.querySelectorAll('.fund-percent');
-        const rateInputs = document.querySelectorAll('.fund-rate');
-        
-        const totalPercentEl = document.getElementById('totalPercent');
-        const percentWarning = document.getElementById('percentWarning');
-        const totalDailyCheck = document.getElementById('totalDailyCheck');
-        const weightedRateEl = document.getElementById('weightedRate');
-        
-        // Results
-        const resultYearLabel = document.getElementById('resultYearLabel');
-        const finalAssets = document.getElementById('finalAssets');
-        const finalPrincipal = document.getElementById('finalPrincipal');
-        const finalProfit = document.getElementById('finalProfit');
-        const finalYield = document.getElementById('finalYield');
-        
-        // Goal
-        const goalAmountInput = document.getElementById('goalAmount');
-        const goalYearsEl = document.getElementById('goalYears');
-        const goalRateDisplay = document.getElementById('goalRateDisplay');
-        
-        // Table & Chart
-        const detailTableBody = document.getElementById('detailTableBody');
-        const ctx = document.getElementById('portfolioChart').getContext('2d');
-        let chartInstance = null;
+        let isFlipped = false;
+        let currentTaskText = "";
+        let isAnimating = false;
 
-        // --- Initialization ---
-        document.addEventListener('DOMContentLoaded', updateAll);
-        
-        // Listeners
-        dailyInput.addEventListener('input', updateAll);
-        yearsInput.addEventListener('input', updateAll);
-        goalAmountInput.addEventListener('input', updateGoalOnly);
-        
-        percentInputs.forEach(input => input.addEventListener('input', updateAll));
-        rateInputs.forEach(input => input.addEventListener('input', updateAll));
+        function drawCard() {
+            if (isAnimating || isFlipped) return; // Prevent multiple clicks during animation
+            isAnimating = true;
 
-        // --- Logic ---
+            // Pick a random task
+            const randomIndex = Math.floor(Math.random() * tasks.length);
+            const task = tasks[randomIndex];
+            currentTaskText = task.text; // Store for copying
 
-        function updateAll() {
-            // 1. Basic Inputs
-            const daily = parseFloat(dailyInput.value) || 0;
-            const years = parseInt(yearsInput.value) || 10;
+            // Update DOM elements (hidden side)
+            document.getElementById('cardCategory').innerText = task.category;
+            document.getElementById('cardEmoji').innerText = task.emoji;
+            document.getElementById('cardText').innerText = task.text;
+            document.getElementById('cardNumber').innerText = `#${task.id.toString().padStart(3, '0')}`;
+
+            // Flip the card
+            const cardInner = document.getElementById('cardInner');
+            cardInner.classList.add('rotate-y-180');
+            isFlipped = true;
+
+            // Show action buttons after flip animation
+            setTimeout(() => {
+                document.getElementById('actionButtons').classList.remove('opacity-0');
+                isAnimating = false;
+            }, 600);
+        }
+
+        function resetCard() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            // Hide action buttons
+            document.getElementById('actionButtons').classList.add('opacity-0');
+
+            // Flip back
+            const cardInner = document.getElementById('cardInner');
+            cardInner.classList.remove('rotate-y-180');
             
-            // Estimates
-            const annual = daily * TRADING_DAYS_PER_YEAR;
-            monthlyEst.textContent = (annual / 12).toFixed(0);
-            annualEst.textContent = (annual).toFixed(0);
-            resultYearLabel.textContent = years;
+            setTimeout(() => {
+                isFlipped = false;
+                isAnimating = false;
+            }, 600);
+        }
 
-            // 2. Fund Config Parsing
-            let totalPct = 0;
-            const fundConfigs = [];
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.innerText = message;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-animate');
             
-            percentInputs.forEach((input, idx) => {
-                const pct = parseFloat(input.value) || 0;
-                const rate = parseFloat(rateInputs[idx].value) || 0;
-                totalPct += pct;
-                
-                // Update row daily amount display
-                const dailyShare = daily * (pct / 100);
-                document.getElementById(`amount-${idx}`).textContent = dailyShare.toFixed(1);
-                
-                fundConfigs.push({
-                    pct: pct / 100,
-                    rate: rate / 100,
-                    dailyShare: dailyShare,
-                    annualShare: dailyShare * TRADING_DAYS_PER_YEAR
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-animate');
+            }, 3000);
+        }
+
+        function copyTask() {
+            const textToCopy = `【今日心动任务】\n${currentTaskText}\n\n—— 亲彦，这是我们今天要一起做的事哦！`;
+            
+            // Try modern clipboard API first
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showToast("复制成功！快去发给他吧~");
+                }).catch(() => {
+                    fallbackCopyTextToClipboard(textToCopy);
                 });
-            });
-
-            // 3. Validation & UI Updates
-            totalPercentEl.textContent = totalPct.toFixed(1);
-            totalDailyCheck.textContent = daily.toFixed(1); // Sum check
-            
-            if (Math.abs(totalPct - 100) > 0.1) {
-                totalPercentEl.classList.remove('text-green-600');
-                totalPercentEl.classList.add('text-red-600');
-                percentWarning.classList.remove('hidden');
             } else {
-                totalPercentEl.classList.add('text-green-600');
-                totalPercentEl.classList.remove('text-red-600');
-                percentWarning.classList.add('hidden');
+                // Fallback for older browsers or iframes without clipboard permissions
+                fallbackCopyTextToClipboard(textToCopy);
             }
-
-            // Weighted Rate Calculation
-            const weightedRate = fundConfigs.reduce((acc, curr) => acc + (curr.rate * curr.pct), 0);
-            weightedRateEl.textContent = (weightedRate * 100).toFixed(2) + "%";
-
-            // 4. Projection Calculation
-            const projection = calculateProjection(fundConfigs, years);
-            
-            // 5. Render Results
-            renderSummary(projection, years);
-            renderChart(projection, years);
-            renderTable(projection, years);
-            
-            // 6. Update Goal (uses the weighted rate)
-            updateGoalLogic(daily, weightedRate);
         }
 
-        function calculateProjection(fundConfigs, maxYears) {
-            // We calculate month by month for smoother charts, but displayed by year
-            // Monthly Rate = (1+Annual)^(1/12) - 1 ?? Or simpler Annual/12?
-            // For simple calculators, Rate/12 is standard.
-            
-            const dataPoints = []; // Index 0 = Year 0
-            
-            // Initialize Year 0
-            let currentFundsFV = [0, 0, 0, 0]; 
-            
-            dataPoints.push({
-                year: 0,
-                fundsFV: [...currentFundsFV],
-                totalFV: 0,
-                totalPrincipal: 0
-            });
-
-            for (let y = 1; y <= maxYears; y++) {
-                let yearTotalPrincipal = 0;
-                
-                // Calculate FV for each fund independently
-                // FV = FV_prev * (1+r) + Annual_Contribution (End of period)
-                // Actually, let's use the annuity formula for precision on "Annual Contribution"
-                // But since we want the path, we iterate.
-                
-                fundConfigs.forEach((fund, idx) => {
-                    // P = Annual Contribution for this fund
-                    // r = Annual Rate
-                    // FV_new = (FV_old + P) * (1+r)? No, usually contributions happen throughout.
-                    // Simpler approximation: FV_end = FV_start * (1+r) + P * (1 + r/2) (Mid-year convention)
-                    // Or Monthly iteration. Let's do standard FV formula for year 'y' from scratch to be precise.
-                    
-                    const monthlyPmt = fund.annualShare / 12;
-                    const r_month = fund.rate / 12;
-                    const months = y * 12;
-                    
-                    // FV = Pmt * ((1+r)^n - 1) / r
-                    let fv = 0;
-                    if (fund.rate === 0) {
-                        fv = monthlyPmt * months;
-                    } else {
-                        fv = monthlyPmt * ((Math.pow(1 + r_month, months) - 1) / r_month);
-                    }
-                    
-                    currentFundsFV[idx] = fv;
-                });
-
-                const totalPrincipal = (dailyInput.value * TRADING_DAYS_PER_YEAR) * y;
-                const totalFV = currentFundsFV.reduce((a, b) => a + b, 0);
-
-                dataPoints.push({
-                    year: y,
-                    fundsFV: [...currentFundsFV],
-                    totalFV: totalFV,
-                    totalPrincipal: totalPrincipal
-                });
+        function fallbackCopyTextToClipboard(text) {
+            const input = document.getElementById('clipboardInput');
+            input.value = text;
+            input.classList.remove('hidden');
+            input.select();
+            input.setSelectionRange(0, 99999); /* For mobile devices */
+            try {
+                document.execCommand('copy');
+                showToast("复制成功！快去发给他吧~");
+            } catch (err) {
+                showToast("复制失败，请手动截图~");
             }
-            
-            return dataPoints;
+            input.classList.add('hidden');
         }
-
-        function renderSummary(data, year) {
-            const final = data[data.length - 1];
-            finalAssets.textContent = formatCurrency(final.totalFV);
-            finalPrincipal.textContent = formatCurrency(final.totalPrincipal);
-            finalProfit.textContent = "+" + formatCurrency(final.totalFV - final.totalPrincipal);
-            
-            const yieldRate = final.totalPrincipal > 0 
-                ? ((final.totalFV - final.totalPrincipal) / final.totalPrincipal * 100) 
-                : 0;
-            finalYield.textContent = yieldRate.toFixed(2) + "%";
-            
-            if (yieldRate > 0) finalYield.className = "font-bold text-red-300";
-            else finalYield.className = "font-bold text-gray-200";
-        }
-
-        function renderChart(data, maxYears) {
-            const labels = data.map(d => d.year + '年');
-            const totalData = data.map(d => d.totalFV);
-            const principalData = data.map(d => d.totalPrincipal);
-            
-            // Datasets for individual funds (Optional: Stacked area or just lines)
-            // Let's do Stacked Area to show composition
-            const ds0 = data.map(d => d.fundsFV[0]);
-            const ds1 = data.map(d => d.fundsFV[1]);
-            const ds2 = data.map(d => d.fundsFV[2]);
-            const ds3 = data.map(d => d.fundsFV[3]);
-
-            if (chartInstance) chartInstance.destroy();
-
-            chartInstance = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: '本金投入',
-                            data: principalData,
-                            borderColor: '#94a3b8',
-                            borderDash: [5, 5],
-                            borderWidth: 2,
-                            pointRadius: 0,
-                            fill: false,
-                            order: 0
-                        },
-                        {
-                            label: '组合总资产',
-                            data: totalData,
-                            borderColor: '#4f46e5', // Indigo
-                            borderWidth: 3,
-                            backgroundColor: 'rgba(79, 70, 229, 0.05)',
-                            fill: true,
-                            tension: 0.4,
-                            pointRadius: 0,
-                            pointHoverRadius: 6,
-                            order: 1
-                        },
-                        // Hidden individual lines for tooltip info mostly, or we can show them
-                        { label: funds[0].name, data: ds0, borderColor: funds[0].color, borderWidth: 1, hidden: true },
-                        { label: funds[1].name, data: ds1, borderColor: funds[1].color, borderWidth: 1, hidden: true },
-                        { label: funds[2].name, data: ds2, borderColor: funds[2].color, borderWidth: 1, hidden: true },
-                        { label: funds[3].name, data: ds3, borderColor: funds[3].color, borderWidth: 1, hidden: true }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        legend: { position: 'top' },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return context.dataset.label + ": " + formatCompact(context.parsed.y);
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            ticks: { callback: val => formatCompact(val) }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderTable(data, maxYears) {
-            detailTableBody.innerHTML = '';
-            // Filter to show sensible rows (not every year if 50 years)
-            // Always show 1-5, then every 5
-            const rowsToShow = data.filter(d => d.year <= 5 || d.year % 5 === 0 || d.year === maxYears);
-            
-            rowsToShow.forEach(row => {
-                if (row.year === 0) return;
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-4 py-2 font-medium text-gray-900">第 ${row.year} 年</td>
-                    <td class="px-4 py-2 text-right text-gray-500 font-mono">${formatCurrency(row.totalPrincipal)}</td>
-                    <td class="px-4 py-2 text-right font-bold text-gray-800 bg-gray-50 font-mono">${formatCurrency(row.totalFV)}</td>
-                    <td class="px-4 py-2 text-right text-blue-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[0])}</td>
-                    <td class="px-4 py-2 text-right text-emerald-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[1])}</td>
-                    <td class="px-4 py-2 text-right text-red-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[2])}</td>
-                    <td class="px-4 py-2 text-right text-orange-600 text-xs hidden md:table-cell font-mono">${formatCompact(row.fundsFV[3])}</td>
-                `;
-                detailTableBody.appendChild(tr);
-            });
-        }
-
-        // Goal Logic
-        function updateGoalOnly() {
-            // Triggered when only goal amount changes, no need to recalc whole projection
-            const daily = parseFloat(dailyInput.value) || 0;
-            const weightedRateStr = weightedRateEl.textContent.replace('%', '');
-            const weightedRate = parseFloat(weightedRateStr) / 100;
-            updateGoalLogic(daily, weightedRate);
-        }
-
-        function updateGoalLogic(daily, weightedRate) {
-            const goal = parseFloat(goalAmountInput.value) || 0;
-            goalRateDisplay.textContent = (weightedRate * 100).toFixed(2) + "%";
-            
-            if (daily <= 0 || goal <= 0) {
-                goalYearsEl.textContent = "-- 年";
-                return;
-            }
-            
-            // Total Annual Contribution
-            const P_annual = daily * TRADING_DAYS_PER_YEAR;
-            const P_monthly = P_annual / 12;
-            const r_monthly = weightedRate / 12;
-
-            // n = ln(FV*r/P + 1) / ln(1+r)
-            let years = 0;
-            if (weightedRate === 0) {
-                years = goal / P_annual;
-            } else {
-                const months = Math.log((goal * r_monthly / P_monthly) + 1) / Math.log(1 + r_monthly);
-                years = months / 12;
-            }
-            
-            if (!isFinite(years)) goalYearsEl.textContent = "∞";
-            else if (years > 100) goalYearsEl.textContent = ">100 年";
-            else goalYearsEl.textContent = years.toFixed(1) + " 年";
-        }
-
-        // --- Formatters ---
-        function formatCurrency(num) {
-            return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 }).format(num);
-        }
-        function formatCompact(num) {
-            if (num >= 100000000) return (num / 100000000).toFixed(2) + '亿';
-            if (num >= 10000) return (num / 10000).toFixed(1) + '万';
-            return num.toFixed(0);
-        }
-
     </script>
 </body>
 </html>
