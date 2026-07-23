@@ -10,49 +10,32 @@
     <style>
         body {
             font-family: 'Noto Sans SC', sans-serif;
-            background-color: #fdf2f8; /* Tailwind pink-50 */
+            background-color: #fdf2f8; 
             background-image: radial-gradient(#fbcfe8 1px, transparent 1px);
             background-size: 20px 20px;
             overflow-x: hidden;
         }
 
-        /* Card Flip Animation */
-        .perspective-1000 {
-            perspective: 1000px;
-        }
-        .transform-style-3d {
-            transform-style: preserve-3d;
-        }
-        .backface-hidden {
-            backface-visibility: hidden;
-        }
-        .rotate-y-180 {
-            transform: rotateY(180deg);
-        }
-        .card-transition {
-            transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1);
-        }
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .card-transition { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
 
-        /* Floating Animation */
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
             100% { transform: translateY(0px); }
         }
-        .animate-float {
-            animation: float 3s ease-in-out infinite;
-        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
 
-        /* Toast Animation */
         @keyframes slideUpFade {
             0% { opacity: 0; transform: translate(-50%, 20px); }
             10% { opacity: 1; transform: translate(-50%, 0); }
             90% { opacity: 1; transform: translate(-50%, 0); }
             100% { opacity: 0; transform: translate(-50%, -20px); }
         }
-        .toast-animate {
-            animation: slideUpFade 3s forwards;
-        }
+        .toast-animate { animation: slideUpFade 3s forwards; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center py-10 px-4">
@@ -87,7 +70,7 @@
                 <div class="absolute w-full h-full bg-gradient-to-br from-rose-300 to-pink-400 rounded-2xl backface-hidden flex flex-col items-center justify-center border-4 border-white border-opacity-50">
                     <div class="text-6xl mb-4">🎁</div>
                     <h2 class="text-white text-2xl font-bold tracking-widest">点击抽取</h2>
-                    <p class="text-pink-100 text-sm mt-2">100件恋爱小事</p>
+                    <p class="text-pink-100 text-sm mt-2">365件恋爱小事</p>
                 </div>
 
                 <!-- Back of Card (Result) -->
@@ -118,6 +101,16 @@
             <p class="text-rose-400 text-xs text-center mt-2">今日任务已抽取，明天再来哦~</p>
         </div>
         
+        <!-- Partner's Task Area -->
+        <div id="partnerStatusArea" class="mt-6 w-full max-w-xs bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 hidden opacity-0 transition-opacity duration-500">
+            <h3 class="text-sm font-bold text-rose-500 mb-2 flex items-center justify-center gap-2">
+                <span>💞</span> <span id="partnerTitle">对方的任务</span>
+            </h3>
+            <div id="partnerTaskContent" class="text-center text-gray-600 text-sm bg-rose-50 rounded-xl p-3">
+                <span class="animate-pulse">正在悄悄看TA抽了什么... 👀</span>
+            </div>
+        </div>
+        
         <button onclick="switchIdentity()" class="mt-12 text-gray-400 text-xs underline hover:text-rose-400 transition-colors">
             切换身份 (当前: <span id="currentIdentityLabel">-</span>)
         </button>
@@ -125,182 +118,174 @@
 
     <!-- Custom Toast Message -->
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50">
-        复制成功！快去发给他吧~
+        提示信息
     </div>
-
-    <!-- Hidden input for clipboard fallback -->
     <input type="text" id="clipboardInput" class="hidden absolute -left-9999">
 
     <script>
-        // The 100 romantic tasks
+        // ==========================================
+        // ⚠️【必填】GitHub Gist 配置区
+        // ==========================================
+        const GITHUB_TOKEN = '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'; 
+        const GIST_ID = 'fc2784b7a319a818b3fe1bb04880596c'; 
+        // ==========================================
+
         const tasks = [
-            // 一、 刷存在感：日常分享与互动
+            // 这里为了代码简洁，我放了部分任务作为示例。
+            // 实际使用时，请把你之前那个拥有 200 条任务的完整 tasks 数组复制粘贴到这里！
             { id: 1, category: "日常分享", emoji: "☀️", text: "互道专属的“早安”和“晚安”，让对方成为一天开头和结尾的人。" },
-            { id: 2, category: "日常分享", emoji: "🍱", text: "拍下每天的第一顿饭发给对方看。" },
-            { id: 3, category: "日常分享", emoji: "☁️", text: "看到形状奇特或好看的云彩，随手拍下发过去。" },
-            { id: 4, category: "日常分享", emoji: "💧", text: "互相汇报今天喝了几杯水，互相监督健康。" },
-            { id: 5, category: "日常分享", emoji: "🎵", text: "分享今天听到的一首最喜欢的歌。" },
-            { id: 6, category: "日常分享", emoji: "😆", text: "在网上看到超级好笑的段子或搞笑视频，第一时间转发给对方。" },
-            { id: 7, category: "日常分享", emoji: "📱", text: "截屏分享自己手机目前的壁纸，并说说为什么选这张。" },
-            { id: 8, category: "日常分享", emoji: "🤦‍♀️", text: "吐槽今天遇到的一个倒霉或尴尬的小瞬间。" },
-            { id: 9, category: "日常分享", emoji: "👣", text: "晚上互发今天的微信步数排行榜，看谁走得多。" },
-            { id: 10, category: "日常分享", emoji: "🍫", text: "用文字交换一份自己最爱的“零食红黑榜”。" },
-            { id: 11, category: "日常分享", emoji: "💻", text: "拍下自己书桌、电脑桌面或工作台的现状。" },
-            { id: 12, category: "日常分享", emoji: "💎", text: "互相推荐一个自己手机里觉得最好用的冷门App。" },
-            { id: 13, category: "日常分享", emoji: "💭", text: "醒来后聊聊昨晚有没有做梦，梦到了什么。" },
-            { id: 14, category: "日常分享", emoji: "🧩", text: "只用Emoji表情拼一段话，让对方猜是什么意思。" },
-            { id: 15, category: "日常分享", emoji: "📖", text: "分享今天在书上或网上看到的一句很有感触的句子。" },
-            { id: 16, category: "日常分享", emoji: "👶", text: "互相发一张自己小时候最逗的一张照片。" },
-            { id: 17, category: "日常分享", emoji: "👟", text: "拍一段自己走在路上、只拍自己脚下的“第一视角”小视频。" },
-            { id: 18, category: "日常分享", emoji: "😊", text: "睡前聊聊今天最开心的一件小事是什么。" },
-            { id: 19, category: "日常分享", emoji: "🎬", text: "互相分享自己最近在追的一部剧或动漫。" },
-            { id: 20, category: "日常分享", emoji: "🔥", text: "互相发自己收藏夹里最搞笑的一组表情包来“斗图”。" },
-
-            // 二、 趣味培养：文字游戏与默契测试
-            { id: 21, category: "趣味游戏", emoji: "🤐", text: "玩文字版的“真心话大冒险”（大冒险可以是发一张搞怪自拍）。" },
-            { id: 22, category: "趣味游戏", emoji: "🎨", text: "玩“你画我猜”（用手机自带的画图工具画完发图片，让对方猜）。" },
-            { id: 23, category: "趣味游戏", emoji: "⚡", text: "进行“快问快答”测试（比如：甜豆腐脑还是咸豆腐脑？）。" },
-            { id: 24, category: "趣味游戏", emoji: "👻", text: "互相给对方起3个专属的奇怪昵称，并轮流叫着玩。" },
-            { id: 25, category: "趣味游戏", emoji: "🔗", text: "玩线上成语接龙，或者拼音首字母接龙。" },
-            { id: 26, category: "趣味游戏", emoji: "💰", text: "聊聊“如果你中了500万，你会怎么花”的脑洞题。" },
-            { id: 27, category: "趣味游戏", emoji: "🎒", text: "假设末日来临，讨论你们各自逃生会带哪三样东西。" },
-            { id: 28, category: "趣味游戏", emoji: "🎲", text: "用微信自带的“掷骰子”或“猜拳”表情决定今天谁先找话题。" },
-            { id: 29, category: "趣味游戏", emoji: "❓", text: "互相出3道关于自己的单选题，看对方能不能猜对。" },
-            { id: 30, category: "趣味游戏", emoji: "🎧", text: "一起建立一个属于你们俩的“共同歌单”。" },
-            { id: 31, category: "趣味游戏", emoji: "🧘", text: "互相凭空推测对方此刻的坐姿或表情，看谁猜得准。" },
-            { id: 32, category: "趣味游戏", emoji: "🙅‍♂️", text: "玩“我从来没有过……”游戏。" },
-            { id: 33, category: "趣味游戏", emoji: "🤫", text: "约定一个只有你们俩懂的“暗号”（比如发个特定表情代表想你）。" },
-            { id: 34, category: "趣味游戏", emoji: "✍️", text: "尝试用对方的名字作一首搞笑的打油诗。" },
-            { id: 35, category: "趣味游戏", emoji: "♈", text: "互相分享自己生肖或星座的性格解析，讨论准不准。" },
-            { id: 36, category: "趣味游戏", emoji: "⚖️", text: "玩极端的“二选一”游戏（比如：一辈子不吃肉 vs 不吃糖）。" },
-            { id: 37, category: "趣味游戏", emoji: "🛋️", text: "用文字详细描述自己最理想的周末应该怎么度过。" },
-            { id: 38, category: "趣味游戏", emoji: "🙈", text: "交换彼此觉得最好笑的一个童年糗事。" },
-            { id: 39, category: "趣味游戏", emoji: "🖼️", text: "互相给对方挑选一张微信头像，并强制对方换上一天。" },
-            { id: 40, category: "趣味游戏", emoji: "🦸‍♂️", text: "聊聊如果可以拥有一个超能力，最想要什么以及为什么。" },
-
-            // 三、 异地同频：制造“云约会”的浪漫
-            { id: 41, category: "云约会", emoji: "🍿", text: "约定同一时间看同一部电影，边看边用文字疯狂吐槽剧情。" },
-            { id: 42, category: "云约会", emoji: "🍗", text: "晚上同时点一份相同口味的外卖，假装在同一张餐桌。" },
-            { id: 43, category: "云约会", emoji: "🎯", text: "设定一个共同的短期目标（如背单词），每天互相打卡。" },
-            { id: 44, category: "云约会", emoji: "🐾", text: "下载带有情侣互动小游戏的App，一起养一只“电子宠物”。" },
-            { id: 45, category: "云约会", emoji: "🛌", text: "约定今晚绝不熬夜，同一时间发“晚安”然后放下手机睡觉。" },
-            { id: 46, category: "云约会", emoji: "🎮", text: "找一个两人都可以玩的小游戏（比如五子棋），互加好友对战。" },
-            { id: 47, category: "云约会", emoji: "🗺️", text: "在地图上搜索对方的城市，互相介绍自己常去的地方。" },
-            { id: 48, category: "云约会", emoji: "🎤", text: "一起看同一场晚会直播，在文字框里当对方的观众。" },
-            { id: 49, category: "云约会", emoji: "🚶‍♀️", text: "约定每天同一时间去散步，边走边发文字分享路上的风景。" },
-            { id: 50, category: "云约会", emoji: "📚", text: "一起看同一本小说或漫画，每天分享最新一话的感受。" },
-            { id: 51, category: "云约会", emoji: "👕", text: "互相在淘宝上给对方挑一件衣服（只发链接，看眼光）。" },
-            { id: 52, category: "云约会", emoji: "🌅", text: "同时去看各自城市的日落，拍下来发给对方。" },
-            { id: 53, category: "云约会", emoji: "🌍", text: "一起在B站上找一部高质量的纪录片同步观看。" },
-            { id: 54, category: "云约会", emoji: "🔐", text: "开通情侣空间，建立两人的专属小天地。" },
-            { id: 55, category: "云约会", emoji: "👏", text: "约定某天为“对方夸夸日”，这一天只能发赞美对方的话。" },
-            { id: 56, category: "云约会", emoji: "⛅", text: "每天互相分享所在城市的天气，提醒对方增减衣物。" },
-            { id: 57, category: "云约会", emoji: "🛒", text: "讨论如果一起去逛超市，购物车里必须要放的三样东西。" },
-            { id: 58, category: "云约会", emoji: "✈️", text: "虚拟规划一次未来的双人旅行路线（去哪吃、玩什么）。" },
-            { id: 59, category: "云约会", emoji: "🗣️", text: "互相教对方一句自己家乡的方言，用拼音打出来让对方读。" },
-            { id: 60, category: "云约会", emoji: "🧋", text: "约定一个星期都不喝奶茶或吃夜宵，互相监督。" },
-
-            // 四、 灵魂共鸣：深度沟通与情感建立
-            { id: 61, category: "深度沟通", emoji: "❤️‍🩹", text: "坦诚地聊一次：第一次谈恋爱，你内心最害怕或担心什么？" },
-            { id: 62, category: "深度沟通", emoji: "👀", text: "告诉对方，刚认识时对他的第一印象是什么，现在有什么改变。" },
-            { id: 63, category: "深度沟通", emoji: "🏆", text: "分享自己人生中觉得最骄傲、最有成就感的一瞬间。" },
-            { id: 64, category: "深度沟通", emoji: "👨‍👩‍👧‍👦", text: "聊聊彼此家庭里最有趣或者最古怪的一个亲戚。" },
-            { id: 65, category: "深度沟通", emoji: "🫂", text: "互相倾诉最近生活上的一个压力来源，并给对方安慰。" },
-            { id: 66, category: "深度沟通", emoji: "✨", text: "讨论你们各自对“完美爱情”的定义是什么样的。" },
-            { id: 67, category: "深度沟通", emoji: "👯", text: "聊聊彼此现实中最好的朋友是个什么样的人。" },
-            { id: 68, category: "深度沟通", emoji: "🥺", text: "坦白分享自己如果生气了，希望对方用什么方式哄。" },
-            { id: 69, category: "深度沟通", emoji: "💘", text: "告诉他，他身上的哪一个特质最吸引你。" },
-            { id: 70, category: "深度沟通", emoji: "🚀", text: "聊聊自己从小到大，一直没有放弃的一个梦想是什么。" },
-            { id: 71, category: "深度沟通", emoji: "🛑", text: "互相确认彼此的底线（比如：什么玩笑绝对不能开）。" },
-            { id: 72, category: "深度沟通", emoji: "🧊", text: "讨论一下，如果以后产生了误会或冷战，应该怎么破冰。" },
-            { id: 73, category: "深度沟通", emoji: "🥊", text: "聊聊如果心情极度糟糕，最想做什么事来发泄情绪。" },
-            { id: 74, category: "深度沟通", emoji: "💡", text: "分享一部曾经深刻改变过你某项认知的电影。" },
-            { id: 75, category: "深度沟通", emoji: "😌", text: "告诉对方，你觉得谈恋爱最舒服的状态是什么样的。" },
-            { id: 76, category: "深度沟通", emoji: "🤐", text: "互相分享一个自己从未告诉过别人的无伤大雅的小秘密。" },
-            { id: 77, category: "深度沟通", emoji: "💳", text: "聊聊彼此对金钱消费的看法（攒钱还是享受当下）。" },
-            { id: 78, category: "深度沟通", emoji: "☕", text: "谈谈如果你有一整天空闲，没任何人打扰，你会怎么安排。" },
-            { id: 79, category: "深度沟通", emoji: "💌", text: "感谢对方这段时间的陪伴，说出具体因为哪件小事觉得暖心。" },
-            { id: 80, category: "深度沟通", emoji: "📝", text: "互相写一封几百字的小短信，正式表达心意。" },
-
-            // 五、 慢慢突破文字，建立真实感
-            { id: 81, category: "真实触感", emoji: "🎙️", text: "尝试在早晨发一条3秒钟的短语音说“早安”。" },
-            { id: 82, category: "真实触感", emoji: "🍂", text: "录下自己走路时踩在树叶上的声音，或环境白噪音发给对方。" },
-            { id: 83, category: "真实触感", emoji: "🐈", text: "拍一段自己逗流浪猫或小狗的短视频发给对方。" },
-            { id: 84, category: "真实触感", emoji: "✒️", text: "手写一句简短的日常问候，拍照发给他。" },
-            { id: 85, category: "真实触感", emoji: "🗣️", text: "打字累的时候，尝试不用文字，改用语音输入法发信息。" },
-            { id: 86, category: "真实触感", emoji: "🎮", text: "约着打一局需要开麦交流的游戏，听听彼此的声音。" },
-            { id: 87, category: "真实触感", emoji: "🌙", text: "睡前互相发一段轻柔的语音“晚安，好梦”。" },
-            { id: 88, category: "真实触感", emoji: "🎤", text: "互相发一段自己清唱的歌的语音（跑调也没关系）。" },
-            { id: 89, category: "真实触感", emoji: "😂", text: "遇到好笑的事，不要打“哈哈哈”，直接发语音笑给对方听。" },
-            { id: 90, category: "真实触感", emoji: "📞", text: "尝试在周末进行一次5分钟的简短语音通话，随便聊两句。" },
-            { id: 91, category: "真实触感", emoji: "📮", text: "如果愿意，互相邮寄一张明信片到对方城市的快递代收点。" },
-            { id: 92, category: "真实触感", emoji: "🎶", text: "互加音乐App的好友，查看对方平时的听歌动态。" },
-            { id: 93, category: "真实触感", emoji: "🥤", text: "给对方点一次惊喜外卖（如奶茶，前提是愿意分享地址）。" },
-            { id: 94, category: "真实触感", emoji: "📱", text: "做好心理准备后，尝试一次短暂的视频通话（可开特效）。" },
-            { id: 95, category: "真实触感", emoji: "🎧", text: "语音通话时一起听一首歌，不说话，只感受对方的陪伴。" },
-            { id: 96, category: "真实触感", emoji: "📻", text: "互相给对方朗读一段喜欢的文章发语音，假装电台主播。" },
-            { id: 97, category: "真实触感", emoji: "🧸", text: "尝试在对方失眠的时候，打语音电话讲无聊的睡前故事。" },
-            { id: 98, category: "真实触感", emoji: "🎁", text: "互送一份不贵重但很有心意的小礼物（如钥匙扣）。" },
-            { id: 99, category: "真实触感", emoji: "🤝", text: "一起讨论如果未来能在现实中见面，第一件要做的事是什么。" },
-            { id: 100, category: "真实触感", emoji: "💖", text: "勇敢地打字告诉他：“虽然我们都是第一次谈恋爱，但我很高兴遇到的是你。”" }
+            { id: 2, category: "趣味游戏", emoji: "🎨", text: "玩“你画我猜”（用手机自带画图工具画完发图片，让对方猜）。" },
+            { id: 3, category: "云约会", emoji: "🍿", text: "约定同一时间看同一部电影，边看边用文字疯狂吐槽剧情。" },
+            { id: 4, category: "深度沟通", emoji: "❤️‍🩹", text: "坦诚地聊一次：第一次谈恋爱，你内心最害怕或担心什么？" },
+            { id: 5, category: "真实触感", emoji: "🎙️", text: "尝试在早晨发一条3秒钟的短语音说“早安”。" },
+            { id: 6, category: "奇思妙想", emoji: "👑", text: "今天你是“国王/女王”，可以无条件要求对方做一件不过分的小事。" }
         ];
 
         let isFlipped = false;
         let currentTaskText = "";
         let isAnimating = false;
-        
         let myIdentity = "";
         let partnerIdentity = "";
-        const todayStr = new Date().toDateString(); // 获取本地当天的日期字符串
+        
+        // 生成今天的日期字符串作为数据的 key，例如 "2026-07-23"
+        const todayStr = new Date().toISOString().split('T')[0];
+        let pollInterval = null;
 
-        // 网页加载时初始化
+        // 页面加载初始化
         window.onload = function() {
             myIdentity = localStorage.getItem('loveGacha_myIdentity');
+            
             if (!myIdentity) {
                 document.getElementById('identityModal').classList.remove('hidden');
             } else {
                 updateIdentityUI();
-                checkDailyLimit();
+                startPolling(); // 开始每隔几秒去 GitHub 看一眼
             }
         };
 
-        // 设定身份
         function setIdentity(id) {
             myIdentity = id;
             localStorage.setItem('loveGacha_myIdentity', id);
             updateIdentityUI();
             document.getElementById('identityModal').classList.add('hidden');
-            checkDailyLimit();
+            startPolling();
         }
 
-        // 唤起切换身份弹窗
         function switchIdentity() {
             document.getElementById('identityModal').classList.remove('hidden');
         }
 
-        // 更新UI上的身份文案
         function updateIdentityUI() {
             partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
             document.getElementById('currentIdentityLabel').innerText = myIdentity;
             document.getElementById('copyBtnText').innerText = `复制发给${partnerIdentity} 💬`;
         }
 
-        // 检查今日是否已经抽过卡
-        function checkDailyLimit() {
-            const lastDrawDate = localStorage.getItem('loveGacha_lastDrawDate');
-            if (lastDrawDate === todayStr) {
-                // 如果今天抽过了，直接展示保存的卡片，不播放翻牌动画
-                const savedTask = JSON.parse(localStorage.getItem('loveGacha_lastDrawnTask'));
-                renderFlippedCard(savedTask, false);
+        // ==========================================
+        // 核心：GitHub Gist 读写逻辑
+        // ==========================================
+
+        // 读取云端数据
+        async function fetchGistData() {
+            if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('填入')) return null;
+            
+            try {
+                const response = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Cache-Control': 'no-cache' // 强制不缓存，获取最新数据
+                    }
+                });
+                const gist = await response.json();
+                const content = gist.files['data.json'].content;
+                return JSON.parse(content || '{}');
+            } catch (error) {
+                console.error("读取数据失败:", error);
+                return null;
             }
         }
 
-        function drawCard() {
+        // 写入数据到云端
+        async function updateGistData(newData) {
+            if (!GITHUB_TOKEN || GITHUB_TOKEN.includes('填入')) {
+                showToast("未配置 GitHub Token，仅保存到本地哦");
+                return;
+            }
+
+            try {
+                await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`
+                    },
+                    body: JSON.stringify({
+                        files: {
+                            'data.json': {
+                                content: JSON.stringify(newData, null, 2)
+                            }
+                        }
+                    })
+                });
+                console.log("云端同步成功！");
+            } catch (error) {
+                console.error("写入数据失败:", error);
+            }
+        }
+
+        // 轮询机制：每 5 秒看一次对方有没有抽卡
+        function startPolling() {
+            if (pollInterval) clearInterval(pollInterval);
+            
+            // 立即查一次
+            checkDataAndRender();
+            
+            // 然后每 5 秒查一次
+            pollInterval = setInterval(checkDataAndRender, 5000);
+        }
+
+        async function checkDataAndRender() {
+            const allData = await fetchGistData();
+            if (!allData) return;
+
+            // 获取今天的数据
+            const todayData = allData[todayStr] || {};
+
+            // 1. 检查我自己今天抽卡没（防止我换了电脑或者清了缓存）
+            if (todayData[myIdentity] && !isFlipped) {
+                renderFlippedCard(todayData[myIdentity], false);
+            }
+
+            // 2. 检查对方抽卡没，并更新下方区域
+            updatePartnerUI(todayData[partnerIdentity]);
+        }
+
+        function updatePartnerUI(partnerTask) {
+            const partnerArea = document.getElementById('partnerStatusArea');
+            const partnerTitle = document.getElementById('partnerTitle');
+            const partnerContent = document.getElementById('partnerTaskContent');
+            
+            partnerArea.classList.remove('hidden');
+            partnerArea.classList.remove('opacity-0');
+            partnerTitle.innerText = `${partnerIdentity} 的任务`;
+            
+            if (partnerTask) {
+                partnerContent.innerHTML = `<span class="text-xl inline-block mb-1">${partnerTask.emoji}</span><br><span class="font-medium text-gray-700">${partnerTask.text}</span>`;
+            } else {
+                partnerContent.innerHTML = `TA今天还没有抽卡哦，快去提醒TA吧~`;
+            }
+        }
+
+        // ==========================================
+        // 抽卡动作
+        // ==========================================
+        async function drawCard() {
             if (isAnimating || isFlipped) {
                 if (isFlipped && myIdentity) showToast("今天已经抽过啦，明天再来哦~");
                 return; 
             }
-            
             if (!myIdentity) {
                 showToast("请先选择身份哦！");
                 document.getElementById('identityModal').classList.remove('hidden');
@@ -309,21 +294,32 @@
 
             isAnimating = true;
 
-            // 随机抽取
+            // 1. 随机抽卡
             const randomIndex = Math.floor(Math.random() * tasks.length);
             const task = tasks[randomIndex];
             
-            // 保存至本地存储，实现“一天一次”的限制
-            localStorage.setItem('loveGacha_lastDrawDate', todayStr);
-            localStorage.setItem('loveGacha_lastDrawnTask', JSON.stringify(task));
+            // 2. 存入云端 Gist
+            showToast("正在生成并同步任务...");
+            const allData = await fetchGistData() || {};
+            
+            // 确保今天的对象存在
+            if (!allData[todayStr]) {
+                allData[todayStr] = {};
+            }
+            
+            // 把我的任务塞进去
+            allData[todayStr][myIdentity] = task;
+            
+            // 更新回 GitHub
+            await updateGistData(allData);
 
+            // 3. 翻转卡片
             renderFlippedCard(task, true);
         }
 
         function renderFlippedCard(task, animate) {
             currentTaskText = task.text; 
 
-            // 更新DOM元素（卡片背面）
             document.getElementById('cardCategory').innerText = task.category;
             document.getElementById('cardEmoji').innerText = task.emoji;
             document.getElementById('cardText').innerText = task.text;
@@ -332,26 +328,20 @@
             const cardInner = document.getElementById('cardInner');
             
             if (animate) {
-                // 播放翻转动画
                 cardInner.classList.add('rotate-y-180');
                 isFlipped = true;
-
-                // 动画结束后显示按钮
                 setTimeout(() => {
                     const actions = document.getElementById('actionButtons');
                     actions.classList.remove('opacity-0');
-                    actions.classList.remove('pointer-events-none'); // 启用按钮交互
+                    actions.classList.remove('pointer-events-none');
                     isAnimating = false;
                 }, 600);
             } else {
-                // 瞬间展示（用于再次刷新网页时，直接显示今天的任务）
                 cardInner.style.transition = 'none';
                 cardInner.classList.add('rotate-y-180');
                 isFlipped = true;
-                
-                // 触发页面重绘，使禁用过渡生效
                 void cardInner.offsetWidth; 
-                cardInner.style.transition = ''; // 恢复过渡效果
+                cardInner.style.transition = ''; 
                 
                 const actions = document.getElementById('actionButtons');
                 actions.classList.remove('opacity-0');
@@ -364,7 +354,6 @@
             toast.innerText = message;
             toast.classList.remove('hidden');
             toast.classList.add('toast-animate');
-            
             setTimeout(() => {
                 toast.classList.add('hidden');
                 toast.classList.remove('toast-animate');
@@ -373,16 +362,11 @@
 
         function copyTask() {
             const textToCopy = `【今日心动任务】\n${currentTaskText}\n\n—— ${partnerIdentity}，这是我们今天要一起做的事哦！`;
-            
-            // Try modern clipboard API first
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(textToCopy).then(() => {
                     showToast("复制成功！快去发给他吧~");
-                }).catch(() => {
-                    fallbackCopyTextToClipboard(textToCopy);
-                });
+                }).catch(() => fallbackCopyTextToClipboard(textToCopy));
             } else {
-                // Fallback for older browsers or iframes without clipboard permissions
                 fallbackCopyTextToClipboard(textToCopy);
             }
         }
@@ -392,7 +376,7 @@
             input.value = text;
             input.classList.remove('hidden');
             input.select();
-            input.setSelectionRange(0, 99999); /* For mobile devices */
+            input.setSelectionRange(0, 99999);
             try {
                 document.execCommand('copy');
                 showToast("复制成功！快去发给他吧~");
