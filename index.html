@@ -36,6 +36,18 @@
             100% { opacity: 0; transform: translate(-50%, -20px); }
         }
         .toast-animate { animation: slideUpFade 3s forwards; }
+
+        @keyframes fadeInSlideUp {
+            0% { opacity: 0; transform: translateY(10px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .animate-reveal { animation: fadeInSlideUp 0.5s ease-out forwards; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center py-10 px-4">
@@ -111,6 +123,14 @@
             <p class="text-rose-400 text-xs text-center mt-2">✨ 今日任务已抽取，已自动同步云端 ✨</p>
         </div>
         
+        <!-- 悄悄话留言区 (新增) -->
+        <div id="messageArea" class="mt-4 w-full max-w-xs hidden opacity-0 transition-opacity duration-500 flex flex-col items-center gap-2">
+            <textarea id="dailyMessage" rows="2" placeholder="写一句给TA的悄悄话吧..." class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300 bg-white/80 backdrop-blur-sm shadow-inner"></textarea>
+            <button onclick="saveDailyMessage()" id="saveMsgBtn" class="px-6 py-2 bg-rose-50 border border-rose-200 text-rose-500 text-xs font-bold rounded-full hover:bg-rose-100 transition-colors shadow-sm">
+                保存悄悄话 💌
+            </button>
+        </div>
+
         <!-- 对方的任务状态区 (实时展示对方抽卡内容) -->
         <div id="partnerStatusArea" class="mt-6 w-full max-w-xs bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 hidden opacity-0 transition-opacity duration-500">
             <h3 class="text-sm font-bold text-rose-500 mb-2 flex items-center justify-center gap-2">
@@ -599,14 +619,16 @@
             const myTodayData = myIdentity === '哼哼' ? dataH[todayStr] : dataQ[todayStr];
             const partnerTodayData = myIdentity === '哼哼' ? dataQ[todayStr] : dataH[todayStr];
 
-            if (myTodayData && !isFlipped) {
+            const hasDrawnCard = myTodayData && myTodayData.id;
+
+            if (hasDrawnCard && !isFlipped) {
                 renderFlippedCard(myTodayData, false);
                 document.getElementById('cardFrontText').innerText = "今日已抽取";
             } else if (!isFlipped) {
                 document.getElementById('cardFrontText').innerText = "点击抽取";
             }
 
-            updatePartnerUI(partnerTodayData);
+            updatePartnerUI(partnerTodayData, myTodayData);
         }
 
         function startPolling() {
@@ -621,7 +643,7 @@
             }
         }
 
-        function updatePartnerUI(partnerTask) {
+        function updatePartnerUI(partnerTask, myTodayData) {
             const partnerArea = document.getElementById('partnerStatusArea');
             const partnerTitle = document.getElementById('partnerTitle');
             const partnerContent = document.getElementById('partnerTaskContent');
@@ -630,17 +652,83 @@
             partnerArea.classList.remove('opacity-0');
             partnerTitle.innerText = `${partnerIdentity} 今日的任务`;
             
-            if (partnerTask) {
-                partnerContent.innerHTML = `
+            if (partnerTask && partnerTask.id) {
+                let innerHtml = `
                     <div class="flex flex-col items-center justify-center p-2 w-full animate-fade-in">
                         <span class="text-3xl mb-2">${partnerTask.emoji}</span>
                         <span class="text-xs font-bold text-rose-400 mb-1 bg-white px-2 py-1 rounded-full border border-rose-100">【${partnerTask.category}】</span>
                         <span class="font-medium text-gray-700 leading-snug mt-2 block w-full">${partnerTask.text}</span>
-                    </div>`;
+                `;
+
+                // 检查自己是否已经标记对方任务完成
+                const isCompleted = myTodayData && myTodayData.partnerTaskCompleted;
+
+                if (isCompleted) {
+                    const secretMsg = partnerTask.messageForPartner || "TA今天好像忘记留悄悄话啦~";
+                    innerHtml += `
+                        <div class="mt-4 p-3 bg-rose-100 rounded-xl text-rose-600 text-sm font-medium w-full shadow-inner border border-rose-200 animate-reveal">
+                            💌 悄悄话：<br><span class="text-gray-700 font-normal mt-1 block">${secretMsg}</span>
+                        </div>
+                    `;
+                } else {
+                    innerHtml += `
+                        <button onclick="completePartnerTask()" class="mt-4 px-6 py-2 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-full shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all w-full flex items-center justify-center gap-2">
+                            <span>✅</span> 标记对方任务完成
+                        </button>
+                    `;
+                }
+                
+                innerHtml += `</div>`;
+                partnerContent.innerHTML = innerHtml;
                 partnerContent.classList.remove('animate-pulse');
             } else {
                 partnerContent.innerHTML = `<span class="animate-pulse block py-3 text-gray-500">TA今天还没有抽卡哦，快去提醒TA吧~ 👀</span>`;
                 partnerContent.classList.add('animate-pulse');
+            }
+        }
+
+        // 标记对方任务完成的逻辑
+        async function completePartnerTask() {
+            const myData = myIdentity === '哼哼' ? dataH : dataQ;
+            let mySha = myIdentity === '哼哼' ? shaH : shaQ;
+            const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
+
+            if (!myData[todayStr]) myData[todayStr] = {};
+            myData[todayStr].partnerTaskCompleted = true; // 保存状态到自己的数据中
+
+            renderUI(); // 立即更新本地UI展现悄悄话，避免等待网络
+
+            const uploadRes = await updateFile(myPath, myData, mySha);
+            if (uploadRes.success) {
+                if (myIdentity === '哼哼') shaH = uploadRes.sha;
+                else shaQ = uploadRes.sha;
+            } else {
+                showToast("状态同步云端失败，但本地已解锁。");
+            }
+        }
+
+        // 保存留言的逻辑
+        async function saveDailyMessage() {
+            const msg = document.getElementById('dailyMessage').value.trim();
+            const myData = myIdentity === '哼哼' ? dataH : dataQ;
+            let mySha = myIdentity === '哼哼' ? shaH : shaQ;
+            const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
+
+            if (!myData[todayStr]) myData[todayStr] = {};
+            myData[todayStr].messageForPartner = msg;
+
+            const btn = document.getElementById('saveMsgBtn');
+            btn.innerText = "保存中...";
+            
+            const uploadRes = await updateFile(myPath, myData, mySha);
+            if (uploadRes.success) {
+                if (myIdentity === '哼哼') shaH = uploadRes.sha;
+                else shaQ = uploadRes.sha;
+                showToast("悄悄话保存成功！✨");
+                btn.innerText = "修改悄悄话 💌";
+            } else {
+                showToast("保存失败，请稍后重试");
+                btn.innerText = "重新保存 💌";
             }
         }
 
@@ -679,8 +767,7 @@
             const myData = myIdentity === '哼哼' ? dataH : dataQ;
             let mySha = myIdentity === '哼哼' ? shaH : shaQ;
             const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
-
-            if (myData[todayStr]) {
+            if (myData[todayStr] && myData[todayStr].id) {
                 showToast("你在其他设备已经抽过啦，已为你同步！");
                 renderFlippedCard(myData[todayStr], true);
                 isAnimating = false;
@@ -692,7 +779,8 @@
             const randomIndex = Math.floor(Math.random() * tasks.length);
             const task = tasks[randomIndex];
             
-            myData[todayStr] = task; 
+            // 重点修复：保留该日期下已有的数据（例如提早标记的partnerTaskCompleted状态）
+            myData[todayStr] = { ...(myData[todayStr] || {}), ...task }; 
             
             const uploadRes = await updateFile(myPath, myData, mySha);
             
@@ -727,12 +815,21 @@
             const cardInner = document.getElementById('cardInner');
             isFlipped = true;
             
+            // 初始化留言区
+            const msgArea = document.getElementById('messageArea');
+            if (msgArea) {
+                msgArea.classList.remove('hidden');
+                document.getElementById('dailyMessage').value = task.messageForPartner || "";
+                document.getElementById('saveMsgBtn').innerText = task.messageForPartner ? "修改悄悄话 💌" : "保存悄悄话 💌";
+            }
+
             if (animate) {
                 cardInner.classList.add('rotate-y-180');
                 setTimeout(() => {
                     const actions = document.getElementById('actionButtons');
                     actions.classList.remove('opacity-0');
                     actions.classList.remove('pointer-events-none');
+                    if (msgArea) msgArea.classList.remove('opacity-0');
                     isAnimating = false;
                 }, 600);
             } else {
@@ -744,6 +841,7 @@
                 const actions = document.getElementById('actionButtons');
                 actions.classList.remove('opacity-0');
                 actions.classList.remove('pointer-events-none');
+                if (msgArea) msgArea.classList.remove('opacity-0');
             }
         }
 
