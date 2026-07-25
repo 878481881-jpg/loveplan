@@ -214,10 +214,10 @@
                     <span class="text-[10px] font-bold text-sky-600">降降温</span>
                     <span id="count_water" class="text-[9px] text-gray-400 mt-1 font-medium">剩余: -</span>
                 </button>
-                <button id="btn_sing" onclick="doAction('sing')" class="flex flex-col items-center justify-center p-2 bg-white rounded-2xl shadow-sm border border-purple-100 hover:shadow-md transform hover:-translate-y-1 transition-all">
-                    <span class="text-xl mb-1">🎵</span>
-                    <span class="text-[10px] font-bold text-purple-600">唱首歌</span>
-                    <span id="count_sing" class="text-[9px] text-gray-400 mt-1 font-medium">剩余: -</span>
+                <button id="btn_play" onclick="doAction('play')" class="flex flex-col items-center justify-center p-2 bg-white rounded-2xl shadow-sm border border-purple-100 hover:shadow-md transform hover:-translate-y-1 transition-all">
+                    <span class="text-xl mb-1">🎲</span>
+                    <span class="text-[10px] font-bold text-purple-600">逗它玩</span>
+                    <span id="count_play" class="text-[9px] text-gray-400 mt-1 font-medium">剩余: -</span>
                 </button>
             </div>
 
@@ -529,12 +529,27 @@
                 showInteractionText("+30 💧");
                 success = true;
             }
-            else if (type === 'sing') {
-                petData.mood = Math.min(100, petData.mood + 15);
-                petData.clean = Math.min(100, petData.clean + 5); // 唱歌能平稳情绪
-                expGain = 8;
-                logMsg = "唱了一首 🎵，气氛变得温馨";
-                showInteractionText("+15 🎵");
+            else if (type === 'play') {
+                // 盲盒随机事件库
+                const events = [
+                    { msg: "给小火苗讲了个冷笑话，气氛有点冷", mood: 5, exp: 5, clean: 0, floatText: "好冷啊 ⛄" },
+                    { msg: "给小火苗看TA的照片，火光一下子亮了！", mood: 30, exp: 20, clean: 0, floatText: "是TA！😍" },
+                    { msg: "火苗调皮地烧到了你的衣角", mood: -5, exp: 5, clean: -5, floatText: "哎呀！🔥" },
+                    { msg: "跟小火苗玩捉迷藏，它玩得很开心", mood: 15, exp: 10, clean: 0, floatText: "找到你啦 🙈" },
+                    { msg: "给小火苗表演魔术，它看呆了", mood: 10, exp: 8, clean: 0, floatText: "哇哦 ✨" },
+                    { msg: "给小火苗跳了一段舞，它跟着节奏晃动", mood: 20, exp: 15, clean: 0, floatText: "动次打次 🎵" }
+                ];
+                
+                const ev = events[Math.floor(Math.random() * events.length)];
+                
+                // 结算属性，确保不越界
+                petData.mood = Math.min(100, Math.max(0, petData.mood + ev.mood));
+                petData.clean = Math.min(100, Math.max(0, petData.clean + ev.clean));
+                expGain = ev.exp;
+                logMsg = ev.msg;
+                
+                let textPrefix = ev.mood > 0 ? "+" : "";
+                showInteractionText(`${ev.floatText} (心情${ev.mood !== 0 ? textPrefix + ev.mood : "无变化"})`);
                 success = true;
             }
 
@@ -912,13 +927,13 @@
             if (type === 'feed') return '喂柴火';
             if (type === 'fan') return '吹扇子';
             if (type === 'water') return '降降温';
-            if (type === 'sing') return '唱首歌';
+            if (type === 'play') return '逗它玩';
             return type;
         }
 
         function updateActionCounts() {
             const todayStart = new Date().setHours(0, 0, 0, 0);
-            const actions = ['feed', 'fan', 'water', 'sing'];
+            const actions = ['feed', 'fan', 'water', 'play'];
             
             actions.forEach(act => {
                 const used = myActData.filter(log => log.action === act && log.time >= todayStart).length;
@@ -1070,7 +1085,7 @@
                     if (log.action === 'feed') actionIcon = '🪵';
                     else if (log.action === 'fan') actionIcon = '💨';
                     else if (log.action === 'water') actionIcon = '💧';
-                    else if (log.action === 'sing') actionIcon = '🎵';
+                    else if (log.action === 'play') actionIcon = '🎲';
                     else if (log.action === 'adopt') actionIcon = '🔥';
                     else if (log.action === 'resonance') actionIcon = '💖';
                     else if (log.action === 'letter') actionIcon = '💌';
