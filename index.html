@@ -6,7 +6,6 @@
     <title>我们的恋爱抽卡机 💖</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
-    
     <style>
         body {
             font-family: 'Noto Sans SC', sans-serif;
@@ -15,20 +14,12 @@
             background-size: 20px 20px;
             overflow-x: hidden;
         }
-
-        .perspective-1000 { perspective: 1000px; }
-        .transform-style-3d { transform-style: preserve-3d; }
-        .backface-hidden { backface-visibility: hidden; }
-        .rotate-y-180 { transform: rotateY(180deg); }
-        .card-transition { transition: transform 0.6s cubic-bezier(0.4, 0.2, 0.2, 1); }
-
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
             100% { transform: translateY(0px); }
         }
         .animate-float { animation: float 3s ease-in-out infinite; }
-
         @keyframes slideUpFade {
             0% { opacity: 0; transform: translate(-50%, 20px); }
             10% { opacity: 1; transform: translate(-50%, 0); }
@@ -36,18 +27,6 @@
             100% { opacity: 0; transform: translate(-50%, -20px); }
         }
         .toast-animate { animation: slideUpFade 3s forwards; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
-
-        /* 自定义滚动条样式 */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-center py-10 px-4">
@@ -74,847 +53,109 @@
         </div>
     </div>
 
-    <header class="text-center mb-6 max-w-md animate-float">
-        <h1 class="text-3xl md:text-4xl font-bold text-rose-500 mb-2 drop-shadow-sm">
-            💌 我们的心动盲盒
-        </h1>
-        <p class="text-rose-400 text-sm md:text-base">
-            记录属于我们的心动瞬间
-        </p>
-    </header>
+    <!-- 调度菜单 (登录后显示) -->
+    <div id="mainMenu" class="hidden flex flex-col items-center w-full max-w-md">
+        <header class="text-center mb-10 animate-float">
+            <h1 class="text-3xl md:text-4xl font-bold text-rose-500 mb-2 drop-shadow-sm">
+                💌 我们的心动盲盒
+            </h1>
+            <p class="text-rose-400 text-sm md:text-base">
+                记录属于我们的心动瞬间
+            </p>
+        </header>
 
-    <main class="w-full max-w-md flex flex-col items-center">
-        
-        <!-- 选项卡导航 -->
-        <div class="flex space-x-4 mb-6 w-full justify-center">
-            <button id="tab-task" onclick="switchTab('task')" class="px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all">每日任务</button>
-            <button id="tab-diary" onclick="switchTab('diary')" class="px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all">共同日记</button>
+        <div class="w-full bg-white/80 backdrop-blur-md p-6 rounded-3xl shadow-sm border-2 border-rose-100 text-center mb-6">
+            <p class="text-gray-500 text-sm">当前身份: <span id="identityLabel" class="font-bold text-rose-500 text-lg"></span></p>
         </div>
 
-        <!-- 视图1：每日任务 -->
-        <div id="taskView" class="w-full flex flex-col items-center transition-opacity duration-300">
-            <!-- 卡片容器 -->
-            <div class="relative w-72 h-96 cursor-pointer perspective-1000 group" id="cardContainer" onclick="drawCard()">
-                <div id="cardInner" class="w-full h-full relative transform-style-3d card-transition shadow-xl rounded-2xl">
-                    <!-- 卡片正面 -->
-                    <div class="absolute w-full h-full bg-gradient-to-br from-rose-300 to-pink-400 rounded-2xl backface-hidden flex flex-col items-center justify-center border-4 border-white border-opacity-50">
-                        <div class="text-6xl mb-4">🎁</div>
-                        <h2 class="text-white text-2xl font-bold tracking-widest" id="cardFrontText">点击抽取</h2>
-                        <p class="text-pink-100 text-sm mt-2">365件恋爱小事</p>
-                    </div>
+        <a href="task.html" class="w-full mb-4 py-4 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-lg font-bold rounded-2xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all text-center">
+            前往 小任务 🎁
+        </a>
 
-                    <!-- 卡片背面 (抽卡结果) -->
-                    <div class="absolute w-full h-full bg-white rounded-2xl backface-hidden rotate-y-180 flex flex-col items-center justify-between p-6 border-4 border-rose-200">
-                        <div class="text-center w-full">
-                            <span id="cardCategory" class="inline-block px-3 py-1 bg-rose-100 text-rose-600 rounded-full text-xs font-bold mb-4">类别</span>
-                            <div id="cardEmoji" class="text-5xl mb-4 mt-2">✨</div>
-                        </div>
-                        <div class="flex-grow flex items-center justify-center">
-                            <p id="cardText" class="text-gray-700 text-lg font-medium text-center leading-relaxed">任务内容将在这里显示...</p>
-                        </div>
-                        <div class="text-gray-400 text-xs mt-4" id="cardNumber">#000</div>
-                    </div>
-                </div>
-            </div>
+        <a href="diary.html" class="w-full mb-4 py-4 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-lg font-bold rounded-2xl shadow-md hover:shadow-lg transform hover:-translate-y-1 transition-all text-center">
+            前往 悄悄话 📔
+        </a>
 
-            <!-- 自己的操作与悄悄话按钮 -->
-            <div class="mt-8 flex flex-col items-center gap-3 w-full max-w-xs opacity-0 pointer-events-none transition-opacity duration-500" id="actionButtons">
-                <button onclick="copyTask()" class="px-8 py-3 bg-white border border-rose-200 text-rose-500 font-bold rounded-full shadow-sm hover:shadow transform hover:-translate-y-0.5 transition-all flex items-center justify-center w-full">
-                    <span id="copyBtnText">复制发送 💬</span>
-                </button>
-                
-                <!-- 每日悄悄话输入框和完成按钮 -->
-                <div id="myTaskActionArea" class="w-full flex flex-col items-center gap-2 mt-2">
-                    <textarea id="mySecretInput" rows="2" class="w-full px-4 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300" placeholder="写一句给TA的悄悄话，完成任务后TA才能看到哦..."></textarea>
-                    <button id="completeMyTaskBtn" onclick="saveSecretMessageAndComplete()" class="w-full py-3 bg-gradient-to-r from-emerald-400 to-teal-400 text-white font-bold rounded-full shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all flex items-center justify-center">
-                        ✅ 标记我已完成
-                    </button>
-                </div>
-                <!-- 已完成提示 -->
-                <div id="myTaskDoneText" class="hidden w-full text-center py-2 bg-emerald-50 text-emerald-600 rounded-full border border-emerald-100 text-sm font-bold mt-2">
-                    🎉 今日任务已完成，悄悄话已封存！
-                </div>
-                
-                <p class="text-rose-400 text-xs text-center mt-2">✨ 今日任务已抽取，已自动同步云端 ✨</p>
-            </div>
-            
-            <!-- 对方的任务状态区 (实时展示对方抽卡内容) -->
-            <div id="partnerStatusArea" class="mt-6 w-full max-w-xs bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 hidden opacity-0 transition-opacity duration-500">
-                <h3 class="text-sm font-bold text-rose-500 mb-2 flex items-center justify-center gap-2">
-                    <span>💞</span> <span id="partnerTitle">对方的任务</span>
-                </h3>
-                <div id="partnerTaskContent" class="text-center text-gray-600 text-sm bg-rose-50 rounded-xl p-3 min-h-[80px] flex items-center justify-center">
-                    <span class="animate-pulse">正在悄悄看TA抽了什么... 👀</span>
-                </div>
-            </div>
-        </div> 
-
-        <!-- 视图2：共同日记本 -->
-        <div id="diaryView" class="w-full flex flex-col items-center hidden transition-opacity duration-300 w-full max-w-md">
-            <!-- 填写日记区 -->
-            <div class="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4">
-                <textarea id="diaryInput" rows="3" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300" placeholder="今天发生了什么开心的事？记录下来吧..."></textarea>
-                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-3 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition">写进日记本 ✍️</button>
-            </div>
-            
-            <!-- 日记展示区 (左右分栏) -->
-            <div class="w-full flex gap-3 h-[50vh] min-h-[300px]">
-                <!-- 我的日记 -->
-                <div class="flex-1 bg-white rounded-2xl p-3 shadow-sm border-2 border-rose-100 flex flex-col overflow-hidden">
-                    <h3 class="text-sm font-bold text-emerald-500 mb-2 text-center pb-2 border-b border-rose-50" id="myDiaryTitle">我的日记</h3>
-                    <div id="myDiaryList" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                        <!-- 日记条目将渲染在这里 -->
-                    </div>
-                </div>
-                <!-- TA的日记 -->
-                <div class="flex-1 bg-white rounded-2xl p-3 shadow-sm border-2 border-rose-100 flex flex-col overflow-hidden">
-                    <h3 class="text-sm font-bold text-rose-500 mb-2 text-center pb-2 border-b border-rose-50" id="partnerDiaryTitle">TA的日记</h3>
-                    <div id="partnerDiaryList" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                        <!-- 日记条目将渲染在这里 -->
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <button onclick="switchIdentity()" class="mt-12 text-gray-400 text-xs underline hover:text-rose-400 transition-colors">
-            切换身份 (当前: <span id="currentIdentityLabel">-</span>)
+        <button onclick="resetToken()" class="mt-8 text-gray-400 text-xs underline hover:text-rose-400 transition-colors">
+            重置配置与身份
         </button>
-        <button onclick="resetToken()" class="mt-4 text-gray-300 text-xs underline hover:text-gray-500 transition-colors">
-            重置 GitHub Token
-        </button>
-    </main>
+    </div>
 
     <!-- 提示框 -->
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap">
-        提示信息
-    </div>
-    <input type="text" id="clipboardInput" class="hidden absolute -left-9999">
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
 
     <script>
-        // ==========================================
-        // GitHub 仓库配置区
-        // ==========================================
-        let GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || ''; 
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         
-        // 文件路径常量
-        const FILE_H = 'data/h.json'; // 哼哼的抽卡数据
-        const FILE_Q = 'data/q.json'; // 亲亲的抽卡数据
-        const FILE_H_RJ = 'data/Hrj.json'; // 哼哼的日记数据
-        const FILE_Q_RJ = 'data/Qrj.json'; // 亲亲的日记数据
-        // ==========================================
-
-        const tasks = [
-            // 第一章：初识与心动 (破冰与日常建立)
-            { id: 1, category: "日常分享", emoji: "☀️", text: "互道专属的“早安”和“晚安”，让对方成为一天开头和结尾的人。" },
-            { id: 2, category: "日常分享", emoji: "🍱", text: "拍下今天的午餐或晚餐发给对方，交流一下各自的口味。" },
-            { id: 3, category: "日常分享", emoji: "☁️", text: "抬头看看天，拍一张今天好看的云彩或夜空发给对方。" },
-            { id: 4, category: "日常分享", emoji: "🎵", text: "分享一首你最近单曲循环的歌，并说说为什么喜欢。" },
-            { id: 5, category: "日常分享", emoji: "🤣", text: "分享一个今天在网上看到的搞笑视频或段子，一起开心一下。" },
-            { id: 6, category: "日常分享", emoji: "📱", text: "截屏分享自己手机目前的壁纸或锁屏，并说说背后的故事。" },
-            { id: 7, category: "日常分享", emoji: "🐾", text: "如果在路上遇到了可爱的小猫小狗，拍下来分享给对方。" },
-            { id: 8, category: "日常分享", emoji: "💧", text: "互相汇报今天喝了几杯水，当一天彼此的“健康监督员”。" },
-            { id: 9, category: "日常分享", emoji: "🛒", text: "分享你最近买到的一个最满意的小物件。" },
-            { id: 10, category: "日常分享", emoji: "👣", text: "晚上互发今天的计步排行榜，看谁今天更“勤劳”。" },
-            { id: 11, category: "日常分享", emoji: "💻", text: "拍下自己此时此刻的书桌或工作台现状（再乱也没关系！）。" },
-            { id: 12, category: "日常分享", emoji: "😴", text: "醒来后聊聊昨晚有没有做梦，如果做了梦，梦到了什么？" },
-            { id: 13, category: "日常分享", emoji: "📖", text: "分享今天在书上或网上看到的一句让你很有感触的句子。" },
-            { id: 14, category: "日常分享", emoji: "🧥", text: "拍一下自己今天穿的衣服（可以不露脸），让对方评价一下穿搭。" },
-            { id: 15, category: "日常分享", emoji: "🌟", text: "睡前聊聊今天发生的最让你开心的一件小事。" },
-            { id: 16, category: "日常分享", emoji: "☕", text: "给对方拍一张自己常喝的咖啡或茶的照片。" },
-            { id: 17, category: "日常分享", emoji: "🌳", text: "分享一张你觉得最有生机的植物照片，无论是在路边还是家里。" },
-            { id: 18, category: "日常分享", emoji: "👟", text: "拍下自己今天穿的鞋子，比一比谁的鞋更干净或更有个性。" },
-            { id: 19, category: "日常分享", emoji: "🎧", text: "分享一个你常听的播客或电台频道。" },
-            { id: 20, category: "日常分享", emoji: "🌧️", text: "下雨天互相拍一小段雨景视频，听听雨声。" },
-
-            // 第二章：默契与趣味 (游戏与互动)
-            { id: 21, category: "趣味游戏", emoji: "🎨", text: "玩“你画我猜”：用手机自带画图工具画一个词发过去，让对方猜。" },
-            { id: 22, category: "趣味游戏", emoji: "🎲", text: "玩文字版“真心话大冒险”（大冒险可以是发一张搞怪表情包）。" },
-            { id: 23, category: "趣味游戏", emoji: "⚡", text: "快问快答：甜豆腐脑还是咸豆腐脑？猫还是狗？（快速出5题）" },
-            { id: 24, category: "趣味游戏", emoji: "🏷️", text: "互相给对方起3个专属的奇怪昵称，并轮流叫着玩。" },
-            { id: 25, category: "趣味游戏", emoji: "🐲", text: "玩线上成语接龙，谁接不上来就要给对方发一个红包或唱一句歌。" },
-            { id: 26, category: "趣味游戏", emoji: "💰", text: "脑洞题：如果你们俩共同中了500万，这笔钱你们会怎么花？" },
-            { id: 27, category: "趣味游戏", emoji: "🧟", text: "假如丧尸危机爆发，讨论你们各自逃生会带哪三样东西。" },
-            { id: 28, category: "趣味游戏", emoji: "🤔", text: "互相出3道关于自己的单选题，看对方能不能一次猜对。" },
-            { id: 29, category: "趣味游戏", emoji: "🙅", text: "玩“我从来没有过…”游戏（比如：我从来没有逃过课，有的就算输）。" },
-            { id: 30, category: "趣味游戏", emoji: "㊙️", text: "约定一个只有你们俩懂的“暗号”（比如发个特定表情就代表“想你了”）。" },
-            { id: 31, category: "趣味游戏", emoji: "📝", text: "尝试用对方的名字作一首搞笑的打油诗或顺口溜。" },
-            { id: 32, category: "趣味游戏", emoji: "⚖️", text: "极端的“二选一”：一辈子不吃肉 vs 一辈子不喝奶茶？" },
-            { id: 33, category: "趣味游戏", emoji: "👤", text: "互相给对方挑选一张情侣头像，并强制对方换上保持24小时。" },
-            { id: 34, category: "趣味游戏", emoji: "🦸", text: "聊聊如果可以拥有一个超能力，最想要什么以及为什么。" },
-            { id: 35, category: "趣味游戏", emoji: "🧩", text: "只用Emoji表情拼一段话，让对方猜你想表达什么意思。" },
-            { id: 36, category: "趣味游戏", emoji: "🃏", text: "玩一次线上五子棋或者斗地主，输的人发自拍。" },
-            { id: 37, category: "趣味游戏", emoji: "🕵️", text: "发一张局部放大的照片，让对方猜是什么东西。" },
-            { id: 38, category: "趣味游戏", emoji: "🔤", text: "今天聊天只能用拼音或者缩写，看谁先受不了。" },
-            { id: 39, category: "趣味游戏", emoji: "🎭", text: "玩角色扮演游戏，比如一个是严格的老师，一个是调皮的学生。" },
-            { id: 40, category: "趣味游戏", emoji: "⏱️", text: "限时一分钟，看谁能打出最多的土味情话。" },
-
-            // 第三章：云端相伴 (异地同频)
-            { id: 41, category: "云约会", emoji: "🍿", text: "约定今晚同一时间看同一部电影，边看边用文字疯狂吐槽剧情。" },
-            { id: 42, category: "云约会", emoji: "🍗", text: "晚上同时点一份相同口味的外卖，假装在同一张餐桌。" },
-            { id: 43, category: "云约会", emoji: "🎯", text: "设定一个共同的短期目标（比如背单词、早起），明天互相打卡监督。" },
-            { id: 44, category: "云约会", emoji: "🎮", text: "找一个两人都可以玩的手机小游戏，互加好友开黑对战。" },
-            { id: 45, category: "云约会", emoji: "🎧", text: "在音乐App上，一起建立一个属于你们俩的“共同歌单”。" },
-            { id: 46, category: "云约会", emoji: "🗺️", text: "在地图App上搜索对方的城市，互相介绍自己常去的好玩地方。" },
-            { id: 47, category: "云约会", emoji: "🚶", text: "约定今天下班/下课同一时间去散步，打着语音分享路上的风景。" },
-            { id: 48, category: "云约会", emoji: "📺", text: "一起在视频网站找一部高质量的纪录片或搞笑综艺同步观看。" },
-            { id: 49, category: "云约会", emoji: "🌅", text: "如果天气好，同时去看各自城市的日落，拍下来发给对方。" },
-            { id: 50, category: "云约会", emoji: "🛍️", text: "互相给对方挑一件男装（只发链接不买，看看对方审美合不合）。" },
-            { id: 51, category: "云约会", emoji: "🎤", text: "一起看同一场线上电竞比赛或演唱会直播，在聊天框里当解说。" },
-            { id: 52, category: "云约会", emoji: "🚫", text: "约定今天都绝不熬夜，晚上11点半准时互道晚安然后放下手机。" },
-            { id: 53, category: "云约会", emoji: "🛒", text: "讨论如果你们现在一起去逛宜家，最想买的三样家具是什么。" },
-            { id: 54, category: "云约会", emoji: "✈️", text: "虚拟规划一次未来的双人旅行路线（去哪吃、住哪里、玩什么）。" },
-            { id: 55, category: "云约会", emoji: "💬", text: "互相教对方一句自己家乡的方言，用拼音打出来让对方读。" },
-            { id: 56, category: "云约会", emoji: "🏋️", text: "约定一起做100个俯卧撑或卷腹，拍视频打卡。" },
-            { id: 57, category: "云约会", emoji: "🧹", text: "约定同一时间打扫房间，拍下打扫前后的对比图。" },
-            { id: 58, category: "云约会", emoji: "📖", text: "挑一本书，约定一周内看完前三章，周末一起讨论。" },
-            { id: 59, category: "云约会", emoji: "🌙", text: "连麦睡觉，不说话，只听着对方的呼吸声入睡。" },
-            { id: 60, category: "云约会", emoji: "📸", text: "互相拍一张天空的照片拼在一起，假装在同一片天空下。" },
-
-            // 为了演示，保留剩余几个作为示例... 
-            { id: 61, category: "深度沟通", emoji: "❤️‍🩹", text: "坦诚地聊一次：在男男关系中，你内心最害怕或担心什么？" },
-            { id: 199, category: "情绪价值", emoji: "❤️", text: "即使是老夫老夫，也不忘偶尔深情地对他说一句：“有你真好”。" },
-            { id: 200, category: "终极任务", emoji: "💖", text: "恭喜解锁第200个任务！今天的任务是：不管有多远，立刻给他打个电话，说出那三个字。" }
-        ];
-
-        let isFlipped = false;
-        let currentTaskText = "";
-        let isAnimating = false;
-        let isLoading = true; 
-        let myIdentity = "";
-        let partnerIdentity = "";
-        let currentTab = 'task'; // 选项卡状态变量
-        
-        // 抽卡数据与SHA
-        let dataH = {};
-        let dataQ = {};
-        let shaH = null;
-        let shaQ = null;
-        
-        // 日记数据与SHA
-        let dataHRj = {};
-        let dataQRj = {};
-        let shaHRj = null;
-        let shaQRj = null;
-        
-        // 获取本地时区当前日期 (YYYY-MM-DD)
-        const todayStr = new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0];
-        let pollInterval = null;
-
-        window.onload = async function() {
-            if (!GITHUB_TOKEN) {
-                document.getElementById('tokenModal').classList.remove('hidden');
-                isLoading = false;
-            } else {
-                await initApp();
-            }
+        window.onload = function() {
+            checkConfig();
         };
 
-        // Token 验证并保存
+        function checkConfig() {
+            const token = localStorage.getItem('loveGacha_githubToken');
+            const identity = localStorage.getItem('loveGacha_myIdentity');
+
+            if (!token) {
+                document.getElementById('tokenModal').classList.remove('hidden');
+                document.getElementById('mainMenu').classList.add('hidden');
+            } else if (!identity) {
+                document.getElementById('tokenModal').classList.add('hidden');
+                document.getElementById('identityModal').classList.remove('hidden');
+                document.getElementById('mainMenu').classList.add('hidden');
+            } else {
+                document.getElementById('tokenModal').classList.add('hidden');
+                document.getElementById('identityModal').classList.add('hidden');
+                document.getElementById('mainMenu').classList.remove('hidden');
+                document.getElementById('mainMenu').classList.add('flex');
+                document.getElementById('identityLabel').innerText = identity;
+                
+                // 可选：登录后自动跳转到任务页
+                // window.location.href = 'task.html';
+            }
+        }
+
         async function saveAndTestToken() {
             const inputToken = document.getElementById('githubTokenInput').value.trim();
-            if (!inputToken) {
-                showToast("Token不能为空哦！");
-                return;
-            }
+            if (!inputToken) { showToast("Token不能为空哦！"); return; }
             
             const btn = document.getElementById('tokenSubmitBtn');
-            btn.innerText = "正在连接...";
-            btn.disabled = true;
+            btn.innerText = "正在连接..."; btn.disabled = true;
 
             try {
                 const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}`, {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${inputToken}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
+                    headers: { 'Authorization': `Bearer ${inputToken}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
-
                 if (response.ok) {
-                    GITHUB_TOKEN = inputToken;
-                    localStorage.setItem('loveGacha_githubToken', GITHUB_TOKEN);
-                    document.getElementById('tokenModal').classList.add('hidden');
+                    localStorage.setItem('loveGacha_githubToken', inputToken);
                     showToast("GitHub 连接成功！🎉");
-                    document.getElementById('githubTokenInput').value = ""; 
-                    await initApp();
-                } else if (response.status === 401 || response.status === 403 || response.status === 404) {
-                    showToast("连接失败，请检查 Token 及仓库名称和权限！");
+                    checkConfig();
                 } else {
-                    showToast(`连接异常 (状态码: ${response.status})`);
+                    showToast("连接失败，请检查 Token 及仓库名称！");
                 }
             } catch (err) {
                 showToast("网络请求失败，请稍后再试。");
             } finally {
-                btn.innerText = "连接并保存";
-                btn.disabled = false;
-            }
-        }
-
-        function resetToken() {
-            if (pollInterval) clearInterval(pollInterval);
-            localStorage.removeItem('loveGacha_githubToken');
-            GITHUB_TOKEN = '';
-            document.getElementById('tokenModal').classList.remove('hidden');
-        }
-
-        async function initApp() {
-            isLoading = true;
-            myIdentity = localStorage.getItem('loveGacha_myIdentity');
-            
-            // 初始化读取所有云端文件
-            const fetchSuccess = await fetchAllData(false);
-            
-            if (!fetchSuccess) return; 
-
-            if (!myIdentity) {
-                document.getElementById('identityModal').classList.remove('hidden');
-                isLoading = false; 
-            } else {
-                updateIdentityUI();
-                renderUI(); 
-                startPolling();
+                btn.innerText = "连接并保存"; btn.disabled = false;
             }
         }
 
         function setIdentity(id) {
-            myIdentity = id;
             localStorage.setItem('loveGacha_myIdentity', id);
-            updateIdentityUI();
-            document.getElementById('identityModal').classList.add('hidden');
-            renderUI();
-            startPolling();
+            showToast(`欢迎回来，${id}！`);
+            checkConfig();
         }
 
-        function switchIdentity() {
-            document.getElementById('identityModal').classList.remove('hidden');
+        function resetToken() {
+            localStorage.removeItem('loveGacha_githubToken');
+            localStorage.removeItem('loveGacha_myIdentity');
+            location.reload();
         }
 
-        function updateIdentityUI() {
-            partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
-            document.getElementById('currentIdentityLabel').innerText = myIdentity;
-            document.getElementById('copyBtnText').innerText = `复制发给${partnerIdentity} 💬`;
-        }
-
-        function switchTab(tab) {
-            currentTab = tab;
-            const tabTask = document.getElementById('tab-task');
-            const tabDiary = document.getElementById('tab-diary');
-            const taskView = document.getElementById('taskView');
-            const diaryView = document.getElementById('diaryView');
-
-            if(tab === 'task') {
-                taskView.classList.remove('hidden');
-                diaryView.classList.add('hidden');
-                tabTask.className = "px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all";
-                tabDiary.className = "px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all";
-            } else {
-                taskView.classList.add('hidden');
-                diaryView.classList.remove('hidden');
-                tabDiary.className = "px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all";
-                tabTask.className = "px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all";
-                renderDiaryUI(); // 切换时刷新日记UI
-            }
-        }
-
-        // ==========================================
-        // 核心：GitHub Repository 读写逻辑
-        // ==========================================
-
-        async function fetchFile(filePath) {
-            try {
-                // 增加时间戳，破坏缓存
-                const timestamp = new Date().getTime();
-                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`
-                        // 已移除 Cache-Control 防止跨域报错
-                    }
-                });
-                
-                if (response.status === 401 || response.status === 403) {
-                    return { authError: true };
-                }
-                
-                // 404代表文件还未创建，属于正常现象
-                if (response.status === 404) {
-                    return { data: {}, sha: null }; 
-                }
-                
-                if (!response.ok) {
-                    return { error: true };
-                }
-                
-                const result = await response.json();
-                let parsedData = {};
-                
-                try {
-                    const base64Str = result.content.replace(/\s/g, '');
-                    const contentStr = decodeURIComponent(escape(atob(base64Str)));
-                    parsedData = JSON.parse(contentStr || '{}');
-                } catch (parseError) {
-                    console.warn(`[容错处理] ${filePath} JSON 解析失败，将以空对象覆写原文件。`, parseError);
-                    parsedData = {}; 
-                }
-                
-                return { data: parsedData, sha: result.sha };
-            } catch (error) {
-                console.error(`读取 ${filePath} 失败:`, error);
-                return { error: true };
-            }
-        }
-
-        async function updateFile(filePath, newData, sha) {
-            try {
-                const contentStr = JSON.stringify(newData, null, 2);
-                const encodedContent = btoa(unescape(encodeURIComponent(contentStr))); 
-                
-                const body = {
-                    message: `Update love data`,
-                    content: encodedContent
-                };
-                if (sha) body.sha = sha; // 必须提供当前的sha才能覆盖已存在的文件
-
-                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                        'Content-Type': 'application/json' 
-                    },
-                    body: JSON.stringify(body)
-                });
-                
-                if (response.status === 401 || response.status === 403) {
-                    return { authError: true };
-                }
-
-                if (!response.ok) {
-                    console.error(`写入失败，状态码: ${response.status}`);
-                    return { success: false, sha: sha };
-                }
-
-                const result = await response.json();
-                if (result.content && result.content.sha) {
-                    return { success: true, sha: result.content.sha };
-                }
-                return { success: false, sha: sha };
-            } catch (error) {
-                console.error(`写入 ${filePath} 失败:`, error);
-                return { success: false, sha: sha };
-            }
-        }
-
-        async function fetchAllData(isBackground = false) {
-            if (!isBackground) {
-                isLoading = true;
-                if (!isFlipped) document.getElementById('cardFrontText').innerText = "加载中...";
-            }
-            
-            // 同时请求4个文件（抽卡数据 + 日记数据）
-            const [resH, resQ, resHRj, resQRj] = await Promise.all([
-                fetchFile(FILE_H),
-                fetchFile(FILE_Q),
-                fetchFile(FILE_H_RJ),
-                fetchFile(FILE_Q_RJ)
-            ]);
-            
-            if (resH.authError || resQ.authError || resHRj.authError || resQRj.authError) {
-                showToast("Token已失效或无权限，请重新输入！");
-                resetToken();
-                return false; 
-            }
-
-            if (resH.error || resQ.error || resHRj.error || resQRj.error) {
-                if (!isBackground) showToast("读取云端数据失败，请检查网络或仓库名是否正确！");
-                isLoading = false;
-                if (!isFlipped) document.getElementById('cardFrontText').innerText = "点击抽取";
-                return false;
-            }
-            
-            // 绑定抽卡数据
-            dataH = resH.data; shaH = resH.sha;
-            dataQ = resQ.data; shaQ = resQ.sha;
-            
-            // 绑定日记数据，如果未初始化数组则初始化为空数组
-            dataHRj = resHRj.data; shaHRj = resHRj.sha;
-            dataQRj = resQRj.data; shaQRj = resQRj.sha;
-            if (!dataHRj.diaries) dataHRj.diaries = [];
-            if (!dataQRj.diaries) dataQRj.diaries = [];
-            
-            if (!isBackground) {
-                isLoading = false;
-                if (!isFlipped) document.getElementById('cardFrontText').innerText = "点击抽取";
-            }
-            return true;
-        }
-
-        function renderUI() {
-            const myTodayData = myIdentity === '哼哼' ? dataH[todayStr] : dataQ[todayStr];
-            const partnerTodayData = myIdentity === '哼哼' ? dataQ[todayStr] : dataH[todayStr];
-
-            if (myTodayData && !isFlipped) {
-                renderFlippedCard(myTodayData, false);
-                document.getElementById('cardFrontText').innerText = "今日已抽取";
-            } else if (!isFlipped) {
-                document.getElementById('cardFrontText').innerText = "点击抽取";
-            }
-
-            // 更新自己任务的完成状态 UI
-            if (isFlipped && myTodayData) {
-                const actionArea = document.getElementById('myTaskActionArea');
-                const doneText = document.getElementById('myTaskDoneText');
-                if (actionArea && doneText) {
-                    if (myTodayData.myTaskCompleted) {
-                        actionArea.classList.add('hidden');
-                        doneText.classList.remove('hidden');
-                    } else {
-                        actionArea.classList.remove('hidden');
-                        doneText.classList.add('hidden');
-                    }
-                }
-            }
-
-            updatePartnerUI(partnerTodayData);
-            
-            if (currentTab === 'diary') {
-                renderDiaryUI();
-            }
-        }
-
-        function startPolling() {
-            if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(checkDataAndRender, 100000); 
-        }
-
-        async function checkDataAndRender() {
-            const success = await fetchAllData(true);
-            if (success && myIdentity) {
-                renderUI();
-            }
-        }
-
-        function updatePartnerUI(partnerTask) {
-            const partnerArea = document.getElementById('partnerStatusArea');
-            const partnerTitle = document.getElementById('partnerTitle');
-            const partnerContent = document.getElementById('partnerTaskContent');
-            
-            partnerArea.classList.remove('hidden');
-            partnerArea.classList.remove('opacity-0');
-            partnerTitle.innerText = `${partnerIdentity} 今日的任务`;
-            
-            if (partnerTask) {
-                let messageHtml = '';
-                // 只有当对方完成了任务，才显示对方留下的悄悄话
-                if (partnerTask.myTaskCompleted) {
-                    const msg = partnerTask.secretMessage ? partnerTask.secretMessage : "TA完成啦，但害羞没有留悄悄话~";
-                    messageHtml = `
-                        <div class="mt-3 w-full bg-emerald-50 text-emerald-600 text-xs p-2 rounded-lg border border-emerald-100 text-left animate-fade-in">
-                            <span class="font-bold block mb-1">💌 TA给你的悄悄话：</span>
-                            <span class="break-words">${msg}</span>
-                        </div>
-                    `;
-                } else {
-                    // 如果对方没完成，锁定悄悄话
-                    messageHtml = `
-                        <div class="mt-3 w-full bg-gray-50 text-gray-400 text-xs p-2 rounded-lg border border-gray-100 flex items-center justify-center gap-1">
-                            🔒 <span>TA还未完成任务，悄悄话待解锁...</span>
-                        </div>
-                    `;
-                }
-
-                partnerContent.innerHTML = `
-                    <div class="flex flex-col items-center justify-center p-2 w-full animate-fade-in">
-                        <span class="text-3xl mb-2">${partnerTask.emoji}</span>
-                        <span class="text-xs font-bold text-rose-400 mb-1 bg-white px-2 py-1 rounded-full border border-rose-100">【${partnerTask.category}】</span>
-                        <span class="font-medium text-gray-700 leading-snug mt-2 block w-full">${partnerTask.text}</span>
-                        ${messageHtml}
-                    </div>`;
-                partnerContent.classList.remove('animate-pulse');
-            } else {
-                partnerContent.innerHTML = `<span class="animate-pulse block py-3 text-gray-500">TA今天还没有抽卡哦，快去提醒TA吧~ 👀</span>`;
-                partnerContent.classList.add('animate-pulse');
-            }
-        }
-
-        async function drawCard() {
-            if (!GITHUB_TOKEN) {
-                showToast("请先配置 GitHub Token！");
-                document.getElementById('tokenModal').classList.remove('hidden');
-                return;
-            }
-            if (isLoading) {
-                showToast("正在连接云端同步数据，请稍等...");
-                return;
-            }
-            if (isAnimating || isFlipped) {
-                if (isFlipped && myIdentity) showToast("今天已经抽过啦，明天再来哦~");
-                return; 
-            }
-            if (!myIdentity) {
-                showToast("请先选择身份哦！");
-                document.getElementById('identityModal').classList.remove('hidden');
-                return;
-            }
-
-            isAnimating = true;
-            isLoading = true;
-            document.getElementById('cardFrontText').innerText = "生成中...";
-            showToast("正在抽取并同步到云端...");
-
-            const fetchSuccess = await fetchAllData(true);
-            if (!fetchSuccess) {
-                isAnimating = false;
-                isLoading = false;
-                return;
-            }
-            
-            const myData = myIdentity === '哼哼' ? dataH : dataQ;
-            let mySha = myIdentity === '哼哼' ? shaH : shaQ;
-            const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
-
-            if (myData[todayStr]) {
-                showToast("你在其他设备已经抽过啦，已为你同步！");
-                renderFlippedCard(myData[todayStr], true);
-                renderUI();
-                isAnimating = false;
-                isLoading = false;
-                document.getElementById('cardFrontText').innerText = "今日已抽取";
-                return;
-            }
-
-            const randomIndex = Math.floor(Math.random() * tasks.length);
-            const task = tasks[randomIndex];
-            
-            // 初始化任务完成状态
-            task.myTaskCompleted = false;
-            task.secretMessage = "";
-
-            myData[todayStr] = task; 
-            
-            const uploadRes = await updateFile(myPath, myData, mySha);
-            
-            if (uploadRes.authError) {
-                showToast("Token已失效，请重新输入！");
-                resetToken();
-                isAnimating = false;
-                isLoading = false;
-                return;
-            }
-
-            if (uploadRes.success) {
-                if (myIdentity === '哼哼') shaH = uploadRes.sha;
-                else shaQ = uploadRes.sha;
-            } else {
-                showToast("同步到云端失败，但本地已展示。");
-            }
-            
-            renderFlippedCard(task, true);
-            renderUI();
-            isLoading = false;
-        }
-
-        function renderFlippedCard(task, animate) {
-            currentTaskText = task.text; 
-
-            document.getElementById('cardCategory').innerText = task.category;
-            document.getElementById('cardEmoji').innerText = task.emoji;
-            document.getElementById('cardText').innerText = task.text;
-            document.getElementById('cardNumber').innerText = `#${task.id.toString().padStart(3, '0')}`;
-
-            const cardInner = document.getElementById('cardInner');
-            isFlipped = true;
-            
-            if (animate) {
-                cardInner.classList.add('rotate-y-180');
-                setTimeout(() => {
-                    const actions = document.getElementById('actionButtons');
-                    actions.classList.remove('opacity-0');
-                    actions.classList.remove('pointer-events-none');
-                    isAnimating = false;
-                }, 600);
-            } else {
-                cardInner.style.transition = 'none';
-                cardInner.classList.add('rotate-y-180');
-                void cardInner.offsetWidth; 
-                cardInner.style.transition = ''; 
-                
-                const actions = document.getElementById('actionButtons');
-                actions.classList.remove('opacity-0');
-                actions.classList.remove('pointer-events-none');
-            }
-        }
-
-        // ==========================================
-        // 每日悄悄话逻辑
-        // ==========================================
-        async function saveSecretMessageAndComplete() {
-            const input = document.getElementById('mySecretInput');
-            const message = input.value.trim();
-            const btn = document.getElementById('completeMyTaskBtn');
-            
-            btn.innerText = "正在保存...";
-            btn.disabled = true;
-
-            const myData = myIdentity === '哼哼' ? dataH : dataQ;
-            let mySha = myIdentity === '哼哼' ? shaH : shaQ;
-            const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
-
-            if (myData[todayStr]) {
-                myData[todayStr].myTaskCompleted = true;
-                myData[todayStr].secretMessage = message;
-                
-                const uploadRes = await updateFile(myPath, myData, mySha);
-                if (uploadRes.success) {
-                    if (myIdentity === '哼哼') shaH = uploadRes.sha;
-                    else shaQ = uploadRes.sha;
-                    showToast("已标记完成！悄悄话将发送给TA~ 💌");
-                    renderUI(); // 重新渲染UI，隐藏输入框
-                } else {
-                    showToast("保存失败，请检查网络重试。");
-                    myData[todayStr].myTaskCompleted = false; // 回滚状态
-                }
-            }
-            btn.innerText = "✅ 标记我已完成";
-            btn.disabled = false;
-        }
-
-        // ==========================================
-        // 共同日记本逻辑 (写入分离的 RJ.json 文件)
-        // ==========================================
-        async function saveDiary() {
-            const input = document.getElementById('diaryInput');
-            const text = input.value.trim();
-            if (!text) {
-                showToast("日记内容不能为空哦~");
-                return;
-            }
-
-            const btn = document.getElementById('saveDiaryBtn');
-            btn.innerText = "正在保存...";
-            btn.disabled = true;
-
-            // 获取对应的日记本数据变量 (Hrj / Qrj)
-            const myDataRj = myIdentity === '哼哼' ? dataHRj : dataQRj;
-            let myShaRj = myIdentity === '哼哼' ? shaHRj : shaQRj;
-            const myPathRj = myIdentity === '哼哼' ? FILE_H_RJ : FILE_Q_RJ;
-
-            if (!myDataRj.diaries) myDataRj.diaries = [];
-
-            // 获取本地精准时间 (YYYY-MM-DD HH:mm:ss)
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = (now.getMonth() + 1).toString().padStart(2, '0');
-            const date = now.getDate().toString().padStart(2, '0');
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            
-            const timeStr = `${year}-${month}-${date} ${hours}:${minutes}:${seconds}`;
-
-            // 添加到本地日记数组的最前方
-            myDataRj.diaries.unshift({
-                time: timeStr,
-                content: text
-            });
-
-            renderDiaryUI(); // 先在本地预览更新
-
-            // 上传到对应的 RJ 文件
-            const uploadRes = await updateFile(myPathRj, myDataRj, myShaRj);
-            if (uploadRes.success) {
-                if (myIdentity === '哼哼') shaHRj = uploadRes.sha;
-                else shaQRj = uploadRes.sha;
-                showToast("日记保存成功！📔");
-                input.value = ""; 
-            } else {
-                showToast("保存失败，请检查网络重试。");
-                myDataRj.diaries.shift(); // 上传失败时撤回本地插入的数据
-                renderDiaryUI();
-            }
-
-            btn.innerText = "写进日记本 ✍️";
-            btn.disabled = false;
-        }
-
-        function renderDiaryUI() {
-            if (currentTab !== 'diary' || !myIdentity) return; 
-
-            const myDataRj = myIdentity === '哼哼' ? dataHRj : dataQRj;
-            const partnerDataRj = myIdentity === '哼哼' ? dataQRj : dataHRj;
-
-            document.getElementById('myDiaryTitle').innerText = `${myIdentity}的日记`;
-            document.getElementById('partnerDiaryTitle').innerText = `${partnerIdentity}的日记`;
-
-            const myContainer = document.getElementById('myDiaryList');
-            const partnerContainer = document.getElementById('partnerDiaryList');
-
-            const renderEntries = (container, diaries, isSelf) => {
-                if (!diaries || diaries.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-400 text-center mt-6">还没有记录哦~</p>';
-                    return;
-                }
-                
-                let html = '';
-                diaries.forEach(entry => {
-                    const bgClass = isSelf ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100';
-                    const timeClass = isSelf ? 'text-emerald-500' : 'text-rose-400';
-                    html += `
-                        <div class="p-3 rounded-xl border ${bgClass} break-words animate-fade-in shadow-sm">
-                            <div class="text-[10px] font-bold ${timeClass} mb-1.5 flex items-center gap-1">
-                                <span>🕒</span> ${entry.time}
-                            </div>
-                            <div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${entry.content}</div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            };
-
-            renderEntries(myContainer, myDataRj.diaries, true);
-            renderEntries(partnerContainer, partnerDataRj.diaries, false);
-        }
-
-        // ==========================================
-        // 工具函数
-        // ==========================================
-        function showToast(message) {
+        function showToast(msg) {
             const toast = document.getElementById('toast');
-            toast.innerText = message;
-            toast.classList.remove('hidden');
-            toast.classList.add('toast-animate');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-                toast.classList.remove('toast-animate');
-            }, 3000); 
-        }
-
-        function copyTask() {
-            const textToCopy = `【今日心动任务】\n${currentTaskText}\n\n—— ${partnerIdentity}，这是我们今天要一起做的事哦！`;
-            if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(textToCopy).then(() => {
-                    showToast("复制成功！快去发给TA吧~");
-                }).catch(() => fallbackCopyTextToClipboard(textToCopy));
-            } else {
-                fallbackCopyTextToClipboard(textToCopy);
-            }
-        }
-
-        function fallbackCopyTextToClipboard(text) {
-            const input = document.getElementById('clipboardInput');
-            input.value = text;
-            input.classList.remove('hidden');
-            input.select();
-            input.setSelectionRange(0, 99999);
-            try {
-                document.execCommand('copy');
-                showToast("复制成功！快去发给TA吧~");
-            } catch (err) {
-                showToast("复制失败，请手动截图~");
-            }
-            input.classList.add('hidden');
+            toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate');
+            setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 3000);
         }
     </script>
 </body>
