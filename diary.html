@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>我们的悄悄话 💖</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -21,61 +21,107 @@
         .toast-animate { animation: slideUpFade 3s forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
+        .animate-pop { animation: pop 0.3s ease-out; }
         
         /* 自定义滚动条样式 */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
+
+        /* 隐藏日期选择器的默认图标以便自定义 */
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col items-center justify-center py-10 px-4">
+<body class="min-h-screen flex flex-col items-center justify-center py-6 px-4">
     
-    <header class="text-center mb-6 max-w-md animate-float">
-        <h1 class="text-3xl md:text-4xl font-bold text-rose-500 mb-2 drop-shadow-sm">
+    <header class="text-center mb-4 max-w-md animate-float mt-4">
+        <h1 class="text-3xl md:text-4xl font-bold text-rose-500 mb-1 drop-shadow-sm">
             💌 我们的恋爱ing ❤️‍🔥
         </h1>
-        <p class="text-rose-400 text-sm md:text-base">
-            记录属于我们的心动瞬间
-        </p>
+        <p class="text-rose-400 text-xs md:text-sm">记录属于我们的心动瞬间</p>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center">
         <!-- 选项卡导航 -->
-        <div class="flex space-x-4 mb-6 w-full justify-center">
-            <a href="index.html" class="px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm md:text-base">返回首页</a>
-            <a href="diary.html" class="px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm md:text-base">悄悄话</a>
+        <div class="flex space-x-4 mb-4 w-full justify-center">
+            <a href="index.html" class="px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm">返回首页</a>
+            <a href="diary.html" class="px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm">悄悄话</a>
         </div>
 
         <div id="diaryView" class="w-full flex flex-col items-center transition-opacity duration-300 w-full max-w-md">
+            
             <!-- 填写悄悄话区 -->
-            <div class="w-full bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4">
-                <textarea id="diaryInput" rows="3" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300" placeholder="今天发生了什么开心的事？记录下来吧..."></textarea>
-                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-3 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition">写进悄悄话本 ✍️</button>
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4">
+                
+                <!-- 心情选择器 -->
+                <div class="flex items-center gap-3 mb-3 overflow-x-auto pb-1 custom-scrollbar">
+                    <span class="text-xs text-rose-400 font-bold whitespace-nowrap">心情:</span>
+                    <div id="moodOptions" class="flex gap-2">
+                        <!-- JS 动态生成 -->
+                    </div>
+                </div>
+
+                <textarea id="diaryInput" rows="3" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300 transition-all" placeholder="今天发生了什么开心的事？写下来吧..."></textarea>
+                
+                <!-- 时光胶囊设定 -->
+                <div class="flex items-center justify-between mt-2">
+                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 hover:text-rose-400 transition-colors">
+                        <input type="checkbox" id="capsuleToggle" onchange="toggleCapsuleUI()" class="rounded text-rose-400 focus:ring-rose-400 bg-rose-50 border-rose-200 cursor-pointer w-4 h-4">
+                        <span>🔒 时光胶囊</span>
+                    </label>
+                    <input type="date" id="capsuleDate" class="hidden text-xs border border-rose-200 rounded-md px-2 py-1 text-gray-600 focus:outline-none focus:border-rose-400">
+                </div>
+
+                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-3 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-2">
+                    写进悄悄话本 ✍️
+                </button>
             </div>
             
-            <!-- 悄悄话展示区 (合并后的布局) -->
-            <div class="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[55vh] min-h-[350px]">
-                <h3 class="text-md font-bold text-rose-500 mb-3 text-center pb-2 border-b border-rose-50 flex items-center justify-center gap-2">
-                    📖 我们的悄悄话
-                </h3>
-                <!-- 这里使用 flex-col 搭配子元素的 self-start 和 self-end 实现左右排布 -->
+            <!-- 悄悄话展示区 -->
+            <div class="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[52vh] min-h-[350px] relative">
+                <div class="flex items-center justify-between border-b border-rose-50 pb-2 mb-3">
+                    <h3 class="text-md font-bold text-rose-500 flex items-center gap-2">
+                        📖 我们的悄悄话
+                    </h3>
+                    <button onclick="showRandomMemory()" class="text-xs bg-rose-50 text-rose-500 px-3 py-1.5 rounded-full font-bold hover:bg-rose-100 transition-colors shadow-sm border border-rose-100 flex items-center gap-1">
+                        🎲 随机回忆
+                    </button>
+                </div>
+
                 <div id="ourDiaryList" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
                     <!-- 动态加载合并的悄悄话内容 -->
                 </div>
             </div>
         </div>
         
-        <div class="mt-8 text-center">
+        <div class="mt-6 text-center">
             <a href="index.html" class="text-gray-400 text-xs underline hover:text-rose-400 transition-colors block mb-2">
                 返回首页(当前: <span id="currentIdentityLabel">-</span>)
             </a>
         </div>
     </main>
 
+    <!-- 随机回忆弹窗 -->
+    <div id="memoryModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4 transition-opacity opacity-0">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="memoryModalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-rose-500 font-bold text-lg flex items-center gap-2">✨ 随机回忆</h3>
+                <button onclick="closeMemoryModal()" class="text-gray-400 hover:text-rose-500 text-xl font-bold">&times;</button>
+            </div>
+            <div id="memoryCard" class="bg-rose-50 p-4 rounded-xl border border-rose-100 min-h-[100px] flex flex-col justify-center relative">
+                <!-- 回忆内容 -->
+            </div>
+            <button onclick="showRandomMemory()" class="mt-5 w-full py-2 bg-rose-400 text-white text-sm font-bold rounded-xl shadow-md hover:bg-rose-500 transition">
+                再抽一张 🎲
+            </button>
+        </div>
+    </div>
+
     <!-- 弹窗提示 -->
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
 
     <script>
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
@@ -95,11 +141,55 @@
         let dataHRj = { diaries: [] }, dataQRj = { diaries: [] }, shaHRj = null, shaQRj = null;
         let pollInterval = null;
 
+        // 心情配置
+        const MOODS = [
+            { id: 'happy', icon: '🥰', label: '开心' },
+            { id: 'love', icon: '😍', label: '爱你' },
+            { id: 'sad', icon: '🥺', label: '委屈' },
+            { id: 'angry', icon: '😡', label: '生气' },
+            { id: 'sleepy', icon: '😴', label: '想睡' }
+        ];
+        let currentMood = 'happy'; // 默认心情
+
         window.onload = async function() {
+            initMoodSelector();
             await fetchAllData();
             renderDiaryUI();
             startPolling();
         };
+
+        // 初始化心情选择器
+        function initMoodSelector() {
+            const container = document.getElementById('moodOptions');
+            container.innerHTML = MOODS.map(mood => `
+                <button onclick="selectMood('${mood.id}')" id="moodBtn_${mood.id}" 
+                    class="text-lg px-2 py-1 rounded-full transition-all border border-transparent hover:bg-rose-50 ${mood.id === currentMood ? 'bg-rose-100 border-rose-300 scale-110 shadow-sm' : 'grayscale-[30%]'}"
+                    title="${mood.label}">
+                    ${mood.icon}
+                </button>
+            `).join('');
+        }
+
+        function selectMood(moodId) {
+            currentMood = moodId;
+            initMoodSelector(); // 重新渲染高亮状态
+        }
+
+        // 控制时光胶囊日期输入框显示/隐藏
+        function toggleCapsuleUI() {
+            const isChecked = document.getElementById('capsuleToggle').checked;
+            const dateInput = document.getElementById('capsuleDate');
+            if (isChecked) {
+                dateInput.classList.remove('hidden');
+                // 默认设置为明天
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                dateInput.value = tomorrow.toISOString().split('T')[0];
+            } else {
+                dateInput.classList.add('hidden');
+                dateInput.value = '';
+            }
+        }
 
         async function fetchFile(filePath) {
             try {
@@ -157,115 +247,258 @@
             if (pollInterval) clearInterval(pollInterval); 
             pollInterval = setInterval(async () => { 
                 if(await fetchAllData()) renderDiaryUI(); 
-            }, 100000); 
+            }, 15000); // 加快轮询频率到15秒，以便及时看到点赞
         }
 
-        // 新增辅助函数：将时间戳或旧版时间字符串统一格式化为 YYYY-MM-DD HH:mm:ss
         function formatTime(timeValue) {
             let date;
-            if (typeof timeValue === 'number') {
-                date = new Date(timeValue);
-            } else if (typeof timeValue === 'string') {
-                // 兼容旧数据中的字符串格式
-                date = new Date(timeValue.replace(/-/g, '/'));
-            } else {
-                return '';
-            }
+            if (typeof timeValue === 'number') { date = new Date(timeValue); } 
+            else if (typeof timeValue === 'string') { date = new Date(timeValue.replace(/-/g, '/')); } 
+            else { return ''; }
             const yyyy = date.getFullYear();
             const MM = String(date.getMonth() + 1).padStart(2, '0');
             const dd = String(date.getDate()).padStart(2, '0');
             const HH = String(date.getHours()).padStart(2, '0');
             const mm = String(date.getMinutes()).padStart(2, '0');
-            const ss = String(date.getSeconds()).padStart(2, '0');
-            return `${yyyy}-${MM}-${dd} ${HH}:${mm}:${ss}`;
+            return `${yyyy}-${MM}-${dd} ${HH}:${mm}`;
+        }
+
+        // 获取所有合并并排序后的日记
+        function getMergedDiaries() {
+            const hDiaries = (dataHRj.diaries || []).map(entry => ({ ...entry, author: '哼哼', isSelf: myIdentity === '哼哼' }));
+            const qDiaries = (dataQRj.diaries || []).map(entry => ({ ...entry, author: '亲亲', isSelf: myIdentity === '亲亲' }));
+            return [...hDiaries, ...qDiaries].sort((a, b) => {
+                const timeA = typeof a.time === 'number' ? a.time : new Date(a.time.replace(/-/g, '/')).getTime();
+                const timeB = typeof b.time === 'number' ? b.time : new Date(b.time.replace(/-/g, '/')).getTime();
+                return timeB - timeA; 
+            });
+        }
+
+        // 点赞功能
+        async function toggleLike(msgTime, msgAuthor) {
+            // 确定要修改哪个文件
+            const isTargetHeng = msgAuthor === '哼哼';
+            const targetData = isTargetHeng ? dataHRj : dataQRj;
+            const targetPath = isTargetHeng ? FILE_H_RJ : FILE_Q_RJ;
+            let targetSha = isTargetHeng ? shaHRj : shaQRj;
+
+            // 查找对应的消息
+            const entry = targetData.diaries.find(d => d.time === msgTime || d.time === String(msgTime));
+            if (!entry) return;
+
+            // 乐观更新 UI
+            entry.liked = !entry.liked;
+            
+            // 触发爱心跳动动画
+            const heartIcon = document.getElementById(`heart_${msgTime}`);
+            if (heartIcon) {
+                heartIcon.innerText = entry.liked ? '❤️' : '🤍';
+                heartIcon.classList.add('animate-pop');
+                setTimeout(() => heartIcon.classList.remove('animate-pop'), 300);
+            }
+            renderDiaryUI();
+
+            // 后台更新文件
+            const upRes = await updateFile(targetPath, targetData, targetSha);
+            if (upRes.success) {
+                if (isTargetHeng) shaHRj = upRes.sha; else shaQRj = upRes.sha;
+            } else {
+                // 失败回滚
+                entry.liked = !entry.liked;
+                renderDiaryUI();
+                showToast("点赞失败，网络异常");
+            }
         }
 
         function renderDiaryUI() {
-            // 给双方悄悄话打上标签，便于合并后区分
-            const hDiaries = (dataHRj.diaries || []).map(entry => ({
-                ...entry,
-                author: '哼哼',
-                isSelf: myIdentity === '哼哼'
-            }));
-
-            const qDiaries = (dataQRj.diaries || []).map(entry => ({
-                ...entry,
-                author: '亲亲',
-                isSelf: myIdentity === '亲亲'
-            }));
-
-            // 1. 合并两个数组
-            // 2. 按照时间倒序排序 (最新的排在最前面)
-            const allDiaries = [...hDiaries, ...qDiaries].sort((a, b) => {
-                // 兼容新旧格式，统一获取毫秒时间戳进行精确比对
-                const timeA = typeof a.time === 'number' ? a.time : new Date(a.time.replace(/-/g, '/')).getTime();
-                const timeB = typeof b.time === 'number' ? b.time : new Date(b.time.replace(/-/g, '/')).getTime();
-                return timeB - timeA; // 倒序：时间晚的排在前面
-            });
-
+            const allDiaries = getMergedDiaries();
             const container = document.getElementById('ourDiaryList');
+            const now = Date.now();
             
             if (allDiaries.length === 0) { 
                 container.innerHTML = '<p class="text-sm text-gray-400 text-center mt-10">还没有记录哦，快写下第一篇悄悄话吧~ 📝</p>'; 
                 return; 
             }
             
-            // 渲染列表 (类似聊天气泡的布局)
             container.innerHTML = allDiaries.map(entry => {
-                // 判断排版和样式: 自己发的靠右，对方发的靠左
                 const alignClass = entry.isSelf ? 'self-end' : 'self-start';
                 const bgClass = entry.isSelf ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100';
                 const textClass = entry.isSelf ? 'text-emerald-600' : 'text-rose-500';
                 const timeClass = entry.isSelf ? 'text-emerald-400' : 'text-rose-400';
-                // 为不同身份设置一点小图标
                 const authorIcon = entry.author === '哼哼' ? '👦' : '👦';
-                
-                // 使用我们写的 formatTime 转换回易读格式
                 const displayTime = formatTime(entry.time);
+
+                // 心情解析
+                const moodObj = entry.mood ? MOODS.find(m => m.id === entry.mood) : null;
+                const moodIconHtml = moodObj ? `<span class="text-sm" title="${moodObj.label}">${moodObj.icon}</span>` : '';
+
+                // 时光胶囊逻辑
+                const isCapsule = entry.unlockTime !== undefined && entry.unlockTime !== null;
+                const isLocked = isCapsule && now < entry.unlockTime;
                 
-                return `
-                    <div class="w-[85%] sm:w-[75%] ${alignClass} p-3 rounded-2xl border ${bgClass} break-words animate-fade-in shadow-sm flex flex-col">
-                        <div class="text-[12px] font-bold ${textClass} mb-1.5 flex items-center justify-between gap-2 border-b border-white/40 pb-1">
-                            <span class="flex items-center gap-1">${authorIcon} ${entry.author}</span>
-                            <span class="${timeClass} font-normal text-[10px] font-mono">${displayTime}</span>
+                let contentHtml = '';
+                if (isLocked) {
+                    const unlockDateStr = new Date(entry.unlockTime).toLocaleDateString();
+                    contentHtml = `
+                        <div class="flex flex-col items-center justify-center py-4 opacity-70">
+                            <span class="text-2xl mb-1">🔒</span>
+                            <span class="text-xs font-bold text-gray-500">时光胶囊</span>
+                            <span class="text-[10px] text-gray-400 mt-1">将于 ${unlockDateStr} 开启</span>
                         </div>
-                        <div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">${entry.content}</div>
+                    `;
+                } else {
+                    contentHtml = `<div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed select-text">${entry.content}</div>`;
+                }
+
+                // 点赞 UI (如果是锁住的胶囊则不显示点赞)
+                let likeHtml = '';
+                if (!isLocked) {
+                    likeHtml = `
+                        <button onclick="toggleLike(${entry.time}, '${entry.author}')" class="absolute -bottom-2 ${entry.isSelf ? '-left-2' : '-right-2'} w-6 h-6 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-10 select-none cursor-pointer">
+                            <span id="heart_${entry.time}" class="text-[10px] transform ${entry.liked ? 'animate-pop' : ''}">${entry.liked ? '❤️' : '🤍'}</span>
+                        </button>
+                    `;
+                }
+
+                return `
+                    <div class="w-[85%] sm:w-[75%] ${alignClass} relative animate-fade-in mb-2">
+                        <!-- 双击卡片也可以点赞 -->
+                        <div ondblclick="${!isLocked ? `toggleLike(${entry.time}, '${entry.author}')` : ''}" 
+                             class="p-3 rounded-2xl border ${bgClass} break-words shadow-sm flex flex-col relative select-none">
+                            <div class="text-[12px] font-bold ${textClass} mb-1.5 flex items-center justify-between gap-2 border-b border-white/40 pb-1">
+                                <span class="flex items-center gap-1">${authorIcon} ${entry.author} ${moodIconHtml}</span>
+                                <span class="${timeClass} font-normal text-[10px] font-mono">${displayTime} ${isCapsule ? '✨' : ''}</span>
+                            </div>
+                            ${contentHtml}
+                        </div>
+                        ${likeHtml}
                     </div>
                 `;
             }).join('');
         }
 
         async function saveDiary() {
-            const input = document.getElementById('diaryInput'), text = input.value.trim(), btn = document.getElementById('saveDiaryBtn');
+            const input = document.getElementById('diaryInput');
+            const text = input.value.trim();
+            const btn = document.getElementById('saveDiaryBtn');
+            const isCapsule = document.getElementById('capsuleToggle').checked;
+            const capsuleDate = document.getElementById('capsuleDate').value;
+
             if (!text) { showToast("悄悄话内容不能为空哦~"); return; }
+            if (isCapsule && !capsuleDate) { showToast("请选择时光胶囊的解锁日期"); return; }
+
             btn.innerText = "正在保存..."; btn.disabled = true;
 
-            // 保持原本的分离逻辑：数据和文件路径依然根据当前身份选取，只修改自己对应的json文件
             const myDataRj = myIdentity === '哼哼' ? dataHRj : dataQRj;
             const myPathRj = myIdentity === '哼哼' ? FILE_H_RJ : FILE_Q_RJ;
             let myShaRj = myIdentity === '哼哼' ? shaHRj : shaQRj;
 
-            // 获取当前时间的毫秒级时间戳 (如：1785053048675)
             const timestamp = Date.now();
             
-            // 将数据以数字形式插入当前内存中的个人数组
-            myDataRj.diaries.unshift({ time: timestamp, content: text }); 
-            // 立刻渲染页面，体验更流畅
-            renderDiaryUI();
+            // 构建新数据
+            const newEntry = { 
+                time: timestamp, 
+                content: text,
+                mood: currentMood,
+                liked: false
+            };
 
-            // 上传专属个人的JSON文件
+            // 如果是时光胶囊，计算解锁时间戳（当地时间零点）
+            if (isCapsule) {
+                newEntry.unlockTime = new Date(capsuleDate + 'T00:00:00').getTime();
+            }
+            
+            myDataRj.diaries.unshift(newEntry); 
+            renderDiaryUI(); // 立刻渲染
+
             const upRes = await updateFile(myPathRj, myDataRj, myShaRj);
             if (upRes.success) {
                 if (myIdentity === '哼哼') shaHRj = upRes.sha; else shaQRj = upRes.sha;
-                showToast("悄悄话保存成功！📔"); 
+                showToast(isCapsule ? "时光胶囊已埋下！🕰️" : "悄悄话保存成功！📔"); 
+                // 清空输入
                 input.value = ""; 
+                document.getElementById('capsuleToggle').checked = false;
+                toggleCapsuleUI();
+                currentMood = 'happy';
+                initMoodSelector();
             } else {
                 showToast("保存失败，请稍后重试"); 
                 myDataRj.diaries.shift(); 
                 renderDiaryUI();
             }
-            btn.innerText = "写进悄悄话本 ✍️"; btn.disabled = false;
+            btn.innerHTML = "写进悄悄话本 ✍️"; btn.disabled = false;
         }
+
+        function showRandomMemory() {
+            const allDiaries = getMergedDiaries();
+            const now = Date.now();
+            
+            // 过滤出已经解锁的记录
+            const unlockedDiaries = allDiaries.filter(d => !d.unlockTime || d.unlockTime <= now);
+            
+            if (unlockedDiaries.length === 0) {
+                showToast("暂时还没有可以抽取的记忆哦~");
+                return;
+            }
+
+            // 随机选取一条
+            const randomIndex = Math.floor(Math.random() * unlockedDiaries.length);
+            const memory = unlockedDiaries[randomIndex];
+
+            const authorIcon = memory.author === '哼哼' ? '👦' : '👧';
+            const bgClass = memory.author === myIdentity ? 'bg-emerald-50 border-emerald-100' : 'bg-rose-50 border-rose-100';
+            const textClass = memory.author === myIdentity ? 'text-emerald-600' : 'text-rose-500';
+            
+            const moodObj = memory.mood ? MOODS.find(m => m.id === memory.mood) : null;
+            const moodIconHtml = moodObj ? `<span class="text-xl drop-shadow-sm">${moodObj.icon}</span>` : '';
+
+            // 渲染到 Modal
+            const memoryCard = document.getElementById('memoryCard');
+            memoryCard.className = `p-5 rounded-xl border-2 ${bgClass} shadow-inner min-h-[120px] flex flex-col relative`;
+            
+            memoryCard.innerHTML = `
+                <div class="flex justify-between items-start mb-3 border-b border-black/5 pb-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">${authorIcon}</span>
+                        <span class="font-bold ${textClass} text-sm">${memory.author}</span>
+                        ${moodIconHtml}
+                    </div>
+                    <span class="text-[11px] text-gray-400 font-mono">${formatTime(memory.time)}</span>
+                </div>
+                <div class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed flex-1">${memory.content}</div>
+                ${memory.liked ? '<div class="absolute bottom-3 right-3 text-lg opacity-80" title="曾被比心">❤️</div>' : ''}
+            `;
+
+            // 显示 Modal
+            const modal = document.getElementById('memoryModal');
+            const modalContent = document.getElementById('memoryModalContent');
+            
+            modal.classList.remove('hidden');
+            // 触发渐现和缩放动画
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            });
+        }
+
+        function closeMemoryModal() {
+            const modal = document.getElementById('memoryModal');
+            const modalContent = document.getElementById('memoryModalContent');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300); // 对应 transition 延迟
+        }
+
+        // 点击遮罩层关闭弹窗
+        document.getElementById('memoryModal').addEventListener('click', function(e) {
+            if (e.target === this) { closeMemoryModal(); }
+        });
 
         function showToast(msg) { 
             const toast = document.getElementById('toast'); 
