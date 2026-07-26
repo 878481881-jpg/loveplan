@@ -173,27 +173,10 @@
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const PARTNER_FILE = `data/${partnerIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
-
-        // ----------------- 商品数据配置 -----------------
-        /* 
-         * 💡 如何增加物品？
-         * 只需要在下面的 mallItems 数组中添加新的对象即可。
-         * id: 唯一英文标识
-         * name: 显示名称
-         * price: 价格(积分)
-         * icon: emoji图标
-         * desc: 简单描述
-         */
-        const mallItems = [
-            { id: 'truth', name: '真心话卷', price: 3, icon: '🙊', desc: '强制对方如实回答一个问题' },
-            { id: 'peace', name: '和解卷', price: 10, icon: '🕊️', desc: '吵架时使用，无条件和好如初' },
-            { id: 'immunity', name: '豁免券', price: 8, icon: '🛡️', desc: '免除一次家务、跑腿或惩罚' },
-            { id: 'caprice', name: '任性券', price: 5, icon: '👑', desc: '满足一个小小的、不过分的任性要求' }
-            // 例如添加抱抱券：
-            // { id: 'hug', name: '抱抱券', price: 2, icon: '🫂', desc: '随时随地兑换一个超级大拥抱' }
-        ];
+        const SCWP_FILE = 'data/scwp.json'; // 商场物品配置文件
 
         // ----------------- 全局状态 -----------------
+        let mallItems = []; // 动态获取的商场物品列表
         let myData = { points: 50, inventory: {}, pendingUses: [], sha: null }; // 默认送50积分
         let partnerData = { points: 50, inventory: {}, pendingUses: [], sha: null };
 
@@ -252,13 +235,26 @@
             document.getElementById('loadingView').classList.remove('hidden');
             document.getElementById('contentView').classList.add('hidden');
 
-            const [myRes, partnerRes] = await Promise.all([
-                fetchFile(MY_FILE), fetchFile(PARTNER_FILE)
+            const [myRes, partnerRes, scwpRes] = await Promise.all([
+                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE)
             ]);
 
-            if (myRes.error || partnerRes.error) {
+            if (myRes.error || partnerRes.error || scwpRes.error) {
                 showToast("获取数据失败，请检查网络或Token");
                 return;
+            }
+
+            // 获取商场商品配置
+            if (scwpRes.data && Array.isArray(scwpRes.data)) {
+                mallItems = scwpRes.data;
+            } else {
+                // 如果文件不存在或格式不对，提供保底默认商品
+                mallItems = [
+                    { id: 'truth', name: '真心话卷', price: 3, icon: '🙊', desc: '强制对方如实回答一个问题' },
+                    { id: 'peace', name: '和解卷', price: 10, icon: '🕊️', desc: '吵架时使用，无条件和好如初' },
+                    { id: 'immunity', name: '豁免券', price: 8, icon: '🛡️', desc: '免除一次家务、跑腿或惩罚' },
+                    { id: 'caprice', name: '任性券', price: 5, icon: '👑', desc: '满足一个小小的、不过分的任性要求' }
+                ];
             }
 
             // 合并或初始化数据
