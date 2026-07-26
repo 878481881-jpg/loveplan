@@ -34,7 +34,7 @@
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 relative">
-    
+
     <!-- 全局加载遮罩 -->
     <div id="globalLoader" class="fixed inset-0 bg-white/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center hidden">
         <svg class="animate-spin h-10 w-10 text-rose-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -47,6 +47,11 @@
         </h1>
         <p class="text-rose-400 text-sm">有多懂彼此？测测就知道！</p>
     </header>
+            <!-- 选项卡导航 -->
+        <div class="flex space-x-3 mb-6 w-full justify-center overflow-x-auto no-scrollbar py-2">
+            <a href="index.html" class="px-5 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm whitespace-nowrap">返回首页</a>
+            <a href="pet.html" class="px-5 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm whitespace-nowrap">默契挑战</a>
+        </div>
 
     <div class="w-full max-w-md glass-panel rounded-2xl p-4 mb-5 flex justify-between items-center">
         <div class="flex items-center gap-3">
@@ -224,17 +229,26 @@
         
         // 仓库配置
         const OWNER_REPO = '878481881-jpg/loveplan'; 
-        const FILE_H = 'data/hck.json'; 
-        const FILE_Q = 'data/qck.json'; 
+        const FILE_CK_H = 'data/hck.json'; 
+        const FILE_CK_Q = 'data/qck.json'; 
+        const FILE_TW_H = 'data/htw.json'; 
+        const FILE_TW_Q = 'data/qtw.json'; 
         
-        const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
-        const partnerPath = myIdentity === '哼哼' ? FILE_Q : FILE_H;
+        const myCkPath = myIdentity === '哼哼' ? FILE_CK_H : FILE_CK_Q;
+        const partnerCkPath = myIdentity === '哼哼' ? FILE_CK_Q : FILE_CK_H;
+        const myTwPath = myIdentity === '哼哼' ? FILE_TW_H : FILE_TW_Q;
+        const partnerTwPath = myIdentity === '哼哼' ? FILE_TW_Q : FILE_TW_H;
 
         // 全局状态
-        let myData = { points: 20, questions: [], answered: [] };
-        let partnerData = { points: 20, questions: [], answered: [] };
-        let mySha = null;
-        let partnerSha = null;
+        let myCkData = { points: 20 };
+        let partnerCkData = { points: 20 };
+        let myTwData = { questions: [], answered: [] };
+        let partnerTwData = { questions: [], answered: [] };
+        
+        let myCkSha = null;
+        let partnerCkSha = null;
+        let myTwSha = null;
+        let partnerTwSha = null;
         
         let currentAnsweringQId = null;
         let selectedOption = null;
@@ -255,7 +269,7 @@
                     headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
                 });
                 
-                if (res.status === 404) return { data: { points: 20, questions: [], answered: [] }, sha: null }; 
+                if (res.status === 404) return { data: {}, sha: null }; 
                 if (!res.ok) throw new Error('API Error');
                 
                 const result = await res.json();
@@ -265,7 +279,7 @@
                 // 本地Demo模式后备方案（当真实的Token无效时，使用内存数据演示）
                 console.warn("读取失败，使用本地测试数据", e);
                 return { 
-                    data: { points: 20, questions: [], answered: [] }, 
+                    data: {}, 
                     sha: 'mock_sha_' + Math.random() 
                 };
             }
@@ -295,14 +309,23 @@
         }
 
         async function fetchAllData() {
-            const [me, partner] = await Promise.all([fetchFile(myPath), fetchFile(partnerPath)]);
+            const [meCk, partnerCk, meTw, partnerTw] = await Promise.all([
+                fetchFile(myCkPath), fetchFile(partnerCkPath),
+                fetchFile(myTwPath), fetchFile(partnerTwPath)
+            ]);
             
             // 数据结构兜底
-            myData = Object.assign({ points: 20, questions: [], answered: [] }, me.data);
-            mySha = me.sha;
+            myCkData = Object.assign({ points: 20 }, meCk.data);
+            myCkSha = meCk.sha;
             
-            partnerData = Object.assign({ points: 20, questions: [], answered: [] }, partner.data);
-            partnerSha = partner.sha;
+            partnerCkData = Object.assign({ points: 20 }, partnerCk.data);
+            partnerCkSha = partnerCk.sha;
+
+            myTwData = Object.assign({ questions: [], answered: [] }, meTw.data);
+            myTwSha = meTw.sha;
+
+            partnerTwData = Object.assign({ questions: [], answered: [] }, partnerTw.data);
+            partnerTwSha = partnerTw.sha;
         }
 
         // --- 3. UI 渲染与切换 ---
@@ -328,7 +351,7 @@
 
         function renderUI() {
             // 更新积分
-            document.getElementById('myPoints').innerText = myData.points;
+            document.getElementById('myPoints').innerText = myCkData.points;
             
             // 渲染“我出的题” (Ask 视图)
             renderMyQuestions();
@@ -337,7 +360,7 @@
             renderPartnerQuestions();
             
             // 检查是否有未答的题，更新红点
-            const pendingQs = partnerData.questions.filter(q => q.status === 'pending');
+            const pendingQs = partnerTwData.questions.filter(q => q.status === 'pending');
             const badge = document.getElementById('pendingBadge');
             if (pendingQs.length > 0) badge.classList.remove('hidden');
             else badge.classList.add('hidden');
@@ -345,13 +368,13 @@
 
         function renderMyQuestions() {
             const list = document.getElementById('myQuestionsList');
-            if (!myData.questions || myData.questions.length === 0) {
+            if (!myTwData.questions || myTwData.questions.length === 0) {
                 list.innerHTML = `<div class="text-center text-gray-400 text-xs py-6 bg-white/50 rounded-xl border border-rose-100 border-dashed">还没有出过题哦，快去考考TA吧~</div>`;
                 return;
             }
 
             let html = '';
-            [...myData.questions].reverse().forEach(q => {
+            [...myTwData.questions].reverse().forEach(q => {
                 let statusUI = '';
                 if (q.status === 'pending') {
                     statusUI = `<div class="bg-gray-100 text-gray-500 text-xs px-2 py-1 rounded flex items-center gap-1">🕒 TA还未作答</div>`;
@@ -402,7 +425,7 @@
             const pendingList = document.getElementById('pendingList');
             const answeredList = document.getElementById('answeredList');
             
-            const pendingQs = partnerData.questions.filter(q => q.status === 'pending');
+            const pendingQs = partnerTwData.questions.filter(q => q.status === 'pending');
             
             // 渲染待答列表
             if (pendingQs.length > 0) {
@@ -430,11 +453,11 @@
             }
 
             // 渲染已答记录
-            if (!myData.answered || myData.answered.length === 0) {
+            if (!myTwData.answered || myTwData.answered.length === 0) {
                 answeredList.innerHTML = `<div class="text-center text-gray-400 text-xs py-4 bg-white/40 rounded-xl border border-gray-100">暂无作答记录</div>`;
             } else {
                 let aHtml = '';
-                [...myData.answered].reverse().forEach(a => {
+                [...myTwData.answered].reverse().forEach(a => {
                     aHtml += `
                         <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-50 flex flex-col gap-1.5 opacity-80 hover:opacity-100 transition-opacity">
                             <h4 class="text-sm font-medium text-gray-700">${a.q}</h4>
@@ -458,7 +481,7 @@
             if (!q || !aC || !aW1) {
                 showToast("请至少填写问题、正确答案和1个迷惑选项哦~"); return;
             }
-            if (myData.points < 1) {
+            if (myCkData.points < 1) {
                 showToast("积分不足啦，先去答题赚积分吧！"); return;
             }
 
@@ -475,15 +498,18 @@
             };
 
             // 扣分并添加记录
-            myData.points -= 1;
-            myData.questions.push(newQ);
+            myCkData.points -= 1;
+            myTwData.questions.push(newQ);
 
-            // 上传
-            const upRes = await updateFile(myPath, myData, mySha);
+            // 上传 (串行或并行保存两个文件)
+            const upCkRes = await updateFile(myCkPath, myCkData, myCkSha);
+            const upTwRes = await updateFile(myTwPath, myTwData, myTwSha);
+            
             hideLoader();
 
-            if (upRes.success) {
-                mySha = upRes.sha;
+            if (upCkRes.success && upTwRes.success) {
+                myCkSha = upCkRes.sha;
+                myTwSha = upTwRes.sha;
                 showToast("发布成功！消耗 1 积分");
                 
                 // 清空表单
@@ -495,16 +521,16 @@
                 renderUI();
             } else {
                 showToast("发布失败，请重试");
-                myData.points += 1; // 恢复
-                myData.questions.pop();
+                myCkData.points += 1; // 恢复
+                myTwData.questions.pop();
             }
         }
 
         function openAnswerModal(qId) {
-            const q = partnerData.questions.find(x => x.id === qId);
+            const q = partnerTwData.questions.find(x => x.id === qId);
             if (!q) return;
             
-            if (myData.points < 1) {
+            if (myCkData.points < 1) {
                 showToast("积分不足！回答需要 1 积分哦~"); return;
             }
 
@@ -579,35 +605,45 @@
             const isCorrect = (selectedOption === q.correct);
             
             // 1. 扣除答题费
-            myData.points -= 1; 
+            myCkData.points -= 1; 
             
             // 2. 结算奖励 & 更新状态
             if (isCorrect) {
-                myData.points += 2; // 答对，我+2
+                myCkData.points += 2; // 答对，我+2
                 q.status = 'correct';
             } else {
-                partnerData.points += 2; // 答错，TA+2
+                partnerCkData.points += 2; // 答错，TA+2
                 q.status = 'wrong';
             }
             q.partner_choice = selectedOption;
 
-            // 3. 记录到我的已答历史
-            if(!myData.answered) myData.answered = [];
-            myData.answered.push({
+            // 3. 记录到我的已答历史 (转存入 myTwData)
+            if(!myTwData.answered) myTwData.answered = [];
+            myTwData.answered.push({
                 q_id: q.id,
                 q: q.q,
                 my_choice: selectedOption,
                 is_correct: isCorrect
             });
 
-            // 4. 同步双方数据 (为了稳妥，串行保存)
-            // 先保存我的 (扣费和奖励)
-            const upMe = await updateFile(myPath, myData, mySha);
-            if(upMe.success) mySha = upMe.sha;
+            // 4. 同步双方数据
+            // 保存我的积分
+            const upMeCk = await updateFile(myCkPath, myCkData, myCkSha);
+            if(upMeCk.success) myCkSha = upMeCk.sha;
+
+            // 保存我的作答记录
+            const upMeTw = await updateFile(myTwPath, myTwData, myTwSha);
+            if(upMeTw.success) myTwSha = upMeTw.sha;
             
-            // 再保存TA的 (更新问题状态和TA的奖励)
-            const upPartner = await updateFile(partnerPath, partnerData, partnerSha);
-            if(upPartner.success) partnerSha = upPartner.sha;
+            // 保存TA的题目状态
+            const upPartnerTw = await updateFile(partnerTwPath, partnerTwData, partnerTwSha);
+            if(upPartnerTw.success) partnerTwSha = upPartnerTw.sha;
+
+            // 如果TA加分了，还需要保存TA的积分文件
+            if (!isCorrect) {
+                const upPartnerCk = await updateFile(partnerCkPath, partnerCkData, partnerCkSha);
+                if(upPartnerCk.success) partnerCkSha = upPartnerCk.sha;
+            }
 
             hideLoader();
             renderUI();
