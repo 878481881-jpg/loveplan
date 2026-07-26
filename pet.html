@@ -374,6 +374,11 @@
             return Math.floor(100 + (level - 1) * 8);
         }
 
+        // 饱食度上限计算 (随等级成长，每级+2)
+        function getMaxHunger(level) {
+            return 100 + (level - 1) * 2; 
+        }
+
         async function fetchFile(filePath) {
             try {
                 const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${new Date().getTime()}`, {
@@ -622,16 +627,31 @@
 
             switch(type) {
                 case 'feed':
-                    prompt.innerHTML = '点击骨头喂给儿子 🍖 (0/3)';
-                    const bone = document.createElement('div');
-                    bone.innerHTML = '🍖'; bone.className = 'text-6xl cursor-pointer hover:scale-110 active:scale-95 transition-transform';
-                    bone.onclick = (e) => {
+                    const foods = [
+                        { icon: '🍖', name: '高能骨头' },
+                        { icon: '🥩', name: '极品合成肉' },
+                        { icon: '🍗', name: '香脆炸鸡' },
+                        { icon: '🌭', name: '赛博热狗' },
+                        { icon: '🥫', name: '全息罐头' },
+                        { icon: '🥟', name: '能量饺子' },
+                        { icon: '🍣', name: '深海刺身' },
+                        { icon: '🍔', name: '超维汉堡' },
+                        { icon: '🍎', name: '量子苹果' }
+                    ];
+                    const food = foods[Math.floor(Math.random() * foods.length)];
+                    mgState.extra = food; // 保存选中的食物信息传给结算
+                    
+                    prompt.innerHTML = `点击食物喂给儿子 ${food.icon} (0/3)`;
+                    const foodEl = document.createElement('div');
+                    foodEl.innerHTML = food.icon; 
+                    foodEl.className = 'text-6xl cursor-pointer hover:scale-110 active:scale-95 transition-transform';
+                    foodEl.onclick = (e) => {
                         e.stopPropagation(); mgState.progress++;
-                        prompt.innerHTML = `点击骨头喂给儿子 🍖 (${mgState.progress}/3)`;
+                        prompt.innerHTML = `点击食物喂给儿子 ${food.icon} (${mgState.progress}/3)`;
                         spawnMiniGameParticle(e.clientX, e.clientY, '✨');
                         if(mgState.progress >= 3) finishMiniGame(type);
                     };
-                    overlay.appendChild(bone);
+                    overlay.appendChild(foodEl);
                     break;
                 case 'fan':
                     prompt.innerHTML = '向上滑动扔出飞盘 🎾';
@@ -804,12 +824,13 @@
             }
 
             // 操作前置校验
-            if (type === 'feed' && petData.hunger >= 100) return showToast(`吃饱啦，再吃要报错了！`);
-            if (type === 'fan' && petData.hunger < 20) return showToast(`能源告急，没力气玩了！`);
+            const maxHunger = getMaxHunger(petData.level);
+            if (type === 'feed' && petData.hunger >= maxHunger) return showToast(`吃饱啦，再吃要报错了！`);
+            if (type === 'fan' && petData.hunger < maxHunger * 0.2) return showToast(`能源告急，没力气玩了！`);
             if (type === 'water' && petData.clean >= 100) return showToast(`装甲已经很闪亮啦！`);
-            if (type === 'walk' && petData.hunger < 30) return showToast(`能源告急，走不动啦！`);
+            if (type === 'walk' && petData.hunger < maxHunger * 0.3) return showToast(`能源告急，走不动啦！`);
             if (type === 'brush' && petData.clean >= 100 && petData.mood >= 100) return showToast(`状态完美，不需要梳理啦！`);
-            if (type === 'train' && petData.hunger < 40) return showToast(`太饿了，无法集中注意力特训！`);
+            if (type === 'train' && petData.hunger < maxHunger * 0.4) return showToast(`太饿了，无法集中注意力特训！`);
 
             startMiniGame(type); // 校验通过，启动小游戏
         }
@@ -822,10 +843,21 @@
             }
 
             let logMsg = ""; let success = false;
+            const maxHunger = getMaxHunger(petData.level);
 
             if (type === 'feed') {
-                petData.hunger = Math.min(100, petData.hunger + 25); petData.mood = Math.min(100, petData.mood + 5); petData.clean = Math.max(0, petData.clean - 5); 
-                addExp(15); logMsg = "投喂了高能骨头 🍖，动力满满"; showInteractionText("+25 🍖"); success = true;
+                const food = extraData || { icon: '🍖', name: '高能骨头' };
+                // 随机增加 30% 到 100% 的饱食度
+                const gainPercent = 0.3 + Math.random() * 0.7; 
+                const hungerGain = Math.floor(maxHunger * gainPercent);
+                
+                petData.hunger = Math.min(maxHunger, petData.hunger + hungerGain); 
+                petData.mood = Math.min(100, petData.mood + 5); 
+                petData.clean = Math.max(0, petData.clean - 5); 
+                addExp(15); 
+                logMsg = `投喂了${food.name} ${food.icon}，饱食度 +${hungerGain}`; 
+                showInteractionText(`+${hungerGain} ${food.icon}`); 
+                success = true;
             } 
             else if (type === 'fan') { 
                 petData.mood = Math.min(100, petData.mood + 20); petData.hunger = Math.max(0, petData.hunger - 15); petData.clean = Math.max(0, petData.clean - 10); 
@@ -885,6 +917,7 @@
             const wingSpan = Math.max(0, (level - 25) * 0.8);  
             
             let opacity = 1; let filterStyle = ''; let animClass = "animate-mech";
+            const maxHunger = getMaxHunger(level);
             
             // 夜间模式覆盖状态
             if (isNightTime) {
@@ -892,10 +925,10 @@
                 opacity = 0.8;
                 filterStyle = 'brightness(0.7)';
             } else {
-                if (pet.hunger < 30) { scale *= 0.85; opacity = 0.7; } 
-                else if (pet.hunger >= 80) { scale *= 1.05; }
+                if (pet.hunger < maxHunger * 0.3) { scale *= 0.85; opacity = 0.7; } 
+                else if (pet.hunger >= maxHunger * 0.8) { scale *= 1.05; }
                 if (pet.clean < 30) { filterStyle = 'grayscale(0.6) blur(1.5px)'; }
-                if (pet.hunger < 30 || pet.mood < 30) animClass += " animate-glitch";
+                if (pet.hunger < maxHunger * 0.3 || pet.mood < 30) animClass += " animate-glitch";
             }
 
             let html = `<div class="relative flex justify-center items-center transition-all duration-700 w-full h-full" style="transform: scale(${scale}); filter: ${filterStyle}; opacity: ${opacity};">`;
@@ -960,7 +993,7 @@
 
             // 粒子系统：如果睡觉，停止生成粒子
             if (!isNightTime) {
-                let sparksMult = (pet.mood < 30 || pet.hunger < 30) ? 0 : (pet.mood >= 80 ? 1.5 : 1);
+                let sparksMult = (pet.mood < 30 || pet.hunger < maxHunger * 0.3) ? 0 : (pet.mood >= 80 ? 1.5 : 1);
                 const numSparks = Math.floor(2 + (level / 10) * sparksMult);
                 const particleIcons = ['◈', '⟡', '0', '1', '⚡'];
 
@@ -997,10 +1030,11 @@
             
             const level = petData.level;
             const baseHue = (190 + level * 5) % 360;
+            const maxHunger = getMaxHunger(level);
             
             // Glitch UI 严重警告框
             const petContainer = document.getElementById('petContainer');
-            if (petData.hunger < 20 || petData.mood < 20) {
+            if (petData.hunger < maxHunger * 0.2 || petData.mood < 20) {
                 petContainer.classList.add('danger-glitch');
             } else {
                 petContainer.classList.remove('danger-glitch');
@@ -1014,12 +1048,12 @@
             document.getElementById('displayMaxExp').innerText = petData.level >= 100 ? "MAX" : getMaxExp(petData.level);
             
             let statusText = isNightTime ? "休眠充能" : 
-                (petData.hunger < 30 ? "能源枯竭" : (petData.level >= 100 ? "宇宙奇点" : "全息幼犬"));
+                (petData.hunger < maxHunger * 0.3 ? "能源枯竭" : (petData.level >= 100 ? "宇宙奇点" : "全息幼犬"));
             document.getElementById('displayPetStatus').innerText = statusText;
 
-            updateBar('Hunger', petData.hunger, 'bg-orange-400');
-            updateBar('Mood', petData.mood, 'bg-rose-400');
-            updateBar('Clean', petData.clean, 'bg-sky-400');
+            updateBar('Hunger', petData.hunger, maxHunger, 'bg-orange-400');
+            updateBar('Mood', petData.mood, 100, 'bg-rose-400');
+            updateBar('Clean', petData.clean, 100, 'bg-sky-400');
 
             // 纸条状态
             const btnLetter = document.getElementById('btn_letter');
@@ -1049,12 +1083,14 @@
             }
         }
 
-        function updateBar(idPrefix, value, colorClass) {
+        // 进度条渲染支持自定义最大值
+        function updateBar(idPrefix, value, maxVal, colorClass) {
             const bar = document.getElementById(`bar${idPrefix}`);
-            document.getElementById(`val${idPrefix}`).innerText = `${Math.floor(value)}/100`;
-            bar.style.width = `${value}%`;
+            document.getElementById(`val${idPrefix}`).innerText = `${Math.floor(value)}/${maxVal}`;
+            let pct = (value / maxVal) * 100;
+            bar.style.width = `${pct}%`;
             bar.className = `h-2.5 rounded-full progress-bar ${colorClass}`;
-            if (value < 30) { bar.classList.replace(colorClass, 'bg-red-500'); }
+            if (pct < 30) { bar.classList.replace(colorClass, 'bg-red-500'); }
         }
 
         function calculateTimeDecay() {
@@ -1146,7 +1182,7 @@
             if (myIdentity === '哼哼') petData.resonance.h_ready = true; else petData.resonance.q_ready = true;
             const isSuccess = petData.resonance.h_ready && petData.resonance.q_ready;
 
-            if (isSuccess) { petData.hunger = 100; petData.mood = 100; petData.clean = 100; addExp(50); }
+            if (isSuccess) { petData.hunger = getMaxHunger(petData.level); petData.mood = 100; petData.clean = 100; addExp(50); }
             petData.lastUpdated = new Date().getTime();
 
             const upRes = await updateFile(FILE_PET, petData, petSha);
