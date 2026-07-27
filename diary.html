@@ -17,12 +17,23 @@
         }
         @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
         .animate-float { animation: float 3s ease-in-out infinite; }
+        
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
+        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
         @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
         .animate-pop { animation: pop 0.3s ease-out; }
+
+        /* 新增：礼物盒震动动画 */
+        @keyframes shake {
+            0%, 100% { transform: rotate(0deg); }
+            25% { transform: rotate(-15deg) scale(1.1); }
+            75% { transform: rotate(15deg) scale(1.1); }
+        }
+        .animate-shake:hover { animation: shake 0.6s ease-in-out infinite; }
         
         /* 自定义滚动条样式 */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -30,13 +41,11 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
 
-        /* 隐藏日期选择器的默认图标以便自定义 */
         input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
     </style>
 </head>
 
 <body class="min-h-screen flex flex-col items-center justify-center py-6 px-4">
-    
     <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
         <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -46,17 +55,19 @@
                <span>✨</span> 我们的悄悄话 <span>✨</span>
             </h1>
         </div>
-        <div class="w-9 h-9"></div> <!-- 占位保持居中 -->
+        <div class="w-9 h-9"></div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center">
+        <div class="flex space-x-4 mb-4 w-full justify-center">
+            <a href="index.html" class="px-6 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm">返回首页</a>
+            <a href="diary.html" class="px-6 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm">悄悄话</a>
+        </div>
 
         <div id="diaryView" class="w-full flex flex-col items-center transition-opacity duration-300 w-full max-w-md">
             
-            <!-- 填写悄悄话区 -->
             <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4">
                 
-                <!-- 心情选择器 -->
                 <div class="flex items-center gap-3 mb-3 overflow-x-auto pb-1 custom-scrollbar">
                     <span class="text-xs text-rose-400 font-bold whitespace-nowrap">心情:</span>
                     <div id="moodOptions" class="flex gap-2">
@@ -66,7 +77,6 @@
 
                 <textarea id="diaryInput" rows="3" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300 transition-all" placeholder="今天发生了什么开心的事？写下来吧..."></textarea>
                 
-                <!-- 时光胶囊设定 -->
                 <div class="flex items-center justify-between mt-2">
                     <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 hover:text-rose-400 transition-colors">
                         <input type="checkbox" id="capsuleToggle" onchange="toggleCapsuleUI()" class="rounded text-rose-400 focus:ring-rose-400 bg-rose-50 border-rose-200 cursor-pointer w-4 h-4">
@@ -80,7 +90,6 @@
                 </button>
             </div>
             
-            <!-- 悄悄话展示区 -->
             <div class="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[52vh] min-h-[350px] relative">
                 <div class="flex items-center justify-between border-b border-rose-50 pb-2 mb-3">
                     <h3 class="text-md font-bold text-rose-500 flex items-center gap-2">
@@ -91,8 +100,17 @@
                     </button>
                 </div>
 
+                <!-- 新增：时光胶囊到期提示横幅 -->
+                <div id="capsuleNotice" class="hidden shrink-0 w-full mb-3 bg-gradient-to-r from-pink-100 to-rose-100 border border-rose-200 rounded-xl p-3 flex items-center justify-between shadow-sm cursor-pointer animate-float" onclick="scrollToFirstCapsule()">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xl">⏳ </span>
+                        <span class="text-sm font-bold text-rose-600" id="capsuleNoticeText">有时光胶囊成熟啦！</span>
+                    </div>
+                    <span class="text-xs bg-white text-rose-500 px-2 py-1 rounded-full font-bold shadow-sm hover:bg-rose-50 transition-colors">去拆开 &rarr;</span>
+                </div>
+
                 <div id="ourDiaryList" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
-                    <!-- 动态加载合并的悄悄话内容 -->
+                    <!-- 动态加载 -->
                 </div>
             </div>
         </div>
@@ -104,23 +122,21 @@
         </div>
     </main>
 
-    <!-- 随机回忆弹窗 -->
     <div id="memoryModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4 transition-opacity opacity-0">
         <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="memoryModalContent">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="text-rose-500 font-bold text-lg flex items-center gap-2">✨ 随机回忆</h3>
+                <h3 class="text-rose-500 font-bold text-lg flex items-center gap-2" id="modalTitle">✨ 随机回忆</h3>
                 <button onclick="closeMemoryModal()" class="text-gray-400 hover:text-rose-500 text-xl font-bold">&times;</button>
             </div>
             <div id="memoryCard" class="bg-rose-50 p-4 rounded-xl border border-rose-100 min-h-[100px] flex flex-col justify-center relative">
                 <!-- 回忆内容 -->
             </div>
-            <button onclick="showRandomMemory()" class="mt-5 w-full py-2 bg-rose-400 text-white text-sm font-bold rounded-xl shadow-md hover:bg-rose-500 transition">
+            <button onclick="showRandomMemory()" id="modalActionBtn" class="mt-5 w-full py-2 bg-rose-400 text-white text-sm font-bold rounded-xl shadow-md hover:bg-rose-500 transition">
                 再抽一张 🎲
             </button>
         </div>
     </div>
 
-    <!-- 弹窗提示 -->
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
 
     <script>
@@ -128,11 +144,12 @@
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
 
         if (!GITHUB_TOKEN || !myIdentity) {
-            window.location.href = 'index.html'; // 强制鉴权
+            // 本地测试可以直接注释掉下面这行
+            // window.location.href = 'index.html'; 
         }
 
         const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
-        document.getElementById('currentIdentityLabel').innerText = myIdentity;
+        document.getElementById('currentIdentityLabel').innerText = myIdentity || '游客';
         
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const FILE_H_RJ = 'data/Hrj.json'; 
@@ -141,7 +158,6 @@
         let dataHRj = { diaries: [] }, dataQRj = { diaries: [] }, shaHRj = null, shaQRj = null;
         let pollInterval = null;
 
-        // 心情配置
         const MOODS = [
             { id: 'happy', icon: '🥰', label: '开心' },
             { id: 'love', icon: '😍', label: '爱你' },
@@ -149,7 +165,7 @@
             { id: 'angry', icon: '😡', label: '生气' },
             { id: 'sleepy', icon: '😴', label: '想睡' }
         ];
-        let currentMood = 'happy'; // 默认心情
+        let currentMood = 'happy'; 
 
         window.onload = async function() {
             initMoodSelector();
@@ -158,7 +174,6 @@
             startPolling();
         };
 
-        // 初始化心情选择器
         function initMoodSelector() {
             const container = document.getElementById('moodOptions');
             container.innerHTML = MOODS.map(mood => `
@@ -172,16 +187,14 @@
 
         function selectMood(moodId) {
             currentMood = moodId;
-            initMoodSelector(); // 重新渲染高亮状态
+            initMoodSelector(); 
         }
 
-        // 控制时光胶囊日期输入框显示/隐藏
         function toggleCapsuleUI() {
             const isChecked = document.getElementById('capsuleToggle').checked;
             const dateInput = document.getElementById('capsuleDate');
             if (isChecked) {
                 dateInput.classList.remove('hidden');
-                // 默认设置为明天
                 const tomorrow = new Date();
                 tomorrow.setDate(tomorrow.getDate() + 1);
                 dateInput.value = tomorrow.toISOString().split('T')[0];
@@ -229,7 +242,7 @@
             
             if (resH.authError || resQ.authError) { 
                 showToast("Token失效，请重新登录"); 
-                setTimeout(()=>window.location.href='index.html', 1500); 
+                // setTimeout(()=>window.location.href='index.html', 1500); 
                 return false; 
             }
             if (resH.error || resQ.error) return false;
@@ -247,7 +260,7 @@
             if (pollInterval) clearInterval(pollInterval); 
             pollInterval = setInterval(async () => { 
                 if(await fetchAllData()) renderDiaryUI(); 
-            }, 100000); // 加快轮询频率到15秒，以便及时看到点赞
+            }, 15000); 
         }
 
         function formatTime(timeValue) {
@@ -263,7 +276,6 @@
             return `${yyyy}-${MM}-${dd} ${HH}:${mm}`;
         }
 
-        // 获取所有合并并排序后的日记
         function getMergedDiaries() {
             const hDiaries = (dataHRj.diaries || []).map(entry => ({ ...entry, author: '哼哼', isSelf: myIdentity === '哼哼' }));
             const qDiaries = (dataQRj.diaries || []).map(entry => ({ ...entry, author: '亲亲', isSelf: myIdentity === '亲亲' }));
@@ -274,22 +286,17 @@
             });
         }
 
-        // 点赞功能
         async function toggleLike(msgTime, msgAuthor) {
-            // 确定要修改哪个文件
             const isTargetHeng = msgAuthor === '哼哼';
             const targetData = isTargetHeng ? dataHRj : dataQRj;
             const targetPath = isTargetHeng ? FILE_H_RJ : FILE_Q_RJ;
             let targetSha = isTargetHeng ? shaHRj : shaQRj;
 
-            // 查找对应的消息
             const entry = targetData.diaries.find(d => d.time === msgTime || d.time === String(msgTime));
             if (!entry) return;
 
-            // 乐观更新 UI
             entry.liked = !entry.liked;
             
-            // 触发爱心跳动动画
             const heartIcon = document.getElementById(`heart_${msgTime}`);
             if (heartIcon) {
                 heartIcon.innerText = entry.liked ? '❤️' : '🤍';
@@ -298,15 +305,57 @@
             }
             renderDiaryUI();
 
-            // 后台更新文件
             const upRes = await updateFile(targetPath, targetData, targetSha);
             if (upRes.success) {
                 if (isTargetHeng) shaHRj = upRes.sha; else shaQRj = upRes.sha;
             } else {
-                // 失败回滚
                 entry.liked = !entry.liked;
                 renderDiaryUI();
                 showToast("点赞失败，网络异常");
+            }
+        }
+
+        // 拆开时光胶囊
+        async function openCapsule(msgTime, msgAuthor) {
+            // 乐观更新UI状态并触发动画
+            const capsuleBox = document.getElementById(`capsule_box_${msgTime}`);
+            if (capsuleBox) {
+                capsuleBox.innerHTML = '<span class="text-3xl animate-bounce">✨</span><span class="text-sm font-bold text-rose-500 mt-2">正在拆开...</span>';
+            }
+
+            const isTargetHeng = msgAuthor === '哼哼';
+            const targetData = isTargetHeng ? dataHRj : dataQRj;
+            const targetPath = isTargetHeng ? FILE_H_RJ : FILE_Q_RJ;
+            let targetSha = isTargetHeng ? shaHRj : shaQRj;
+
+            const entry = targetData.diaries.find(d => d.time === msgTime || d.time === String(msgTime));
+            if (!entry) return;
+
+            // 更改状态为已开启
+            entry.opened = true;
+            
+            // 后台更新文件
+            const upRes = await updateFile(targetPath, targetData, targetSha);
+            
+            if (upRes.success) {
+                if (isTargetHeng) shaHRj = upRes.sha; else shaQRj = upRes.sha;
+                showToast("🎉 时光胶囊成功开启！");
+                renderDiaryUI(); // 重新渲染列表以显示真实内容
+            } else {
+                // 失败回滚
+                entry.opened = false;
+                renderDiaryUI();
+                showToast("开启失败，网络似乎开小差了");
+            }
+        }
+
+        // 滚动到第一个未拆开的胶囊
+        function scrollToFirstCapsule() {
+            const firstCapsule = document.querySelector('[id^="capsule_box_"]');
+            if (firstCapsule) {
+                firstCapsule.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstCapsule.classList.add('ring-4', 'ring-rose-300', 'ring-offset-2');
+                setTimeout(() => firstCapsule.classList.remove('ring-4', 'ring-rose-300', 'ring-offset-2'), 1500);
             }
         }
 
@@ -314,9 +363,11 @@
             const allDiaries = getMergedDiaries();
             const container = document.getElementById('ourDiaryList');
             const now = Date.now();
+            let readyCapsulesCount = 0;
             
             if (allDiaries.length === 0) { 
                 container.innerHTML = '<p class="text-sm text-gray-400 text-center mt-10">还没有记录哦，快写下第一篇悄悄话吧~ 📝</p>'; 
+                document.getElementById('capsuleNotice').classList.add('hidden');
                 return; 
             }
             
@@ -328,15 +379,19 @@
                 const authorIcon = entry.author === '哼哼' ? '👦' : '👦';
                 const displayTime = formatTime(entry.time);
 
-                // 心情解析
                 const moodObj = entry.mood ? MOODS.find(m => m.id === entry.mood) : null;
                 const moodIconHtml = moodObj ? `<span class="text-sm" title="${moodObj.label}">${moodObj.icon}</span>` : '';
 
-                // 时光胶囊逻辑
+                // 时光胶囊逻辑判定
                 const isCapsule = entry.unlockTime !== undefined && entry.unlockTime !== null;
                 const isLocked = isCapsule && now < entry.unlockTime;
+                // 到达时间但还未被拆开 (兼顾以前没有opened字段的老数据)
+                const isReadyToOpen = isCapsule && !isLocked && !entry.opened;
+                const isOpened = isCapsule && entry.opened;
                 
                 let contentHtml = '';
+                let likeHtml = '';
+
                 if (isLocked) {
                     const unlockDateStr = new Date(entry.unlockTime).toLocaleDateString();
                     contentHtml = `
@@ -346,13 +401,25 @@
                             <span class="text-[10px] text-gray-400 mt-1">将于 ${unlockDateStr} 开启</span>
                         </div>
                     `;
+                } else if (isReadyToOpen) {
+                    readyCapsulesCount++;
+                    // 未拆开的礼物盒 UI
+                    contentHtml = `
+                        <div id="capsule_box_${entry.time}" onclick="openCapsule(${entry.time}, '${entry.author}')" class="flex flex-col items-center justify-center py-6 my-1 cursor-pointer bg-white/70 rounded-xl hover:bg-rose-50 hover:shadow-md transition-all group border border-dashed border-rose-300 relative overflow-hidden">
+                            <span class="text-4xl mb-2 animate-shake drop-shadow-md">⏳ </span>
+                            <span class="text-sm font-bold text-rose-500 mb-1 z-10">时光胶囊已成熟！</span>
+                            <span class="text-[10px] text-gray-500 bg-white/80 px-3 py-1 rounded-full shadow-sm border border-rose-100 z-10">点击拆开悄悄话 ✨</span>
+                            <!-- 装饰背景 -->
+                            <div class="absolute -top-4 -right-4 w-12 h-12 bg-rose-100 rounded-full opacity-50 blur-xl"></div>
+                            <div class="absolute -bottom-4 -left-4 w-12 h-12 bg-pink-100 rounded-full opacity-50 blur-xl"></div>
+                        </div>
+                    `;
+                    // 未拆开时不显示点赞按钮
                 } else {
-                    contentHtml = `<div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed select-text">${entry.content}</div>`;
-                }
-
-                // 点赞 UI (如果是锁住的胶囊则不显示点赞)
-                let likeHtml = '';
-                if (!isLocked) {
+                    // 正常文字展示 (或者是已拆开的胶囊)
+                    const badge = isOpened ? `<span class="inline-flex items-center gap-1 ml-1 text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-md shadow-sm align-text-bottom">⏳ 胶囊已拆</span>` : '';
+                    contentHtml = `<div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed select-text mt-1">${entry.content} ${badge}</div>`;
+                    
                     likeHtml = `
                         <button onclick="toggleLike(${entry.time}, '${entry.author}')" class="absolute -bottom-2 ${entry.isSelf ? '-left-2' : '-right-2'} w-6 h-6 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-10 select-none cursor-pointer">
                             <span id="heart_${entry.time}" class="text-[10px] transform ${entry.liked ? 'animate-pop' : ''}">${entry.liked ? '❤️' : '🤍'}</span>
@@ -362,12 +429,11 @@
 
                 return `
                     <div class="w-[85%] sm:w-[75%] ${alignClass} relative animate-fade-in mb-2">
-                        <!-- 双击卡片也可以点赞 -->
-                        <div ondblclick="${!isLocked ? `toggleLike(${entry.time}, '${entry.author}')` : ''}" 
+                        <div ${(!isLocked && !isReadyToOpen) ? `ondblclick="toggleLike(${entry.time}, '${entry.author}')"` : ''} 
                              class="p-3 rounded-2xl border ${bgClass} break-words shadow-sm flex flex-col relative select-none">
-                            <div class="text-[12px] font-bold ${textClass} mb-1.5 flex items-center justify-between gap-2 border-b border-white/40 pb-1">
+                            <div class="text-[12px] font-bold ${textClass} mb-1.5 flex items-center justify-between gap-2 border-b border-white/50 pb-1.5">
                                 <span class="flex items-center gap-1">${authorIcon} ${entry.author} ${moodIconHtml}</span>
-                                <span class="${timeClass} font-normal text-[10px] font-mono">${displayTime} ${isCapsule ? '✨' : ''}</span>
+                                <span class="${timeClass} font-normal text-[10px] font-mono">${displayTime}</span>
                             </div>
                             ${contentHtml}
                         </div>
@@ -375,6 +441,15 @@
                     </div>
                 `;
             }).join('');
+
+            // 更新横幅提示
+            const noticeBanner = document.getElementById('capsuleNotice');
+            if (readyCapsulesCount > 0) {
+                document.getElementById('capsuleNoticeText').innerText = `有 ${readyCapsulesCount} 个时光胶囊成熟啦！`;
+                noticeBanner.classList.remove('hidden');
+            } else {
+                noticeBanner.classList.add('hidden');
+            }
         }
 
         async function saveDiary() {
@@ -395,7 +470,6 @@
 
             const timestamp = Date.now();
             
-            // 构建新数据
             const newEntry = { 
                 time: timestamp, 
                 content: text,
@@ -403,19 +477,20 @@
                 liked: false
             };
 
-            // 如果是时光胶囊，计算解锁时间戳（当地时间零点）
+            // 如果是时光胶囊，增加 unlockTime 和 initial opened 状态
             if (isCapsule) {
                 newEntry.unlockTime = new Date(capsuleDate + 'T00:00:00').getTime();
+                newEntry.opened = false; // 初始为未拆开
             }
             
             myDataRj.diaries.unshift(newEntry); 
-            renderDiaryUI(); // 立刻渲染
+            renderDiaryUI(); 
 
             const upRes = await updateFile(myPathRj, myDataRj, myShaRj);
             if (upRes.success) {
                 if (myIdentity === '哼哼') shaHRj = upRes.sha; else shaQRj = upRes.sha;
                 showToast(isCapsule ? "时光胶囊已埋下！🕰️" : "悄悄话保存成功！📔"); 
-                // 清空输入
+                
                 input.value = ""; 
                 document.getElementById('capsuleToggle').checked = false;
                 toggleCapsuleUI();
@@ -433,15 +508,17 @@
             const allDiaries = getMergedDiaries();
             const now = Date.now();
             
-            // 过滤出已经解锁的记录
-            const unlockedDiaries = allDiaries.filter(d => !d.unlockTime || d.unlockTime <= now);
+            // 过滤：非胶囊，或者是已到期且被“拆开过”的胶囊
+            const unlockedDiaries = allDiaries.filter(d => {
+                if (!d.unlockTime) return true;
+                return (d.unlockTime <= now && d.opened);
+            });
             
             if (unlockedDiaries.length === 0) {
                 showToast("暂时还没有可以抽取的记忆哦~");
                 return;
             }
 
-            // 随机选取一条
             const randomIndex = Math.floor(Math.random() * unlockedDiaries.length);
             const memory = unlockedDiaries[randomIndex];
 
@@ -452,7 +529,10 @@
             const moodObj = memory.mood ? MOODS.find(m => m.id === memory.mood) : null;
             const moodIconHtml = moodObj ? `<span class="text-xl drop-shadow-sm">${moodObj.icon}</span>` : '';
 
-            // 渲染到 Modal
+            document.getElementById('modalTitle').innerHTML = '✨ 随机回忆';
+            document.getElementById('modalActionBtn').innerText = '再抽一张 🎲';
+            document.getElementById('modalActionBtn').onclick = showRandomMemory;
+
             const memoryCard = document.getElementById('memoryCard');
             memoryCard.className = `p-5 rounded-xl border-2 ${bgClass} shadow-inner min-h-[120px] flex flex-col relative`;
             
@@ -469,12 +549,10 @@
                 ${memory.liked ? '<div class="absolute bottom-3 right-3 text-lg opacity-80" title="曾被比心">❤️</div>' : ''}
             `;
 
-            // 显示 Modal
             const modal = document.getElementById('memoryModal');
             const modalContent = document.getElementById('memoryModalContent');
             
             modal.classList.remove('hidden');
-            // 触发渐现和缩放动画
             requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0');
                 modalContent.classList.remove('scale-95');
@@ -492,10 +570,9 @@
             
             setTimeout(() => {
                 modal.classList.add('hidden');
-            }, 300); // 对应 transition 延迟
+            }, 300); 
         }
 
-        // 点击遮罩层关闭弹窗
         document.getElementById('memoryModal').addEventListener('click', function(e) {
             if (e.target === this) { closeMemoryModal(); }
         });
