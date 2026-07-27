@@ -284,6 +284,17 @@
             
             myDzpData = Object.assign({ date: '', count: 0, history: [] }, meDzp.data);
             myDzpSha = meDzp.sha;
+
+            // 【双重验证防白嫖】：对抗 GitHub API 的延迟缓存
+            const todayStr = new Date().toLocaleDateString();
+            const localVal = JSON.parse(localStorage.getItem(`loveGacha_dzp_${myIdentity}`) || '{}');
+            if (localVal.date === todayStr && localVal.count > myDzpData.count) {
+                console.log("GitHub返回了旧缓存，启用本地最新次数兜底:", localVal.count);
+                myDzpData.count = localVal.count;
+                if (localVal.history && localVal.history.length > 0) {
+                    myDzpData.history = localVal.history;
+                }
+            }
         }
 
         function renderUI() {
@@ -513,6 +524,13 @@
                     // 后台保存成功，正式将奖励注入本地UI
                     myCkData.points = uploadCkData.points;
                     myDzpData.history = uploadDzpData.history;
+                    
+                    // 【双重验证存储】：写入本地，防止刷新后GitHub API短时缓存导致次数倒退
+                    localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
+                        date: myDzpData.date,
+                        count: myDzpData.count,
+                        history: myDzpData.history
+                    }));
                     
                     showResultModal(prize);
                     renderUI(); 
