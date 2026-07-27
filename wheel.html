@@ -211,16 +211,6 @@
             return { date: today, count: parseInt(myDzpData.count) || 0 };
         }
 
-        function incrementDailySpin() {
-            const today = new Date().toLocaleDateString();
-            if (myDzpData.date !== today) {
-                myDzpData.date = today;
-                myDzpData.count = 1;
-            } else {
-                myDzpData.count = (parseInt(myDzpData.count) || 0) + 1;
-            }
-        }
-
         // --- 3. 初始化与GitHub逻辑 ---
         window.onload = async function() {
             showLoader("正在同步积分数据...");
@@ -234,21 +224,30 @@
             try {
                 const ts = new Date().getTime();
                 const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${ts}`, {
-                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                    headers: { 
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Cache-Control': 'no-cache, no-store, must-revalidate', // 强制穿透GitHub缓存
+                        'Pragma': 'no-cache',
+                        'Expires': '0'
+                    }
                 });
-                if (res.status === 404) return { data: { points: 20 }, sha: null }; 
-                if (!res.ok) throw new Error('API Error');
+                if (res.status === 404) return { data: {}, sha: null }; 
+                if (!res.ok) throw new Error(`API Error: ${res.status}`);
                 
                 const result = await res.json();
                 const content = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
-                return { data: JSON.parse(content || '{"points":20}'), sha: result.sha };
+                return { data: JSON.parse(content || '{}'), sha: result.sha };
             } catch (e) {
-                console.warn("读取失败，使用本地测试数据", e);
-                return { data: { points: 20 }, sha: 'mock_sha_' + Math.random() };
+                console.warn(`读取 ${filePath} 失败，使用默认数据`, e);
+                return { data: {}, sha: null };
             }
         }
 
         async function updateFile(filePath, dataObj, sha) {
+            // 如果是演示模式，允许本地模拟；否则真实抛出异常
+            if (GITHUB_TOKEN === 'DEMO_TOKEN') {
+                return { success: true, sha: 'mock_sha_' + Math.random() };
+            }
             try {
                 const content = btoa(unescape(encodeURIComponent(JSON.stringify(dataObj, null, 2)))); 
                 const body = { message: `Wheel spin update ${new Date().getTime()}`, content: content };
@@ -260,12 +259,15 @@
                     body: JSON.stringify(body)
                 });
                 
-                if (!res.ok) throw new Error('Update failed');
+                if (!res.ok) {
+                    const err = await res.json();
+                    throw new Error(err.message || 'Update failed');
+                }
                 const result = await res.json();
                 return { success: true, sha: result.content.sha };
             } catch (e) {
-                console.warn("保存失败，本地模拟成功", e);
-                return { success: true, sha: 'mock_sha_' + Math.random() };
+                console.error(`保存 ${filePath} 失败`, e);
+                return { success: false };
             }
         }
 
@@ -413,104 +415,117 @@
             isSpinning = true;
             document.getElementById('spinBtn').classList.add('opacity-80', 'scale-95');
 
-            // 如果不是免费，扣除抽奖成本
-            if (!isFree) {
-                myCkData.points -= 1;
-            }
-            // 增加今日抽奖次数
-            incrementDailySpin();
-            renderUI();
-
-            // 随机生成停止角度
+            // 1. 提前计算结果，准备在动画期间进行静默上传
             const randomDeg = Math.floor(Math.random() * 360);
             const extraSpins = 5; 
             const totalRotate = extraSpins * 360 + randomDeg;
             
             currentRotation += totalRotate;
             
-            const wheel = document.getElementById('wheel');
-            wheel.style.transform = `rotate(${currentRotation}deg)`;
-            
-            // 动画时间为 4s，稍加缓冲后执行结算
-            setTimeout(() => {
-                document.getElementById('spinBtn').classList.remove('opacity-80', 'scale-95');
-                handleSpinResult(currentRotation);
-            }, 4100); 
-        }
-
-        async function handleSpinResult(totalRotation) {
-            // 计算指针所指的区域
-            const rMod = totalRotation % 360;
-            // 加上 22.5 度的偏移量来对齐区域边界 (因为 slice 0 是从 -22.5 到 22.5)
+            const rMod = currentRotation % 360;
             const normalized = ((360 - rMod) % 360 + 22.5) % 360;
             const prizeIndex = Math.floor(normalized / 45) % 8;
             
             const prize = prizes[prizeIndex];
 
-            // 更新历史记录 (先存入内存)
-            if (!myDzpData.history) myDzpData.history = [];
+            // 2. 准备上传的数据载荷 (深拷贝避免过早污染UI界面)
+            const uploadCkData = { points: myCkData.points };
+            if (!isFree) uploadCkData.points -= 1; // 扣除门票
+            uploadCkData.points += prize.me; // 加上奖励
+
+            const uploadDzpData = {
+                date: new Date().toLocaleDateString(),
+                count: info.count + 1,
+                history: [...(myDzpData.history || [])]
+            };
+
             const now = new Date();
             const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            myDzpData.history.unshift({
+            uploadDzpData.history.unshift({
                 time: timeStr,
                 prizeText: prize.text,
                 me: prize.me,
                 partner: prize.partner,
                 icon: prize.icon
             });
-            if (myDzpData.history.length > 20) myDzpData.history.pop(); // 历史最多保留最近 20 条
+            if (uploadDzpData.history.length > 20) uploadDzpData.history.pop();
 
-            showLoader("正在保存抽奖结果...");
+            // 3. 立即在本地 UI 扣除门票和次数（但暂不展示获得的奖励）
+            if (!isFree) myCkData.points -= 1;
+            myDzpData.date = uploadDzpData.date;
+            myDzpData.count = uploadDzpData.count;
+            renderUI();
 
-            // 1. 结算自己的积分
-            myCkData.points += prize.me;
-            const tasks = [
-                updateFile(myCkPath, myCkData, myCkSha),
-                updateFile(myDzpPath, myDzpData, myDzpSha)
-            ];
+            // 4. 启动转盘UI动画
+            const wheel = document.getElementById('wheel');
+            wheel.style.transform = `rotate(${currentRotation}deg)`;
 
-            // 2. 如果涉及对方积分，为了防止被旧SHA覆盖，实时拉取对方最新数据后再结算
-            let partnerTask = null;
-            if (prize.partner !== 0) {
-                try {
-                    const latestPartner = await fetchFile(partnerCkPath);
-                    partnerCkData = Object.assign({ points: 20 }, latestPartner.data);
-                    partnerCkSha = latestPartner.sha;
-                    
-                    if (prize.partner < 0) {
-                        // 偷取对方积分时，保证不会把对方扣成负数
-                        const deduct = Math.min(Math.abs(prize.partner), partnerCkData.points);
-                        partnerCkData.points -= deduct;
-                    } else {
-                        partnerCkData.points += prize.partner;
+            // 5. 在转盘旋转的同时，后台静默上传数据 (完美防止刷新作弊)
+            let apiSuccess = false;
+            const uploadPromise = (async () => {
+                const tasks = [
+                    updateFile(myCkPath, uploadCkData, myCkSha),
+                    updateFile(myDzpPath, uploadDzpData, myDzpSha)
+                ];
+
+                let partnerTask = null;
+                if (prize.partner !== 0) {
+                    try {
+                        const latestPartner = await fetchFile(partnerCkPath);
+                        let pData = Object.assign({ points: 20 }, latestPartner.data);
+                        let pSha = latestPartner.sha;
+                        
+                        if (prize.partner < 0) {
+                            const deduct = Math.min(Math.abs(prize.partner), pData.points);
+                            pData.points -= deduct;
+                        } else {
+                            pData.points += prize.partner;
+                        }
+                        partnerTask = updateFile(partnerCkPath, pData, pSha);
+                        tasks.push(partnerTask);
+                    } catch(e) {
+                        console.error("拉取对方最新数据失败", e);
                     }
-                    partnerTask = updateFile(partnerCkPath, partnerCkData, partnerCkSha);
-                } catch(e) {
-                    console.error("拉取对方最新数据失败", e);
                 }
-            }
-            if (partnerTask) tasks.push(partnerTask);
 
-            const results = await Promise.all(tasks);
-            const upMe = results[0];
-            const upDzp = results[1];
-            const upPartner = partnerTask ? results[2] : { success: true };
+                const results = await Promise.all(tasks);
+                const upMe = results[0];
+                const upDzp = results[1];
+                const upPartner = partnerTask ? results[2] : { success: true };
 
-            hideLoader();
-
-            if (upMe.success && upDzp.success && upPartner.success) {
-                myCkSha = upMe.sha;
-                myDzpSha = upDzp.sha;
-                if (partnerTask) partnerCkSha = upPartner.sha;
-                
-                // 数据保存成功，展示弹窗
-                showResultModal(prize);
-                renderUI();
-            } else {
-                showToast("网络连接不稳定，请刷新页面检查积分");
-            }
+                if (upMe.success && upDzp.success && upPartner.success) {
+                    myCkSha = upMe.sha;
+                    myDzpSha = upDzp.sha;
+                    apiSuccess = true;
+                }
+            })();
             
-            isSpinning = false;
+            // 6. 等待 4 秒动画结束，统一展示结果
+            setTimeout(async () => {
+                document.getElementById('spinBtn').classList.remove('opacity-80', 'scale-95');
+                
+                // 确保 API 请求已经完成
+                showLoader("正在校验结果...");
+                await uploadPromise;
+                hideLoader();
+
+                if (apiSuccess) {
+                    // 后台保存成功，正式将奖励注入本地UI
+                    myCkData.points = uploadCkData.points;
+                    myDzpData.history = uploadDzpData.history;
+                    
+                    showResultModal(prize);
+                    renderUI(); 
+                } else {
+                    showToast("网络连接不稳定，数据保存异常，请刷新重试");
+                    // 撤销扣除的门票和次数
+                    if (!isFree) myCkData.points += 1;
+                    myDzpData.count = Math.max(0, myDzpData.count - 1);
+                    renderUI();
+                }
+                
+                isSpinning = false;
+            }, 4100); 
         }
 
         function showResultModal(prize) {
