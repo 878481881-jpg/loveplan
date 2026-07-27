@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>数据管理后台 ⚙️</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --brand-pink: #f43f5e;
+            --brand-pink-light: #fda4af;
+            --bg-pink: #fff1f2;
+        }
+
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: var(--bg-pink); 
+            background-image: radial-gradient(#fecdd3 1px, transparent 1px); 
+            background-size: 24px 24px; 
+            overflow-x: hidden;
+            color: #333;
+            overscroll-behavior-y: contain;
+        }
+        
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Animations */
+        @keyframes slideUpFade { 
+            0% { opacity: 0; transform: translate(-50%, 20px); } 
+            10% { opacity: 1; transform: translate(-50%, 0); } 
+            90% { opacity: 1; transform: translate(-50%, 0); } 
+            100% { opacity: 0; transform: translate(-50%, -20px); } 
+        }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* Custom Scrollbar for textareas */
+        textarea::-webkit-scrollbar { width: 6px; }
+        textarea::-webkit-scrollbar-track { background: transparent; }
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        textarea::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 pb-24">
+
+    <header class="w-full max-w-xl flex justify-between items-center mb-6 relative px-2">
+        <a href="index.html" class="w-10 h-10 bg-white text-rose-500 rounded-full shadow-sm flex items-center justify-center border border-rose-50 active:scale-95 transition-transform z-10">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <h1 class="text-xl font-black text-gray-800 flex items-center gap-2 absolute left-1/2 transform -translate-x-1/2">
+            ⚙️ 数据管理枢纽
+        </h1>
+        <button onclick="refreshVisualData()" class="px-3 py-2 bg-white text-rose-500 font-bold rounded-full shadow-sm border border-rose-100 flex items-center gap-1 active:scale-95 transition-transform text-sm z-10 hover:bg-rose-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            刷新
+        </button>
+    </header>
+
+    <main class="w-full max-w-xl flex flex-col items-center gap-5">
+        
+        <!-- 双模式切换 -->
+        <div class="flex bg-white/70 p-1.5 rounded-full w-full shadow-sm border border-rose-200 backdrop-blur-sm gap-1 mb-2">
+            <button id="tab-visual" class="flex-1 py-2.5 text-sm font-bold rounded-full bg-rose-500 text-white shadow-md transition-all flex justify-center items-center gap-1" onclick="switchTab('visual')">
+                <span>📝</span> 深度可视化拆解修改
+            </button>
+            <button id="tab-raw" class="flex-1 py-2.5 text-sm font-bold rounded-full text-rose-500 hover:bg-rose-100 transition-all flex justify-center items-center gap-1" onclick="switchTab('raw')">
+                <span>💻</span> 底层源码文件
+            </button>
+        </div>
+
+        <!-- 模式1：深度可视化快捷修改区 -->
+        <div id="view-visual" class="w-full flex flex-col gap-4 transition-opacity duration-300">
+            
+            <div class="w-full bg-amber-50 border border-amber-200 p-3.5 rounded-2xl shadow-sm text-amber-700 text-xs leading-relaxed flex flex-col gap-2">
+                <div class="flex items-center gap-2 font-bold text-sm">
+                    <span class="text-lg">💡</span> 智能拆解已开启
+                </div>
+                <p>所有数据（包含长列表/嵌套参数）已结合文件语境拆解为直观表单。输入框内容更改会<strong>实时映射</strong>到内存中，确认无误后可点击各卡片底部的<strong>「同步此文件」</strong>或最底部的<strong>「一键同步所有」</strong>。</p>
+            </div>
+
+            <!-- 子选项卡（用于归类简化视图） -->
+            <div class="flex space-x-2 w-full justify-start overflow-x-auto no-scrollbar py-1">
+                <button id="subtab-heng" onclick="switchSubTab('heng')" class="px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-blue-500 text-white border border-blue-500 flex-shrink-0">👦 哼哼的数据</button>
+                <button id="subtab-qin" onclick="switchSubTab('qin')" class="px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0">👧 亲亲的数据</button>
+                <button id="subtab-global" onclick="switchSubTab('global')" class="px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0">🌍 全局配置</button>
+            </div>
+
+            <!-- 三级选项卡（进一步细分文件类型） -->
+            <div class="flex space-x-2 w-full justify-start overflow-x-auto no-scrollbar py-1 mb-2 border-b border-rose-100/50 pb-3">
+                <button id="tert-all" onclick="switchTertiaryTab('all')" class="px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-gray-800 text-white flex-shrink-0">📑 全部</button>
+                <button id="tert-core" onclick="switchTertiaryTab('core')" class="px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0">⭐ 主干核心</button>
+                <button id="tert-games" onclick="switchTertiaryTab('games')" class="px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0">🎮 小游戏数据</button>
+                <button id="tert-logs" onclick="switchTertiaryTab('logs')" class="px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0">📖 互动日志</button>
+            </div>
+
+            <!-- 动态卡片容器 -->
+            <div id="dynamic-cards-container" class="w-full flex flex-col gap-5">
+                <!-- 由JS根据数据结构递归动态渲染 -->
+            </div>
+
+            <button onclick="saveAllVisualData()" class="w-full py-4 mt-4 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-black text-lg rounded-2xl shadow-lg hover:shadow-xl transition transform active:scale-95 flex items-center justify-center gap-2 sticky bottom-6 z-20">
+                <svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                一键同步所有修改至云端
+            </button>
+            <p class="text-center text-xs text-gray-400 mb-6">只会上传发生过更改的文件，若格式异常将自动拦截。</p>
+        </div>
+
+        <!-- 模式2：底层文件编辑器区 (默认隐藏) -->
+        <div id="view-raw" class="w-full hidden flex-col gap-5 transition-opacity duration-300">
+            <div class="w-full bg-white p-5 rounded-3xl shadow-sm border border-rose-100 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1.5 bg-gray-300"></div>
+                <h2 class="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    <span>📂</span> 选择要直接修改的底层文件
+                </h2>
+                
+                <select id="fileSelector" onchange="onFileSelect()" class="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm font-medium text-gray-700 mb-3">
+                    <option value="" disabled selected>-- 请选择文件 --</option>
+                    <!-- Options injected by JS -->
+                </select>
+
+                <div class="flex items-center gap-2">
+                    <div class="h-px bg-gray-200 flex-1"></div>
+                    <span class="text-xs text-gray-400 font-bold">OR</span>
+                    <div class="h-px bg-gray-200 flex-1"></div>
+                </div>
+
+                <div class="mt-3 flex gap-2">
+                    <input type="text" id="customFilePath" placeholder="自定义路径 (例: data/test.json)" class="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-400 text-sm font-mono">
+                    <button onclick="loadCustomFile()" class="px-4 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-700 transition active:scale-95 text-sm whitespace-nowrap">
+                        拉取
+                    </button>
+                </div>
+            </div>
+
+            <div class="w-full bg-white p-5 rounded-3xl shadow-sm border border-rose-100 flex flex-col h-[55vh] min-h-[450px]">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex flex-col">
+                        <span class="text-xs text-gray-400 font-bold">当前编辑：</span>
+                        <span id="currentFileName" class="text-rose-500 font-mono font-bold text-sm">未选择文件</span>
+                    </div>
+                    <button onclick="formatJSON()" class="text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 px-3 py-1.5 rounded-full hover:bg-indigo-100 transition-colors font-bold active:scale-95">
+                        ✨ 格式化代码
+                    </button>
+                </div>
+                
+                <textarea id="jsonEditor" class="w-full flex-1 p-4 text-sm font-mono border-2 border-gray-100 rounded-2xl focus:outline-none focus:border-rose-400 bg-gray-50/50 resize-none leading-relaxed" spellcheck="false" placeholder="请先在上方选择并拉取数据文件..."></textarea>
+                
+                <div class="flex gap-3 mt-4 shrink-0">
+                    <button onclick="saveRawFile()" class="flex-[2] py-3.5 bg-gray-800 text-white font-bold rounded-2xl shadow-md hover:bg-gray-700 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        保存覆盖文件
+                    </button>
+                    <button onclick="triggerDelete()" class="flex-[1] py-3.5 bg-white border-2 border-red-100 text-red-500 font-bold rounded-2xl shadow-sm hover:bg-red-50 transition transform active:scale-95 flex items-center justify-center gap-2">
+                        删除
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 全局加载遮罩 -->
+    <div id="globalLoader" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-[100] flex flex-col items-center justify-center hidden">
+        <svg class="animate-spin h-12 w-12 text-rose-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span class="text-rose-600 font-bold" id="loaderText">处理中...</span>
+    </div>
+
+    <!-- 删除确认弹窗 -->
+    <div id="deleteModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="deleteModalContent">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+            </div>
+            <h3 class="font-bold text-gray-800 text-xl mb-2 text-center">确认永久删除？</h3>
+            <p class="text-sm text-gray-500 mb-6 text-center leading-relaxed">
+                你正在尝试删除文件：<br>
+                <span id="deleteFileName" class="font-mono font-bold text-red-500 bg-red-50 px-2 py-0.5 rounded inline-block mt-2"></span>
+                <br><br>此操作不可逆，游戏可能会因此找不到数据而报错！
+            </p>
+            
+            <div class="flex gap-3">
+                <button onclick="closeModal('deleteModal', 'deleteModalContent')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
+                <button onclick="confirmDelete()" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold shadow-md hover:bg-red-600 transition-colors">确认摧毁</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-gray-900/95 backdrop-blur text-white px-6 py-3 rounded-full shadow-2xl text-sm font-medium hidden z-[110] whitespace-nowrap border border-gray-700"></div>
+
+    <script>
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+
+        if (!GITHUB_TOKEN) {
+            alert("未检测到管理员权限 (GitHub Token缺失)，正在返回首页...");
+            window.location.href = 'index.html';
+        }
+
+        // 核心管理文件列表 (已添加 group 属性用于分类)
+        const ALL_FILES = [
+            { path: 'data/hck.json', name: '哼哼-核心数据(积分/背包)', group: 'heng', subGroup: 'core' },
+            { path: 'data/qck.json', name: '亲亲-核心数据(积分/背包)', group: 'qin', subGroup: 'core' },
+            { path: 'data/cw.json', name: '宠物全局状态', group: 'global', subGroup: 'core' },
+            { path: 'data/hyjsk.json', name: '哼哼-眼疾手快', group: 'heng', subGroup: 'games' },
+            { path: 'data/qyjsk.json', name: '亲亲-眼疾手快', group: 'qin', subGroup: 'games' },
+            { path: 'data/hfly.json', name: '哼哼-笨鸟先飞', group: 'heng', subGroup: 'games' },
+            { path: 'data/qfly.json', name: '亲亲-笨鸟先飞', group: 'qin', subGroup: 'games' },
+            { path: 'data/hdzp.json', name: '哼哼-转盘限制', group: 'heng', subGroup: 'games' },
+            { path: 'data/qdzp.json', name: '亲亲-转盘限制', group: 'qin', subGroup: 'games' },
+            { path: 'data/h.json', name: '哼哼-每日/DIY任务', group: 'heng', subGroup: 'core' },
+            { path: 'data/q.json', name: '亲亲-每日/DIY任务', group: 'qin', subGroup: 'core' },
+            { path: 'data/Hrj.json', name: '哼哼-悄悄话日记', group: 'heng', subGroup: 'core' },
+            { path: 'data/Qrj.json', name: '亲亲-悄悄话日记', group: 'qin', subGroup: 'core' },
+            { path: 'data/Hcw.json', name: '哼哼-宠物互动日志', group: 'heng', subGroup: 'logs' },
+            { path: 'data/Qcw.json', name: '亲亲-宠物互动日志', group: 'qin', subGroup: 'logs' },
+            { path: 'data/htw.json', name: '哼哼-默契问答', group: 'heng', subGroup: 'games' },
+            { path: 'data/qtw.json', name: '亲亲-默契问答', group: 'qin', subGroup: 'games' },
+            { path: 'data/scwp.json', name: '全局-商场物品配置', group: 'global', subGroup: 'core' }
+        ];
+
+        // 智能语境翻译字典：将 JSON 键翻译为可视化的中文标签
+        function getFriendlyLabel(key) {
+            const dict = {
+                points: "💰 积分余额",
+                inventory: "🎒 仓库物品库",
+                pendingUses: "⏳ 待核销的请求",
+                claimedLevels: "🏆 已领成就总级数",
+                diaries: "📖 悄悄话日记",
+                content: "📝 文本内容",
+                mood: "🎭 心情状态",
+                liked: "❤️ 是否已被点赞",
+                unlockTime: "🔒 胶囊开启时间戳",
+                opened: "🔓 胶囊是否拆开",
+                level: "⭐ 等级",
+                exp: "✨ 经验值",
+                hunger: "🍖 饱食度",
+                clean: "🛁 清洁度",
+                name: "🐾 宠物名称/商品名称",
+                lastUpdated: "🔄 最后状态更新时间",
+                lastEventDate: "🎉 最后随机事件日期",
+                resonance: "💖 灵魂共鸣状态",
+                date: "📅 日期",
+                h_ready: "哼哼准备状态",
+                q_ready: "亲亲准备状态",
+                letter: "💌 飞鸽传书纸条",
+                sender: "👤 发送者",
+                text: '📄 文本内容',
+                successCount: '🏆 累计成功次数',
+                bestDiff: '⏱️ 最佳误差(ms)',
+                claimedRewards: '🎁 已领取的奖励档位',
+                bestScore: '🏆 历史最高分',
+                playCount: '🎮 游玩总次数',
+                timestamps: '🎰 抽奖时间戳记录',
+                questions: '❓ 出过的默契题',
+                q: '🤔 问题描述',
+                correct: '✅ 正确答案',
+                wrongs: '❌ 迷惑选项',
+                status: '📊 当前进度状态',
+                partner_choice: '👉 对方的作答选择',
+                answered: '📜 作答历史',
+                my_choice: '👆 我的选择',
+                is_correct: '🎯 是否答对',
+                DIY_TASKS: '✨ 卡池内的专属愿望',
+                USED_DIY: '🗑️ 已被抽出的愿望ID',
+                category: '🏷️ 任务分类',
+                emoji: '🎨 专属图标',
+                myTaskCompleted: '✅ 任务是否完成',
+                secretMessage: '💌 任务关联悄悄话',
+                id: '🆔 唯一标识码',
+                price: '🪙 商品价格',
+                desc: '📝 描述文本',
+                user: '👤 触发人',
+                action: '🛠️ 互动动作类型',
+                code: '🔢 生成的核销码',
+                itemId: '📦 关联物品ID'
+            };
+            if (dict[key]) return dict[key];
+            // 正则匹配日期格式的键，如 2026-07-27
+            if (/^\d{4}-\d{2}-\d{2}$/.test(key)) return `📅 每日任务记录 (${key})`;
+            return key; // 没有翻译则原样返回
+        }
+
+        // 可视化编辑器的全局内存挂载点
+        let visualDataState = {}; 
+        let rawCurrentSha = null;
+        let rawCurrentFilePath = null;
+        let currentSubTab = 'heng'; // 默认显示的子选项卡
+        let currentTertiaryTab = 'all'; // 默认显示的三级全部分类
+
+        // 统一控制卡片显示的函数
+        function updateCardVisibility() {
+            const cards = document.querySelectorAll('.visual-file-card');
+            cards.forEach(card => {
+                const matchGroup = card.dataset.group === currentSubTab;
+                const matchSubGroup = currentTertiaryTab === 'all' || card.dataset.subgroup === currentTertiaryTab;
+
+                if (matchGroup && matchSubGroup) {
+                    card.classList.remove('hidden');
+                    card.classList.add('flex');
+                } else {
+                    card.classList.add('hidden');
+                    card.classList.remove('flex');
+                }
+            });
+        }
+
+        // 新增：切换子选项卡逻辑
+        function switchSubTab(group) {
+            currentSubTab = group;
+            const tabs = ['heng', 'qin', 'global'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`subtab-${t}`);
+                if (t === group) {
+                    // 分别赋予不同分类独有的颜色
+                    if (t === 'heng') btn.className = "px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-blue-500 text-white border border-blue-500 flex-shrink-0";
+                    else if (t === 'qin') btn.className = "px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-rose-500 text-white border border-rose-500 flex-shrink-0";
+                    else btn.className = "px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-emerald-500 text-white border border-emerald-500 flex-shrink-0";
+                } else {
+                    btn.className = "px-5 py-2 rounded-full font-bold text-sm shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0";
+                }
+            });
+
+            updateCardVisibility();
+        }
+
+        // 新增：切换三级选项卡逻辑
+        function switchTertiaryTab(subGroup) {
+            currentTertiaryTab = subGroup;
+            const tabs = ['all', 'core', 'games', 'logs'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tert-${t}`);
+                if (t === subGroup) {
+                    btn.className = "px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-gray-800 text-white flex-shrink-0";
+                } else {
+                    btn.className = "px-4 py-1.5 rounded-lg font-bold text-xs shadow-sm transition-all bg-white text-gray-500 border border-gray-200 hover:bg-gray-50 flex-shrink-0";
+                }
+            });
+
+            updateCardVisibility();
+        }
+
+        // Raw Editor 的快捷下拉列表配置
+        const fileOptions = [
+            { label: "哼哼的数据 (主干)" },
+            { value: "data/hck.json", text: "积分与背包 (hck.json)" },
+            { value: "data/h.json", text: "每日任务与愿望 (h.json)" },
+            { value: "data/Hrj.json", text: "日记与胶囊 (Hrj.json)" },
+            { value: "data/Hcw.json", text: "宠物日志 (Hcw.json)" },
+            { label: "哼哼的数据 (游戏拓展)" },
+            { value: "data/htw.json", text: "默契题库 (htw.json)" },
+            { value: "data/hyjsk.json", text: "眼疾手快 (hyjsk.json)" },
+            { value: "data/hfly.json", text: "笨鸟先飞 (hfly.json)" },
+            { value: "data/hdzp.json", text: "转盘限制 (hdzp.json)" },
+            { label: "亲亲的数据 (主干)" },
+            { value: "data/qck.json", text: "积分与背包 (qck.json)" },
+            { value: "data/q.json", text: "每日任务与愿望 (q.json)" },
+            { value: "data/Qrj.json", text: "日记与胶囊 (Qrj.json)" },
+            { value: "data/Qcw.json", text: "宠物日志 (Qcw.json)" },
+            { label: "亲亲的数据 (游戏拓展)" },
+            { value: "data/qtw.json", text: "默契题库 (qtw.json)" },
+            { value: "data/qyjsk.json", text: "眼疾手快 (qyjsk.json)" },
+            { value: "data/qfly.json", text: "笨鸟先飞 (qfly.json)" },
+            { value: "data/qdzp.json", text: "转盘限制 (qdzp.json)" },
+            { label: "全局公共配置" },
+            { value: "data/cw.json", text: "宠物核心状态 (cw.json)" },
+            { value: "data/scwp.json", text: "商城物品配置 (scwp.json)" }
+        ];
+
+        window.onload = async function() {
+            initOptions();
+            setupTextareaTabKey();
+            await refreshVisualData();
+        };
+
+        function switchTab(tab) {
+            ['visual', 'raw'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.add('hidden');
+                document.getElementById(`view-${t}`).classList.remove('flex');
+                
+                const btn = document.getElementById(`tab-${t}`);
+                btn.classList.remove('bg-rose-500', 'text-white', 'shadow-md');
+                btn.classList.add('text-rose-500', 'hover:bg-rose-100');
+            });
+            
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+            document.getElementById(`view-${tab}`).classList.add('flex');
+            
+            const activeBtn = document.getElementById(`tab-${tab}`);
+            activeBtn.classList.add('bg-rose-500', 'text-white', 'shadow-md');
+            activeBtn.classList.remove('text-rose-500', 'hover:bg-rose-100');
+        }
+
+        function showLoader(text) { document.getElementById('loaderText').innerText = text; document.getElementById('globalLoader').classList.remove('hidden'); }
+        function hideLoader() { document.getElementById('globalLoader').classList.add('hidden'); }
+        function showToast(msg) { 
+            const toast = document.getElementById('toast'); 
+            toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate'); 
+            setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 3000); 
+        }
+
+        function openModal(bgId, contentId) {
+            const modal = document.getElementById(bgId); const content = document.getElementById(contentId);
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); content.classList.add('scale-100'); });
+        }
+        function closeModal(bgId, contentId) {
+            const modal = document.getElementById(bgId); const content = document.getElementById(contentId);
+            modal.classList.add('opacity-0'); content.classList.remove('scale-100'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
+        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str.replace(/\s/g, '')))); }
+
+        async function fetchGitHubFile(filePath) {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (response.status === 404) return { data: {}, sha: null, is404: true };
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                const result = await response.json();
+                let parsedData = {};
+                try { parsedData = JSON.parse(b64_to_utf8(result.content)); } catch(e) {}
+                
+                return { data: parsedData, sha: result.sha, is404: false, rawContent: b64_to_utf8(result.content) };
+            } catch (error) {
+                return { error: error.message };
+            }
+        }
+
+        async function updateGitHubFile(filePath, contentObj, sha, commitMsg) {
+            const contentBase64 = utf8_to_b64(JSON.stringify(contentObj, null, 2));
+            const body = { message: commitMsg, content: contentBase64 };
+            if (sha) body.sha = sha;
+
+            const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            if (!response.ok) throw new Error(`上传失败 (${response.status})`);
+            const res = await response.json();
+            return res.content.sha;
+        }
+
+        /* =========================================================
+           功能 1：基于内存绑定的递归可视化修改区 (Visual Editor)
+           ========================================================= */
+
+        async function refreshVisualData() {
+            showLoader("正在全量并发读取所有云端数据...");
+            visualDataState = {};
+            
+            const promises = ALL_FILES.map(f => fetchGitHubFile(f.path));
+            const results = await Promise.all(promises);
+
+            results.forEach((res, index) => {
+                const path = ALL_FILES[index].path;
+                if (res.error) {
+                    visualDataState[path] = { data: {}, sha: null, isError: true };
+                } else {
+                    // 如果文件 404，初始化为一个空对象以便添加字段
+                    visualDataState[path] = { data: res.is404 ? {} : res.data, sha: res.sha, is404: res.is404 };
+                }
+            });
+
+            renderDynamicCards();
+            hideLoader();
+            showToast("✅ 所有数据刷新且拆解完毕！");
+        }
+
+        function renderDynamicCards() {
+            const container = document.getElementById('dynamic-cards-container');
+            container.innerHTML = '';
+
+            ALL_FILES.forEach(fileInfo => {
+                const path = fileInfo.path;
+                const fileState = visualDataState[path];
+                if (!fileState) return;
+
+                const card = document.createElement('div');
+                // 添加 visual-file-card 类名，以及 dataset.group 和 dataset.subgroup 控制分类显示隐藏
+                card.className = "visual-file-card w-full bg-white p-4 rounded-3xl shadow-sm border border-rose-100 relative flex flex-col";
+                card.dataset.group = fileInfo.group;
+                card.dataset.subgroup = fileInfo.subGroup;
+                
+                const matchGroup = fileInfo.group === currentSubTab;
+                const matchSubGroup = currentTertiaryTab === 'all' || fileInfo.subGroup === currentTertiaryTab;
+
+                if (!(matchGroup && matchSubGroup)) {
+                    card.classList.add('hidden');
+                    card.classList.remove('flex');
+                }
+                
+                // Card Header
+                const header = document.createElement('div');
+                header.className = "flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-rose-50 pb-2 mb-3 gap-2";
+                header.innerHTML = `
+                    <h3 class="font-bold text-gray-800 flex items-center gap-2 text-sm">
+                        <span class="text-lg">📄</span> ${fileInfo.name}
+                        ${fileState.is404 ? '<span class="text-[10px] bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full font-bold">新文件</span>' : ''}
+                    </h3>
+                    <span class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded-full font-mono">${path}</span>
+                `;
+                card.appendChild(header);
+
+                // Content Area
+                const contentArea = document.createElement('div');
+                contentArea.id = `card_content_${path.replace(/[\/\.]/g, '_')}`;
+                contentArea.className = "w-full";
+                
+                if (fileState.isError) {
+                    contentArea.innerHTML = `<div class="text-sm text-red-500 p-2">获取失败，请刷新重试</div>`;
+                } else {
+                    // 核心递归渲染入口
+                    const editorRoot = buildEditorTree(fileState.data, path, null, 0);
+                    contentArea.appendChild(editorRoot);
+                }
+                card.appendChild(contentArea);
+
+                // Sync Button
+                const btnContainer = document.createElement('div');
+                btnContainer.className = "mt-5 flex justify-end";
+                btnContainer.innerHTML = `
+                    <button onclick="syncSingleFile('${path}')" class="px-5 py-2.5 bg-rose-50 text-rose-600 font-bold rounded-xl shadow-sm border border-rose-100 hover:bg-rose-100 active:scale-95 transition-all text-xs flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        单独同步此文件
+                    </button>
+                `;
+                card.appendChild(btnContainer);
+
+                container.appendChild(card);
+            });
+        }
+
+        // 重新渲染指定的卡片（用于数组增删或对象增加键值后）
+        function reRenderCard(filePath) {
+            const fileState = visualDataState[filePath];
+            if (!fileState) return;
+            const container = document.getElementById(`card_content_${filePath.replace(/[\/\.]/g, '_')}`);
+            if (container) {
+                container.innerHTML = '';
+                const editorRoot = buildEditorTree(fileState.data, filePath, null, 0);
+                container.appendChild(editorRoot);
+            }
+        }
+
+        // 提供空数据模板用于添加新数组项
+        function getEmptyTemplate(templateObj) {
+            if (typeof templateObj === 'string') return "";
+            if (typeof templateObj === 'number') return 0;
+            if (typeof templateObj === 'boolean') return false;
+            if (Array.isArray(templateObj)) return [];
+            if (typeof templateObj === 'object' && templateObj !== null) {
+                let newObj = {};
+                for (let k in templateObj) { newObj[k] = getEmptyTemplate(templateObj[k]); }
+                return newObj;
+            }
+            return "";
+        }
+
+        /**
+         * 核心递归渲染引擎 (Data Binding by Reference)
+         * parentObj: 父级数据对象的引用 (直接修改此对象即可完成保存)
+         * filePath: 所属文件路径，用于触发重绘
+         * currentKey: 当前正在渲染的键名 (如果是根级，则为 null)
+         * level: 嵌套层级深度，用于控制缩进样式
+         */
+        function buildEditorTree(parentObj, filePath, currentKey, level) {
+            const wrapper = document.createElement('div');
+            const dataToRender = currentKey === null ? parentObj : parentObj[currentKey];
+            const isRoot = currentKey === null;
+
+            // 层级样式控制
+            if (!isRoot && level > 0) {
+                wrapper.className = "ml-2 pl-3 border-l-2 border-rose-200 mt-2 bg-gray-50/40 rounded-r-xl py-2 pr-2 shadow-sm";
+            } else {
+                wrapper.className = "flex flex-col gap-3 w-full";
+            }
+
+            // 1. 如果是基本数据类型 (String, Number, Boolean)
+            if (typeof dataToRender !== 'object' || dataToRender === null) {
+                const row = document.createElement('div');
+                row.className = "flex flex-col mb-1";
+                
+                const label = document.createElement('label');
+                label.className = "text-xs font-bold text-gray-500 mb-1 block";
+                label.innerText = getFriendlyLabel(currentKey);
+                row.appendChild(label);
+
+                if (typeof dataToRender === 'boolean') {
+                    const toggleWrapper = document.createElement('div');
+                    toggleWrapper.className = "flex items-center gap-2 mt-1 bg-white p-2 rounded-xl border border-gray-200 w-fit";
+                    const checkbox = document.createElement('input');
+                    checkbox.type = "checkbox";
+                    checkbox.checked = dataToRender;
+                    checkbox.className = "w-4 h-4 text-rose-500";
+                    checkbox.onchange = (e) => { parentObj[currentKey] = e.target.checked; };
+                    toggleWrapper.appendChild(checkbox);
+                    
+                    const span = document.createElement('span');
+                    span.className = "text-xs font-bold text-gray-700";
+                    span.innerText = dataToRender ? "开启 (True)" : "关闭 (False)";
+                    checkbox.addEventListener('change', (e) => { span.innerText = e.target.checked ? "开启 (True)" : "关闭 (False)"; });
+                    toggleWrapper.appendChild(span);
+                    row.appendChild(toggleWrapper);
+                } else if (typeof dataToRender === 'number') {
+                    const input = document.createElement('input');
+                    input.type = "number";
+                    input.value = dataToRender;
+                    input.className = "w-full p-2 bg-white border border-gray-200 rounded-xl font-mono focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-sm transition-colors";
+                    input.onchange = (e) => { parentObj[currentKey] = Number(e.target.value) || 0; };
+                    row.appendChild(input);
+                } else {
+                    // String 或其他
+                    if (dataToRender !== null && dataToRender.toString().length > 40) {
+                        const textarea = document.createElement('textarea');
+                        textarea.rows = 3;
+                        textarea.value = dataToRender;
+                        textarea.className = "w-full p-2 bg-white border border-gray-200 rounded-xl font-mono focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-xs transition-colors resize-y";
+                        textarea.onchange = (e) => { parentObj[currentKey] = e.target.value; };
+                        row.appendChild(textarea);
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = "text";
+                        input.value = dataToRender === null ? "" : dataToRender;
+                        input.className = "w-full p-2 bg-white border border-gray-200 rounded-xl font-mono focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-sm transition-colors";
+                        input.onchange = (e) => { parentObj[currentKey] = e.target.value; };
+                        row.appendChild(input);
+                    }
+                }
+                wrapper.appendChild(row);
+                return wrapper;
+            }
+
+            // 2. 如果是 Array 数组
+            if (Array.isArray(dataToRender)) {
+                if (!isRoot) {
+                    const title = document.createElement('h4');
+                    title.className = "text-xs font-bold text-rose-500 mb-2 border-b border-rose-100 pb-1";
+                    title.innerText = getFriendlyLabel(currentKey) + ` (共 ${dataToRender.length} 项)`;
+                    wrapper.appendChild(title);
+                }
+
+                // 创建折叠容器以应对过长的数组
+                const listContainer = document.createElement('div');
+                listContainer.className = "flex flex-col gap-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar";
+                
+                dataToRender.forEach((item, index) => {
+                    const itemWrapper = document.createElement('div');
+                    itemWrapper.className = "relative bg-white border border-gray-100 rounded-xl p-2 shadow-sm group";
+                    
+                    const headerRow = document.createElement('div');
+                    headerRow.className = "flex justify-between items-center mb-1";
+                    headerRow.innerHTML = `<span class="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Index: ${index}</span>`;
+                    
+                    const delBtn = document.createElement('button');
+                    delBtn.className = "text-xs text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-md transition-colors opacity-0 group-hover:opacity-100 font-bold";
+                    delBtn.innerText = "🗑️ 移除此项";
+                    delBtn.onclick = () => {
+                        dataToRender.splice(index, 1);
+                        reRenderCard(filePath);
+                    };
+                    headerRow.appendChild(delBtn);
+                    itemWrapper.appendChild(headerRow);
+
+                    // 递归渲染子项
+                    itemWrapper.appendChild(buildEditorTree(dataToRender, filePath, index, level + 1));
+                    listContainer.appendChild(itemWrapper);
+                });
+
+                wrapper.appendChild(listContainer);
+
+                // 添加新项按钮
+                const addBtn = document.createElement('button');
+                addBtn.className = "mt-2 py-2 border-2 border-dashed border-rose-200 text-rose-500 rounded-xl text-xs font-bold hover:bg-rose-50 transition-colors w-full";
+                addBtn.innerText = "➕ 添加新项";
+                addBtn.onclick = () => {
+                    let newItemTemplate = {};
+                    if (dataToRender.length > 0) {
+                        newItemTemplate = getEmptyTemplate(JSON.parse(JSON.stringify(dataToRender[0])));
+                    } else if (currentKey === 'timestamps') {
+                        newItemTemplate = Date.now();
+                    } else if (currentKey === 'USED_DIY') {
+                        newItemTemplate = "";
+                    }
+                    dataToRender.push(newItemTemplate);
+                    reRenderCard(filePath);
+                };
+                wrapper.appendChild(addBtn);
+                
+                return wrapper;
+            }
+
+            // 3. 如果是普通 Object
+            if (!isRoot) {
+                const title = document.createElement('h4');
+                title.className = "text-xs font-bold text-indigo-500 mb-2 border-b border-indigo-100 pb-1";
+                title.innerText = getFriendlyLabel(currentKey);
+                wrapper.appendChild(title);
+            }
+
+            for (let k in dataToRender) {
+                wrapper.appendChild(buildEditorTree(dataToRender, filePath, k, level + 1));
+            }
+
+            // 对象添加新键值对功能 (针对字典/动态键)
+            const addKeyBtn = document.createElement('button');
+            addKeyBtn.className = "mt-1 py-1.5 px-3 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold hover:bg-gray-200 transition-colors w-fit self-start";
+            addKeyBtn.innerText = "➕ 增加新字段";
+            addKeyBtn.onclick = () => {
+                const newKey = prompt(`在 [${currentKey || '根目录'}] 中添加新字段，请输入英文/拼音键名：`);
+                if (newKey && newKey.trim() !== "") {
+                    if (dataToRender[newKey] !== undefined) {
+                        showToast(`字段 ${newKey} 已存在！`);
+                    } else {
+                        dataToRender[newKey] = ""; // 默认给个空字符串
+                        reRenderCard(filePath);
+                    }
+                }
+            };
+            wrapper.appendChild(addKeyBtn);
+
+            return wrapper;
+        }
+
+        async function syncSingleFile(path) {
+            const fileState = visualDataState[path];
+            if (!fileState) return;
+
+            showLoader(`正在同步 ${path}...`);
+            try {
+                // 直接使用内存中的对象序列化上传
+                const newData = fileState.data;
+                const newSha = await updateGitHubFile(path, newData, fileState.sha, `Admin Panel Visual Single Update: ${path}`);
+                
+                fileState.sha = newSha;
+                fileState.is404 = false; // 保存后不再是404
+                
+                hideLoader();
+                showToast(`✅ ${path} 同步成功！`);
+                reRenderCard(path); // 刷新头部状态去标
+            } catch (err) {
+                hideLoader();
+                showToast(`❌ 同步失败: ${err.message}`);
+            }
+        }
+
+        async function saveAllVisualData() {
+            const updates = [];
+            
+            // 重新比对全量数据（简单比对 sha 以决定是否需要更新？不，内存模式下只能全量传或者用深比较）
+            // 为了安全和简单，我们将批量上传内存中的所有内容
+            for (const fileInfo of ALL_FILES) {
+                const path = fileInfo.path;
+                const fileState = visualDataState[path];
+                if (!fileState || fileState.isError) continue;
+                
+                updates.push({ path, newData: fileState.data, sha: fileState.sha });
+            }
+
+            document.getElementById('loaderText').innerText = `正在全量覆盖 ${updates.length} 个文件...`;
+            showLoader(`正在全量覆盖 ${updates.length} 个文件...`);
+
+            try {
+                const uploadPromises = updates.map(u => updateGitHubFile(u.path, u.newData, u.sha, `Admin Panel Visual Bulk Update: ${u.path}`));
+                const newShas = await Promise.all(uploadPromises);
+                
+                updates.forEach((u, index) => {
+                    visualDataState[u.path].sha = newShas[index];
+                    visualDataState[u.path].is404 = false;
+                });
+
+                hideLoader();
+                renderDynamicCards(); // 刷新全部 UI
+                showToast(`✅ ${updates.length} 个文件已成功同步至云端！`);
+            } catch (err) {
+                hideLoader();
+                showToast(`❌ 批量同步异常中断: ${err.message}`);
+            }
+        }
+
+        /* =========================================================
+           功能 2：底层文件修改区 (Raw Editor) 
+           ========================================================= */
+
+        function initOptions() {
+            const sel = document.getElementById('fileSelector');
+            fileOptions.forEach(opt => {
+                if (opt.label) {
+                    const og = document.createElement('optgroup');
+                    og.label = opt.label;
+                    sel.appendChild(og);
+                } else {
+                    const o = document.createElement('option');
+                    o.value = opt.value; o.text = opt.text;
+                    const groups = sel.getElementsByTagName('optgroup');
+                    if(groups.length > 0) groups[groups.length - 1].appendChild(o);
+                    else sel.appendChild(o);
+                }
+            });
+        }
+
+        function setupTextareaTabKey() {
+            const editor = document.getElementById('jsonEditor');
+            editor.addEventListener('keydown', function(e) {
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart, end = this.selectionEnd;
+                    this.value = this.value.substring(0, start) + "  " + this.value.substring(end);
+                    this.selectionStart = this.selectionEnd = start + 2;
+                }
+            });
+        }
+
+        function onFileSelect() {
+            const val = document.getElementById('fileSelector').value;
+            document.getElementById('customFilePath').value = ""; 
+            if (val) loadRawFile(val);
+        }
+
+        function loadCustomFile() {
+            const path = document.getElementById('customFilePath').value.trim();
+            if (!path) { showToast("请输入有效的文件路径！"); return; }
+            document.getElementById('fileSelector').value = ""; 
+            loadRawFile(path);
+        }
+
+        async function loadRawFile(path) {
+            if (!path) return;
+            rawCurrentFilePath = path;
+            document.getElementById('currentFileName').innerText = path;
+            
+            showLoader("正在从云端拉取原始源码...");
+            const res = await fetchGitHubFile(path);
+            
+            if (res.is404) {
+                hideLoader();
+                rawCurrentSha = null;
+                document.getElementById('jsonEditor').value = "{\n  \n}";
+                showToast("ℹ️ 文件在云端不存在，保存时将创建新文件");
+            } else if (res.error) {
+                hideLoader();
+                showToast("❌ 拉取失败：" + res.error);
+                document.getElementById('jsonEditor').value = "";
+            } else {
+                rawCurrentSha = res.sha;
+                const editor = document.getElementById('jsonEditor');
+                try {
+                    let parsed = JSON.parse(res.rawContent);
+                    editor.value = JSON.stringify(parsed, null, 2);
+                } catch(e) {
+                    editor.value = res.rawContent;
+                    showToast("⚠️ 提示：文件内容非标准 JSON 格式");
+                }
+                hideLoader();
+                showToast("✅ 源码拉取成功！");
+            }
+        }
+
+        function formatJSON() {
+            const editor = document.getElementById('jsonEditor');
+            if (!editor.value.trim()) return;
+            try {
+                const parsed = JSON.parse(editor.value);
+                editor.value = JSON.stringify(parsed, null, 2);
+                showToast("✨ 代码已美化格式！");
+            } catch (e) {
+                showToast("❌ JSON 格式有语法错误，无法格式化！");
+            }
+        }
+
+        async function saveRawFile() {
+            if (!rawCurrentFilePath) { showToast("请先选择并拉取一个文件"); return; }
+            
+            const editor = document.getElementById('jsonEditor');
+            let contentObj;
+            try { contentObj = JSON.parse(editor.value); } 
+            catch (e) { showToast("❌ 保存中止：JSON 格式存在语法错误！"); return; }
+
+            showLoader("正在推送覆盖至云端...");
+            try {
+                const newSha = await updateGitHubFile(rawCurrentFilePath, contentObj, rawCurrentSha, `Admin Panel Raw Update: ${rawCurrentFilePath}`);
+                rawCurrentSha = newSha; 
+                hideLoader();
+                showToast("✅ 成功！源码已覆盖更新至云端");
+            } catch (e) {
+                hideLoader();
+                showToast("❌ 保存失败：" + e.message);
+            }
+        }
+
+        function triggerDelete() {
+            if (!rawCurrentFilePath) { showToast("请先选择要操作的文件"); return; }
+            if (!rawCurrentSha) { showToast("该文件在云端尚未建立，无法删除"); return; }
+            document.getElementById('deleteFileName').innerText = rawCurrentFilePath;
+            openModal('deleteModal', 'deleteModalContent');
+        }
+
+        async function confirmDelete() {
+            closeModal('deleteModal', 'deleteModalContent');
+            showLoader("正在执行强制粉碎...");
+            
+            try {
+                const body = { message: `Admin Panel Delete: ${rawCurrentFilePath}`, sha: rawCurrentSha };
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${rawCurrentFilePath}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) throw new Error(`删除失败 (${response.status})`);
+                
+                // 重置UI状态
+                rawCurrentSha = null;
+                document.getElementById('jsonEditor').value = "";
+                document.getElementById('currentFileName').innerText = "未选择文件";
+                rawCurrentFilePath = null;
+                document.getElementById('fileSelector').value = "";
+                document.getElementById('customFilePath').value = "";
+                
+                hideLoader();
+                showToast("🗑️ 文件已彻底从云端移除！");
+            } catch (e) {
+                hideLoader();
+                showToast("❌ 删除失败：" + e.message);
+            }
+        }
+    </script>
+</body>
+</html>
