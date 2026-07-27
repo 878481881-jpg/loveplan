@@ -46,11 +46,10 @@
                🏆 我们的成就
             </h1>
         </div>
-        <div class="w-9 h-9"></div> <!-- 占位保持居中 -->
+        <div class="w-9 h-9"></div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center">
-
 
         <!-- 加载状态 -->
         <div id="loadingView" class="w-full flex flex-col items-center py-16 animate-fade-in">
@@ -72,7 +71,7 @@
                         已点亮 <span class="text-rose-500 font-bold text-sm" id="unlockedCount">0</span>/<span id="totalAchCount">20</span> 个成就
                     </div>
                 </div>
-                <!-- 环形进度条：展示总解锁模块百分比，中心文字展示总等级 -->
+                <!-- 环形进度条 -->
                 <div class="relative w-20 h-20 flex items-center justify-center z-10 mr-2">
                     <svg class="w-20 h-20 transform -rotate-90 filter drop-shadow-sm absolute">
                         <circle cx="40" cy="40" r="34" stroke="currentColor" stroke-width="8" fill="transparent" class="text-gray-100" />
@@ -106,8 +105,8 @@
                 <h3 class="text-sm font-bold text-gray-700 flex items-center gap-2">
                     <span>🏅</span> 勋章墙 <span class="text-xs text-gray-400 font-normal ml-1 hidden sm:inline">点击查看升级目标</span>
                 </h3>
-                <!-- 成就奖励按钮 -->
-                <button id="claimBtn" onclick="claimRewards()" class="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-full text-xs font-bold shadow-sm flex items-center gap-1 hover:shadow-md transition-all active:scale-95">
+                <!-- 成就奖励按钮 (点击打开专属领取面板) -->
+                <button id="claimBtn" onclick="openRewardModal()" class="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-full text-xs font-bold shadow-sm flex items-center gap-1 hover:shadow-md transition-all active:scale-95">
                     🎁 成就奖励
                 </button>
             </div>
@@ -170,6 +169,42 @@
         </div>
     </div>
 
+    <!-- 奖励领取弹窗 (Reward Modal) -->
+    <div id="rewardModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="rewardModalContent">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-gray-800 text-lg flex items-center gap-2">
+                    🎁 领取成就奖励
+                </h3>
+                <button onclick="closeRewardModal()" class="text-gray-400 hover:text-rose-500 bg-gray-50 rounded-full p-1.5 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="bg-rose-50 rounded-2xl p-5 border border-rose-100 mb-6 text-center">
+                <p class="text-sm text-gray-600 mb-4 font-medium">身份：<span class="font-bold text-rose-500" id="rewardIdentity"></span></p>
+                <div class="flex justify-around items-center">
+                    <div class="flex flex-col">
+                        <span class="text-2xl font-bold text-gray-800" id="rewardTotal">0</span>
+                        <span class="text-xs text-gray-500 mt-1">总等级</span>
+                    </div>
+                    <div class="h-10 w-px bg-rose-200"></div>
+                    <div class="flex flex-col">
+                        <span class="text-2xl font-bold text-gray-400" id="rewardClaimed">0</span>
+                        <span class="text-xs text-gray-500 mt-1">已领等级</span>
+                    </div>
+                    <div class="h-10 w-px bg-rose-200"></div>
+                    <div class="flex flex-col">
+                        <span class="text-2xl font-bold text-rose-500" id="rewardPending">0</span>
+                        <span class="text-xs text-rose-400 font-medium mt-1">待领点数</span>
+                    </div>
+                </div>
+            </div>
+            <button id="doClaimBtn" onclick="doClaimRewards()" class="w-full py-3.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition-all active:scale-95 flex justify-center items-center gap-2">
+                确认领取奖励
+            </button>
+        </div>
+    </div>
+
     <!-- 弹窗提示与剪贴板 -->
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-[60] whitespace-nowrap"></div>
     <input type="text" id="clipboardInput" class="hidden absolute -left-9999">
@@ -193,6 +228,10 @@
             hCw: 'data/Hcw.json', qCw: 'data/Qcw.json'
         };
 
+        // 专属于当前身份的成就记录与积分文件路径
+        const myPrefix = myIdentity === '哼哼' ? 'h' : 'q';
+        const myCkPath = `data/${myPrefix}ck.json`;
+
         // 数据统计模型
         let stats = {
             tasksCompleted: 0, diyCompleted: 0,
@@ -204,6 +243,10 @@
         };
 
         window.currentAchievements = []; // 保存计算后的成就数据用于弹窗
+        
+        // 用于奖励领取的本地状态
+        let myTotalLevels = 0;
+        let myClaimedLevels = 0;
 
         /**
          * 计算等级的通用方法
@@ -259,7 +302,7 @@
                 });
                 
                 if (response.status === 401 || response.status === 403) return { authError: true };
-                // 如果文件不存在 (404)，返回 null 而非报错，这样新号不会崩溃
+                // 如果文件不存在 (404)，返回 null 
                 if (response.status === 404) return { data: null, sha: null }; 
                 if (!response.ok) return { error: true };
                 
@@ -274,7 +317,7 @@
             } catch (error) { return { error: true }; }
         }
 
-        // 保存文件 (用于成就奖励积分更新)
+        // 保存文件
         async function saveFile(filePath, contentObj, sha, commitMsg) {
             const contentStr = unescape(encodeURIComponent(JSON.stringify(contentObj, null, 2)));
             const base64Content = btoa(contentStr);
@@ -301,12 +344,13 @@
         }
 
         async function fetchAndCalculate() {
-            // 并发获取所有数据文件
+            // 并发获取所有数据文件，包括自己专属的积分与成就记录文件
             const responses = await Promise.all([
                 fetchFile(FILES.h), fetchFile(FILES.q),
                 fetchFile(FILES.hRj), fetchFile(FILES.qRj),
                 fetchFile(FILES.cw),
-                fetchFile(FILES.hCw), fetchFile(FILES.qCw)
+                fetchFile(FILES.hCw), fetchFile(FILES.qCw),
+                fetchFile(myCkPath)
             ]);
 
             if (responses.some(r => r.authError)) {
@@ -322,6 +366,10 @@
             const cwData = responses[4].data || {};
             const hCwData = Array.isArray(responses[5].data) ? responses[5].data : [];
             const qCwData = Array.isArray(responses[6].data) ? responses[6].data : [];
+            
+            // 解析自己已领取的成就等级进度 (从 ck 文件中读取)
+            const myCkData = responses[7].data || {};
+            myClaimedLevels = typeof myCkData === 'object' ? (myCkData.claimedLevels || 0) : 0;
 
             // 1. 任务数据
             const processTaskData = (data) => {
@@ -402,11 +450,13 @@
                 if (achieve.level > 0) unlockedModulesCount++;
                 sumTotalLevels += achieve.level;
             });
+            
+            myTotalLevels = sumTotalLevels;
 
             // 渲染整体进度圆环和总等级
             document.getElementById('unlockedCount').innerText = unlockedModulesCount;
             document.getElementById('totalAchCount').innerText = baseAchievements.length;
-            document.getElementById('totalLevelText').innerText = sumTotalLevels;
+            document.getElementById('totalLevelText').innerText = myTotalLevels;
             
             const pctOfModules = (unlockedModulesCount / baseAchievements.length) * 100;
             const circumference = 213.6;
@@ -415,9 +465,24 @@
             setTimeout(() => {
                 document.getElementById('progressCircle').style.strokeDashoffset = offset;
             }, 100);
+            
+            // 检查是否有待领取的专属奖励并展示红点
+            updateClaimButtonUI();
 
             // 渲染列表 (默认全部)
             renderAchievementsGrid();
+        }
+        
+        function updateClaimButtonUI() {
+            const pending = Math.max(0, myTotalLevels - myClaimedLevels);
+            const claimBtn = document.getElementById('claimBtn');
+            if (pending > 0) {
+                claimBtn.innerHTML = `🎁 成就奖励 <span class="absolute -top-1 -right-1 flex h-3 w-3"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span class="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span></span>`;
+                claimBtn.classList.add('relative');
+            } else {
+                claimBtn.innerHTML = `🎁 成就奖励`;
+                claimBtn.classList.remove('relative');
+            }
         }
 
         let currentCategory = 'all';
@@ -435,80 +500,94 @@
             renderAchievementsGrid();
         }
 
-        // 领取成就奖励 (保存到 hck.json 和 qck.json)
-        async function claimRewards() {
-            const btn = document.getElementById('claimBtn');
-            if (btn.disabled) return;
+        // 打开奖励领取面板
+        function openRewardModal() {
+            document.getElementById('rewardIdentity').innerText = myIdentity;
+            document.getElementById('rewardTotal').innerText = myTotalLevels;
+            document.getElementById('rewardClaimed').innerText = myClaimedLevels;
+            
+            const pending = Math.max(0, myTotalLevels - myClaimedLevels);
+            document.getElementById('rewardPending').innerText = pending;
+            
+            const btn = document.getElementById('doClaimBtn');
+            if (pending === 0) {
+                btn.disabled = true;
+                btn.innerText = "暂无奖励可领";
+                btn.classList.remove('from-amber-400', 'to-orange-400', 'shadow-md');
+                btn.classList.add('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+            } else {
+                btn.disabled = false;
+                btn.innerHTML = `领取 ${pending} 积分`;
+                btn.classList.add('from-amber-400', 'to-orange-400', 'shadow-md');
+                btn.classList.remove('bg-gray-300', 'text-gray-500', 'cursor-not-allowed');
+            }
+
+            const modal = document.getElementById('rewardModal');
+            const content = document.getElementById('rewardModalContent');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            });
+        }
+        
+        function closeRewardModal() {
+            const modal = document.getElementById('rewardModal');
+            const content = document.getElementById('rewardModalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        // 确认领取成就奖励 (更新记录和积分均在 hck/qck.json 中)
+        async function doClaimRewards() {
+            const btn = document.getElementById('doClaimBtn');
             btn.disabled = true;
-            const originalText = btn.innerHTML;
             btn.innerHTML = `<span class="animate-spin inline-block mr-1">⏳</span> 领取中...`;
 
             try {
-                // 当前可领取的总分为全部成就的等级之和 (1级1分, 2级2分)
-                let sumTotalLevels = window.currentAchievements.reduce((sum, a) => sum + a.level, 0);
-                if (sumTotalLevels === 0) {
-                    showToast("还没有解锁任何成就哦，加油！");
-                    resetBtn(btn, originalText);
-                    return;
-                }
+                // 拉取最新的积分仓库文件
+                const resCk = await fetchFile(myCkPath);
 
-                // 现拉取最新的积分数据文件
-                const [hckRes, qckRes] = await Promise.all([
-                    fetchFile('data/hck.json'),
-                    fetchFile('data/qck.json')
-                ]);
-
-                if (hckRes.authError || qckRes.authError) {
+                if (resCk.authError) {
                     showToast("Token失效，请重新登录");
-                    resetBtn(btn, originalText);
+                    closeRewardModal();
                     return;
                 }
-
-                let hData = hckRes.data;
-                let qData = qckRes.data;
                 
-                // 兼容处理：确保返回的是对象格式以保存 points 
-                if (typeof hData !== 'object' || hData === null) hData = { points: typeof hData === 'number' ? hData : 0 };
-                if (typeof qData !== 'object' || qData === null) qData = { points: typeof qData === 'number' ? qData : 0 };
-
-                // 读取双方已经领取过的总等级，求出增量积分 (防止重复领取)
-                let hClaimed = hData.claimedAchLevels || 0;
-                let qClaimed = qData.claimedAchLevels || 0;
-
-                let maxClaimed = Math.max(hClaimed, qClaimed);
-                let toClaim = sumTotalLevels - maxClaimed;
+                let ckData = resCk.data || {};
+                if (typeof ckData !== 'object' || ckData === null) ckData = { points: typeof ckData === 'number' ? ckData : 0 };
+                
+                const currentClaimed = ckData.claimedLevels || 0;
+                const toClaim = myTotalLevels - currentClaimed;
 
                 if (toClaim <= 0) {
-                    showToast("暂无新成就奖励可领取，快去解锁更多成就吧！");
-                    resetBtn(btn, originalText);
+                    showToast("数据已更新，暂无新奖励可领取~");
+                    closeRewardModal();
                     return;
                 }
 
-                // 写入数据：增加 points，并记录已经发放到的 claimedAchLevels
-                hData.points = (hData.points || 0) + toClaim;
-                hData.claimedAchLevels = sumTotalLevels;
+                // 更新发放数据和已领等级
+                ckData.claimedLevels = myTotalLevels;
+                ckData.points = (ckData.points || 0) + toClaim;
+
+                // 保存合并后的积分数据
+                await saveFile(myCkPath, ckData, resCk.sha, `Claim ${toClaim} achievement points for ${myIdentity}`);
+
+                myClaimedLevels = myTotalLevels;
+                updateClaimButtonUI();
                 
-                qData.points = (qData.points || 0) + toClaim;
-                qData.claimedAchLevels = sumTotalLevels;
-
-                await Promise.all([
-                    saveFile('data/hck.json', hData, hckRes.sha, `Claim ${toClaim} achievement points for H`),
-                    saveFile('data/qck.json', qData, qckRes.sha, `Claim ${toClaim} achievement points for Q`)
-                ]);
-
-                showToast(`🎉 领取成功！双方各获得 ${toClaim} 积分！`);
+                showToast(`🎉 领取成功！获得了 ${toClaim} 点成就奖励！`);
+                closeRewardModal();
                 
             } catch (err) {
                 showToast("网络错误，领取失败请重试");
                 console.error(err);
+                btn.disabled = false;
+                btn.innerText = "重新尝试";
             }
-            
-            resetBtn(btn, originalText);
-        }
-
-        function resetBtn(btn, text) {
-            btn.disabled = false;
-            btn.innerHTML = text;
         }
 
         // 分离出的网格渲染函数
@@ -607,6 +686,10 @@
         // 点击遮罩关闭
         document.getElementById('achModal').addEventListener('click', function(e) {
             if (e.target === this) closeAchModal();
+        });
+        
+        document.getElementById('rewardModal').addEventListener('click', function(e) {
+            if (e.target === this) closeRewardModal();
         });
 
         // 炫耀分享
