@@ -302,22 +302,18 @@
             // 获取转盘数据
             let remoteDzp = Object.assign({ date: '', count: 0, history: [] }, meDzp.data);
             
-            // 【双重校验】对抗刷新导致的缓存回退
             const todayStr = new Date().toLocaleDateString();
-            let localDzpStr = localStorage.getItem(`loveGacha_dzp_${myIdentity}`);
-            let localDzp = localDzpStr ? JSON.parse(localDzpStr) : { date: '', count: 0 };
             
             // 日期不符则清零
-            if (remoteDzp.date !== todayStr) { remoteDzp.count = 0; remoteDzp.history = []; }
-            if (localDzp.date !== todayStr) { localDzp.count = 0; }
+            if (remoteDzp.date !== todayStr) { 
+                remoteDzp.count = 0; 
+                remoteDzp.history = []; 
+            }
             
-            // 取本地和远端中，已抽奖次数更大的作为真实数据 (防止网络缓存导致次数变少)
+            // 完全依赖 GitHub 远端数据，剔除本地存储
             myDzpData.date = todayStr;
-            myDzpData.count = Math.max(parseInt(remoteDzp.count) || 0, parseInt(localDzp.count) || 0);
+            myDzpData.count = parseInt(remoteDzp.count) || 0;
             myDzpData.history = remoteDzp.history || [];
-            
-            // 同步回本地
-            localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify(myDzpData));
         }
 
         // ----------------------------------------------------
@@ -427,11 +423,6 @@
             if (myDzpData.history.length > 30) myDzpData.history.pop(); // 最多保留30条
             
             renderUI();
-            // 上本地锁
-            localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
-                date: myDzpData.date,
-                count: myDzpData.count
-            }));
 
             // 4. 动画期间【隐蔽、即时地】请求 API 同步数据
             let apiSuccess = false;
@@ -498,10 +489,6 @@
                     myDzpData.count = Math.max(0, myDzpData.count - 1);
                     myDzpData.history.shift(); // 移除刚才那条记录
                     
-                    // 恢复本地锁
-                    localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
-                        date: myDzpData.date, count: myDzpData.count
-                    }));
                     renderUI();
                 }
                 
