@@ -117,6 +117,16 @@
             <div class="w-4 h-6 bg-rose-500 rounded-b-full"></div>
             <div class="w-2 h-2 bg-rose-700 rounded-full -mt-5"></div>
         </div>
+        
+        <!-- 抽奖记录模块 -->
+        <div class="w-full mt-10 text-left px-2">
+            <h3 class="text-sm font-bold text-gray-600 flex items-center gap-1.5 mb-3">
+                <span>📜</span> 抽奖记录
+            </h3>
+            <div id="historyList" class="w-full space-y-2 max-h-48 overflow-y-auto no-scrollbar pb-6">
+                <!-- 由 JS 动态生成 -->
+            </div>
+        </div>
 
     </main>
 
@@ -197,7 +207,8 @@
             if (myDzpData.date !== today) {
                 return { date: today, count: 0 };
             }
-            return { date: today, count: myDzpData.count || 0 };
+            // 确保 count 始终是合法的整型数字，避免 JSON 数据异常
+            return { date: today, count: parseInt(myDzpData.count) || 0 };
         }
 
         function incrementDailySpin() {
@@ -206,7 +217,7 @@
                 myDzpData.date = today;
                 myDzpData.count = 1;
             } else {
-                myDzpData.count = (myDzpData.count || 0) + 1;
+                myDzpData.count = (parseInt(myDzpData.count) || 0) + 1;
             }
         }
 
@@ -269,18 +280,58 @@
             partnerCkData = Object.assign({ points: 20 }, partnerCk.data);
             partnerCkSha = partnerCk.sha;
             
-            myDzpData = Object.assign({ date: '', count: 0 }, meDzp.data);
+            myDzpData = Object.assign({ date: '', count: 0, history: [] }, meDzp.data);
             myDzpSha = meDzp.sha;
         }
 
         function renderUI() {
             document.getElementById('myPoints').innerText = myCkData.points;
             updateSpinBtnUI();
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('historyList');
+            if (!myDzpData.history || myDzpData.history.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 text-xs py-4 bg-white/40 rounded-xl border border-gray-100">暂无抽奖记录</div>`;
+                return;
+            }
+            
+            let html = '';
+            myDzpData.history.forEach(h => {
+                let changeText = '';
+                let colorCls = 'text-gray-500';
+                if (h.me > 0) { changeText = `+${h.me}`; colorCls = 'text-emerald-500 font-bold'; }
+                else if (h.me < 0) { changeText = `${h.me}`; colorCls = 'text-gray-500'; }
+                else { changeText = '0'; colorCls = 'text-gray-400'; }
+
+                let partnerText = '';
+                if (h.partner > 0) partnerText = `<span class="text-xs text-pink-500 ml-2">TA +${h.partner}</span>`;
+                else if (h.partner < 0) partnerText = `<span class="text-xs text-blue-400 ml-2">TA ${h.partner}</span>`;
+
+                html += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-50 flex items-center justify-between opacity-90 transition-all hover:shadow-md">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">${h.icon || '🎁'}</span>
+                            <div>
+                                <div class="text-sm font-bold text-gray-700">${h.prizeText}</div>
+                                <div class="text-[10px] text-gray-400">${h.time}</div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="${colorCls}">${changeText} 分</div>
+                            ${partnerText}
+                        </div>
+                    </div>
+                `;
+            });
+            list.innerHTML = html;
         }
 
         function updateSpinBtnUI() {
             const info = getDailySpinInfo();
-            const remain = 5 - info.count;
+            // 使用 Math.max 确保剩余次数最小显示为 0，不会出现负数
+            const remain = Math.max(0, 5 - info.count);
             document.getElementById('spinCountText').innerText = `今日剩余次数：${remain} / 5`;
             
             const btnText = document.getElementById('spinBtnText');
@@ -396,32 +447,61 @@
             
             const prize = prizes[prizeIndex];
 
-            // 准备更新积分数据
-            myCkData.points += prize.me;
-            partnerCkData.points += prize.partner;
+            // 更新历史记录 (先存入内存)
+            if (!myDzpData.history) myDzpData.history = [];
+            const now = new Date();
+            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+            myDzpData.history.unshift({
+                time: timeStr,
+                prizeText: prize.text,
+                me: prize.me,
+                partner: prize.partner,
+                icon: prize.icon
+            });
+            if (myDzpData.history.length > 20) myDzpData.history.pop(); // 历史最多保留最近 20 条
 
             showLoader("正在保存抽奖结果...");
 
-            // 并行更新双端积分数据和转盘次数记录
+            // 1. 结算自己的积分
+            myCkData.points += prize.me;
             const tasks = [
                 updateFile(myCkPath, myCkData, myCkSha),
                 updateFile(myDzpPath, myDzpData, myDzpSha)
             ];
+
+            // 2. 如果涉及对方积分，为了防止被旧SHA覆盖，实时拉取对方最新数据后再结算
+            let partnerTask = null;
             if (prize.partner !== 0) {
-                tasks.push(updateFile(partnerCkPath, partnerCkData, partnerCkSha));
+                try {
+                    const latestPartner = await fetchFile(partnerCkPath);
+                    partnerCkData = Object.assign({ points: 20 }, latestPartner.data);
+                    partnerCkSha = latestPartner.sha;
+                    
+                    if (prize.partner < 0) {
+                        // 偷取对方积分时，保证不会把对方扣成负数
+                        const deduct = Math.min(Math.abs(prize.partner), partnerCkData.points);
+                        partnerCkData.points -= deduct;
+                    } else {
+                        partnerCkData.points += prize.partner;
+                    }
+                    partnerTask = updateFile(partnerCkPath, partnerCkData, partnerCkSha);
+                } catch(e) {
+                    console.error("拉取对方最新数据失败", e);
+                }
             }
+            if (partnerTask) tasks.push(partnerTask);
 
             const results = await Promise.all(tasks);
             const upMe = results[0];
             const upDzp = results[1];
-            const upPartner = prize.partner !== 0 ? results[2] : { success: true };
+            const upPartner = partnerTask ? results[2] : { success: true };
 
             hideLoader();
 
             if (upMe.success && upDzp.success && upPartner.success) {
                 myCkSha = upMe.sha;
                 myDzpSha = upDzp.sha;
-                if (prize.partner !== 0) partnerCkSha = upPartner.sha;
+                if (partnerTask) partnerCkSha = upPartner.sha;
                 
                 // 数据保存成功，展示弹窗
                 showResultModal(prize);
