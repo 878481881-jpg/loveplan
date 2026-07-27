@@ -2,10 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>默契大转盘 🎡</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>默契大转盘 🎰</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <style>
         body { 
@@ -15,7 +15,7 @@
             background-size: 20px 20px; 
             overflow-x: hidden; 
         }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
         .animate-float { animation: float 3s ease-in-out infinite; }
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
@@ -30,138 +30,169 @@
             box-shadow: 0 4px 6px -1px rgba(225, 29, 72, 0.05), 0 2px 4px -1px rgba(225, 29, 72, 0.03);
         }
 
-        /* 转盘特定样式 */
-        .wheel-transition {
-            /* 贝塞尔曲线让转盘逐渐减速停止，更有真实感 */
-            transition: transform 4s cubic-bezier(0.1, 0.7, 0.1, 1);
+        /* 动态生成的转盘背景 */
+        .wheel-bg {
+            background: conic-gradient(from -22.5deg, 
+                #fce7f3 0deg 45deg,      /* 吉星高照 */
+                #fecdd3 45deg 90deg,     /* 破财消灾 */
+                #fef08a 90deg 135deg,    /* 专属偏爱 */
+                #bfdbfe 135deg 180deg,   /* 淘气小偷 */
+                #ffedd5 180deg 225deg,   /* 欧气爆棚 */
+                #e5e7eb 225deg 270deg,   /* 非酋附体 */
+                #e0e7ff 270deg 315deg,   /* 好事成双 */
+                #fef9c3 315deg 360deg    /* 保底真香 */
+            );
         }
-        .text-vertical {
-            writing-mode: vertical-rl;
-            text-orientation: mixed;
-            letter-spacing: 2px;
-        }
-        .wheel-shadow {
-            box-shadow: 0 10px 25px -5px rgba(225, 29, 72, 0.3), inset 0 0 15px rgba(255,255,255,0.5);
+        
+        /* 扇形文字定位 */
+        .slice-text {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform-origin: 50% 100%; /* 以中心点旋转 */
+            margin-left: -30px; /* 宽度的一半 */
+            width: 60px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            color: #4b5563;
+            height: 40%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 5px;
         }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 relative">
 
     <!-- 全局加载遮罩 -->
-    <div id="globalLoader" class="fixed inset-0 bg-white/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center hidden">
-        <svg class="animate-spin h-10 w-10 text-rose-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-        <span class="text-rose-600 font-medium" id="loaderText">正在连接神经元...</span>
+    <div id="globalLoader" class="fixed inset-0 bg-white/80 backdrop-blur-md z-[100] flex flex-col items-center justify-center hidden">
+        <svg class="animate-spin h-12 w-12 text-rose-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <span class="text-rose-600 font-bold tracking-wider" id="loaderText">正在连接运气中心...</span>
     </div>
     
-    <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
-        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    <header class="text-center mb-4 max-w-md mt-2 w-full flex justify-between items-center px-2">
+        <a href="index.html" class="p-2.5 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
         </a>
-        <div>
-            <h1 class="text-2xl font-bold text-rose-500 flex items-center justify-center gap-2">
-               <span>🎡</span> 默契大转盘 <span>🎡</span>
+        <div class="animate-float">
+            <h1 class="text-2xl font-black text-rose-500 flex items-center justify-center gap-2 drop-shadow-sm">
+               <span>🎰</span> 默契大转盘
             </h1>
         </div>
-        <div class="w-9 h-9"></div> 
+        <div class="w-10 h-10"></div> <!-- 占位保持居中 -->
     </header>
-    
-    <!-- 选项卡导航 (拓展游戏大厅概念) -->
+
     <div class="flex space-x-3 mb-6 w-full justify-center overflow-x-auto no-scrollbar py-2">
-        <a href="moqi.html" class="px-5 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm whitespace-nowrap">默契挑战</a>
-        <a href="wheel.html" class="px-5 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm whitespace-nowrap">幸运转盘</a>
+        <a href="index.html" class="px-5 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm whitespace-nowrap">返回首页</a>
+        <a href="moqi_2.html" class="px-5 py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-sm whitespace-nowrap">默契考验</a>
+        <a href="#" class="px-5 py-2 bg-gradient-to-r from-rose-400 to-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm whitespace-nowrap">大转盘</a>
     </div>
 
-    <div class="w-full max-w-md glass-panel rounded-2xl p-4 mb-8 flex justify-between items-center">
+    <div class="w-full max-w-md glass-panel rounded-2xl p-4 mb-6 flex justify-between items-center z-10">
         <div class="flex items-center gap-3">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-rose-200 to-pink-300 flex items-center justify-center text-xl shadow-sm border-2 border-white relative">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-rose-200 to-pink-300 flex items-center justify-center text-xl shadow-sm border-2 border-white">
                 <span id="myAvatar">🐰</span>
-                <span class="absolute -bottom-1 -right-1 text-[10px] bg-white px-1.5 rounded-full text-rose-500 font-bold border border-rose-100 shadow-sm">我</span>
             </div>
             <div>
-                <div class="text-xs text-gray-500 mb-0.5">我的身份</div>
-                <div class="font-bold text-rose-600" id="myIdentityName">加载中...</div>
+                <div class="text-xs text-gray-500 font-medium mb-0.5">我的身份</div>
+                <div class="font-bold text-rose-600 tracking-wide" id="myIdentityName">加载中...</div>
             </div>
         </div>
-        <div class="text-right">
-            <div class="text-xs text-gray-500 mb-0.5">我的积分 🪙</div>
+        <div class="text-right bg-rose-50 px-4 py-2 rounded-xl border border-rose-100">
+            <div class="text-xs text-rose-400 font-bold mb-0.5">当前积分</div>
             <div class="font-black text-2xl text-amber-500 drop-shadow-sm flex items-center justify-end gap-1">
-                <span id="myPoints">--</span>
+                🪙 <span id="myPoints">--</span>
             </div>
         </div>
     </div>
 
-    <main class="w-full max-w-md flex flex-col items-center relative z-10">
+    <main class="w-full max-w-md flex flex-col items-center flex-1">
         
-        <div class="text-center mb-6">
-            <h2 class="text-gray-700 font-bold">试试今天的手气吧！</h2>
-            <p class="text-xs text-gray-400 mt-1">每天首次<span class="text-rose-500 font-bold">免费</span>，每日限抽 5 次哦 🎁</p>
-            <p id="spinCountText" class="text-xs text-rose-400 mt-1 font-medium">今日剩余次数：加载中...</p>
-        </div>
-
         <!-- 转盘容器 -->
-        <div class="relative w-72 h-72 rounded-full border-[6px] border-white wheel-shadow overflow-hidden bg-rose-50">
-            <!-- 转盘本体 -->
-            <div id="wheel" class="w-full h-full rounded-full relative wheel-transition">
-                <!-- 扇形和文字由 JS 动态生成 -->
+        <div class="relative w-[300px] h-[300px] mb-8">
+            <!-- 顶部的指针 -->
+            <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 z-20 drop-shadow-md text-rose-600">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2L22 10L12 22L2 10L12 2Z" />
+                </svg>
             </div>
-            
-            <!-- 中心按钮 -->
-            <button onclick="spinWheel()" id="spinBtn" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-white rounded-full shadow-[0_4px_15px_rgba(225,29,72,0.4)] font-black text-rose-500 border-4 border-rose-100 z-20 flex flex-col items-center justify-center hover:scale-105 active:scale-95 transition-transform">
-                <span id="spinBtnText" class="text-lg leading-none mt-1">抽!</span>
-                <span id="spinBtnSub" class="text-[9px] text-gray-400 mt-0.5">-1分</span>
+
+            <!-- 外边框装饰 -->
+            <div class="absolute inset-0 rounded-full border-[8px] border-rose-200 shadow-xl z-10 pointer-events-none box-border flex items-center justify-center">
+                 <!-- 内部灯泡点缀 -->
+                 <div class="w-full h-full rounded-full border-2 border-white/50 border-dashed animate-[spin_10s_linear_infinite]"></div>
+            </div>
+
+            <!-- 旋转主体 -->
+            <div id="wheel" class="w-full h-full rounded-full wheel-bg transition-transform duration-[4000ms] cubic-bezier(0.1, 0, 0.15, 1) relative overflow-hidden shadow-inner" style="transform: rotate(0deg);">
+                <!-- JS 动态注入文字 -->
+            </div>
+
+            <!-- 中心抽奖按钮 -->
+            <button id="spinBtn" onclick="spinWheel()" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-20 h-20 bg-gradient-to-b from-white to-rose-100 rounded-full z-20 shadow-[0_4px_15px_rgba(225,29,72,0.3)] border-4 border-white flex flex-col items-center justify-center transition-transform hover:scale-105 active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed">
+                <span class="text-xl font-black text-rose-500 tracking-widest ml-1">抽</span>
+                <span id="spinCostText" class="text-[10px] text-gray-400 font-bold mt-0.5">加载中</span>
             </button>
         </div>
-        
-        <!-- 顶部指示器(指针) -->
-        <div class="absolute top-[80px] left-1/2 -translate-x-1/2 -mt-4 z-30 drop-shadow-md flex flex-col items-center">
-            <div class="w-4 h-6 bg-rose-500 rounded-b-full"></div>
-            <div class="w-2 h-2 bg-rose-700 rounded-full -mt-5"></div>
+
+        <!-- 状态与规则提示 -->
+        <div class="flex w-full justify-between items-center mb-6 px-2">
+            <div class="bg-white/80 px-4 py-2 rounded-full text-xs font-bold text-gray-500 shadow-sm border border-rose-100 flex items-center gap-1.5">
+                <span class="text-rose-400">📅</span> 今日剩余次数：<span id="remainCount" class="text-rose-600 text-sm">--</span> / 5
+            </div>
+            <div class="text-xs text-gray-400 font-medium bg-white/50 px-3 py-1.5 rounded-full border border-gray-100">
+                ⚠️ 每日 0 点重置
+            </div>
         </div>
-        
-        <!-- 抽奖记录模块 -->
-        <div class="w-full mt-10 text-left px-2">
-            <h3 class="text-sm font-bold text-gray-600 flex items-center gap-1.5 mb-3">
-                <span>📜</span> 抽奖记录
-            </h3>
-            <div id="historyList" class="w-full space-y-2 max-h-48 overflow-y-auto no-scrollbar pb-6">
-                <!-- 由 JS 动态生成 -->
+
+        <!-- 抽奖历史 -->
+        <div class="w-full bg-white/70 p-1.5 rounded-2xl shadow-sm border border-rose-100 backdrop-blur-sm flex-1 flex flex-col min-h-[200px]">
+            <div class="w-full text-left px-3 py-3 border-b border-rose-50 flex justify-between items-center">
+                <h3 class="text-sm font-bold text-rose-500 flex items-center gap-1.5">
+                    <span>📜</span> 我的抽奖记录
+                </h3>
+            </div>
+            <div id="historyList" class="w-full space-y-0 max-h-[250px] overflow-y-auto no-scrollbar p-2 flex-1">
+                <!-- 由 JS 渲染 -->
+                <div class="text-center text-gray-400 text-xs py-8">暂无记录，快去试试手气吧~</div>
             </div>
         </div>
 
     </main>
 
-    <!-- 抽奖结果弹窗 -->
+    <!-- 结果展示弹窗 -->
     <div id="resultModal" class="fixed inset-0 bg-black/60 z-[60] hidden flex flex-col items-center justify-center p-4 backdrop-blur-sm transition-opacity opacity-0">
-        <div class="bg-white rounded-3xl w-full max-w-[300px] p-6 flex flex-col items-center text-center transform scale-95 transition-transform duration-300 relative overflow-hidden" id="resultModalContent">
+        <div class="bg-white rounded-3xl w-full max-w-[280px] p-6 flex flex-col items-center text-center transform scale-95 transition-transform duration-300 shadow-2xl relative overflow-hidden" id="resultModalContent">
             <!-- 装饰背景 -->
-            <div class="absolute -top-10 -right-10 w-24 h-24 bg-rose-100 rounded-full opacity-50"></div>
-            <div class="absolute -bottom-10 -left-10 w-24 h-24 bg-pink-100 rounded-full opacity-50"></div>
+            <div class="absolute -top-10 -right-10 w-24 h-24 bg-rose-100 rounded-full blur-xl opacity-50"></div>
+            <div class="absolute -bottom-10 -left-10 w-24 h-24 bg-amber-100 rounded-full blur-xl opacity-50"></div>
             
-            <div id="resultIcon" class="text-6xl mb-3 animate-bounce relative z-10">🎁</div>
-            <h2 id="resultTitle" class="text-xl font-bold mb-1 text-gray-800 relative z-10">恭喜获得</h2>
-            <div id="resultPrize" class="text-2xl font-black text-rose-500 mb-2 relative z-10">+3 积分</div>
-            <p id="resultDesc" class="text-xs text-gray-500 mb-6 relative z-10">好运气都在你这边！</p>
+            <div id="resultIcon" class="text-5xl mb-4 relative z-10 animate-bounce">🎁</div>
+            <h2 id="resultTitle" class="text-xl font-black mb-1 text-gray-800 relative z-10">抽奖结果</h2>
+            <p id="resultDesc" class="text-sm font-bold text-rose-500 mb-6 relative z-10">...</p>
             
-            <button onclick="closeResultModal()" class="w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm relative z-10">
+            <button onclick="closeResultModal()" class="w-full py-3 bg-gradient-to-r from-rose-400 to-rose-500 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition-all text-sm active:scale-95 relative z-10">
                 开心收下
             </button>
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-xl text-sm font-medium hidden z-[70] whitespace-nowrap border border-gray-700"></div>
+    <!-- Toast 提示 -->
+    <div id="toast" class="fixed bottom-12 left-1/2 transform -translate-x-1/2 bg-gray-800/95 backdrop-blur text-white px-6 py-3 rounded-full shadow-2xl text-sm font-medium hidden z-[70] whitespace-nowrap border border-gray-700"></div>
 
     <script>
-        // --- 1. 配置与身份验证 ---
+        // ----------------------------------------------------
+        // 1. 基础配置与身份验证
+        // ----------------------------------------------------
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
         const myIdentity = localStorage.getItem('loveGacha_myIdentity'); // '哼哼' 或 '亲亲'
 
         if (!GITHUB_TOKEN || !myIdentity) {
-            document.body.innerHTML = '<div class="flex h-screen items-center justify-center text-rose-500 font-bold text-center p-4">未检测到登录信息，请先完成登录。<br><br>页面将在2秒后赋予测试身份。</div>';
-            setTimeout(() => {
-                localStorage.setItem('loveGacha_githubToken', 'DEMO_TOKEN');
-                localStorage.setItem('loveGacha_myIdentity', '哼哼');
-                window.location.reload();
-            }, 2000);
+            document.body.innerHTML = '<div class="flex h-screen items-center justify-center text-rose-500 font-bold text-center p-4">未检测到登录信息，请从原系统登录。</div>';
+            setTimeout(() => { window.location.href = 'index.html'; }, 2000);
         }
 
         const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
@@ -170,88 +201,76 @@
         
         // 仓库配置
         const OWNER_REPO = '878481881-jpg/loveplan'; 
-        const FILE_CK_H = 'data/hck.json'; 
-        const FILE_CK_Q = 'data/qck.json'; 
-        const FILE_DZP_H = 'data/hdzp.json'; 
-        const FILE_DZP_Q = 'data/qdzp.json'; 
+        const FILE_CK_H = 'data/hck.json'; // 哼哼积分
+        const FILE_CK_Q = 'data/qck.json'; // 亲亲积分
+        const FILE_DZP_H = 'data/hdzp.json'; // 哼哼转盘数据
+        const FILE_DZP_Q = 'data/qdzp.json'; // 亲亲转盘数据
         
-        // 大转盘需要积分(CK)文件和转盘记录(DZP)文件
         const myCkPath = myIdentity === '哼哼' ? FILE_CK_H : FILE_CK_Q;
         const partnerCkPath = myIdentity === '哼哼' ? FILE_CK_Q : FILE_CK_H;
         const myDzpPath = myIdentity === '哼哼' ? FILE_DZP_H : FILE_DZP_Q;
 
-        let myCkData = { points: 20 };
-        let partnerCkData = { points: 20 };
-        let myDzpData = { date: '', count: 0 };
-        let myCkSha = null;
-        let partnerCkSha = null;
-        let myDzpSha = null;
+        // 全局状态
+        let myCkData = { points: 0 };
+        let myDzpData = { date: '', count: 0, history: [] };
         
-        // --- 2. 转盘奖项配置 ---
-        // 注意：8个扇形，每个占 45 度 (360/8)
+        let isSpinning = false;
+        let currentRotation = 0; // 记录转盘当前角度，保证连续旋转不回退
+
+        // 转盘奖项配置 (8个，按顺时针在转盘上的位置排列 0-7)
+        // 每个切片占 45 度 (360 / 8)
         const prizes = [
-            { id: 1, text: "吉星高照", sub: "+3分", color: "#fbcfe8", me: 3, partner: 0, icon: "🌟", desc: "运气不错，稳稳入账！" },
-            { id: 2, text: "破财消灾", sub: "-3分", color: "#e5e7eb", me: -3, partner: 0, icon: "💸", desc: "花钱买平安，下次一定行！" },
-            { id: 3, text: "专属偏爱", sub: "TA+3分", color: "#fecdd3", me: 0, partner: 3, icon: "💖", desc: `把好运送给了最爱的${partnerIdentity}~` },
-            { id: 4, text: "淘气小偷", sub: "偷TA 3分", color: "#bfdbfe", me: 3, partner: -3, icon: "🥷", desc: `悄悄顺走${partnerIdentity}的 3 个积分，嘿嘿！` },
-            { id: 5, text: "欧气爆棚", sub: "+5分", color: "#fef08a", me: 5, partner: 0, icon: "👑", desc: "天选之子！发大财啦！" },
-            { id: 6, text: "非酋附体", sub: "-5分", color: "#d1d5db", me: -5, partner: 0, icon: "⛈️", desc: "运气不太好呢，快让TA抱抱安慰一下~" },
-            { id: 7, text: "好事成双", sub: "+2分", color: "#bbf7d0", me: 2, partner: 0, icon: "✌️", desc: "两全其美，成双成对！" },
-            { id: 8, text: "保底真香", sub: "+1分", color: "#e9d5ff", me: 1, partner: 0, icon: "🍀", desc: "苍蝇再小也是肉，稳赚不亏！" }
+            { id: 0, title: "吉星高照", desc: "+3分", me: 3, partner: 0, icon: "🌟" },
+            { id: 1, title: "破财消灾", desc: "-3分", me: -3, partner: 0, icon: "💸" },
+            { id: 2, title: "专属偏爱", desc: "TA+3分", me: 0, partner: 3, icon: "💌" },
+            { id: 3, title: "淘气小偷", desc: "偷TA 3分", me: 3, partner: -3, icon: "🥷" },
+            { id: 4, title: "欧气爆棚", desc: "+5分", me: 5, partner: 0, icon: "💎" },
+            { id: 5, title: "非酋附体", desc: "-5分", me: -5, partner: 0, icon: "🌚" },
+            { id: 6, title: "好事成双", desc: "+2分", me: 2, partner: 0, icon: "✌️" },
+            { id: 7, title: "保底真香", desc: "+1分", me: 1, partner: 0, icon: "🍬" }
         ];
 
-        // --- 每日次数状态管理 ---
-        function getDailySpinInfo() {
-            const today = new Date().toLocaleDateString();
-            // 跨天重置次数
-            if (myDzpData.date !== today) {
-                return { date: today, count: 0 };
-            }
-            // 确保 count 始终是合法的整型数字，避免 JSON 数据异常
-            return { date: today, count: parseInt(myDzpData.count) || 0 };
-        }
-
-        // --- 3. 初始化与GitHub逻辑 ---
+        // ----------------------------------------------------
+        // 2. 核心网络通讯 (防缓存、防冲突机制)
+        // ----------------------------------------------------
         window.onload = async function() {
-            showLoader("正在同步积分数据...");
-            await fetchPointsData();
             initWheelUI();
+            showLoader("正在连接运气中心...");
+            await fetchAllData();
             hideLoader();
             renderUI();
         };
 
+        // 强力读取函数，附带时间戳和防缓存头，击穿 GitHub 缓存
         async function fetchFile(filePath) {
             try {
                 const ts = new Date().getTime();
                 const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${ts}`, {
                     headers: { 
                         'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                        'Cache-Control': 'no-cache, no-store, must-revalidate', // 强制穿透GitHub缓存
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
                         'Pragma': 'no-cache',
                         'Expires': '0'
                     }
                 });
+                
                 if (res.status === 404) return { data: {}, sha: null }; 
-                if (!res.ok) throw new Error(`API Error: ${res.status}`);
+                if (!res.ok) throw new Error('API Error');
                 
                 const result = await res.json();
                 const content = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
                 return { data: JSON.parse(content || '{}'), sha: result.sha };
             } catch (e) {
-                console.warn(`读取 ${filePath} 失败，使用默认数据`, e);
+                console.error("读取失败", e);
                 return { data: {}, sha: null };
             }
         }
 
         async function updateFile(filePath, dataObj, sha) {
-            // 如果是演示模式，允许本地模拟；否则真实抛出异常
-            if (GITHUB_TOKEN === 'DEMO_TOKEN') {
-                return { success: true, sha: 'mock_sha_' + Math.random() };
-            }
             try {
                 const content = btoa(unescape(encodeURIComponent(JSON.stringify(dataObj, null, 2)))); 
-                const body = { message: `Wheel spin update ${new Date().getTime()}`, content: content };
-                if (sha && !sha.startsWith('mock_sha')) body.sha = sha;
+                const body = { message: `Tacit wheel update ${new Date().getTime()}`, content: content };
+                if (sha) body.sha = sha;
 
                 const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
                     method: 'PUT', 
@@ -259,286 +278,230 @@
                     body: JSON.stringify(body)
                 });
                 
-                if (!res.ok) {
-                    const err = await res.json();
-                    throw new Error(err.message || 'Update failed');
-                }
+                if (!res.ok) throw new Error('Update failed');
                 const result = await res.json();
                 return { success: true, sha: result.content.sha };
             } catch (e) {
-                console.error(`保存 ${filePath} 失败`, e);
-                return { success: false };
+                console.error("保存失败", e);
+                return { success: false, sha: null };
             }
         }
 
-        async function fetchPointsData() {
-            const [meCk, partnerCk, meDzp] = await Promise.all([
-                fetchFile(myCkPath), fetchFile(partnerCkPath), fetchFile(myDzpPath)
+        // 获取并清洗数据，结合本地存储实现双重校验防白嫖
+        async function fetchAllData() {
+            const [meCk, meDzp] = await Promise.all([
+                fetchFile(myCkPath), fetchFile(myDzpPath)
             ]);
             
-            myCkData = Object.assign({ points: 20 }, meCk.data);
-            myCkSha = meCk.sha;
+            // 【数据隔离1】强制清理积分数据，绝不允许混入对象
+            myCkData = { points: 20 }; // 默认兜底
+            if (meCk.data && typeof meCk.data.points !== 'undefined') {
+                myCkData.points = parseInt(meCk.data.points) || 0;
+            }
             
-            partnerCkData = Object.assign({ points: 20 }, partnerCk.data);
-            partnerCkSha = partnerCk.sha;
+            // 获取转盘数据
+            let remoteDzp = Object.assign({ date: '', count: 0, history: [] }, meDzp.data);
             
-            myDzpData = Object.assign({ date: '', count: 0, history: [] }, meDzp.data);
-            myDzpSha = meDzp.sha;
-
-            // 【双重验证防白嫖】：对抗 GitHub API 的延迟缓存
+            // 【双重校验】对抗刷新导致的缓存回退
             const todayStr = new Date().toLocaleDateString();
-            const localVal = JSON.parse(localStorage.getItem(`loveGacha_dzp_${myIdentity}`) || '{}');
-            if (localVal.date === todayStr && localVal.count > myDzpData.count) {
-                console.log("GitHub返回了旧缓存，启用本地最新次数兜底:", localVal.count);
-                myDzpData.count = localVal.count;
-                if (localVal.history && localVal.history.length > 0) {
-                    myDzpData.history = localVal.history;
-                }
-            }
-        }
-
-        function renderUI() {
-            document.getElementById('myPoints').innerText = myCkData.points;
-            updateSpinBtnUI();
-            renderHistory();
-        }
-
-        function renderHistory() {
-            const list = document.getElementById('historyList');
-            if (!myDzpData.history || myDzpData.history.length === 0) {
-                list.innerHTML = `<div class="text-center text-gray-400 text-xs py-4 bg-white/40 rounded-xl border border-gray-100">暂无抽奖记录</div>`;
-                return;
-            }
+            let localDzpStr = localStorage.getItem(`loveGacha_dzp_${myIdentity}`);
+            let localDzp = localDzpStr ? JSON.parse(localDzpStr) : { date: '', count: 0 };
             
-            let html = '';
-            myDzpData.history.forEach(h => {
-                let changeText = '';
-                let colorCls = 'text-gray-500';
-                if (h.me > 0) { changeText = `+${h.me}`; colorCls = 'text-emerald-500 font-bold'; }
-                else if (h.me < 0) { changeText = `${h.me}`; colorCls = 'text-gray-500'; }
-                else { changeText = '0'; colorCls = 'text-gray-400'; }
-
-                let partnerText = '';
-                if (h.partner > 0) partnerText = `<span class="text-xs text-pink-500 ml-2">TA +${h.partner}</span>`;
-                else if (h.partner < 0) partnerText = `<span class="text-xs text-blue-400 ml-2">TA ${h.partner}</span>`;
-
-                html += `
-                    <div class="bg-white p-3 rounded-xl shadow-sm border border-gray-50 flex items-center justify-between opacity-90 transition-all hover:shadow-md">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">${h.icon || '🎁'}</span>
-                            <div>
-                                <div class="text-sm font-bold text-gray-700">${h.prizeText}</div>
-                                <div class="text-[10px] text-gray-400">${h.time}</div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div class="${colorCls}">${changeText} 分</div>
-                            ${partnerText}
-                        </div>
-                    </div>
-                `;
-            });
-            list.innerHTML = html;
+            // 日期不符则清零
+            if (remoteDzp.date !== todayStr) { remoteDzp.count = 0; remoteDzp.history = []; }
+            if (localDzp.date !== todayStr) { localDzp.count = 0; }
+            
+            // 取本地和远端中，已抽奖次数更大的作为真实数据 (防止网络缓存导致次数变少)
+            myDzpData.date = todayStr;
+            myDzpData.count = Math.max(parseInt(remoteDzp.count) || 0, parseInt(localDzp.count) || 0);
+            myDzpData.history = remoteDzp.history || [];
+            
+            // 同步回本地
+            localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify(myDzpData));
         }
 
-        function updateSpinBtnUI() {
-            const info = getDailySpinInfo();
-            // 使用 Math.max 确保剩余次数最小显示为 0，不会出现负数
-            const remain = Math.max(0, 5 - info.count);
-            document.getElementById('spinCountText').innerText = `今日剩余次数：${remain} / 5`;
-            
-            const btnText = document.getElementById('spinBtnText');
-            const btnSub = document.getElementById('spinBtnSub');
-            
-            if (info.count === 0) {
-                btnText.innerText = "免费!";
-                btnText.classList.add('text-emerald-500');
-                btnText.classList.remove('text-rose-500');
-                btnSub.innerText = "首次0分";
-                btnSub.classList.add('text-emerald-400');
-                btnSub.classList.remove('text-gray-400');
-            } else {
-                btnText.innerText = "抽!";
-                btnText.classList.remove('text-emerald-500');
-                btnText.classList.add('text-rose-500');
-                btnSub.innerText = "-1分";
-                btnSub.classList.remove('text-emerald-400');
-                btnSub.classList.add('text-gray-400');
-            }
-        }
-
+        // ----------------------------------------------------
+        // 3. UI 渲染与转盘绘制
+        // ----------------------------------------------------
         function initWheelUI() {
             const wheel = document.getElementById('wheel');
-            const totalPrizes = prizes.length;
-            const sliceDeg = 360 / totalPrizes;
+            wheel.innerHTML = '';
             
-            // 1. 生成锥形渐变背景
-            // 为了让第0个奖项正好在正上方（0度），偏移 -sliceDeg/2 (即 -22.5度)
-            let bgStr = `conic-gradient(from -22.5deg, `;
-            prizes.forEach((p, i) => {
-                bgStr += `${p.color} ${i * sliceDeg}deg ${(i + 1) * sliceDeg}deg${i < totalPrizes - 1 ? ', ' : ''}`;
-            });
-            bgStr += `)`;
-            wheel.style.background = bgStr;
-
-            // 2. 添加奖项文字
-            prizes.forEach((p, i) => {
+            // 生成8个扇形的文字标签
+            prizes.forEach((prize, index) => {
+                const angle = index * 45; 
                 const el = document.createElement('div');
-                el.className = 'absolute top-0 left-1/2 w-12 -ml-6 h-[50%] flex flex-col items-center justify-start pt-3 transform origin-bottom text-gray-800 font-bold z-10';
-                el.style.transform = `rotate(${i * sliceDeg}deg)`;
+                el.className = 'slice-text';
+                // 旋转元素使其对准对应的色块区域
+                el.style.transform = `rotate(${angle}deg)`;
                 
                 el.innerHTML = `
-                    <span class="text-[12px] text-vertical font-bold leading-tight">${p.text}</span>
-                    <span class="text-[9px] mt-1 text-gray-600">${p.sub}</span>
+                    <span class="text-xs font-black tracking-widest text-gray-800 drop-shadow-sm mb-1">${prize.title}</span>
+                    <span class="text-[10px] font-bold ${prize.me < 0 || prize.partner < 0 ? 'text-gray-500' : 'text-rose-600'} bg-white/70 px-1.5 py-0.5 rounded-md border border-white/50 shadow-sm">${prize.desc}</span>
                 `;
                 wheel.appendChild(el);
             });
-            
-            // 添加分割线 (提升视觉质感)
-            prizes.forEach((_, i) => {
-                const line = document.createElement('div');
-                line.className = 'absolute top-0 left-1/2 w-0.5 h-[50%] bg-white/60 transform origin-bottom z-10';
-                // 分割线在扇形的交界处，即 -22.5度 + i*45度
-                line.style.transform = `rotate(${i * sliceDeg - 22.5}deg)`;
-                wheel.appendChild(line);
-            });
         }
 
-        let currentRotation = 0;
-        let isSpinning = false;
+        function renderUI() {
+            // 更新积分展示
+            document.getElementById('myPoints').innerText = myCkData.points;
+            
+            // 更新次数限制展示
+            const remain = Math.max(0, 5 - myDzpData.count);
+            document.getElementById('remainCount').innerText = remain;
+            
+            // 更新按钮状态
+            const isFree = (myDzpData.count === 0);
+            const btnCostText = document.getElementById('spinCostText');
+            if (remain <= 0) {
+                btnCostText.innerText = "明日再来";
+                btnCostText.className = "text-[10px] text-gray-500 font-bold mt-0.5";
+            } else if (isFree) {
+                btnCostText.innerText = "今日首抽免费";
+                btnCostText.className = "text-[10px] text-emerald-500 font-bold mt-0.5 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100";
+            } else {
+                btnCostText.innerText = "消耗 1 积分";
+                btnCostText.className = "text-[10px] text-rose-400 font-bold mt-0.5";
+            }
 
+            // 更新历史记录列表
+            const hList = document.getElementById('historyList');
+            if (!myDzpData.history || myDzpData.history.length === 0) {
+                hList.innerHTML = `<div class="text-center text-gray-400 text-xs py-8">暂无记录，快去试试手气吧~</div>`;
+            } else {
+                hList.innerHTML = myDzpData.history.map(item => `
+                    <div class="px-3 py-2.5 border-b border-gray-50 text-xs flex justify-between items-center bg-white/40 hover:bg-white/80 transition-colors rounded-lg mb-1">
+                        <span class="text-gray-400 font-medium">${item.time}</span>
+                        <span class="font-bold text-gray-700 bg-white px-2 py-1 rounded shadow-sm border border-gray-100">${item.desc}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // ----------------------------------------------------
+        // 4. 核心抽奖逻辑 (防白嫖、即时保存)
+        // ----------------------------------------------------
         async function spinWheel() {
             if (isSpinning) return;
             
-            const info = getDailySpinInfo();
-            if (info.count >= 5) {
-                showToast("今日 5 次抽奖机会已用完，明天再来试试手气吧！");
+            const remain = 5 - myDzpData.count;
+            if (remain <= 0) {
+                showToast("今天的 5 次机会已经用完啦，明天再来吧！");
                 return;
             }
 
-            const isFree = (info.count === 0);
-            
+            const isFree = (myDzpData.count === 0);
             if (!isFree && myCkData.points < 1) {
-                showToast("积分不足 1 啦，去回答题目赚积分吧！");
+                showToast("积分不足 1 🪙，先去答题赚点积分吧！");
                 return;
             }
 
             isSpinning = true;
             document.getElementById('spinBtn').classList.add('opacity-80', 'scale-95');
 
-            // 1. 提前计算结果，准备在动画期间进行静默上传
-            const randomDeg = Math.floor(Math.random() * 360);
-            const extraSpins = 5; 
-            const totalRotate = extraSpins * 360 + randomDeg;
-            
-            currentRotation += totalRotate;
-            
-            const rMod = currentRotation % 360;
-            const normalized = ((360 - rMod) % 360 + 22.5) % 360;
-            const prizeIndex = Math.floor(normalized / 45) % 8;
-            
+            // 1. 抽取结果
+            const prizeIndex = Math.floor(Math.random() * 8);
             const prize = prizes[prizeIndex];
 
-            // 2. 准备上传的数据载荷 (深拷贝避免过早污染UI界面)
-            const uploadCkData = { points: myCkData.points };
-            if (!isFree) uploadCkData.points -= 1; // 扣除门票
-            uploadCkData.points += prize.me; // 加上奖励
-
-            const uploadDzpData = {
-                date: new Date().toLocaleDateString(),
-                count: info.count + 1,
-                history: [...(myDzpData.history || [])]
-            };
-
-            const now = new Date();
-            const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-            uploadDzpData.history.unshift({
-                time: timeStr,
-                prizeText: prize.text,
-                me: prize.me,
-                partner: prize.partner,
-                icon: prize.icon
-            });
-            if (uploadDzpData.history.length > 20) uploadDzpData.history.pop();
-
-            // 3. 立即在本地 UI 扣除门票和次数（但暂不展示获得的奖励）
-            if (!isFree) myCkData.points -= 1;
-            myDzpData.date = uploadDzpData.date;
-            myDzpData.count = uploadDzpData.count;
-            renderUI();
-
-            // 4. 启动转盘UI动画
+            // 2. 计算并执行旋转动画
+            // 每次固定多转 5 圈 (360*5)，加上目标奖项需要回退的角度
+            // 因为转盘按顺时针绘制，0号在正上方，要让目标停在正上方，需反向旋转 (360 - 角度)
+            const extraSpins = 360 * 5; 
+            const targetAngle = 360 - (prizeIndex * 45); 
+            currentRotation += extraSpins + targetAngle - (currentRotation % 360); 
+            
             const wheel = document.getElementById('wheel');
             wheel.style.transform = `rotate(${currentRotation}deg)`;
 
-            // 5. 在转盘旋转的同时，后台静默上传数据 (完美防止刷新作弊)
+            // 3. 本地即时预扣除，制造安全锁 (防止狂按刷新)
+            if (!isFree) myCkData.points -= 1;
+            myDzpData.count += 1;
+            
+            const historyObj = {
+                id: Date.now(),
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+                desc: `${prize.title} (${prize.desc})`
+            };
+            myDzpData.history.unshift(historyObj); // 添加到头部
+            if (myDzpData.history.length > 30) myDzpData.history.pop(); // 最多保留30条
+            
+            renderUI();
+            // 上本地锁
+            localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
+                date: myDzpData.date,
+                count: myDzpData.count
+            }));
+
+            // 4. 动画期间【隐蔽、即时地】请求 API 同步数据
             let apiSuccess = false;
             const uploadPromise = (async () => {
-                const tasks = [
-                    updateFile(myCkPath, uploadCkData, myCkSha),
-                    updateFile(myDzpPath, uploadDzpData, myDzpSha)
-                ];
+                try {
+                    // A. 【绝对安全策略】在这一秒重新拉取最新的 ck，防止旧 sha 导致冲突
+                    const latestCk = await fetchFile(myCkPath);
+                    let newPts = parseInt(latestCk.data.points);
+                    if(isNaN(newPts)) newPts = 0; // 防御性清洗
+                    
+                    if (!isFree) newPts -= 1; // 扣除门票
+                    newPts += prize.me; // 增加奖项带来的自身积分变化
+                    newPts = Math.max(0, newPts); // 积分不为负
+                    
+                    const upCk = await updateFile(myCkPath, { points: newPts }, latestCk.sha);
+                    if (!upCk.success) throw new Error("My CK Update failed");
 
-                let partnerTask = null;
-                if (prize.partner !== 0) {
-                    try {
-                        const latestPartner = await fetchFile(partnerCkPath);
-                        let pData = Object.assign({ points: 20 }, latestPartner.data);
-                        let pSha = latestPartner.sha;
+                    // B. 【更新对方积分】(例如偷取，或专属偏爱)
+                    if (prize.partner !== 0) {
+                        const lPartnerCk = await fetchFile(partnerCkPath);
+                        let pPts = parseInt(lPartnerCk.data.points);
+                        if(isNaN(pPts)) pPts = 0;
                         
-                        if (prize.partner < 0) {
-                            const deduct = Math.min(Math.abs(prize.partner), pData.points);
-                            pData.points -= deduct;
-                        } else {
-                            pData.points += prize.partner;
-                        }
-                        partnerTask = updateFile(partnerCkPath, pData, pSha);
-                        tasks.push(partnerTask);
-                    } catch(e) {
-                        console.error("拉取对方最新数据失败", e);
+                        pPts += prize.partner;
+                        pPts = Math.max(0, pPts); // 防御：对方积分最低扣到 0
+                        
+                        const upPartner = await updateFile(partnerCkPath, { points: pPts }, lPartnerCk.sha);
+                        if (!upPartner.success) throw new Error("Partner CK Update failed");
                     }
-                }
 
-                const results = await Promise.all(tasks);
-                const upMe = results[0];
-                const upDzp = results[1];
-                const upPartner = partnerTask ? results[2] : { success: true };
+                    // C. 【更新次数与历史记录】
+                    const latestDzp = await fetchFile(myDzpPath);
+                    let newDzp = { ...latestDzp.data }; // 继承可能有用的远端字段
+                    newDzp.date = myDzpData.date;
+                    newDzp.count = myDzpData.count; // 写入刚刚加过的次数
+                    newDzp.history = myDzpData.history;
+                    
+                    const upDzp = await updateFile(myDzpPath, newDzp, latestDzp.sha);
+                    if (!upDzp.success) throw new Error("DZP Update failed");
 
-                if (upMe.success && upDzp.success && upPartner.success) {
-                    myCkSha = upMe.sha;
-                    myDzpSha = upDzp.sha;
-                    apiSuccess = true;
+                    return true;
+                } catch (error) {
+                    console.error("API Error during spin:", error);
+                    return false;
                 }
             })();
-            
-            // 6. 等待 4 秒动画结束，统一展示结果
+
+            // 5. 等待动画结束 (4000ms)，结算界面并确保请求完成
             setTimeout(async () => {
                 document.getElementById('spinBtn').classList.remove('opacity-80', 'scale-95');
                 
-                // 确保 API 请求已经完成
-                showLoader("正在校验结果...");
-                await uploadPromise;
-                hideLoader();
+                // 等待请求结束（网络慢的情况下可能会出现loading）
+                apiSuccess = await uploadPromise;
 
                 if (apiSuccess) {
-                    // 后台保存成功，正式将奖励注入本地UI
-                    myCkData.points = uploadCkData.points;
-                    myDzpData.history = uploadDzpData.history;
-                    
-                    // 【双重验证存储】：写入本地，防止刷新后GitHub API短时缓存导致次数倒退
-                    localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
-                        date: myDzpData.date,
-                        count: myDzpData.count,
-                        history: myDzpData.history
-                    }));
-                    
+                    // 刷新一下显示最新状态
+                    await fetchAllData();
+                    renderUI();
                     showResultModal(prize);
-                    renderUI(); 
                 } else {
-                    showToast("网络连接不稳定，数据保存异常，请刷新重试");
-                    // 撤销扣除的门票和次数
+                    // 极其罕见的失败情况：撤销本地预扣除，恢复状态
+                    showToast("网络连接不稳定，这把不算，积分已返还 😥");
                     if (!isFree) myCkData.points += 1;
                     myDzpData.count = Math.max(0, myDzpData.count - 1);
+                    myDzpData.history.shift(); // 移除刚才那条记录
+                    
+                    // 恢复本地锁
+                    localStorage.setItem(`loveGacha_dzp_${myIdentity}`, JSON.stringify({
+                        date: myDzpData.date, count: myDzpData.count
+                    }));
                     renderUI();
                 }
                 
@@ -546,23 +509,29 @@
             }, 4100); 
         }
 
+        // ----------------------------------------------------
+        // 5. 通用工具与弹窗组件
+        // ----------------------------------------------------
         function showResultModal(prize) {
             const modal = document.getElementById('resultModal');
             document.getElementById('resultIcon').innerText = prize.icon;
             
-            let titleText = "恭喜获得";
-            let titleColor = "text-emerald-500";
-            if (prize.me < 0) { titleText = "太遗憾了"; titleColor = "text-gray-500"; }
-            else if (prize.partner > 0) { titleText = "大爱无疆"; titleColor = "text-pink-500"; }
-            else if (prize.partner < 0) { titleText = "捣蛋成功"; titleColor = "text-blue-500"; }
+            let titleColor = "text-gray-800";
+            if(prize.me > 0) titleColor = "text-emerald-500";
+            if(prize.me < 0) titleColor = "text-gray-500";
+            if(prize.partner > 0) titleColor = "text-amber-500";
             
-            const titleEl = document.getElementById('resultTitle');
-            titleEl.innerText = titleText;
-            titleEl.className = `text-xl font-bold mb-1 relative z-10 ${titleColor}`;
+            document.getElementById('resultTitle').className = `text-xl font-black mb-1 relative z-10 ${titleColor}`;
+            document.getElementById('resultTitle').innerText = prize.title;
             
-            document.getElementById('resultPrize').innerText = prize.text;
-            document.getElementById('resultDesc').innerText = prize.desc;
+            let descHtml = '';
+            if (prize.me !== 0) descHtml += `你的积分 <span class="font-bold text-lg">${prize.me > 0 ? '+'+prize.me : prize.me}</span><br>`;
+            if (prize.partner > 0) descHtml += `TA的积分 <span class="font-bold text-lg text-amber-500">+${prize.partner}</span><br>太有爱啦~`;
+            if (prize.partner < 0) descHtml += `TA的积分 <span class="font-bold text-lg text-gray-500">${prize.partner}</span><br>嘿嘿，被你顺走了`;
+            if (prize.me === 0 && prize.partner === 0) descHtml = "平平安安就是福~";
             
+            document.getElementById('resultDesc').innerHTML = descHtml;
+
             modal.classList.remove('hidden');
             setTimeout(() => {
                 modal.classList.remove('opacity-0');
@@ -577,7 +546,6 @@
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
-        // --- 工具函数 ---
         function showLoader(text) {
             document.getElementById('loaderText').innerText = text;
             document.getElementById('globalLoader').classList.remove('hidden');
@@ -585,6 +553,7 @@
         function hideLoader() {
             document.getElementById('globalLoader').classList.add('hidden');
         }
+
         function showToast(msg) { 
             const toast = document.getElementById('toast'); 
             toast.innerText = msg; 
