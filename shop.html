@@ -24,8 +24,13 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
         
-        @keyframes pop { 0% { transform: scale(0.9); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-        .animate-pop { animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes pop { 0% { transform: scale(0.8); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+        .animate-pop { animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* Blob 动画用于盲盒结果弹窗 */
+        @keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(10px, -20px) scale(1.1); } 66% { transform: translate(-10px, 10px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
+        .animate-blob { animation: blob 5s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -83,6 +88,9 @@
             
             <!-- 1. 商场视图 -->
             <div id="view_mall" class="w-full animate-fade-in hidden">
+                <!-- 盲盒置顶区 -->
+                <div id="blindBoxContainer" class="mb-3"></div>
+                <!-- 商品网格 -->
                 <div class="grid grid-cols-2 gap-3" id="mallGrid">
                     <!-- JS 动态渲染商场物品 -->
                 </div>
@@ -119,7 +127,7 @@
     </main>
 
     <!-- 弹窗提示 -->
-    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-[60] whitespace-nowrap"></div>
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-[70] whitespace-nowrap"></div>
 
     <!-- 确认购买弹窗 -->
     <div id="buyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
@@ -137,6 +145,33 @@
                 <button onclick="closeModal('buyModal')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
                 <button id="confirmBuyBtn" class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">确认购买</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- 盲盒抽取结果弹窗 -->
+    <div id="blindBoxResultModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-50 transition-transform text-center relative overflow-hidden" id="blindBoxResultModalContent">
+            <!-- 装饰背景特效 -->
+            <div class="absolute -top-10 -left-10 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob"></div>
+            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob animation-delay-2000"></div>
+            
+            <h3 class="font-bold text-gray-800 text-lg mb-6 relative z-10 flex items-center justify-center gap-2">
+                <span>🎉</span> 盲盒开启成功！
+            </h3>
+            
+            <div class="mb-6 relative z-10 flex flex-col items-center">
+                <div class="text-8xl animate-pop mb-4 filter drop-shadow-md" id="bbResultIcon"></div>
+                <h4 class="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500" id="bbResultName"></h4>
+                <p class="text-sm text-gray-500 mt-2 font-medium" id="bbResultDesc"></p>
+            </div>
+            
+            <div class="bg-gray-50 border border-gray-100 rounded-xl p-3 mb-6 relative z-10">
+                <p class="text-xs text-gray-600 font-medium">物品已自动放入【我的仓库】</p>
+            </div>
+            
+            <button onclick="closeBbModal()" class="relative z-10 w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg shadow-pink-200 hover:opacity-90 active:scale-95 transition-all">
+                开心收下
+            </button>
         </div>
     </div>
 
@@ -310,17 +345,39 @@
         }
 
         function renderMall() {
+            // 渲染置顶盲盒区
+            document.getElementById('blindBoxContainer').innerHTML = `
+                <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-md text-white flex items-center justify-between relative overflow-hidden transform transition active:scale-95 cursor-pointer" onclick="promptBuyBlindBox()">
+                    <div class="absolute -right-6 -bottom-6 text-8xl opacity-10 transform -rotate-12">🎁</div>
+                    <div class="relative z-10 w-2/3">
+                        <h3 class="font-black text-lg mb-1 flex items-center gap-1 text-yellow-200 drop-shadow-md">✨ 惊喜盲盒</h3>
+                        <p class="text-[11px] text-white/90 mb-3 leading-snug">花 10 积分抽取商场任意商品，试试今天的手气！</p>
+                        <div class="bg-black/20 backdrop-blur-md rounded-full py-1.5 px-4 text-xs font-bold w-fit border border-white/20">
+                            🪙 10 积分抽取
+                        </div>
+                    </div>
+                    <div class="relative z-10 text-5xl animate-bounce mt-2 mr-2 drop-shadow-lg">
+                        🎁
+                    </div>
+                </div>
+            `;
+
+            // 渲染常规商品列表
             const grid = document.getElementById('mallGrid');
             grid.innerHTML = mallItems.map(item => `
-                <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-sm text-center transform transition-transform active:scale-95">
-                    <div class="text-4xl mb-2">${item.icon}</div>
-                    <h3 class="font-bold text-gray-800 text-sm">${item.name}</h3>
-                    <div class="mt-2 mb-3 bg-rose-50 text-rose-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">
-                        🪙 ${item.price} 积分
+                <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-sm text-center transform transition-transform active:scale-95 flex flex-col justify-between">
+                    <div>
+                        <div class="text-4xl mb-2 filter drop-shadow-sm">${item.icon}</div>
+                        <h3 class="font-bold text-gray-800 text-sm leading-tight">${item.name}</h3>
                     </div>
-                    <button onclick="promptBuy('${item.id}')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold shadow hover:bg-rose-600 transition">
-                        购买
-                    </button>
+                    <div>
+                        <div class="mt-2 mb-3 bg-rose-50 text-rose-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">
+                            🪙 ${item.price} 积分
+                        </div>
+                        <button onclick="promptBuy('${item.id}')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold shadow hover:bg-rose-600 transition">
+                            购买
+                        </button>
+                    </div>
                 </div>
             `).join('');
         }
@@ -335,17 +392,17 @@
                     const itemDef = mallItems.find(i => i.id === id) || { name: id, icon: '🎁', desc: '神秘物品' };
                     return `
                     <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-2xl">${itemDef.icon}</div>
-                            <div>
+                        <div class="flex items-center gap-3 w-[70%]">
+                            <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">${itemDef.icon}</div>
+                            <div class="truncate">
                                 <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                    ${itemDef.name} 
-                                    <span class="bg-rose-100 text-rose-500 px-2 py-0.5 rounded-full text-[10px]">x${myData.inventory[id]}</span>
+                                    <span class="truncate">${itemDef.name}</span>
+                                    <span class="bg-rose-100 text-rose-500 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">x${myData.inventory[id]}</span>
                                 </h4>
-                                <p class="text-[10px] text-gray-400 mt-1 line-clamp-1 w-32">${itemDef.desc}</p>
+                                <p class="text-[10px] text-gray-400 mt-1 truncate">${itemDef.desc}</p>
                             </div>
                         </div>
-                        <button onclick="useItem('${id}')" class="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition">
+                        <button onclick="useItem('${id}')" class="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition flex-shrink-0">
                             使用
                         </button>
                     </div>`;
@@ -417,6 +474,37 @@
         // ----------------- 交互逻辑 -----------------
         let currentBuyingItem = null;
 
+        // 购买盲盒入口
+        function promptBuyBlindBox() {
+            if (mallItems.length === 0) {
+                showToast("商场商品还在准备中哦~");
+                return;
+            }
+            if (myData.points < 10) {
+                showToast("🪙 积分不足，快去做任务赚积分吧！");
+                return;
+            }
+
+            currentBuyingItem = {
+                id: 'blind_box',
+                name: '惊喜盲盒',
+                price: 10,
+                icon: '🎁',
+                desc: '随机抽取商场内的任意一件商品！看看今天的运气如何~'
+            };
+
+            document.getElementById('buyIcon').innerText = currentBuyingItem.icon;
+            document.getElementById('buyName').innerText = currentBuyingItem.name;
+            document.getElementById('buyDesc').innerText = currentBuyingItem.desc;
+            document.getElementById('buyPrice').innerText = currentBuyingItem.price;
+            
+            const btn = document.getElementById('confirmBuyBtn');
+            btn.onclick = executeBuy;
+
+            openModal('buyModal', 'buyModalContent');
+        }
+
+        // 购买普通商品入口
         function promptBuy(itemId) {
             const item = mallItems.find(i => i.id === itemId);
             if (!item) return;
@@ -443,9 +531,20 @@
             closeModal('buyModal', 'buyModalContent');
             showToast("购买中，请稍候...");
 
+            let itemToGive = item;
+            let isBlindBox = false;
+
+            // 盲盒逻辑判断
+            if (item.id === 'blind_box') {
+                isBlindBox = true;
+                // 从所有商品中随机挑选一个
+                const randomIndex = Math.floor(Math.random() * mallItems.length);
+                itemToGive = mallItems[randomIndex];
+            }
+
             // 扣费 & 增加库存
-            myData.points -= item.price;
-            myData.inventory[item.id] = (myData.inventory[item.id] || 0) + 1;
+            myData.points -= item.price; // 盲盒扣除的是 10 积分
+            myData.inventory[itemToGive.id] = (myData.inventory[itemToGive.id] || 0) + 1;
 
             // 这里为了安全，先拉取最新sha，防止并发覆盖
             const latest = await fetchFile(MY_FILE);
@@ -455,20 +554,38 @@
                 points: myData.points, 
                 inventory: myData.inventory, 
                 pendingUses: myData.pendingUses 
-            }, myData.sha, `Buy ${item.name}`);
+            }, myData.sha, `Buy ${isBlindBox ? 'Blind Box' : item.name}`);
 
             if (res.success) {
                 myData.sha = res.sha;
                 document.getElementById('myPoints').innerText = myData.points;
                 renderInventory();
-                showToast(`🎉 成功购买【${item.name}】!`);
-                switchTab('inventory');
+                
+                if (isBlindBox) {
+                    showBlindBoxResult(itemToGive);
+                } else {
+                    showToast(`🎉 成功购买【${item.name}】!`);
+                    switchTab('inventory');
+                }
             } else {
                 // 回滚
                 myData.points += item.price;
-                myData.inventory[item.id] -= 1;
+                myData.inventory[itemToGive.id] -= 1;
                 showToast("购买失败，网络错误");
             }
+        }
+
+        function showBlindBoxResult(item) {
+            document.getElementById('bbResultIcon').innerText = item.icon;
+            document.getElementById('bbResultName').innerText = item.name;
+            document.getElementById('bbResultDesc').innerText = item.desc;
+            
+            openModal('blindBoxResultModal', 'blindBoxResultModalContent');
+        }
+
+        function closeBbModal() {
+            closeModal('blindBoxResultModal', 'blindBoxResultModalContent');
+            switchTab('inventory');
         }
 
         async function useItem(itemId) {
@@ -574,7 +691,11 @@
             modal.classList.remove('hidden');
             requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0');
-                content.classList.remove('scale-95');
+                if (contentId === 'blindBoxResultModalContent') {
+                     content.classList.remove('scale-50');
+                } else {
+                     content.classList.remove('scale-95');
+                }
                 content.classList.add('scale-100');
             });
         }
@@ -584,7 +705,11 @@
             const content = document.getElementById(contentId);
             modal.classList.add('opacity-0');
             content.classList.remove('scale-100');
-            content.classList.add('scale-95');
+            if (contentId === 'blindBoxResultModalContent') {
+                content.classList.add('scale-50');
+            } else {
+                content.classList.add('scale-95');
+            }
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
         }
 
