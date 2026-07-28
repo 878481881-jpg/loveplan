@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>全息宠物战斗系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #0f172a; 
+            background-image: 
+                linear-gradient(rgba(30, 41, 59, 0.8) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 41, 59, 0.8) 1px, transparent 1px);
+            background-size: 30px 30px;
+            overflow: hidden;
+            color: #e2e8f0;
+            touch-action: none;
+        }
+        
+        /* 赛博朋克网格扫描线动画 */
+        .scanline {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0, 255, 255, 0.1) 50%, rgba(0, 255, 255, 0.1));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0.3;
+        }
+
+        @keyframes mech-hover {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+        .anim-mech { animation: mech-hover 4s ease-in-out infinite; }
+
+        @keyframes attack-rush-right {
+            0% { transform: translateX(0) scale(1); filter: brightness(1); }
+            20% { transform: translateX(-20px) scale(0.9); filter: brightness(1.5); }
+            40% { transform: translateX(80px) scale(1.1); filter: brightness(2) drop-shadow(0 0 20px cyan); z-index: 20; }
+            80% { transform: translateX(60px) scale(1); }
+            100% { transform: translateX(0) scale(1); filter: brightness(1); }
+        }
+        .anim-attack-right { animation: attack-rush-right 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        @keyframes attack-rush-left {
+            0% { transform: translateX(0) scale(1); filter: brightness(1); }
+            20% { transform: translateX(20px) scale(0.9); filter: brightness(1.5); }
+            40% { transform: translateX(-80px) scale(1.1); filter: brightness(2) drop-shadow(0 0 20px red); z-index: 20; }
+            80% { transform: translateX(-60px) scale(1); }
+            100% { transform: translateX(0) scale(1); filter: brightness(1); }
+        }
+        .anim-attack-left { animation: attack-rush-left 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+
+        /* 受击震动与闪烁重置 */
+        @keyframes hit-shake {
+            0%, 100% { transform: translateX(0); filter: invert(0); }
+            20% { transform: translateX(-10px) rotate(-5deg); filter: invert(0.8) sepia(1) hue-rotate(-50deg) saturate(5); }
+            40% { transform: translateX(10px) rotate(5deg); filter: invert(0); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+        }
+        .anim-hit { animation: hit-shake 0.4s ease-out; }
+
+        .anim-ult-bg {
+            background-color: #000 !important;
+            transition: background-color 0.2s;
+        }
+
+        @keyframes float-damage {
+            0% { opacity: 0; transform: translateY(0) scale(0.5); }
+            20% { opacity: 1; transform: translateY(-30px) scale(1.5); }
+            80% { opacity: 1; transform: translateY(-50px) scale(1); }
+            100% { opacity: 0; transform: translateY(-70px) scale(0.8); }
+        }
+        .damage-text {
+            position: absolute;
+            animation: float-damage 1.5s font-black forwards;
+            font-weight: 900;
+            text-shadow: 0 0 5px black, 0 0 10px black;
+            pointer-events: none;
+            z-index: 100;
+            white-space: nowrap;
+        }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .hp-bar { transition: width 0.3s ease-out, background-color 0.3s ease; }
+        .ep-bar { transition: width 0.3s ease-out; }
+        
+        @keyframes tornado-spin {
+            0% { transform: scale(1) rotate(0deg); }
+            50% { transform: scale(1.2) rotate(180deg) translateY(-20px); filter: hue-rotate(90deg); }
+            100% { transform: scale(1) rotate(360deg); }
+        }
+        .anim-tornado { animation: tornado-spin 0.6s ease-in-out; }
+
+        @keyframes explode-burst {
+            0% { filter: brightness(1) drop-shadow(0 0 0 red); transform: scale(1); }
+            30% { filter: brightness(2) sepia(1) hue-rotate(-50deg) saturate(5) drop-shadow(0 0 20px red); transform: scale(1.1) rotate(5deg); }
+            100% { filter: brightness(1) drop-shadow(0 0 0 red); transform: scale(1); }
+        }
+        .anim-explode { animation: explode-burst 0.8s ease-out; z-index: 30; }
+
+        @keyframes instakill-shake {
+            0%, 100% { transform: translate(0, 0) scale(1); filter: invert(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translate(-15px, 15px) scale(0.8) skewX(10deg); filter: invert(1) drop-shadow(0 0 50px red); }
+            20%, 40%, 60%, 80% { transform: translate(15px, -15px) scale(1.2) skewX(-10deg); filter: invert(0); }
+        }
+        .anim-instakill { animation: instakill-shake 1s cubic-bezier(.36,.07,.19,.97) both; }
+
+        @keyframes buff-powerup {
+            0% { filter: drop-shadow(0 0 0px #fbbf24); transform: translateY(0); }
+            50% { filter: drop-shadow(0 0 40px #fbbf24) brightness(1.5); transform: translateY(-20px) scale(1.1); }
+            100% { filter: drop-shadow(0 0 10px #fbbf24); transform: translateY(0); }
+        }
+        .anim-buff { animation: buff-powerup 1s ease-out; z-index: 30; }
+
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4 relative pb-safe">
+    <div class="scanline"></div>
+
+    <header class="w-full flex justify-between items-center z-10 pt-2 mb-2">
+        <a href="pet.html" class="p-2 bg-slate-800 text-cyan-400 rounded-full shadow-lg border border-cyan-800 hover:bg-slate-700 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <h1 class="text-cyan-400 font-black text-lg tracking-widest drop-shadow-[0_0_8px_rgba(34,211,238,0.5)] flex items-center gap-2">
+            <span>⚡</span> 虚拟竞技场 <span>⚡</span>
+        </h1>
+        <div class="w-9 h-9"></div>
+    </header>
+
+    <!-- 关卡选择界面 -->
+    <div id="levelSelectMenu" class="w-full max-w-md flex-1 flex flex-col items-center justify-center z-10 px-4">
+        <h2 class="text-cyan-400 font-bold text-xl mb-4 drop-shadow-[0_0_5px_cyan] flex items-center gap-2"><span>🎯</span> 选择挑战目标</h2>
+        <div class="glass-panel p-4 rounded-2xl w-full border border-slate-600 shadow-lg">
+            <div id="levelGrid" class="grid grid-cols-4 gap-3 max-h-[55vh] overflow-y-auto no-scrollbar p-2">
+                <!-- 动态填充 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 战斗主区域 -->
+    <div class="w-full max-w-md flex-1 flex flex-col relative hidden" id="battleArena">
+        
+        <div class="flex justify-between items-start w-full gap-4 z-10 mb-8 px-2">
+            <!-- 玩家状态 -->
+            <div class="flex-1 glass-panel rounded-2xl p-3 shadow-lg border-l-4 border-l-cyan-400 transform -skew-x-3">
+                <div class="flex justify-between items-end mb-1 transform skew-x-3">
+                    <span class="font-bold text-cyan-400 text-lg drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]" id="playerName">我的儿子</span>
+                    <span class="text-xs text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded" id="playerLevel">Lv.50</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden transform skew-x-3 relative">
+                    <div id="playerHpBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 hp-bar" style="width: 100%;"></div>
+                    <div id="playerShieldEffect" class="absolute inset-0 bg-cyan-300 opacity-0 transition-opacity duration-300 pointer-events-none" style="mix-blend-mode: overlay;"></div>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-1.5 border border-slate-700 overflow-hidden transform skew-x-3 relative mt-1">
+                    <div id="playerEpBar" class="h-full bg-gradient-to-r from-amber-400 to-yellow-500 ep-bar" style="width: 100%;"></div>
+                </div>
+                <div class="flex justify-between text-[10px] mt-1 font-mono text-slate-300 transform skew-x-3">
+                    <span id="playerHpText">1500 / 1500</span>
+                    <span class="text-amber-400 font-bold">EP: <span id="playerEpText">100</span>/100</span>
+                </div>
+            </div>
+
+            <div class="font-black text-2xl text-slate-500 self-center italic pb-4">VS</div>
+
+            <!-- 敌人状态 -->
+            <div class="flex-1 glass-panel rounded-2xl p-3 shadow-lg border-r-4 border-r-rose-500 transform skew-x-3">
+                <div class="flex justify-between items-end mb-1 transform -skew-x-3">
+                    <span class="text-xs text-slate-400 font-bold bg-slate-800 px-2 py-0.5 rounded" id="enemyLevel">Lv.55</span>
+                    <span class="font-bold text-rose-500 text-lg drop-shadow-[0_0_5px_rgba(244,63,94,0.8)]" id="enemyName">狂化突击兽</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-3 border border-slate-700 overflow-hidden transform -skew-x-3 relative flex justify-end">
+                    <div id="enemyHpBar" class="h-full bg-gradient-to-l from-rose-500 to-orange-500 hp-bar" style="width: 100%;"></div>
+                    <div id="enemyShieldEffect" class="absolute inset-0 bg-rose-300 opacity-0 transition-opacity duration-300 pointer-events-none" style="mix-blend-mode: overlay;"></div>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-1.5 border border-slate-700 overflow-hidden transform -skew-x-3 relative flex justify-end mt-1">
+                    <div id="enemyEpBar" class="h-full bg-gradient-to-l from-amber-400 to-yellow-500 ep-bar" style="width: 100%;"></div>
+                </div>
+                <div class="flex justify-between text-[10px] mt-1 font-mono text-slate-300 transform -skew-x-3">
+                    <span class="text-amber-400 font-bold">EP: <span id="enemyEpText">100</span>/100</span>
+                    <span id="enemyHpText">2000 / 2000</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex-1 w-full relative flex items-center justify-between px-2 overflow-hidden min-h-[300px]">
+            <!-- 玩家宠物 -->
+            <div id="playerContainer" class="relative z-10 w-40 h-40 flex items-center justify-center anim-mech">
+                <div class="absolute bottom-0 w-32 h-8 bg-cyan-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
+                <div id="playerShieldVisual" class="absolute w-44 h-44 rounded-full border-2 border-cyan-400 bg-cyan-900/30 opacity-0 transition-opacity duration-300 shadow-[0_0_20px_cyan_inset]" style="pointer-events: none;"></div>
+                <div id="playerVisualizer" class="w-full h-full flex items-center justify-center"></div>
+            </div>
+
+            <!-- 敌人宠物 -->
+            <div id="enemyContainer" class="relative z-10 w-40 h-40 flex items-center justify-center anim-mech" style="animation-delay: -2s;">
+                <div class="absolute bottom-0 w-32 h-8 bg-rose-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
+                <div id="enemyShieldVisual" class="absolute w-44 h-44 rounded-full border-2 border-rose-400 bg-rose-900/30 opacity-0 transition-opacity duration-300 shadow-[0_0_20px_red_inset]" style="pointer-events: none;"></div>
+                <div id="enemyVisualizer" class="w-full h-full flex items-center justify-center" style="transform: scaleX(-1);"></div>
+            </div>
+            
+            <div class="absolute inset-0 pointer-events-none z-0" id="particleLayer"></div>
+        </div>
+
+    </div>
+
+    <!-- 底部操作与日志区 -->
+    <div class="w-full max-w-md z-10 flex flex-col gap-3 pb-6 hidden" id="bottomArea">
+        <div class="glass-panel h-20 rounded-xl p-2 overflow-y-auto no-scrollbar text-xs font-mono flex flex-col-reverse shadow-inner border border-slate-700/50" id="battleLog">
+            <div class="text-slate-400 text-center py-4">战斗即将开始...</div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2" id="controlPanel">
+            <button onclick="useSkill('attack')" id="btn_attack" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-slate-600 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale">
+                <span class="text-xl mb-1 drop-shadow-md">⚔️</span>
+                <span class="text-[10px] font-bold text-slate-200">能量爪击</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-cyan-400 font-mono">0EP</div>
+                <div id="lock_attack" class="absolute inset-0 bg-black/70 flex items-center justify-center text-xs font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.1 解锁</div>
+            </button>
+
+            <button onclick="useSkill('strike')" id="btn_strike" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-orange-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-orange-900/20 to-transparent pointer-events-none"></div>
+                <span class="text-xl mb-1 drop-shadow-md">🥊</span>
+                <span class="text-[10px] font-bold text-orange-400">暴力强击</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-amber-300 font-mono">30EP</div>
+                <div id="lock_strike" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.5 解锁</div>
+            </button>
+
+            <button onclick="useSkill('shield')" id="btn_shield" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-blue-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none"></div>
+                <span class="text-xl mb-1 drop-shadow-md">🛡️</span>
+                <span class="text-[10px] font-bold text-blue-400">治愈护盾</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-blue-200 font-mono">50EP</div>
+                <div id="lock_shield" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.10 解锁</div>
+            </button>
+
+            <button onclick="useSkill('tornado')" id="btn_tornado" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-purple-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent pointer-events-none"></div>
+                <span class="text-xl mb-1 drop-shadow-md">🌪️</span>
+                <span class="text-[10px] font-bold text-purple-400">巨型旋风</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-purple-300 font-mono">50EP</div>
+                <div id="lock_tornado" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.20 解锁</div>
+            </button>
+            
+            <button onclick="useSkill('burst')" id="btn_burst" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-t from-amber-500/20 to-transparent pointer-events-none"></div>
+                <span class="text-xl mb-1 drop-shadow-md">🔥</span>
+                <span class="text-[10px] font-bold text-amber-400">火力全开</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-amber-200 font-mono">50EP</div>
+                <div id="lock_burst" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.30 解锁</div>
+            </button>
+
+            <button onclick="useSkill('ultimate')" id="btn_ultimate" class="skill-btn relative flex flex-col items-center justify-center py-2 bg-slate-800 rounded-xl border border-rose-900/80 shadow-[0_0_15px_rgba(225,29,72,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                <div class="absolute inset-0 bg-gradient-to-t from-rose-900/40 to-transparent pointer-events-none group-hover:from-rose-900/60 transition-colors"></div>
+                <span class="text-xl mb-1 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">💥</span>
+                <span class="text-[10px] font-black text-rose-500 tracking-wider">天穹爆炎</span>
+                <div class="absolute bottom-1 right-1 text-[8px] text-rose-300 font-mono">100EP</div>
+                <div id="lock_ultimate" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.50 解锁</div>
+            </button>
+        </div>
+    </div>
+
+    <!-- 结算弹窗 -->
+    <div id="resultModal" class="fixed inset-0 bg-slate-900/90 z-50 hidden flex-col items-center justify-center px-4 backdrop-blur-sm">
+        <div class="glass-panel p-8 rounded-3xl text-center max-w-sm w-full border border-slate-600 shadow-2xl transform transition-transform scale-95" id="resultContent">
+            <h2 id="resultTitle" class="text-4xl font-black mb-2 tracking-widest drop-shadow-md">VICTORY</h2>
+            <p id="resultDesc" class="text-slate-400 mb-6 text-sm">强悍的战斗力，敌人已被彻底摧毁。</p>
+            <div class="bg-slate-800/50 p-4 rounded-xl mb-6 border border-slate-700">
+                <div class="text-cyan-400 font-bold mb-1">获得经验值</div>
+                <div class="text-3xl font-mono text-white" id="rewardExp">+150</div>
+            </div>
+            <button id="btnReturn" onclick="window.location.href='pet.html'" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl shadow-lg transition-all active:scale-95 border border-cyan-400/50">
+                返回培养舱
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // 0. API 与 环境准备
+        // ==========================================
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_PET = 'data/cw.json'; 
+
+        let globalPetData = null;
+        let globalPetSha = null;
+
+        async function fetchFile(filePath) {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${new Date().getTime()}`, {
+                    method: 'GET', 
+                    headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (!response.ok) return { error: true };
+                const result = await response.json();
+                const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                let parsedData = null;
+                try { parsedData = JSON.parse(contentStr); } catch(e) { }
+                return { data: parsedData, sha: result.sha };
+            } catch (error) { return { error: true }; }
+        }
+
+        async function updateFile(filePath, newData, sha) {
+            try {
+                const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))); 
+                const body = { message: `Update ${filePath} from Battle Arena`, content: encodedContent };
+                if (sha) body.sha = sha;
+
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT', 
+                    headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) return { success: false };
+                
+                const result = await response.json();
+                return { success: true, sha: result.content.sha };
+            } catch (error) { return { success: false }; }
+        }
+
+        function getMaxExp(level) {
+            if (level >= 100) return 999999; 
+            return Math.floor(100 + (level - 1) * 8);
+        }
+
+        function addExpAndLevelUp(amount) {
+            if (!globalPetData) return;
+            globalPetData.exp = (globalPetData.exp || 0) + amount;
+            let currentMaxExp = getMaxExp(globalPetData.level);
+            while (globalPetData.exp >= currentMaxExp && globalPetData.level < 100) {
+                globalPetData.exp -= currentMaxExp; 
+                globalPetData.level += 1; 
+                currentMaxExp = getMaxExp(globalPetData.level);
+            }
+            if (globalPetData.level >= 100) { 
+                globalPetData.level = 100; 
+                globalPetData.exp = currentMaxExp; 
+            }
+        }
+
+        // ==========================================
+        // 1. 宠物形态生成算法
+        // ==========================================
+        function lerp(start, end, t) { return start + (end - start) * t; }
+        function lerpArray(arr1, arr2, t) { return arr1.map((val, i) => lerp(val, arr2[i], t)); }
+
+        const basePoses = [
+            { level: 1, head: [70,75, 130,75, 150,105, 125,135, 75,135, 50,105], earL: [60,75, 20,90, 30,125, 65,100], earR: [140,75, 180,90, 170,125, 135,100], visor: [70,85, 130,85, 140,100, 125,110, 75,110, 60,100], core: [100,150, 110,160, 100,170, 90,160], eyeSize: 6, wingScale: 0, fangLength: 0, armorOpacity: 0 },
+            { level: 20, head: [70,60, 130,60, 145,95, 110,135, 90,135, 55,95], earL: [65,65, 30,25, 35,50, 50,85], earR: [135,65, 170,25, 165,50, 150,85], visor: [70,88, 130,88, 140,95, 100,105, 100,105, 60,95], core: [100,140, 115,155, 100,170, 85,155], eyeSize: 0, wingScale: 0, fangLength: 0, armorOpacity: 0 },
+            { level: 60, head: [60,50, 140,50, 160,95, 125,150, 75,150, 40,95], earL: [65,55, 15,15, 20,40, 45,90], earR: [135,55, 185,15, 180,40, 155,90], visor: [45,80, 155,80, 145,95, 100,115, 100,115, 55,95], core: [100,145, 120,165, 100,185, 80,165], eyeSize: 0, wingScale: 0.8, fangLength: 0.8, armorOpacity: 0.8 },
+            { level: 100, head: [55,45, 145,45, 165,100, 130,160, 70,160, 35,100], earL: [60,50, 10,10, 15,35, 40,95], earR: [140,50, 190,10, 185,35, 160,95], visor: [35,75, 165,75, 150,95, 100,125, 100,125, 50,95], core: [100,140, 125,165, 100,190, 75,165], eyeSize: 0, wingScale: 1.2, fangLength: 1.2, armorOpacity: 1 }
+        ];
+
+        function getInterpolatedPet(level) {
+            let t = 0; let p1, p2;
+            if (level < 20) { p1 = basePoses[0]; p2 = basePoses[1]; t = (level - 1) / 19; } 
+            else if (level < 60) { p1 = basePoses[1]; p2 = basePoses[2]; t = (level - 20) / 40; } 
+            else if (level <= 100) { p1 = basePoses[2]; p2 = basePoses[3]; t = (level - 60) / 40; }
+            t = t * t * (3 - 2 * t);
+            return {
+                head: lerpArray(p1.head, p2.head, t).join(','), earL: lerpArray(p1.earL, p2.earL, t).join(','), earR: lerpArray(p1.earR, p2.earR, t).join(','), visor: lerpArray(p1.visor, p2.visor, t).join(','), core: lerpArray(p1.core, p2.core, t).join(','), eyeSize: lerp(p1.eyeSize, p2.eyeSize, t), wingScale: lerp(p1.wingScale, p2.wingScale, t), fangLength: lerp(p1.fangLength, p2.fangLength, t), armorOpacity: lerp(p1.armorOpacity, p2.armorOpacity, t), crownScale: Math.max(0, (level - 90) / 10)
+            };
+        }
+
+        function renderEntityVisual(containerId, level, theme = 'cyan') {
+            const container = document.getElementById(containerId);
+            const props = getInterpolatedPet(level);
+            
+            let baseHue = theme === 'cyan' ? (190 + level * 5) % 360 : 350; 
+            if(theme === 'rose') baseHue = (340 + Math.random()*20); 
+
+            const cMain = `hsla(${baseHue}, ${theme==='cyan'?80:90}%, ${theme==='cyan'?50:40}%, 0.15)`;
+            const cStroke = `hsl(${baseHue}, 100%, ${theme==='cyan'?60:50}%)`;
+            const cVisor = `hsl(${(baseHue + (theme==='cyan'?330:30)) % 360}, 100%, 70%)`; 
+            const cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
+
+            let innerSVG = '';
+            
+            if (props.wingScale > 0.01) {
+                innerSVG += `<g opacity="0.6" stroke="var(--c-visor)" stroke-width="2" fill="none" stroke-linejoin="round">
+                        <polygon points="100,100 ${100 - 50*props.wingScale},${100 - 50*props.wingScale} ${100 - 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
+                        <polygon points="100,100 ${100 + 50*props.wingScale},${100 - 50*props.wingScale} ${100 + 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
+                        <polygon points="100,100 ${100 - 60*props.wingScale},${100 + 10*props.wingScale} ${100 - 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
+                        <polygon points="100,100 ${100 + 60*props.wingScale},${100 + 10*props.wingScale} ${100 + 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
+                    </g>`;
+            }
+            
+            innerSVG += `<polygon points="${props.earL}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" /><polygon points="${props.earR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            if (props.armorOpacity > 0.01) { innerSVG += `<polygon points="50,110 35,130 60,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" /><polygon points="150,110 165,130 140,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" />`; }
+            innerSVG += `<polygon points="${props.head}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            if (props.fangLength > 0.01) { innerSVG += `<polygon points="80,140 75,${140 + 12 * props.fangLength} 90,140" fill="var(--c-stroke)" stroke-linejoin="round" /><polygon points="120,140 125,${140 + 12 * props.fangLength} 110,140" fill="var(--c-stroke)" stroke-linejoin="round" />`; }
+            if (level >= 10) { const h = Math.min((level-10)*0.5, 10); innerSVG += `<polygon points="100,${60-h} 90,60 110,60" fill="var(--c-visor)" stroke="var(--c-stroke)" stroke-width="1.5" stroke-linejoin="round"/>`; }
+            innerSVG += `<g class="cyber-visor"><polygon points="${props.visor}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" /><polygon points="${props.visor}" fill="var(--c-visor)" opacity="0.5" filter="drop-shadow(0 0 8px var(--c-visor))" stroke-linejoin="round" />${(props.eyeSize > 0.1) ? `<circle cx="85" cy="95" r="${props.eyeSize}" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" /><circle cx="115" cy="95" r="${props.eyeSize}" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" />` : `<circle cx="100" cy="98" r="2" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.8" />`}</g>`;
+            innerSVG += `<polyline points="75,125 90,130 110,130 125,125" fill="none" stroke="var(--c-stroke)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.5" />`;
+            innerSVG += `<g style="transform-origin: 100px 165px;"><polygon points="${props.core}" fill="var(--c-visor)" filter="drop-shadow(0 0 15px var(--c-visor))" opacity="0.8" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="0.6" stroke="var(--c-visor)" stroke-width="1.5" stroke-linejoin="round" /></g>`;
+
+            let scale = 0.8 + (level / 150); 
+            
+            container.innerHTML = `
+            <div class="relative w-32 h-32 md:w-40 md:h-40 filter drop-shadow-[0_0_15px_${cGlow}]" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; transform: scale(${scale});">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full overflow-visible">
+                    ${innerSVG}
+                </svg>
+            </div>`;
+        }
+
+        // ==========================================
+        // 2. 战斗状态机与数值定义
+        // ==========================================
+        const calcMaxHp = (level) => Math.floor(100 + level * 35);
+        const calcAtk = (level) => Math.floor(20 + level * 4.5);
+        const calcDef = (level) => Math.floor(10 + level * 2);
+
+        let battleState = {
+            turn: 'player', 
+            round: 1,
+            isAnimating: false,
+            
+            player: {
+                id: 'player', name: '我的儿子', level: 1,
+                maxHp: 100, hp: 100, atk: 20, def: 10,
+                energy: 100, maxEnergy: 100, shield: 0,
+                dot: 0, usedBurst: false, 
+                containerId: 'playerContainer', barId: 'playerHpBar', textId: 'playerHpText', epBarId: 'playerEpBar', epTextId: 'playerEpText'
+            },
+            
+            enemy: {
+                id: 'enemy', name: '狂化机械犬', level: 1, 
+                maxHp: 100, hp: 100, atk: 20, def: 10,
+                energy: 100, maxEnergy: 100, shield: 0,
+                dot: 0, usedBurst: false,
+                containerId: 'enemyContainer', barId: 'enemyHpBar', textId: 'enemyHpText', epBarId: 'enemyEpBar', epTextId: 'enemyEpText'
+            }
+        };
+
+        const SKILLS = {
+            attack: { name: '能量爪击', type: 'damage', multiplier: 1, cost: 0, req: 1, log: '发动了基础近战攻击' },
+            strike: { name: '暴力强击', type: 'damage', multiplier: 1.5, cost: 30, req: 5, log: '施展【暴力强击】，动能涌动！' },
+            shield: { name: '治愈护盾', type: 'buff', heal: 0.3, shield: 0.5, cost: 50, req: 10, log: '启动【治愈护盾】，修复生命并生成护罩！' },
+            tornado: { name: '巨型旋风', type: 'damage', multiplier: 2, dot: 0.05, cost: 50, req: 20, log: '卷起【巨型旋风】，准备撕裂装甲！' },
+            burst: { name: '火力全开', type: 'buff_special', cost: 50, req: 30, log: '解除安全协议！【火力全开】！' },
+            ultimate: { name: '天穹爆炎', type: 'damage_ultimate', multiplier: 3, cost: 100, req: 50, log: '【天穹爆炎】降临！核心过载倾泻！' }
+        };
+
+        async function initApp() {
+            let petLevel = 58; 
+            let petName = '我的儿子';
+            
+            if (GITHUB_TOKEN) {
+                const res = await fetchFile(FILE_PET);
+                if (res.data && res.data.level) {
+                    globalPetData = res.data;
+                    globalPetSha = res.sha;
+                    petLevel = res.data.level;
+                    if(res.data.name) petName = res.data.name;
+                }
+            }
+            
+            battleState.player.level = petLevel;
+            battleState.player.name = petName;
+            
+            initLevelSelection();
+        }
+
+        function initLevelSelection() {
+            const grid = document.getElementById('levelGrid');
+            grid.innerHTML = '';
+            
+            const levels = [1];
+            for (let i = 5; i <= 100; i += 5) levels.push(i);
+
+            levels.forEach(lv => {
+                const btn = document.createElement('button');
+                const canBeat = battleState.player.level + 10 >= lv; 
+                
+                btn.className = `py-3 rounded-xl font-mono font-bold text-lg border transition-all active:scale-95 flex flex-col items-center justify-center gap-1 ${
+                    canBeat 
+                    ? 'bg-slate-800 text-cyan-300 border-cyan-800 hover:bg-slate-700 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)]' 
+                    : 'bg-slate-800/80 text-rose-400 border-rose-900/80 hover:bg-slate-700 hover:shadow-[0_0_15px_rgba(244,63,94,0.4)]'
+                }`;
+                btn.innerHTML = `<span>Lv.${lv}</span><span class="text-[10px] opacity-70">EXP: ${lv * 2}</span>`;
+                btn.onclick = () => startBattle(lv);
+                grid.appendChild(btn);
+            });
+        }
+
+        function startBattle(enemyLevel) {
+            document.getElementById('levelSelectMenu').classList.add('hidden');
+            document.getElementById('battleArena').classList.remove('hidden');
+            document.getElementById('bottomArea').classList.remove('hidden');
+
+            addLog("正在连接全息核心数据库...", "text-slate-400");
+            addLog(`数据同步成功！载入 Lv.${battleState.player.level} [${battleState.player.name}]`, "text-green-400");
+            
+            battleState.player.maxHp = calcMaxHp(battleState.player.level);
+            battleState.player.hp = battleState.player.maxHp;
+            battleState.player.atk = calcAtk(battleState.player.level);
+            battleState.player.def = calcDef(battleState.player.level);
+            battleState.player.energy = 100;
+            battleState.player.dot = 0;
+            battleState.player.shield = 0;
+            battleState.player.usedBurst = false;
+            
+            battleState.enemy.level = enemyLevel;
+            battleState.enemy.maxHp = Math.floor(calcMaxHp(enemyLevel) * 1.2); 
+            battleState.enemy.hp = battleState.enemy.maxHp;
+            battleState.enemy.atk = Math.floor(calcAtk(enemyLevel) * 1.1);
+            battleState.enemy.def = Math.floor(calcDef(enemyLevel) * 0.8);
+            battleState.enemy.energy = 100;
+            battleState.enemy.dot = 0;
+            battleState.enemy.shield = 0;
+            battleState.enemy.usedBurst = false;
+
+            document.getElementById('playerName').innerText = battleState.player.name;
+            renderEntityVisual('playerVisualizer', battleState.player.level, 'cyan');
+            renderEntityVisual('enemyVisualizer', battleState.enemy.level, 'rose');
+            
+            document.getElementById('playerLevel').innerText = `Lv.${battleState.player.level}`;
+            document.getElementById('enemyLevel').innerText = `Lv.${battleState.enemy.level}`;
+            
+            updateStatsUI('player');
+            updateStatsUI('enemy');
+            
+            addLog(`警告：发现 Lv.${enemyLevel} 狂化机械体！`, "text-rose-400 font-bold");
+            addLog("战斗开始！每回合将自动恢复等同于等级的能量。", "text-amber-400");
+            updateActionUI();
+        }
+
+        function addLog(text, colorClass = "text-slate-300") {
+            const logBox = document.getElementById('battleLog');
+            const entry = document.createElement('div');
+            entry.className = `py-1 border-b border-slate-700/30 ${colorClass}`;
+            entry.innerHTML = `<span class="opacity-50 text-[10px] mr-1">[R${battleState.round}]</span> ${text}`;
+            logBox.prepend(entry);
+            if(logBox.children.length > 30) logBox.removeChild(logBox.lastChild);
+        }
+
+        function updateStatsUI(targetId) {
+            const entity = battleState[targetId];
+            const hpBar = document.getElementById(entity.barId);
+            const hpText = document.getElementById(entity.textId);
+            const epBar = document.getElementById(entity.epBarId);
+            const epText = document.getElementById(entity.epTextId);
+            
+            const hpPct = Math.max(0, (entity.hp / entity.maxHp) * 100);
+            hpBar.style.width = `${hpPct}%`;
+            hpText.innerText = `${Math.floor(entity.hp)} / ${entity.maxHp}`;
+            
+            if (hpPct < 20) {
+                hpBar.classList.replace('from-cyan-500', 'from-red-600');
+                hpBar.classList.replace('to-blue-500', 'to-red-500');
+            } else if (targetId === 'player') {
+                hpBar.classList.replace('from-red-600', 'from-cyan-500');
+                hpBar.classList.replace('to-red-500', 'to-blue-500');
+            }
+
+            const epPct = Math.max(0, (entity.energy / entity.maxEnergy) * 100);
+            epBar.style.width = `${epPct}%`;
+            epText.innerText = Math.floor(entity.energy);
+        }
+
+        function createDamageText(targetEl, textOrDamage, isCrit, isHeal = false, customColor = null) {
+            const el = document.createElement('div');
+            let color = customColor || (isHeal ? 'text-green-400' : 'text-red-500');
+            let prefix = isHeal ? '+' : (typeof textOrDamage === 'number' ? '-' : '');
+            let size = isCrit ? 'text-4xl' : 'text-2xl';
+            
+            if(isCrit && !isHeal && !customColor) color = 'text-amber-400';
+
+            el.className = `damage-text ${color} ${size}`;
+            el.innerText = typeof textOrDamage === 'number' ? `${prefix}${Math.floor(textOrDamage)}${isCrit ? '!' : ''}` : textOrDamage;
+            
+            const offsetX = (Math.random() - 0.5) * 60;
+            el.style.left = `calc(50% + ${offsetX}px)`;
+            el.style.top = '20%';
+            
+            targetEl.appendChild(el);
+            setTimeout(() => el.remove(), 1500);
+        }
+
+        async function executeAction(attackerId, defenderId, skillKey) {
+            battleState.isAnimating = true;
+            const attacker = battleState[attackerId];
+            const defender = battleState[defenderId];
+            const skill = SKILLS[skillKey];
+            
+            const attackerEl = document.getElementById(attacker.containerId);
+            const defenderEl = document.getElementById(defender.containerId);
+            
+            attacker.energy -= skill.cost;
+            updateStatsUI(attackerId);
+            
+            addLog(`${attacker.name} ${skill.log}`, attackerId === 'player' ? 'text-cyan-300' : 'text-rose-300');
+
+            if (skill.type === 'buff' || skill.type === 'buff_special') {
+                attackerEl.classList.add('anim-buff');
+                
+                if (skillKey === 'shield') {
+                    const healAmt = attacker.maxHp * skill.heal;
+                    attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
+                    createDamageText(attackerEl, healAmt, false, true);
+                    
+                    attacker.shield = attacker.maxHp * skill.shield;
+                    const shieldVis = document.getElementById(`${attackerId}ShieldVisual`);
+                    if(shieldVis) { shieldVis.style.opacity = '0.8'; shieldVis.style.transform = 'scale(1)'; }
+                } 
+                else if (skillKey === 'burst') {
+                    const addedHp = Math.floor(attacker.maxHp * 0.2);
+                    attacker.maxHp += addedHp;
+                    attacker.hp += addedHp; 
+                    attacker.atk = Math.floor(attacker.atk * 1.5);
+                    attacker.def = Math.floor(attacker.def * 1.5);
+                    attacker.usedBurst = true;
+                    addLog(`基础属性大幅提升！(HP上限+20%, 攻防+50%)`, "text-yellow-400 font-bold");
+                    createDamageText(attackerEl, "火力全开!", true, true, "text-yellow-400");
+                }
+                
+                updateStatsUI(attackerId);
+                await new Promise(r => setTimeout(r, 800));
+                attackerEl.classList.remove('anim-buff');
+            } 
+            else if (skill.type === 'damage' || skill.type === 'damage_ultimate') {
+                const animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
+                
+                if (skillKey === 'tornado') attackerEl.classList.add('anim-tornado');
+                else attackerEl.classList.add(animClass);
+                
+                await new Promise(r => setTimeout(r, 300));
+                
+                let isCrit = Math.random() < 0.2; 
+                let critMult = isCrit ? 1.5 : 1;
+                let variance = 0.9 + Math.random() * 0.2;
+                let multiplier = skill.multiplier || 1;
+                
+                let isInstaKill = false;
+                if (skillKey === 'ultimate') {
+                    document.body.classList.add('anim-ult-bg');
+                    setTimeout(() => document.body.classList.remove('anim-ult-bg'), 1000);
+                    
+                    if (Math.random() < 0.2) {
+                        isInstaKill = true;
+                    } else if (Math.random() < 0.3) {
+                        multiplier = 6; 
+                        addLog("【爆炎双倍】触发！伤害产生核聚变！", "text-rose-400 font-bold");
+                    }
+                }
+
+                let actualDamage = 0;
+                
+                if (isInstaKill) {
+                    actualDamage = defender.hp + defender.shield; 
+                    addLog(`【绝杀】触发！${defender.name} 被彻底粉碎！`, "text-red-500 font-black");
+                    defenderEl.classList.add('anim-instakill');
+                } else {
+                    let rawDamage = (attacker.atk * multiplier * critMult * variance);
+                    actualDamage = Math.max(1, rawDamage - defender.def);
+                    if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode');
+                }
+                
+                if (defender.shield > 0) {
+                    const shieldVis = document.getElementById(`${defenderId}ShieldVisual`);
+                    if (defender.shield >= actualDamage) {
+                        defender.shield -= actualDamage;
+                        actualDamage = 0;
+                        createDamageText(defenderEl, "-0", false, false, "text-blue-300");
+                        if (shieldVis) shieldVis.style.opacity = Math.max(0.1, defender.shield / defender.maxHp);
+                    } else {
+                        actualDamage -= defender.shield;
+                        defender.shield = 0;
+                        if (shieldVis) shieldVis.style.opacity = '0';
+                    }
+                }
+
+                if (actualDamage > 0) {
+                    defender.hp = Math.max(0, defender.hp - actualDamage);
+                    if (isInstaKill) {
+                        createDamageText(defenderEl, "秒！", true, false, "text-rose-500");
+                    } else {
+                        createDamageText(defenderEl, actualDamage, isCrit);
+                        defenderEl.classList.add('anim-hit');
+                        setTimeout(() => defenderEl.classList.remove('anim-hit'), 400);
+                    }
+                }
+                
+                if (skillKey === 'tornado' && !isInstaKill && defender.hp > 0) {
+                    defender.dot = skill.dot;
+                    addLog(`${defender.name} 被卷入装甲撕裂旋风，持续流血！`, "text-purple-400");
+                }
+
+                updateStatsUI(defenderId);
+                
+                await new Promise(r => setTimeout(r, 400));
+                attackerEl.classList.remove(animClass, 'anim-tornado');
+            }
+
+            if (defender.hp <= 0) {
+                defenderEl.style.transition = "all 1s";
+                defenderEl.style.filter = "grayscale(1) brightness(0.2)";
+                defenderEl.style.transform = attackerId === 'player' ? "rotate(90deg)" : "rotate(-90deg)"; 
+                battleState.turn = 'end';
+                setTimeout(() => showResult(attackerId === 'player'), 1000);
+                return;
+            }
+
+            battleState.isAnimating = false;
+            nextTurn();
+        }
+
+        async function nextTurn() {
+            if (battleState.turn === 'end') return;
+            
+            battleState.turn = battleState.turn === 'player' ? 'enemy' : 'player';
+            const activeEntity = battleState[battleState.turn];
+            
+            activeEntity.energy = Math.min(activeEntity.maxEnergy, activeEntity.energy + activeEntity.level);
+            
+            if (activeEntity.dot > 0) {
+                const dotDamage = Math.floor(activeEntity.maxHp * activeEntity.dot);
+                activeEntity.hp -= dotDamage;
+                addLog(`${activeEntity.name} 受到旋风撕裂伤害 (-${dotDamage})`, "text-purple-400");
+                createDamageText(document.getElementById(activeEntity.containerId), dotDamage, false, false, 'text-purple-500');
+                
+                if (activeEntity.hp <= 0) {
+                    updateStatsUI(battleState.turn);
+                    const loserEl = document.getElementById(activeEntity.containerId);
+                    loserEl.style.transition = "all 1s";
+                    loserEl.style.filter = "grayscale(1) brightness(0.2)";
+                    loserEl.style.transform = battleState.turn === 'enemy' ? "rotate(90deg)" : "rotate(-90deg)";
+                    battleState.turn = 'end';
+                    setTimeout(() => showResult(battleState.turn !== 'player'), 1000);
+                    return;
+                }
+            }
+            
+            updateStatsUI(battleState.turn);
+
+            if (battleState.turn === 'player') {
+                battleState.round++;
+                updateActionUI();
+                addLog(`--- 第 ${battleState.round} 回合开始 ---`, "text-slate-500");
+            } else {
+                updateActionUI();
+                setTimeout(enemyAiAct, 1200);
+            }
+        }
+
+        function updateActionUI() {
+            Object.keys(SKILLS).forEach(key => {
+                const btn = document.getElementById(`btn_${key}`);
+                const lock = document.getElementById(`lock_${key}`);
+                const skill = SKILLS[key];
+                
+                if (!btn) return;
+
+                if (battleState.player.level < skill.req) {
+                    btn.disabled = true;
+                    if(lock) lock.classList.remove('hidden');
+                } else {
+                    if(lock) lock.classList.add('hidden');
+                    
+                    const isPlayerTurn = battleState.turn === 'player' && !battleState.isAnimating;
+                    const notEnoughEp = battleState.player.energy < skill.cost;
+                    const alreadyBurst = key === 'burst' && battleState.player.usedBurst;
+                    
+                    btn.disabled = !isPlayerTurn || notEnoughEp || alreadyBurst;
+                }
+            });
+        }
+
+        window.useSkill = function(skillKey) {
+            if (battleState.turn !== 'player' || battleState.isAnimating) return;
+            const skill = SKILLS[skillKey];
+            if (battleState.player.energy < skill.cost) return; 
+            
+            updateActionUI(); 
+            executeAction('player', 'enemy', skillKey);
+        }
+
+        function enemyAiAct() {
+            const enemy = battleState.enemy;
+            const hpPct = enemy.hp / enemy.maxHp;
+            
+            let availableSkills = Object.keys(SKILLS).filter(key => {
+                const sk = SKILLS[key];
+                if (enemy.level < sk.req) return false;
+                if (enemy.energy < sk.cost) return false;
+                if (key === 'burst' && enemy.usedBurst) return false;
+                return true;
+            });
+
+            if (availableSkills.length === 0) availableSkills = ['attack']; 
+
+            let chosenSkill = 'attack';
+            
+            if (availableSkills.includes('ultimate') && Math.random() < 0.6) {
+                chosenSkill = 'ultimate'; 
+            } else if (availableSkills.includes('burst') && Math.random() < 0.8) {
+                chosenSkill = 'burst'; 
+            } else if (availableSkills.includes('shield') && hpPct < 0.5 && Math.random() < 0.7) {
+                chosenSkill = 'shield'; 
+            } else if (availableSkills.includes('tornado') && Math.random() < 0.5) {
+                chosenSkill = 'tornado'; 
+            } else if (availableSkills.includes('strike') && Math.random() < 0.6) {
+                chosenSkill = 'strike';
+            } else {
+                chosenSkill = availableSkills[Math.floor(Math.random() * availableSkills.length)];
+            }
+
+            executeAction('enemy', 'player', chosenSkill);
+        }
+
+        async function showResult(isWin) {
+            const modal = document.getElementById('resultModal');
+            const content = document.getElementById('resultContent');
+            const title = document.getElementById('resultTitle');
+            const desc = document.getElementById('resultDesc');
+            const exp = document.getElementById('rewardExp');
+
+            let gainedExp = 10;
+            if (isWin) {
+                title.innerText = "VICTORY";
+                title.className = "text-4xl font-black mb-2 tracking-widest text-cyan-400 drop-shadow-[0_0_10px_cyan]";
+                desc.innerText = "强悍的战斗力，敌人已被彻底摧毁。";
+                gainedExp = battleState.enemy.level * 2;
+                exp.innerText = `+${gainedExp}`;
+                exp.className = "text-3xl font-mono text-cyan-300";
+            } else {
+                title.innerText = "DEFEATED";
+                title.className = "text-4xl font-black mb-2 tracking-widest text-rose-500 drop-shadow-[0_0_10px_red]";
+                desc.innerText = "机体严重受损，强制切断全息连接。";
+                gainedExp = 10; 
+                exp.innerText = "+10"; 
+                exp.className = "text-3xl font-mono text-rose-300";
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => content.classList.replace('scale-95', 'scale-100'), 10);
+
+            if (globalPetData && GITHUB_TOKEN) {
+                const btnReturn = document.getElementById("btnReturn");
+                const originalText = btnReturn.innerText;
+                btnReturn.innerText = "正在同步战斗数据...";
+                btnReturn.disabled = true; 
+                
+                addExpAndLevelUp(gainedExp);
+                globalPetData.lastUpdated = new Date().getTime();
+                
+                const upRes = await updateFile(FILE_PET, globalPetData, globalPetSha);
+                if (upRes.success) {
+                    globalPetSha = upRes.sha;
+                }
+                
+                btnReturn.innerText = originalText;
+                btnReturn.disabled = false;
+            }
+        }
+
+        window.onload = initApp;
+
+    </script>
+</body>
+</html>
