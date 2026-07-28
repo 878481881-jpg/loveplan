@@ -136,22 +136,34 @@
         /* 3. 巨型旋风 (Tornado): 狂暴旋转 */
         @keyframes tornado-spin {
             0% { transform: scale(1) rotate(0deg); }
-            50% { transform: scale(1.2) rotate(360deg) translateY(-20px); filter: hue-rotate(90deg); }
+            20% { transform: scale(1.1) rotate(180deg) translateY(-10px); filter: hue-rotate(90deg) blur(2px); }
+            50% { transform: scale(1.3) rotate(360deg) translateY(-20px); filter: hue-rotate(180deg) blur(4px) drop-shadow(0 0 20px purple); z-index: 20; }
+            80% { transform: scale(1.1) rotate(540deg) translateY(-10px); filter: hue-rotate(90deg) blur(1px); }
             100% { transform: scale(1) rotate(720deg); }
         }
-        /* 新增：旋风移动特效 */
-        @keyframes tornado-move-right {
-            0% { transform: translateX(0) scale(1) rotate(0deg); }
-            50% { transform: translateX(120px) scale(1.4) rotate(360deg); filter: drop-shadow(0 0 20px purple); }
-            100% { transform: translateX(80px) scale(1) rotate(720deg); }
+        .anim-tornado { animation: tornado-spin 0.8s ease-in-out; }
+
+        /* 4. 治愈护盾 (Shield) & 增益基础 */
+        @keyframes buff-powerup {
+            0% { filter: drop-shadow(0 0 0px #60a5fa); transform: translateY(0) scale(1); }
+            30% { filter: drop-shadow(0 0 40px #60a5fa) brightness(1.8); transform: translateY(-15px) scale(1.1); }
+            100% { filter: drop-shadow(0 0 10px #60a5fa); transform: translateY(0) scale(1); }
         }
-        @keyframes tornado-move-left {
-            0% { transform: translateX(0) scale(1) rotate(0deg); }
-            50% { transform: translateX(-120px) scale(1.4) rotate(-360deg); filter: drop-shadow(0 0 20px purple); }
-            100% { transform: translateX(-80px) scale(1) rotate(-720deg); }
+        .anim-buff { animation: buff-powerup 0.8s ease-out; z-index: 30; }
+
+        /* 5. 火力全开 (Burst): 持续发光状态 */
+        @keyframes aura-pulse {
+            0%, 100% { filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.5)) brightness(1); }
+            50% { filter: drop-shadow(0 0 30px rgba(239, 68, 68, 0.9)) brightness(1.3) contrast(1.1); }
         }
-        .anim-tornado-right { animation: tornado-move-right 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        .anim-tornado-left { animation: tornado-move-left 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        .aura-burst { animation: aura-pulse 2s infinite ease-in-out; }
+
+        /* 6. 天穹爆炎 (Ultimate) & 绝杀 */
+        .anim-ult-bg {
+            background-color: #000 !important;
+            background-image: none !important;
+            transition: background-color 0.1s;
+        }
 
         @keyframes explode-burst {
             0% { filter: brightness(1) drop-shadow(0 0 0 red); transform: scale(1); }
@@ -627,13 +639,89 @@
             } 
             // --- 伤害类技能特效 ---
             else if (skill.type === 'damage' || skill.type === 'damage_ultimate') {
-                const animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
+                let animClass = '';
+                let hitClass = 'anim-hit-light';
                 
-                // 修改：旋风使用移动特效
-                let tornadoClass = attackerId === 'player' ? 'anim-tornado-right' : 'anim-tornado-left';
-                if (skillKey === 'tornado') attackerEl.classList.add(tornadoClass);
-                else attackerEl.classList.add(animClass);
+                // 技能特效分发
+                if (skillKey === 'attack') {
+                    animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
+                } else if (skillKey === 'strike') {
+                    animClass = attackerId === 'player' ? 'anim-strike-right' : 'anim-strike-left';
+                    hitClass = 'anim-hit-heavy';
+                } else if (skillKey === 'tornado') {
+                    animClass = 'anim-tornado';
+                    hitClass = 'anim-hit-heavy';
+                } else {
+                    animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
+                }
                 
+                attackerEl.classList.add(animClass);
+                await new Promise(r => setTimeout(r, animClass.includes('strike') ? 400 : 250)); // 等待攻击动画到达关键帧
+                
+                let isCrit = Math.random() < 0.2; 
+                let critMult = isCrit ? 1.5 : 1;
+                let variance = 0.9 + Math.random() * 0.2;
+                let multiplier = skill.multiplier || 1;
+                let isInstaKill = false;
+                
+                // 大招特殊判定
+                if (skillKey === 'ultimate') {
+                    document.body.classList.add('anim-ult-bg');
+                    const flash = document.createElement('div');
+                    flash.className = 'flash-overlay';
+                    document.getElementById('globalFxLayer').appendChild(flash);
+                    setTimeout(() => {
+                        document.body.classList.remove('anim-ult-bg');
+                        flash.remove();
+                    }, 1000);
+                    
+                    if (Math.random() < 0.2) isInstaKill = true;
+                    else if (Math.random() < 0.3) { multiplier = 6; addLog("【爆炎双倍】触发！核心产生核聚变！", "text-rose-400 font-bold"); }
+                }
+
+                let actualDamage = 0;
+                
+                if (isInstaKill) {
+                    actualDamage = defender.hp + defender.shield; 
+                    addLog(`【绝杀】触发！目标被彻底抹除！`, "text-red-500 font-black");
+                    defenderEl.classList.add('anim-instakill');
+                } else {
+                    let rawDamage = (attacker.atk * multiplier * critMult * variance);
+                    actualDamage = Math.max(1, rawDamage - defender.def);
+                    if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode');
+                    else defenderEl.classList.add(hitClass);
+                }
+                
+                // 护盾抵扣逻辑
+                if (defender.shield > 0) {
+                    const shieldVis = document.getElementById(`${defenderId}ShieldVisual`);
+                    if (defender.shield >= actualDamage) {
+                        defender.shield -= actualDamage; actualDamage = 0;
+                        createDamageText(defenderEl, "-0", false, false, "text-blue-300");
+                        if (shieldVis) shieldVis.style.opacity = Math.max(0.2, defender.shield / defender.maxHp);
+                    } else {
+                        actualDamage -= defender.shield; defender.shield = 0;
+                        if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                    }
+                }
+
+                // 造成伤害
+                if (actualDamage > 0) {
+                    defender.hp = Math.max(0, defender.hp - actualDamage);
+                    if (isInstaKill) createDamageText(defenderEl, "秒！", true, false, "text-rose-500");
+                    else createDamageText(defenderEl, actualDamage, isCrit);
+                }
+                
+                // 旋风DOT
+                if (skillKey === 'tornado' && !isInstaKill && defender.hp > 0) {
+                    defender.dot = skill.dot;
+                    addLog(`目标被卷入装甲撕裂旋风，持续流血！`, "text-purple-400");
+                }
+
+                updateStatsUI(defenderId);
+                
+                // 清理受击动画
+                setTimeout(() => defenderEl.classList.remove(hitClass, 'anim-explode', 'anim-instakill'), 1000);
                 await new Promise(r => setTimeout(r, 400));
                 attackerEl.classList.remove(animClass);
             }
@@ -668,11 +756,11 @@
                 addLog(`${activeEntity.name} 受到撕裂伤害 (-${dotDamage})`, "text-purple-400");
                 createDamageText(document.getElementById(activeEntity.containerId), dotDamage, false, false, 'text-purple-500');
                 
-                await new Promise(r => setTimeout(r, 400));
-                attackerEl.classList.remove(animClass, tornadoClass);
-            }
-
-            if (defender.hp <= 0) {
+                if (activeEntity.hp <= 0) {
+                    updateStatsUI(battleState.turn);
+                    const loserEl = document.getElementById(activeEntity.containerId);
+                    loserEl.style.transition = "all 1s ease-in";
+                    loserEl.style.filter = "grayscale(1) brightness(0.1)";
                     loserEl.style.transform = battleState.turn === 'enemy' ? "rotate(90deg) scale(0.5)" : "rotate(-90deg) scale(0.5)";
                     battleState.turn = 'end';
                     setTimeout(() => showResult(battleState.turn !== 'player'), 1200);
