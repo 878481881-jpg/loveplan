@@ -142,7 +142,10 @@
                     <!-- 初始描述/感悟 -->
                     <div>
                         <label class="block text-xs font-bold text-rose-400 mb-1">事件描述 📝</label>
-                        <textarea id="eventDesc" rows="3" class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 resize-none text-gray-700 placeholder-rose-200 bg-rose-50/30" placeholder="写下事件的经过或者你此刻的感受..."></textarea>
+                        <textarea id="eventDesc" rows="3" 
+                            oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
+                            class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 resize-none text-gray-700 placeholder-rose-200 bg-rose-50/30 custom-scrollbar overflow-hidden" 
+                            placeholder="写下事件的经过或者你此刻的感受..."></textarea>
                     </div>
 
                     <button onclick="saveNewEvent()" id="saveEventBtn" class="mt-2 w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5 active:translate-y-0 flex justify-center items-center gap-2">
@@ -186,7 +189,7 @@
         
         let currentTab = 'archive';
         let newEventStars = 5; // 默认5星
-        let newEventCategory = '日常小确幸'; // 默认分类
+        let newEventCategory = '小甜蜜'; // 默认分类
 
         const CATEGORIES = [
             { id: '小甜蜜', icon: '✨' },
@@ -201,15 +204,41 @@
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
         document.getElementById('eventTime').value = now.toISOString().slice(0, 16);
 
+        // === 文本处理辅助函数 (重要优化) ===
+        // 防治XSS注入攻击
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag));
+        }
+
+        // 将换行符转为优美的段落展示排版
+        function formatDisplayString(str) {
+            if (!str) return '';
+            const escaped = escapeHTML(str);
+            const lines = escaped.split(/\r?\n/);
+            return lines.map(line => {
+                if (line.trim() === '') {
+                    return `<div class="h-1.5"></div>`; // 较小间距代表段落空行
+                } else {
+                    return `<p class="mb-1 last:mb-0 leading-relaxed text-justify break-words">${line}</p>`;
+                }
+            }).join('');
+        }
+
         // === 初始化逻辑 ===
         window.onload = async function() {
             if (!GITHUB_TOKEN) {
                 showToast("未检测到Token，请返回首页登录");
-                // window.location.href = 'index.html'; // 取消注释以强制跳转
             }
             
             initCategorySelector();
-            setStars(5); // 初始渲染星星
+            setStars(5); 
             
             showToast("正在拉取档案库...");
             await fetchDagData();
@@ -218,7 +247,6 @@
             startPolling();
         };
 
-        // === 视图控制 ===
         function switchTab(tabId) {
             currentTab = tabId;
             
@@ -242,7 +270,6 @@
                 }
             });
 
-            // 切换时重新渲染对应内容
             renderAllViews();
         }
 
@@ -258,7 +285,7 @@
 
         function setCategory(catId) {
             newEventCategory = catId;
-            initCategorySelector(); // 重新渲染状态
+            initCategorySelector(); 
         }
 
         function setStars(count) {
@@ -277,7 +304,6 @@
             }
         }
 
-        // === GitHub 数据交互 ===
         async function fetchDagData() {
             try {
                 const timestamp = new Date().getTime();
@@ -290,7 +316,6 @@
                 });
                 
                 if (response.status === 404) {
-                    // 文件不存在则初始化
                     dagData = { events: [] };
                     dagSha = null;
                     return true;
@@ -303,9 +328,7 @@
                 dagData = JSON.parse(contentStr || '{"events":[]}');
                 dagSha = result.sha;
                 
-                // 确保数据结构完整
                 if (!dagData.events) dagData.events = [];
-                
                 return true;
             } catch (error) { 
                 console.error("读取错误:", error);
@@ -345,10 +368,9 @@
             pollInterval = setInterval(async () => { 
                 const success = await fetchDagData();
                 if(success) renderAllViews(); 
-            }, 15000); // 每15秒同步一次
+            }, 15000); 
         }
 
-        // === 辅助函数 ===
         function formatTimestamp(ts) {
             const date = new Date(ts);
             const yyyy = date.getFullYear();
@@ -381,7 +403,6 @@
             } else {
                 expandedItems.add(id);
             }
-            // 根据当前所在视图重新渲染
             if (currentTab === 'archive') {
                 renderArchive();
             } else if (currentTab === 'reflection') {
@@ -394,7 +415,6 @@
             else if (currentTab === 'reflection') renderReflections();
         }
 
-        // === 视图 1: 渲染档案馆 ===
         function renderArchive() {
             const container = document.getElementById('archiveList');
             const sortMode = document.getElementById('sortSelect').value;
@@ -408,14 +428,11 @@
                 return;
             }
 
-            // 克隆数组用于排序，避免直接修改原数据顺序
             let displayEvents = [...dagData.events];
             
             if (sortMode === 'time') {
-                // 按发生时间，新到旧 (时间戳大到小)
                 displayEvents.sort((a, b) => b.happenTime - a.happenTime);
             } else if (sortMode === 'stars') {
-                // 按星级，高到低，同星级按时间
                 displayEvents.sort((a, b) => {
                     if (b.stars !== a.stars) return b.stars - a.stars;
                     return b.happenTime - a.happenTime;
@@ -430,10 +447,10 @@
                 
                 return `
                 <div class="bg-white rounded-2xl p-4 shadow-sm border border-rose-100 relative overflow-hidden group transition-all">
-                    <!-- 折叠头部 (点击展开/收起) -->
+                    <!-- 折叠头部 -->
                     <div class="cursor-pointer flex flex-col gap-2" onclick="toggleExpand('archive_${event.id}')">
                         <div class="flex justify-between items-start">
-                            <div class="font-bold text-rose-600 text-base break-words pr-2 flex-1">${title}</div>
+                            <div class="font-bold text-rose-600 text-base break-words pr-2 flex-1">${escapeHTML(title)}</div>
                             <div class="text-sm tracking-widest bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100 shrink-0">${renderStarsHtml(event.stars)}</div>
                         </div>
                         
@@ -447,7 +464,6 @@
                             <span class="text-rose-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}">▼</span>
                         </div>
                         
-                        <!-- 感悟小标签 (折叠时显示) -->
                         ${!isExpanded && (hasMyReflection || hasPartnerReflection) ? `
                             <div class="mt-1 flex gap-1.5 overflow-x-auto custom-scrollbar">
                                 ${hasMyReflection ? `<span class="shrink-0 text-[9px] bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded border border-blue-100">哼哼 已感悟</span>` : ''}
@@ -458,25 +474,25 @@
                     
                     <!-- 展开的详细内容 -->
                     <div class="overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] mt-4 opacity-100' : 'max-h-0 opacity-0'}">
-                        <!-- 简述 -->
-                        <div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed border-l-2 border-rose-300 pl-3 bg-rose-50/50 py-2 rounded-r-lg">
-                            ${event.description}
+                        <!-- 简述使用格式化段落 -->
+                        <div class="text-sm text-gray-700 border-l-2 border-rose-300 pl-3 pr-2 bg-rose-50/50 py-2.5 rounded-r-lg">
+                            ${formatDisplayString(event.description)}
                         </div>
                         
                         <!-- 双方感悟详情 -->
                         ${(hasMyReflection || hasPartnerReflection) ? `
                             <div class="mt-4 pt-3 border-t border-rose-100 flex flex-col gap-3">
                                 ${hasPartnerReflection ? `
-                                    <div class="bg-pink-50/60 p-2.5 rounded-xl border border-pink-100 relative">
+                                    <div class="bg-pink-50/60 p-3 rounded-xl border border-pink-100 relative">
                                         <span class="absolute -top-2 left-3 bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${partnerIdentity} 的感悟</span>
-                                        <p class="text-sm text-gray-700 mt-2 whitespace-pre-wrap">${hasPartnerReflection}</p>
+                                        <div class="text-sm text-gray-700 mt-2">${formatDisplayString(hasPartnerReflection)}</div>
                                     </div>
                                 ` : ''}
                                 
                                 ${hasMyReflection ? `
-                                    <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-100 relative">
+                                    <div class="bg-blue-50/60 p-3 rounded-xl border border-blue-100 relative">
                                         <span class="absolute -top-2 right-3 bg-blue-100 text-blue-600 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${myIdentity} 的感悟</span>
-                                        <p class="text-sm text-gray-700 mt-2 whitespace-pre-wrap">${hasMyReflection}</p>
+                                        <div class="text-sm text-gray-700 mt-2">${formatDisplayString(hasMyReflection)}</div>
                                     </div>
                                 ` : ''}
                             </div>
@@ -489,7 +505,6 @@
             }).join('');
         }
 
-        // === 视图 2: 保存新事件 ===
         async function saveNewEvent() {
             const titleInput = document.getElementById('eventTitle').value.trim();
             const timeInput = document.getElementById('eventTime').value;
@@ -501,7 +516,7 @@
             if (!descInput) { showToast("请简述一下事件内容"); return; }
 
             const happenTimeTs = new Date(timeInput).getTime();
-            const eventId = Date.now(); // 用当前真实时间戳作为唯一ID
+            const eventId = Date.now(); 
 
             const newEvent = {
                 id: eventId,
@@ -512,12 +527,10 @@
                 type: newEventCategory,
                 stars: newEventStars,
                 description: descInput,
-                reflections: {} // 初始感悟为空，双方后续可添加
+                reflections: {} 
             };
 
             btn.innerText = "正在封存..."; btn.disabled = true;
-
-            // 插入数据 (默认放到开头，实际展示靠排序)
             dagData.events.unshift(newEvent);
 
             const success = await updateDagData();
@@ -526,17 +539,16 @@
                 showToast("🎉 档案封存成功！");
                 document.getElementById('eventTitle').value = '';
                 document.getElementById('eventDesc').value = '';
-                // 切换回档案馆查看
+                document.getElementById('eventDesc').style.height = ''; // 重置高度
                 setTimeout(() => switchTab('archive'), 800);
             } else {
                 showToast("保存失败，请检查网络重试");
-                dagData.events.shift(); // 回滚
+                dagData.events.shift(); 
             }
             
             btn.innerHTML = "封存入档 📦"; btn.disabled = false;
         }
 
-        // === 视图 3: 渲染事件感悟 ===
         function renderReflections() {
             const container = document.getElementById('reflectionList');
             
@@ -545,7 +557,6 @@
                 return;
             }
 
-            // 按发生时间排序 (新到旧)
             let displayEvents = [...dagData.events].sort((a, b) => b.happenTime - a.happenTime);
 
             container.innerHTML = displayEvents.map(event => {
@@ -556,10 +567,9 @@
                 
                 return `
                 <div class="bg-white rounded-2xl p-4 shadow-sm border-2 border-blue-50 flex flex-col transition-all group">
-                    <!-- 折叠头部 (点击展开/收起) -->
                     <div class="cursor-pointer flex flex-col gap-1.5" onclick="toggleExpand('reflect_${event.id}')">
                         <div class="flex justify-between items-start">
-                             <div class="font-bold text-blue-600 text-sm break-words pr-2">${title}</div>
+                             <div class="font-bold text-blue-600 text-sm break-words pr-2">${escapeHTML(title)}</div>
                              <span class="text-blue-400 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}">▼</span>
                         </div>
                         <div class="flex justify-between items-center text-[10px] text-gray-400">
@@ -567,7 +577,6 @@
                              <span>${formatTimestamp(event.happenTime)}</span>
                         </div>
                         
-                        <!-- 状态小绿点/红点 -->
                         ${!isExpanded ? `
                              <div class="text-[10px] mt-1 flex gap-2">
                                  <span class="${myReflection ? 'text-green-500' : 'text-gray-300'}">${myReflection ? '✓ 我已写' : '○ 我未写'}</span>
@@ -576,12 +585,11 @@
                         ` : ''}
                     </div>
 
-                    <!-- 展开的内容 (填写与展示区) -->
                     <div class="overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[1000px] mt-3 opacity-100' : 'max-h-0 opacity-0'}">
                         
-                        <!-- 事件概览 -->
-                        <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 mb-3 text-xs text-gray-500 line-clamp-3">
-                            ${event.description}
+                        <!-- 格式化展示的事件概览 -->
+                        <div class="bg-gray-50 p-2.5 rounded-xl border border-gray-100 mb-3 text-xs text-gray-500 overflow-hidden line-clamp-4">
+                            ${formatDisplayString(event.description)}
                         </div>
 
                         <div class="flex flex-col gap-3">
@@ -589,7 +597,7 @@
                             ${partnerReflection ? `
                                 <div class="bg-pink-50/50 p-3 rounded-xl border border-pink-100 relative">
                                     <span class="absolute -top-2 left-3 bg-pink-100 text-pink-600 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${partnerIdentity} 的感悟</span>
-                                    <p class="text-sm text-gray-700 mt-2 whitespace-pre-wrap">${partnerReflection}</p>
+                                    <div class="text-sm text-gray-700 mt-2">${formatDisplayString(partnerReflection)}</div>
                                 </div>
                             ` : `
                                 <div class="text-center py-2 border border-dashed border-pink-100 rounded-xl bg-pink-50/30">
@@ -597,13 +605,14 @@
                                 </div>
                             `}
 
-                            <!-- 我的感悟 -->
+                            <!-- 我的感悟 (自适应多行输入框) -->
                             <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 relative">
                                 <span class="absolute -top-2 right-3 bg-blue-100 text-blue-600 text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">${myIdentity} 的感悟</span>
                                 
-                                <textarea id="ref_input_${event.id}" rows="2" 
-                                    class="w-full mt-2 bg-white px-3 py-2 text-sm border border-blue-100 rounded-lg focus:outline-none focus:border-blue-300 resize-none text-gray-700" 
-                                    placeholder="写下你对这件事的感悟或回忆...">${myReflection}</textarea>
+                                <textarea id="ref_input_${event.id}" rows="3" 
+                                    oninput="this.style.height = ''; this.style.height = this.scrollHeight + 'px'"
+                                    class="w-full mt-2 bg-white px-3 py-2 text-sm border border-blue-100 rounded-lg focus:outline-none focus:border-blue-300 resize-none text-gray-700 custom-scrollbar overflow-hidden" 
+                                    placeholder="写下你对这件事的感悟或回忆...">${escapeHTML(myReflection)}</textarea>
                                 
                                 <div class="flex justify-end mt-2">
                                     <button onclick="saveReflection(${event.id})" id="ref_btn_${event.id}" 
@@ -617,6 +626,20 @@
                 </div>
                 `;
             }).join('');
+            
+            // 如果已展开的输入框有内容，初始化触发一次高度计算以自动撑开
+            setTimeout(() => {
+                expandedItems.forEach(id => {
+                    if (id.startsWith('reflect_')) {
+                        const eventId = id.split('_')[1];
+                        const textarea = document.getElementById(`ref_input_${eventId}`);
+                        if(textarea) {
+                            textarea.style.height = '';
+                            textarea.style.height = textarea.scrollHeight + 'px';
+                        }
+                    }
+                });
+            }, 50);
         }
 
         async function saveReflection(eventId) {
@@ -629,19 +652,14 @@
                 return;
             }
 
-            // 查找事件
             const eventIndex = dagData.events.findIndex(e => e.id === eventId);
             if (eventIndex === -1) return;
 
-            // 确保 reflections 对象存在
             if (!dagData.events[eventIndex].reflections) {
                 dagData.events[eventIndex].reflections = {};
             }
 
-            // 保存旧内容用于失败回滚
             const oldReflection = dagData.events[eventIndex].reflections[myIdentity];
-            
-            // 更新本地数据
             dagData.events[eventIndex].reflections[myIdentity] = text;
 
             btnEl.innerText = "保存中...";
@@ -652,10 +670,8 @@
             if (success) {
                 showToast("✅ 感悟保存成功！");
                 btnEl.innerText = "更新感悟 ✍️";
-                // 不强制全量重新渲染，以免打断用户滚动，只更新按钮状态即可
             } else {
                 showToast("保存失败，请检查网络");
-                // 回滚
                 if (oldReflection) {
                     dagData.events[eventIndex].reflections[myIdentity] = oldReflection;
                 } else {
@@ -666,7 +682,6 @@
             btnEl.disabled = false;
         }
 
-        // === 工具函数 ===
         function showToast(msg) { 
             const toast = document.getElementById('toast'); 
             toast.innerText = msg; 
