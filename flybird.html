@@ -106,7 +106,6 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 pb-24">
 
-    <!-- Header Area -->
     <header class="w-full max-w-md flex justify-between items-center mb-6 relative">
         <a href="index.html" class="w-10 h-10 bg-white text-rose-500 rounded-full shadow-sm flex items-center justify-center border border-rose-50 active:scale-95 transition-transform">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
@@ -227,16 +226,16 @@
 
         // 奖励档位配置
         const REWARD_TIERS = [
-            { score: 1, points: 1 },
-            { score: 3, points: 3 },
-            { score: 6, points: 5 },
-            { score: 8, points: 10 },
-            { score: 11, points: 15 },
-            { score: 20, points: 20 },
-            { score: 30, points: 25 },
-            { score: 40, points: 30 },
-            { score: 50, points: 40 },
-            { score: 60, points: 50 }
+            { score: 5, points: 1 },
+            { score: 10, points: 3 },
+            { score: 25, points: 5 },
+            { score: 50, points: 10 },
+            { score: 100, points: 15 },
+            { score: 150, points: 20 },
+            { score: 200, points: 25 },
+            { score: 250, points: 30 },
+            { score: 400, points: 40 },
+            { score: 500, points: 50 }
         ];
 
         function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
@@ -635,6 +634,9 @@
         }
 
         // --- Rewards Logic ---
+        // 全局领取状态锁，防并发和多次点击
+        let isClaiming = false;
+
         function openRewardsModal() {
             renderRewards();
             const modal = document.getElementById('rewardsModal');
@@ -668,7 +670,10 @@
                 if (isClaimed) {
                     btnHtml = `<button disabled class="text-[11px] font-bold px-4 py-1.5 rounded-full bg-gray-100 text-gray-400 cursor-not-allowed">已领取</button>`;
                 } else if (canClaim) {
-                    btnHtml = `<button onclick="claimReward(this, ${tier.score}, ${tier.points})" class="text-[11px] font-bold px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 active:scale-95 text-white shadow-md transition-all">领取</button>`;
+                    // 如果正在领取中，渲染为禁用状态
+                    const disabledAttr = isClaiming ? 'disabled' : '';
+                    const extraClasses = isClaiming ? 'opacity-50 cursor-not-allowed' : 'hover:from-amber-500 hover:to-orange-600 active:scale-95';
+                    btnHtml = `<button onclick="claimReward(this, ${tier.score}, ${tier.points})" class="claim-btn text-[11px] font-bold px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md transition-all ${extraClasses}" ${disabledAttr}>领取</button>`;
                 } else {
                     btnHtml = `<div class="text-[11px] font-medium text-gray-400 px-2 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>未解锁</div>`;
                 }
@@ -689,10 +694,20 @@
         }
 
         async function claimReward(btn, scoreThreshold, rewardPoints) {
-            const originalText = btn.innerText;
+            // 如果已经在领取中，直接返回
+            if (isClaiming) return;
+            
+            isClaiming = true;
+            
+            // 立即禁用页面上所有的 claim-btn，防止玩家在此期间点击其它档位
+            const allBtns = document.querySelectorAll('.claim-btn');
+            allBtns.forEach(b => {
+                b.disabled = true;
+                b.classList.add('opacity-50', 'cursor-not-allowed');
+                b.classList.remove('hover:from-amber-500', 'hover:to-orange-600', 'active:scale-95');
+            });
+
             btn.innerText = "领取中...";
-            btn.classList.add('opacity-50', 'cursor-not-allowed');
-            btn.disabled = true;
 
             try {
                 // 1. 获取最新飞鸟记录
@@ -702,7 +717,6 @@
                 let latestClaimed = freshFlyRes.data?.claimedRewards || [];
                 if (latestClaimed.includes(scoreThreshold)) {
                     gameData.claimedRewards = latestClaimed; // 同步本地
-                    renderRewards();
                     throw new Error("该奖励已领取！");
                 }
                 
@@ -741,13 +755,13 @@
 
                 document.getElementById('myPoints').innerText = myData.points;
                 showToast(`🎉 成功领取 ${rewardPoints} 积分！`);
-                renderRewards();
 
             } catch (err) {
                 showToast(err.message || "领取失败，请重试");
-                btn.innerText = originalText;
-                btn.classList.remove('opacity-50', 'cursor-not-allowed');
-                btn.disabled = false;
+            } finally {
+                // 解除锁定并重新渲染按钮（成功会变已领取，失败会恢复可点击）
+                isClaiming = false;
+                renderRewards(); 
             }
         }
 
