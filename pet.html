@@ -111,6 +111,7 @@
         </div>
         <div class="w-9 h-9"></div>
     </header>
+    
     <main class="w-full max-w-md flex flex-col items-center">
 
         <!-- 状态层：加载中 -->
@@ -251,7 +252,6 @@
                     <span class="text-[10px] font-bold text-red-600">特训</span>
                     <span id="count_train" class="text-[9px] text-gray-400 mt-1 font-medium">剩余: -</span>
                 </button>
-                <!-- 替换为去战斗 -->
                 <button id="btn_battle" onclick="doAction('battle')" class="flex flex-col items-center justify-center p-2 bg-gradient-to-br from-rose-50 to-rose-100 rounded-2xl shadow-sm border border-rose-300 hover:shadow-md transform hover:-translate-y-1 transition-all">
                     <span class="text-xl mb-1">⚔️</span>
                     <span class="text-[10px] font-bold text-rose-600">去战斗</span>
@@ -393,6 +393,39 @@
         let isProcessing = false; 
         let isNightTime = false; 
 
+        // 统一处理全局锁定状态与按钮UI样式
+        function setProcessingState(state) {
+            isProcessing = state;
+            const buttonsToDisable = [
+                'btn_feed', 'btn_fan', 'btn_water', 'btn_tickle', 'btn_walk', 
+                'btn_brush', 'btn_train', 'btn_battle', 'btn_resonance', 'btn_letter', 'adoptBtn'
+            ];
+            
+            buttonsToDisable.forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    if (state) {
+                        btn.classList.add('opacity-50', 'grayscale', 'pointer-events-none');
+                        // 移除 hover 效果防止视觉误导
+                        btn.classList.remove('hover:shadow-md', 'hover:shadow-lg', 'transform', 'hover:-translate-y-1', 'hover:-translate-y-0.5');
+                    } else {
+                        btn.classList.remove('opacity-50', 'grayscale', 'pointer-events-none');
+                        // 恢复 hover 效果
+                        if(btnId === 'adoptBtn' || btnId === 'btn_resonance' || btnId === 'btn_battle') {
+                            btn.classList.add('hover:shadow-lg', 'transform', 'hover:-translate-y-0.5');
+                        } else {
+                            btn.classList.add('hover:shadow-md', 'transform', 'hover:-translate-y-1');
+                        }
+                    }
+                }
+            });
+
+            // 保持因为次数用完而禁用的按钮状态
+            if (!state) {
+                updateActionCounts();
+            }
+        }
+
         function getMaxExp(level) {
             if (level >= 100) return 999999; 
             return Math.floor(100 + (level - 1) * 8);
@@ -505,6 +538,7 @@
             if (!petData.lastEventDate || petData.lastEventDate !== todayStr) {
                 if (Math.random() < 0.15) {
                     petData.lastEventDate = todayStr;
+                    // ... events definition ...
                     const events = [
                         { type: 'good', title: '🎉 惊喜发现', icon: '🦴', desc: '儿子在院子里刨出了骨头碎片，经验值 +30！', effect: () => { addExp(30); } },
                         { type: 'good', title: '✨ 心情大好', icon: '🦋', desc: '儿子追到了电子蝴蝶，开心得不得了！心情 +20', effect: () => { petData.mood = Math.min(100, petData.mood + 20); } },
@@ -520,13 +554,50 @@
                     document.getElementById('eventModal').classList.remove('hidden');
                     document.getElementById('eventModal').classList.add('flex');
 
+                    setProcessingState(true);
                     const upPetRes = await updateFile(FILE_PET, petData, petSha);
                     if (upPetRes.success) { petSha = upPetRes.sha; }
+                    setProcessingState(false);
                     renderPetUI();
                 }
             }
         }
         function closeEventModal() { document.getElementById('eventModal').classList.add('hidden'); }
+
+        async function adoptPet() {
+            if (isProcessing) return;
+            const input = document.getElementById('petNameInput');
+            const name = input.value.trim() || '初号机';
+            setProcessingState(true);
+            
+            petData = {
+                name: name,
+                level: 1,
+                exp: 0,
+                hunger: 80,
+                mood: 80,
+                clean: 80,
+                lastUpdated: new Date().getTime(),
+                lastEventDate: null
+            };
+            
+            const upRes = await updateFile(FILE_PET, petData, petSha);
+            if (upRes.success) {
+                petSha = upRes.sha;
+                await logAction('adopt', `唤醒了新生命：${name} 🐶`);
+                
+                document.getElementById('adoptView').classList.add('hidden');
+                document.getElementById('adoptView').classList.remove('flex');
+                document.getElementById('petView').classList.remove('hidden');
+                document.getElementById('petView').classList.add('flex');
+                
+                renderPetUI();
+            } else {
+                showToast("唤醒失败，正在重置页面...");
+                setTimeout(() => window.location.reload(), 1500);
+            }
+            setProcessingState(false);
+        }
 
         function addExp(amount) {
             petData.exp += amount;
@@ -585,7 +656,7 @@
             document.body.appendChild(h); setTimeout(() => h.remove(), 1000);
         }
 
-        let mgState = { type: null, progress: 0, target: 0 };
+        let mgState = { type: null, progress: 0, target: 0, finished: false };
         function getPos(e) { return e.touches ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY }; }
 
         function spawnMiniGameParticle(x, y, emoji) {
@@ -599,7 +670,7 @@
         function startMiniGame(type) {
             const overlay = document.getElementById('miniGameOverlay');
             const prompt = document.getElementById('miniGamePrompt');
-            mgState = { type: type, progress: 0, extra: null };
+            mgState = { type: type, progress: 0, extra: null, finished: false };
             
             overlay.classList.remove('hidden'); prompt.classList.remove('hidden'); overlay.innerHTML = '';
             overlay.onclick = overlay.onmousedown = overlay.ontouchstart = overlay.onmousemove = overlay.ontouchmove = null;
@@ -675,41 +746,61 @@
         function cancelMiniGame() {
             document.getElementById('miniGameOverlay').classList.add('hidden');
             document.getElementById('miniGamePrompt').classList.add('hidden');
+            setProcessingState(false); // 主动取消时解锁
         }
 
         function finishMiniGame(type) {
-            cancelMiniGame(); executeAction(type, mgState.extra);
+            // 结算时隐藏 UI，但不解锁，等待网络请求完成
+            document.getElementById('miniGameOverlay').classList.add('hidden');
+            document.getElementById('miniGamePrompt').classList.add('hidden');
+            executeAction(type, mgState.extra);
         }
 
         async function doAction(type) {
             if (isProcessing || !petData) return;
+            setProcessingState(true); // 进入任何动作前立刻全盘锁定
+
             if (isNightTime && ['feed', 'fan', 'walk', 'train', 'battle'].includes(type)) {
-                showToast("嘘... 儿子正在休眠充能，明天再玩吧！"); showInteractionText("Zzz..."); return;
+                showToast("嘘... 儿子正在休眠充能，明天再玩吧！"); showInteractionText("Zzz..."); 
+                setProcessingState(false);
+                return;
             }
             const todayStart = new Date().setHours(0, 0, 0, 0);
             const usedCount = myActData.filter(l => l.action === type && l.time >= todayStart).length;
-            if (usedCount >= maxActionsPerDay) { showToast(`今日次数已用完啦！`); return; }
+            if (usedCount >= maxActionsPerDay) { 
+                showToast(`今日次数已用完啦！`); 
+                setProcessingState(false);
+                return; 
+            }
 
             if (type === 'battle') {
-                isProcessing = true;
                 await logAction('battle', "进入了虚拟竞技场进行特训 ⚔️");
                 window.location.href = 'battle_arena.html';
+                // 页面跳转，无需解锁
                 return;
             }
 
             const maxHunger = getMaxHunger(petData.level);
-            if (type === 'feed' && petData.hunger >= maxHunger) return showToast(`吃饱啦，再吃要报错了！`);
-            if (type === 'fan' && petData.hunger < maxHunger * 0.2) return showToast(`能源告急，没力气玩了！`);
-            if (type === 'water' && petData.clean >= 100) return showToast(`装甲已经很闪亮啦！`);
-            if (type === 'walk' && petData.hunger < maxHunger * 0.3) return showToast(`能源告急，走不动啦！`);
-            if (type === 'brush' && petData.clean >= 100 && petData.mood >= 100) return showToast(`状态完美，不需要梳理啦！`);
-            if (type === 'train' && petData.hunger < maxHunger * 0.4) return showToast(`太饿了，无法集中注意力特训！`);
+            let blockReason = null;
+            if (type === 'feed' && petData.hunger >= maxHunger) blockReason = `吃饱啦，再吃要报错了！`;
+            if (type === 'fan' && petData.hunger < maxHunger * 0.2) blockReason = `能源告急，没力气玩了！`;
+            if (type === 'water' && petData.clean >= 100) blockReason = `装甲已经很闪亮啦！`;
+            if (type === 'walk' && petData.hunger < maxHunger * 0.3) blockReason = `能源告急，走不动啦！`;
+            if (type === 'brush' && petData.clean >= 100 && petData.mood >= 100) blockReason = `状态完美，不需要梳理啦！`;
+            if (type === 'train' && petData.hunger < maxHunger * 0.4) blockReason = `太饿了，无法集中注意力特训！`;
 
+            if (blockReason) {
+                showToast(blockReason);
+                setProcessingState(false);
+                return;
+            }
+
+            // 锁定状态下进入小游戏，直到小游戏 finish 或 cancel 才改变状态
             startMiniGame(type); 
         }
 
         async function executeAction(type, extraData) {
-            isProcessing = true;
+            // executeAction 被调用时，必定处于锁定状态（继承自 doAction）
             const latestPetRes = await fetchFile(FILE_PET);
             if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; calculateTimeDecay(); }
 
@@ -751,9 +842,16 @@
                 petData.lastUpdated = new Date().getTime();
                 renderPetUI(); 
                 const upPetRes = await updateFile(FILE_PET, petData, petSha);
-                if (upPetRes.success) { petSha = upPetRes.sha; await logAction(type, logMsg); } else { showToast("数据冲突，TA刚才可能也操作了，页面已刷新"); setTimeout(() => window.location.reload(), 1500); }
+                if (upPetRes.success) { 
+                    petSha = upPetRes.sha; 
+                    await logAction(type, logMsg); 
+                } else { 
+                    showToast("网络波动或数据冲突，正在强制刷新..."); 
+                    setTimeout(() => window.location.reload(), 1500); 
+                    return; // 发生冲突不解锁，直接等刷新
+                }
             }
-            isProcessing = false;
+            setProcessingState(false); // 请求全部完成且成功，全面解锁
         }
 
         function lerp(start, end, t) { return start + (end - start) * t; }
@@ -895,14 +993,34 @@
         function showToast(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate'); setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 3000); }
 
         async function triggerResonance() {
-            if (isProcessing || !petData) return; isProcessing = true; document.getElementById('btn_resonance').innerHTML = '<div class="flex items-center gap-2 text-[15px]"><span class="animate-spin text-xl">⏳</span> 感应中...</div>';
-            const latestPetRes = await fetchFile(FILE_PET); if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
-            const today = new Date().setHours(0,0,0,0).toString(); if (!petData.resonance || petData.resonance.date !== today) petData.resonance = { date: today, h_ready: false, q_ready: false };
-            if (myIdentity === '哼哼') petData.resonance.h_ready = true; else petData.resonance.q_ready = true; const isSuccess = petData.resonance.h_ready && petData.resonance.q_ready;
-            if (isSuccess) { petData.hunger = getMaxHunger(petData.level); petData.mood = 100; petData.clean = 100; addExp(50); } petData.lastUpdated = new Date().getTime();
+            if (isProcessing || !petData) return; 
+            setProcessingState(true);
+            document.getElementById('btn_resonance').innerHTML = '<div class="flex items-center gap-2 text-[15px]"><span class="animate-spin text-xl">⏳</span> 感应中...</div>';
+            
+            const latestPetRes = await fetchFile(FILE_PET); 
+            if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
+            
+            const today = new Date().setHours(0,0,0,0).toString(); 
+            if (!petData.resonance || petData.resonance.date !== today) petData.resonance = { date: today, h_ready: false, q_ready: false };
+            
+            if (myIdentity === '哼哼') petData.resonance.h_ready = true; else petData.resonance.q_ready = true; 
+            const isSuccess = petData.resonance.h_ready && petData.resonance.q_ready;
+            
+            if (isSuccess) { petData.hunger = getMaxHunger(petData.level); petData.mood = 100; petData.clean = 100; addExp(50); } 
+            petData.lastUpdated = new Date().getTime();
+            
             const upRes = await updateFile(FILE_PET, petData, petSha);
-            if (upRes.success) { petSha = upRes.sha; if (isSuccess) { await logAction('resonance', "✨ 两人一起陪伴儿子，触发了【灵魂共鸣】！状态全满！"); showToast("✨ 灵魂共鸣成功！经验+50！"); } else { await logAction('resonance', `呼唤了 ${partnerIdentity} 一起来陪儿子...`); showToast("呼唤成功！快去提醒TA一起来！"); } renderPetUI(); }
-            isProcessing = false;
+            if (upRes.success) { 
+                petSha = upRes.sha; 
+                if (isSuccess) { await logAction('resonance', "✨ 两人一起陪伴儿子，触发了【灵魂共鸣】！状态全满！"); showToast("✨ 灵魂共鸣成功！经验+50！"); } 
+                else { await logAction('resonance', `呼唤了 ${partnerIdentity} 一起来陪儿子...`); showToast("呼唤成功！快去提醒TA一起来！"); } 
+                renderPetUI(); 
+                setProcessingState(false);
+            } else {
+                showToast("网络波动或数据冲突，正在强制刷新..."); 
+                setTimeout(() => window.location.reload(), 1500);
+                // 冲突不解锁，等刷新
+            }
         }
 
         function handleLetterBtn() {
@@ -913,18 +1031,57 @@
         function closeLetterModal() { document.getElementById('letterModalContent').classList.replace('scale-100', 'scale-95'); setTimeout(() => document.getElementById('letterModal').classList.add('hidden'), 300); }
         
         async function sendLetter() {
-            const text = document.getElementById('letterInput').value.trim(); if(!text) return showToast("写点什么吧，不要发空纸条哦~"); isProcessing = true; document.getElementById('letterInput').disabled = true;
-            const latestPetRes = await fetchFile(FILE_PET); if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
-            petData.letter = { sender: myIdentity, text: text, time: new Date().getTime() }; petData.lastUpdated = new Date().getTime(); const upRes = await updateFile(FILE_PET, petData, petSha);
-            if (upRes.success) { petSha = upRes.sha; closeLetterModal(); showToast("悄悄话已经挂在儿子项圈上啦，使命必达！"); await logAction('letter', "给儿子塞了一张纸条，让它带给TA 💌"); renderPetUI(); }
-            document.getElementById('letterInput').disabled = false; isProcessing = false;
+            if (isProcessing) return;
+            const text = document.getElementById('letterInput').value.trim(); 
+            if(!text) return showToast("写点什么吧，不要发空纸条哦~"); 
+            
+            setProcessingState(true);
+            document.getElementById('letterInput').disabled = true;
+            
+            const latestPetRes = await fetchFile(FILE_PET); 
+            if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
+            
+            petData.letter = { sender: myIdentity, text: text, time: new Date().getTime() }; 
+            petData.lastUpdated = new Date().getTime(); 
+            const upRes = await updateFile(FILE_PET, petData, petSha);
+            
+            if (upRes.success) { 
+                petSha = upRes.sha; 
+                closeLetterModal(); 
+                showToast("悄悄话已经挂在儿子项圈上啦，使命必达！"); 
+                await logAction('letter', "给儿子塞了一张纸条，让它带给TA 💌"); 
+                renderPetUI(); 
+                document.getElementById('letterInput').disabled = false; 
+                setProcessingState(false);
+            } else {
+                showToast("网络波动或数据冲突，正在强制刷新..."); 
+                setTimeout(() => window.location.reload(), 1500);
+            }
         }
         
         async function claimLetterReward() {
-            isProcessing = true; const latestPetRes = await fetchFile(FILE_PET); if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
-            delete petData.letter; petData.mood = Math.min(100, petData.mood + 20); addExp(20); petData.lastUpdated = new Date().getTime();
-            const upRes = await updateFile(FILE_PET, petData, petSha); if (upRes.success) { petSha = upRes.sha; closeLetterModal(); showToast("阅读了悄悄话，儿子开心得摇尾巴！"); await logAction('letter', "取下了TA让儿子带来的纸条，心里暖暖的 💌"); renderPetUI(); }
-            isProcessing = false;
+            if (isProcessing) return;
+            setProcessingState(true);
+            
+            const latestPetRes = await fetchFile(FILE_PET); 
+            if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
+            
+            delete petData.letter; 
+            petData.mood = Math.min(100, petData.mood + 20); addExp(20); 
+            petData.lastUpdated = new Date().getTime();
+            
+            const upRes = await updateFile(FILE_PET, petData, petSha); 
+            if (upRes.success) { 
+                petSha = upRes.sha; 
+                closeLetterModal(); 
+                showToast("阅读了悄悄话，儿子开心得摇尾巴！"); 
+                await logAction('letter', "取下了TA让儿子带来的纸条，心里暖暖的 💌"); 
+                renderPetUI(); 
+                setProcessingState(false);
+            } else {
+                showToast("网络波动或数据冲突，正在强制刷新..."); 
+                setTimeout(() => window.location.reload(), 1500);
+            }
         }
 
         function generatePetPreviewHtml(level) {
