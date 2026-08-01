@@ -215,6 +215,7 @@
 
         const myPrefix = myIdentity === '哼哼' ? 'h' : 'q';
         const myCkPath = `data/${myPrefix}ck.json`;
+        const myAchRewardPath = `data/${myPrefix}cjlj.json`;
 
         let stats = {
             tasksCompleted: 0, diyCompleted: 0,
@@ -230,6 +231,7 @@
         let myPoints = 0;
         let claimedAchTiers = [];
         let myCkSha = null;
+        let myAchRewardSha = null;
 
         // 奖励阶段配置 (与 eyes.html 保持一致的使用逻辑)
         const REWARD_TIERS = [
@@ -339,7 +341,8 @@
                 fetchFile(FILES.hRj), fetchFile(FILES.qRj),
                 fetchFile(FILES.cw),
                 fetchFile(FILES.hCw), fetchFile(FILES.qCw),
-                fetchFile(myCkPath)
+                fetchFile(myCkPath),
+                fetchFile(myAchRewardPath)
             ]);
 
             if (responses.some(r => r.authError)) {
@@ -356,25 +359,37 @@
             const hCwData = Array.isArray(responses[5].data) ? responses[5].data : [];
             const qCwData = Array.isArray(responses[6].data) ? responses[6].data : [];
             
-            // 解析个人积分与成就领取记录，兼容新老数据
+            // 1. 解析个人积分
             const myCkData = responses[7].data;
             myCkSha = responses[7].sha;
             
             if (myCkData && typeof myCkData === 'object') {
                 myPoints = myCkData.points || 0;
-                
-                // 自动迁移老版本数据：如果以前用 claimedLevels 记录过总等级，自动转换为相应的阶梯奖励档位
-                if (myCkData.claimedAchTiers === undefined && myCkData.claimedLevels !== undefined) {
-                    claimedAchTiers = REWARD_TIERS.filter(t => t.level <= myCkData.claimedLevels).map(t => t.level);
-                } else {
-                    claimedAchTiers = myCkData.claimedAchTiers || [];
-                }
             } else if (typeof myCkData === 'number') {
                 myPoints = myCkData;
-                claimedAchTiers = [];
             } else {
                 myPoints = 0;
-                claimedAchTiers = [];
+            }
+
+            // 2. 解析独立存放的成就领取记录
+            const myAchRewardData = responses[8].data;
+            myAchRewardSha = responses[8].sha;
+
+            if (myAchRewardData && Array.isArray(myAchRewardData.claimed)) {
+                claimedAchTiers = myAchRewardData.claimed;
+            } else {
+                // 自动迁移老版本数据
+                if (myCkData && typeof myCkData === 'object') {
+                    if (Array.isArray(myCkData.claimedAchTiers)) {
+                        claimedAchTiers = myCkData.claimedAchTiers;
+                    } else if (myCkData.claimedLevels !== undefined) {
+                        claimedAchTiers = REWARD_TIERS.filter(t => t.level <= myCkData.claimedLevels).map(t => t.level);
+                    } else {
+                        claimedAchTiers = [];
+                    }
+                } else {
+                    claimedAchTiers = [];
+                }
             }
 
             // 数据解析...
@@ -565,28 +580,28 @@
             try {
                 // 强制获取云端最新状态，避免多端并发问题
                 const freshCkRes = await fetchFile(myCkPath);
+                const freshAchRes = await fetchFile(myAchRewardPath);
 
-                if (freshCkRes.authError) {
+                if (freshCkRes.authError || freshAchRes.authError) {
                     showToast("Token失效，请重新登录");
                     closeRewardModal();
                     return;
                 }
                 
-                let ckData = freshCkRes.data;
+                // 1. 验证独立的领取记录文件
+                let achData = freshAchRes.data;
+                let latestClaimed = [];
                 
-                // 兼容性初始化
-                if (typeof ckData === 'number') {
-                    ckData = { points: ckData, claimedAchTiers: [], claimedLevels: 0 };
-                } else if (typeof ckData !== 'object' || ckData === null) {
-                    ckData = { points: 0, claimedAchTiers: [], claimedLevels: 0 };
-                }
-                
-                // 处理数据迁移逻辑
-                let latestClaimed = ckData.claimedAchTiers;
-                if (latestClaimed === undefined && ckData.claimedLevels !== undefined) {
-                    latestClaimed = REWARD_TIERS.filter(t => t.level <= ckData.claimedLevels).map(t => t.level);
-                } else if (latestClaimed === undefined) {
-                    latestClaimed = [];
+                if (achData && Array.isArray(achData.claimed)) {
+                    latestClaimed = achData.claimed;
+                } else {
+                    // 若独立文件为空，尝试从新鲜的 ckData 中迁移旧记录
+                    let ckData = freshCkRes.data || {};
+                    if (Array.isArray(ckData.claimedAchTiers)) {
+                        latestClaimed = ckData.claimedAchTiers;
+                    } else if (ckData.claimedLevels !== undefined) {
+                        latestClaimed = REWARD_TIERS.filter(t => t.level <= ckData.claimedLevels).map(t => t.level);
+                    }
                 }
 
                 if (latestClaimed.includes(levelThreshold)) {
@@ -598,19 +613,26 @@
                     throw new Error("成就等级未达到要求！");
                 }
 
-                // 增加积分与记录
+                // 2. 准备增加积分
+                let ckData = freshCkRes.data;
+                if (typeof ckData === 'number') {
+                    ckData = { points: ckData };
+                } else if (typeof ckData !== 'object' || ckData === null) {
+                    ckData = { points: 0 };
+                }
+                
                 let newPoints = (ckData.points || 0) + rewardPoints;
                 latestClaimed.push(levelThreshold);
-
                 ckData.points = newPoints;
-                ckData.claimedAchTiers = latestClaimed;
 
-                // 提交到云端
-                const sha = await saveFile(myCkPath, ckData, freshCkRes.sha, `Achievement reward (Level ${levelThreshold}): +${rewardPoints}`);
+                // 3. 提交到云端（优先保存独立的防刷记录，再保存积分）
+                const newAchSha = await saveFile(myAchRewardPath, { claimed: latestClaimed }, freshAchRes.sha, `Achievement reward claim (Level ${levelThreshold})`);
+                const newCkSha = await saveFile(myCkPath, ckData, freshCkRes.sha, `Achievement reward points (Level ${levelThreshold}): +${rewardPoints}`);
                 
                 myPoints = newPoints;
                 claimedAchTiers = latestClaimed;
-                myCkSha = sha;
+                myCkSha = newCkSha;
+                myAchRewardSha = newAchSha;
                 
                 updateClaimButtonUI();
                 fireConfetti();
