@@ -27,7 +27,6 @@
         @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1); } }
         .animate-pop { animation: pop 0.3s ease-out; }
 
-        /* 新增：礼物盒震动动画 */
         @keyframes shake {
             0%, 100% { transform: rotate(0deg); }
             25% { transform: rotate(-15deg) scale(1.1); }
@@ -35,13 +34,16 @@
         }
         .animate-shake:hover { animation: shake 0.6s ease-in-out infinite; }
         
-        /* 自定义滚动条样式 */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
 
         input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+        
+        /* 自定义音频播放器些许样式 */
+        audio { outline: none; border-radius: 9999px; }
+        audio::-webkit-media-controls-enclosure { background-color: rgba(255, 255, 255, 0.6); }
     </style>
 </head>
 
@@ -77,15 +79,62 @@
 
                 <textarea id="diaryInput" rows="3" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300 transition-all" placeholder="今天发生了什么开心的事？写下来吧..."></textarea>
                 
-                <div class="flex items-center justify-between mt-2">
-                    <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 hover:text-rose-400 transition-colors">
-                        <input type="checkbox" id="capsuleToggle" onchange="toggleCapsuleUI()" class="rounded text-rose-400 focus:ring-rose-400 bg-rose-50 border-rose-200 cursor-pointer w-4 h-4">
-                        <span>🔒 时光胶囊</span>
-                    </label>
-                    <input type="date" id="capsuleDate" class="hidden text-xs border border-rose-200 rounded-md px-2 py-1 text-gray-600 focus:outline-none focus:border-rose-400">
+                <!-- 预览区容器 -->
+                <div class="flex flex-col gap-2 w-full">
+                    <!-- 图片预览 -->
+                    <div id="imagePreviewContainer" class="hidden relative mt-2 w-24 h-24 group">
+                        <img id="imagePreview" class="w-full h-full object-cover rounded-xl border-2 border-rose-200 shadow-sm">
+                        <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-white text-gray-500 hover:text-rose-500 rounded-full w-6 h-6 flex items-center justify-center shadow-md border border-gray-100 font-bold text-sm transition-transform hover:scale-110">×</button>
+                    </div>
+
+                    <!-- 新增：语音预览 -->
+                    <div id="audioPreviewContainer" class="hidden relative mt-2 w-full bg-rose-50 rounded-full pr-2 pl-1 py-1 border border-rose-200 flex items-center justify-between shadow-sm">
+                        <audio id="audioPreview" controls class="h-8 flex-1"></audio>
+                        <button onclick="clearAudio()" class="ml-2 bg-white text-gray-500 hover:text-rose-500 rounded-full w-6 h-6 flex items-center justify-center shadow-sm border border-gray-100 font-bold text-sm transition-transform hover:scale-110 flex-shrink-0">×</button>
+                    </div>
                 </div>
 
-                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-3 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-2">
+                <!-- 底部操作栏 -->
+                <div class="mt-2 pt-2 border-t border-rose-50 border-dashed">
+                    <!-- 常规操作按钮组 -->
+                    <div id="normalActions" class="flex items-center justify-between">
+                        <div class="flex gap-4">
+                            <!-- 发图片 -->
+                            <button onclick="document.getElementById('imageInput').click()" class="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-500 transition-colors font-medium">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <span>照片</span>
+                            </button>
+                            <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+                            
+                            <!-- 发语音 -->
+                            <button onclick="startRecording()" class="flex items-center gap-1.5 text-xs text-rose-400 hover:text-rose-500 transition-colors font-medium">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                                <span>语音</span>
+                            </button>
+
+                            <!-- 时光胶囊 -->
+                            <label class="flex items-center gap-1.5 cursor-pointer text-xs text-gray-500 hover:text-rose-400 transition-colors font-medium">
+                                <input type="checkbox" id="capsuleToggle" onchange="toggleCapsuleUI()" class="rounded text-rose-400 focus:ring-rose-400 bg-rose-50 border-rose-200 cursor-pointer w-4 h-4">
+                                <span>🔒 胶囊</span>
+                            </label>
+                        </div>
+                        <input type="date" id="capsuleDate" class="hidden text-xs border border-rose-200 rounded-md px-1 py-1 text-gray-600 focus:outline-none focus:border-rose-400 max-w-[100px]">
+                    </div>
+
+                    <!-- 正在录音 UI (默认隐藏) -->
+                    <div id="recordingUI" class="hidden flex items-center justify-between w-full bg-rose-100 rounded-lg p-2 px-3 shadow-inner">
+                        <div class="flex items-center gap-2 text-rose-500 font-bold text-sm animate-pulse">
+                            <div class="w-2 h-2 bg-rose-500 rounded-full"></div>
+                            <span id="recordTimer">00:00</span>
+                        </div>
+                        <div class="flex gap-3 items-center">
+                            <button onclick="cancelRecording()" class="text-xs text-gray-500 hover:text-rose-500">取消</button>
+                            <button onclick="stopRecording()" class="text-xs bg-rose-500 text-white px-4 py-1.5 rounded-full shadow-md font-bold hover:bg-rose-600 transition-colors">说完了</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-4 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-2">
                     写进悄悄话本 ✍️
                 </button>
             </div>
@@ -100,7 +149,6 @@
                     </button>
                 </div>
 
-                <!-- 新增：时光胶囊到期提示横幅 -->
                 <div id="capsuleNotice" class="hidden shrink-0 w-full mb-3 bg-gradient-to-r from-pink-100 to-rose-100 border border-rose-200 rounded-xl p-3 flex items-center justify-between shadow-sm cursor-pointer animate-float" onclick="scrollToFirstCapsule()">
                     <div class="flex items-center gap-2">
                         <span class="text-xl">⏳ </span>
@@ -122,6 +170,7 @@
         </div>
     </main>
 
+    <!-- 随机回忆弹窗 -->
     <div id="memoryModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4 transition-opacity opacity-0">
         <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="memoryModalContent">
             <div class="flex justify-between items-center mb-4">
@@ -135,6 +184,12 @@
                 再抽一张 🎲
             </button>
         </div>
+    </div>
+
+    <!-- 图片大图查看器 -->
+    <div id="imageViewerModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-2 transition-opacity opacity-0" onclick="closeImageViewer()">
+        <button class="absolute top-4 right-4 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/30 rounded-full w-10 h-10 flex items-center justify-center" onclick="closeImageViewer()">&times;</button>
+        <img id="fullSizeImage" src="" class="max-w-full max-h-full object-contain rounded-md transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
     </div>
 
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
@@ -157,6 +212,18 @@
 
         let dataHRj = { diaries: [] }, dataQRj = { diaries: [] }, shaHRj = null, shaQRj = null;
         let pollInterval = null;
+
+        // 图片状态变量
+        let currentImageBase64 = null;
+        let currentImageExt = 'jpg';
+        
+        // 语音状态变量
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentAudioBase64 = null;
+        let currentAudioExt = 'webm';
+        let recordTimerInterval = null;
+        let recordSeconds = 0;
 
         const MOODS = [
             { id: 'happy', icon: '🥰', label: '开心' },
@@ -204,6 +271,174 @@
             }
         }
 
+        // --- 图片处理逻辑 ---
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                showToast("图片太大了，请选择5MB以下的图片哦~");
+                event.target.value = ''; 
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                document.getElementById('imagePreview').src = dataUrl;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                currentImageBase64 = dataUrl.split(',')[1];
+                currentImageExt = file.name.split('.').pop() || 'jpg';
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            currentImageBase64 = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('imagePreview').src = '';
+        }
+
+        function openImageViewer(url) {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            img.src = url;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                img.classList.remove('scale-95');
+                img.classList.add('scale-100');
+            });
+        }
+
+        function closeImageViewer() {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            modal.classList.add('opacity-0');
+            img.classList.remove('scale-100');
+            img.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // --- 语音处理逻辑 ---
+        async function startRecording() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showToast("您的浏览器不支持录音功能，请更换浏览器重试");
+                    return;
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    
+                    // 识别设备格式后缀
+                    if (mediaRecorder.mimeType.includes('mp4')) currentAudioExt = 'm4a';
+                    else if (mediaRecorder.mimeType.includes('ogg')) currentAudioExt = 'ogg';
+                    else currentAudioExt = 'webm';
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const dataUrl = reader.result;
+                        currentAudioBase64 = dataUrl.split(',')[1];
+                        document.getElementById('audioPreview').src = dataUrl;
+                        document.getElementById('audioPreviewContainer').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(audioBlob);
+
+                    // 释放麦克风权限
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                
+                // 切换 UI
+                document.getElementById('normalActions').classList.add('hidden');
+                document.getElementById('recordingUI').classList.remove('hidden');
+                document.getElementById('audioPreviewContainer').classList.add('hidden'); // 如果之前有录音，重新录制时先隐藏
+                
+                recordSeconds = 0;
+                document.getElementById('recordTimer').innerText = '00:00';
+                recordTimerInterval = setInterval(() => {
+                    recordSeconds++;
+                    const m = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+                    const s = String(recordSeconds % 60).padStart(2, '0');
+                    document.getElementById('recordTimer').innerText = `${m}:${s}`;
+                }, 1000);
+
+            } catch (err) {
+                console.error("Audio Access Error:", err);
+                showToast("无法访问麦克风，请检查设备权限设置！");
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            clearInterval(recordTimerInterval);
+            document.getElementById('recordingUI').classList.add('hidden');
+            document.getElementById('normalActions').classList.remove('hidden');
+        }
+
+        function cancelRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            // 稍作延迟清空，防止 onstop 事件写入
+            setTimeout(() => {
+                audioChunks = [];
+                clearAudio();
+            }, 100);
+            clearInterval(recordTimerInterval);
+            document.getElementById('recordingUI').classList.add('hidden');
+            document.getElementById('normalActions').classList.remove('hidden');
+        }
+
+        function clearAudio() {
+            currentAudioBase64 = null;
+            document.getElementById('audioPreviewContainer').classList.add('hidden');
+            document.getElementById('audioPreview').src = '';
+        }
+
+
+        // --- 文件上传通用接口 ---
+        async function uploadMediaToGithub(base64Data, extension, folderName) {
+            const timestamp = Date.now();
+            const filename = `file_${timestamp}.${extension}`;
+            const path = `${folderName}/${filename}`; 
+            
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Upload media ${filename}`,
+                        content: base64Data
+                    })
+                });
+                
+                if (!response.ok) return null;
+                const result = await response.json();
+                return result.content.download_url;
+            } catch (error) {
+                console.error("Media upload failed:", error);
+                return null;
+            }
+        }
+
+
+        // --- 核心网络通讯与数据逻辑 ---
         async function fetchFile(filePath) {
             try {
                 const timestamp = new Date().getTime();
@@ -242,7 +477,6 @@
             
             if (resH.authError || resQ.authError) { 
                 showToast("Token失效，请重新登录"); 
-                // setTimeout(()=>window.location.href='index.html', 1500); 
                 return false; 
             }
             if (resH.error || resQ.error) return false;
@@ -260,7 +494,7 @@
             if (pollInterval) clearInterval(pollInterval); 
             pollInterval = setInterval(async () => { 
                 if(await fetchAllData()) renderDiaryUI(); 
-            }, 15000); 
+            }, 150000); 
         }
 
         function formatTime(timeValue) {
@@ -315,9 +549,7 @@
             }
         }
 
-        // 拆开时光胶囊
         async function openCapsule(msgTime, msgAuthor) {
-            // 乐观更新UI状态并触发动画
             const capsuleBox = document.getElementById(`capsule_box_${msgTime}`);
             if (capsuleBox) {
                 capsuleBox.innerHTML = '<span class="text-3xl animate-bounce">✨</span><span class="text-sm font-bold text-rose-500 mt-2">正在拆开...</span>';
@@ -331,25 +563,21 @@
             const entry = targetData.diaries.find(d => d.time === msgTime || d.time === String(msgTime));
             if (!entry) return;
 
-            // 更改状态为已开启
             entry.opened = true;
             
-            // 后台更新文件
             const upRes = await updateFile(targetPath, targetData, targetSha);
             
             if (upRes.success) {
                 if (isTargetHeng) shaHRj = upRes.sha; else shaQRj = upRes.sha;
                 showToast("🎉 时光胶囊成功开启！");
-                renderDiaryUI(); // 重新渲染列表以显示真实内容
+                renderDiaryUI(); 
             } else {
-                // 失败回滚
                 entry.opened = false;
                 renderDiaryUI();
                 showToast("开启失败，网络似乎开小差了");
             }
         }
 
-        // 滚动到第一个未拆开的胶囊
         function scrollToFirstCapsule() {
             const firstCapsule = document.querySelector('[id^="capsule_box_"]');
             if (firstCapsule) {
@@ -382,10 +610,8 @@
                 const moodObj = entry.mood ? MOODS.find(m => m.id === entry.mood) : null;
                 const moodIconHtml = moodObj ? `<span class="text-sm" title="${moodObj.label}">${moodObj.icon}</span>` : '';
 
-                // 时光胶囊逻辑判定
                 const isCapsule = entry.unlockTime !== undefined && entry.unlockTime !== null;
                 const isLocked = isCapsule && now < entry.unlockTime;
-                // 到达时间但还未被拆开 (兼顾以前没有opened字段的老数据)
                 const isReadyToOpen = isCapsule && !isLocked && !entry.opened;
                 const isOpened = isCapsule && entry.opened;
                 
@@ -403,22 +629,28 @@
                     `;
                 } else if (isReadyToOpen) {
                     readyCapsulesCount++;
-                    // 未拆开的礼物盒 UI
                     contentHtml = `
                         <div id="capsule_box_${entry.time}" onclick="openCapsule(${entry.time}, '${entry.author}')" class="flex flex-col items-center justify-center py-6 my-1 cursor-pointer bg-white/70 rounded-xl hover:bg-rose-50 hover:shadow-md transition-all group border border-dashed border-rose-300 relative overflow-hidden">
                             <span class="text-4xl mb-2 animate-shake drop-shadow-md">⏳ </span>
                             <span class="text-sm font-bold text-rose-500 mb-1 z-10">时光胶囊已成熟！</span>
                             <span class="text-[10px] text-gray-500 bg-white/80 px-3 py-1 rounded-full shadow-sm border border-rose-100 z-10">点击拆开悄悄话 ✨</span>
-                            <!-- 装饰背景 -->
                             <div class="absolute -top-4 -right-4 w-12 h-12 bg-rose-100 rounded-full opacity-50 blur-xl"></div>
                             <div class="absolute -bottom-4 -left-4 w-12 h-12 bg-pink-100 rounded-full opacity-50 blur-xl"></div>
                         </div>
                     `;
-                    // 未拆开时不显示点赞按钮
                 } else {
-                    // 正常文字展示 (或者是已拆开的胶囊)
                     const badge = isOpened ? `<span class="inline-flex items-center gap-1 ml-1 text-[10px] bg-amber-50 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded-md shadow-sm align-text-bottom">⏳ 胶囊已拆</span>` : '';
-                    contentHtml = `<div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed select-text mt-1">${entry.content} ${badge}</div>`;
+                    
+                    // 文字解析
+                    const textHtml = entry.content ? `<div class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed select-text mt-1">${entry.content} ${badge}</div>` : (badge ? `<div class="mt-1">${badge}</div>` : '');
+                    
+                    // 图片解析
+                    const imgHtml = entry.image ? `<img src="${entry.image}" class="mt-2 rounded-xl max-w-full max-h-48 object-cover border border-rose-100 shadow-sm cursor-zoom-in hover:opacity-90 transition-opacity" onclick="openImageViewer('${entry.image}')" loading="lazy">` : '';
+                    
+                    // 语音解析
+                    const audioHtml = entry.audio ? `<audio controls src="${entry.audio}" class="mt-2 w-full h-9 shadow-sm rounded-full opacity-90 hover:opacity-100 transition-opacity"></audio>` : '';
+
+                    contentHtml = `${textHtml}${imgHtml}${audioHtml}`;
                     
                     likeHtml = `
                         <button onclick="toggleLike(${entry.time}, '${entry.author}')" class="absolute -bottom-2 ${entry.isSelf ? '-left-2' : '-right-2'} w-6 h-6 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center transition-transform hover:scale-110 active:scale-90 z-10 select-none cursor-pointer">
@@ -427,10 +659,10 @@
                     `;
                 }
 
+                // 移除双击点赞，避免点击播放器或图片时误触
                 return `
-                    <div class="w-[85%] sm:w-[75%] ${alignClass} relative animate-fade-in mb-2">
-                        <div ${(!isLocked && !isReadyToOpen) ? `ondblclick="toggleLike(${entry.time}, '${entry.author}')"` : ''} 
-                             class="p-3 rounded-2xl border ${bgClass} break-words shadow-sm flex flex-col relative select-none">
+                    <div class="w-[90%] sm:w-[85%] ${alignClass} relative animate-fade-in mb-2">
+                        <div class="p-3 rounded-2xl border ${bgClass} break-words shadow-sm flex flex-col relative select-none">
                             <div class="text-[12px] font-bold ${textClass} mb-1.5 flex items-center justify-between gap-2 border-b border-white/50 pb-1.5">
                                 <span class="flex items-center gap-1">${authorIcon} ${entry.author} ${moodIconHtml}</span>
                                 <span class="${timeClass} font-normal text-[10px] font-mono">${displayTime}</span>
@@ -442,7 +674,6 @@
                 `;
             }).join('');
 
-            // 更新横幅提示
             const noticeBanner = document.getElementById('capsuleNotice');
             if (readyCapsulesCount > 0) {
                 document.getElementById('capsuleNoticeText').innerText = `有 ${readyCapsulesCount} 个时光胶囊成熟啦！`;
@@ -459,10 +690,39 @@
             const isCapsule = document.getElementById('capsuleToggle').checked;
             const capsuleDate = document.getElementById('capsuleDate').value;
 
-            if (!text) { showToast("悄悄话内容不能为空哦~"); return; }
+            // 文本、图片、语音，必须至少有一项
+            if (!text && !currentImageBase64 && !currentAudioBase64) { 
+                showToast("写点什么、发张照片或录段语音吧~"); 
+                return; 
+            }
             if (isCapsule && !capsuleDate) { showToast("请选择时光胶囊的解锁日期"); return; }
 
-            btn.innerText = "正在保存..."; btn.disabled = true;
+            btn.innerText = "正在打包心意..."; btn.disabled = true;
+
+            let uploadedImageUrl = null;
+            let uploadedAudioUrl = null;
+
+            // 上传图片
+            if (currentImageBase64) {
+                btn.innerText = "正在上传照片 🖼️...";
+                uploadedImageUrl = await uploadMediaToGithub(currentImageBase64, currentImageExt, 'picture');
+                if (!uploadedImageUrl) {
+                    showToast("照片上传失败，请检查网络或稍后重试");
+                    btn.innerHTML = "写进悄悄话本 ✍️"; btn.disabled = false;
+                    return;
+                }
+            }
+
+            // 上传语音
+            if (currentAudioBase64) {
+                btn.innerText = "正在上传语音 🎤...";
+                uploadedAudioUrl = await uploadMediaToGithub(currentAudioBase64, currentAudioExt, 'voice');
+                if (!uploadedAudioUrl) {
+                    showToast("语音上传失败，请检查网络或稍后重试");
+                    btn.innerHTML = "写进悄悄话本 ✍️"; btn.disabled = false;
+                    return;
+                }
+            }
 
             const myDataRj = myIdentity === '哼哼' ? dataHRj : dataQRj;
             const myPathRj = myIdentity === '哼哼' ? FILE_H_RJ : FILE_Q_RJ;
@@ -477,27 +737,33 @@
                 liked: false
             };
 
-            // 如果是时光胶囊，增加 unlockTime 和 initial opened 状态
+            if (uploadedImageUrl) newEntry.image = uploadedImageUrl;
+            if (uploadedAudioUrl) newEntry.audio = uploadedAudioUrl;
+
             if (isCapsule) {
                 newEntry.unlockTime = new Date(capsuleDate + 'T00:00:00').getTime();
-                newEntry.opened = false; // 初始为未拆开
+                newEntry.opened = false;
             }
             
             myDataRj.diaries.unshift(newEntry); 
             renderDiaryUI(); 
+            btn.innerText = "正在保存日记本 📔...";
 
             const upRes = await updateFile(myPathRj, myDataRj, myShaRj);
             if (upRes.success) {
                 if (myIdentity === '哼哼') shaHRj = upRes.sha; else shaQRj = upRes.sha;
                 showToast(isCapsule ? "时光胶囊已埋下！🕰️" : "悄悄话保存成功！📔"); 
                 
+                // 重置所有输入状态
                 input.value = ""; 
                 document.getElementById('capsuleToggle').checked = false;
                 toggleCapsuleUI();
                 currentMood = 'happy';
                 initMoodSelector();
+                clearImage(); 
+                clearAudio();
             } else {
-                showToast("保存失败，请稍后重试"); 
+                showToast("保存日记失败，请稍后重试"); 
                 myDataRj.diaries.shift(); 
                 renderDiaryUI();
             }
@@ -508,7 +774,6 @@
             const allDiaries = getMergedDiaries();
             const now = Date.now();
             
-            // 过滤：非胶囊，或者是已到期且被“拆开过”的胶囊
             const unlockedDiaries = allDiaries.filter(d => {
                 if (!d.unlockTime) return true;
                 return (d.unlockTime <= now && d.opened);
@@ -536,8 +801,12 @@
             const memoryCard = document.getElementById('memoryCard');
             memoryCard.className = `p-5 rounded-xl border-2 ${bgClass} shadow-inner min-h-[120px] flex flex-col relative`;
             
+            const imgHtml = memory.image ? `<img src="${memory.image}" class="mt-3 rounded-lg max-h-32 object-cover border border-black/10">` : '';
+            const audioHtml = memory.audio ? `<audio controls src="${memory.audio}" class="mt-3 w-full h-8 opacity-90"></audio>` : '';
+            const textHtml = memory.content ? `<div class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed flex-1 mt-1">${memory.content}</div>` : '';
+
             memoryCard.innerHTML = `
-                <div class="flex justify-between items-start mb-3 border-b border-black/5 pb-2">
+                <div class="flex justify-between items-start mb-2 border-b border-black/5 pb-2">
                     <div class="flex items-center gap-2">
                         <span class="text-lg">${authorIcon}</span>
                         <span class="font-bold ${textClass} text-sm">${memory.author}</span>
@@ -545,7 +814,9 @@
                     </div>
                     <span class="text-[11px] text-gray-400 font-mono">${formatTime(memory.time)}</span>
                 </div>
-                <div class="text-gray-700 text-sm whitespace-pre-wrap leading-relaxed flex-1">${memory.content}</div>
+                ${textHtml}
+                ${imgHtml}
+                ${audioHtml}
                 ${memory.liked ? '<div class="absolute bottom-3 right-3 text-lg opacity-80" title="曾被比心">❤️</div>' : ''}
             `;
 
@@ -564,6 +835,10 @@
             const modal = document.getElementById('memoryModal');
             const modalContent = document.getElementById('memoryModalContent');
             
+            // 停止弹窗里的声音（如果有的话）
+            const modalAudio = document.getElementById('memoryCard').querySelector('audio');
+            if(modalAudio) modalAudio.pause();
+
             modal.classList.add('opacity-0');
             modalContent.classList.remove('scale-100');
             modalContent.classList.add('scale-95');
