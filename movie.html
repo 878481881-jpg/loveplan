@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>观影放映室 🎬</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入 Chart.js 用于绘制雷达图 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #fdf2f8; 
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            overflow-x: hidden; 
+        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
+
+        /* 星星评分的交互样式 */
+        .star-rating .star { cursor: pointer; transition: transform 0.2s; color: #d1d5db; }
+        .star-rating .star:hover { transform: scale(1.2); }
+        .star-rating .star.active { color: #fbbf24; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+    <header class="text-center mb-4 max-w-md mt-2 w-full flex justify-between items-center px-2 animate-float">
+        <a href="javascript:history.back()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-rose-500 flex items-center justify-center gap-2">
+               <span>🎬</span> 观影放映室 <span>🍿</span>
+            </h1>
+        </div>
+        <div class="w-9 h-9"></div>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center">
+        <div class="flex space-x-2 mb-4 w-full justify-center bg-white/60 p-1.5 rounded-full shadow-sm backdrop-blur-sm border border-rose-100">
+            <button onclick="switchTab('want')" id="tab-want" class="flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm">想看清单</button>
+            <button onclick="switchTab('watched')" id="tab-watched" class="flex-1 py-1.5 bg-transparent text-gray-500 rounded-full font-bold transition-all hover:bg-white text-sm">已看评价</button>
+            <button onclick="switchTab('radar')" id="tab-radar" class="flex-1 py-1.5 bg-transparent text-gray-500 rounded-full font-bold transition-all hover:bg-white text-sm">默契雷达</button>
+        </div>
+
+        <div id="addMovieSection" class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4 transition-all">
+            <div class="mb-3">
+                <input type="text" id="movieTitleInput" class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 mb-2" placeholder="输入想看的电影名称...">
+                <div id="movieGenreContainer" class="flex flex-wrap gap-2">
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="科幻">科幻 👽</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="爱情">爱情 💖</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="喜剧">喜剧 😂</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="悬疑">悬疑 🕵️</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="恐怖">恐怖 😱</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="动作">动作 💥</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="动画">动画 🎨</button>
+                    <button class="genre-btn px-2 py-1 text-xs border border-rose-100 rounded-md text-gray-500 hover:bg-rose-50 transition" data-genre="剧情">剧情 📖</button>
+                </div>
+            </div>
+            <button onclick="addMovie()" class="w-full py-2 bg-gradient-to-r from-rose-400 to-pink-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-2">
+                加入想看清单 ➕
+            </button>
+        </div>
+
+        <div class="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[55vh] min-h-[400px] relative">
+            
+            <!-- 视图 1: 想看清单 -->
+            <div id="wantView" class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar flex flex-col">
+                <!-- 动态生成 -->
+            </div>
+
+            <!-- 视图 2: 已看清单 -->
+            <div id="watchedView" class="hidden flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar flex flex-col">
+                <!-- 动态生成 -->
+            </div>
+
+            <!-- 视图 3: 默契雷达 -->
+            <div id="radarView" class="hidden flex-1 flex flex-col items-center justify-center w-full h-full">
+                <h3 class="text-sm font-bold text-rose-500 mb-4">我们在各类型电影的口味重合度</h3>
+                <div class="w-full max-w-[300px] aspect-square relative">
+                    <canvas id="radarChart"></canvas>
+                </div>
+                <p class="text-xs text-gray-400 mt-6 text-center px-4">雷达图基于你们看完电影后的打分综合计算得出。<br>面积重合度越高，说明你们口味越相似哦！</p>
+            </div>
+        </div>
+        
+        <div class="mt-4 text-center">
+            <span class="text-gray-400 text-xs block">当前身份: <span id="currentIdentityLabel" class="text-rose-400 font-bold">-</span></span>
+        </div>
+    </main>
+
+    <div id="ratingModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4 transition-opacity opacity-0">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="ratingModalContent">
+            <div class="flex justify-between items-center mb-4 border-b border-rose-50 pb-3">
+                <h3 class="text-rose-500 font-bold text-lg flex items-center gap-2">打分 & 短评 🍿</h3>
+                <button onclick="closeRatingModal()" class="text-gray-400 hover:text-rose-500 text-xl font-bold">&times;</button>
+            </div>
+            
+            <p class="text-sm text-gray-600 mb-2 font-bold" id="ratingMovieTitle">《星际穿越》</p>
+            
+            <div class="flex flex-col items-center py-4 bg-rose-50 rounded-xl border border-rose-100 mb-4">
+                <span class="text-xs text-gray-500 mb-2">给出你的评分 (1-10分)</span>
+                <div class="star-rating text-2xl flex gap-1" id="starContainer">
+                    <span class="star" data-value="1">★</span>
+                    <span class="star" data-value="2">★</span>
+                    <span class="star" data-value="3">★</span>
+                    <span class="star" data-value="4">★</span>
+                    <span class="star" data-value="5">★</span>
+                    <span class="star" data-value="6">★</span>
+                    <span class="star" data-value="7">★</span>
+                    <span class="star" data-value="8">★</span>
+                    <span class="star" data-value="9">★</span>
+                    <span class="star" data-value="10">★</span>
+                </div>
+                <span id="scoreText" class="text-rose-500 font-bold mt-2 h-5 text-sm"></span>
+            </div>
+
+            <textarea id="reviewInput" rows="2" class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 resize-none text-gray-700 placeholder-rose-300 mb-4" placeholder="写一句短评吧（可选）..."></textarea>
+            
+            <input type="hidden" id="currentRatingMovieId">
+
+            <button onclick="submitRating()" id="submitRatingBtn" class="w-full py-2.5 bg-rose-500 text-white text-sm font-bold rounded-xl shadow-md hover:bg-rose-600 transition">
+                保存评价 ✔️
+            </button>
+        </div>
+    </div>
+
+    <!-- 提示框 -->
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
+
+    <script>
+        // === 基础状态配置 ===
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || '';
+        let myIdentity = localStorage.getItem('loveGacha_myIdentity');
+        
+        // 预览环境容错机制：如果没有身份，默认给一个
+        if (!myIdentity) {
+            myIdentity = '哼哼'; 
+            localStorage.setItem('loveGacha_myIdentity', myIdentity);
+        }
+        
+        const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
+        document.getElementById('currentIdentityLabel').innerText = myIdentity;
+
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_MOVIES = 'data/movies.json'; 
+        
+        let moviesData = { movies: [] };
+        let shaMovies = null;
+        let radarChartInstance = null;
+
+        // 打分状态
+        let currentRatingScore = 0;
+
+        // === 初始化 ===
+        window.onload = async function() {
+            initStars();
+            initGenreSelection();
+            await fetchMoviesData();
+            renderViews();
+        };
+
+        // === 多选标签交互逻辑 ===
+        function initGenreSelection() {
+            const btns = document.querySelectorAll('.genre-btn');
+            btns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    this.classList.toggle('bg-rose-500');
+                    this.classList.toggle('text-white');
+                    this.classList.toggle('border-rose-500');
+                    
+                    this.classList.toggle('text-gray-500');
+                    this.classList.toggle('border-rose-100');
+                });
+            });
+        }
+
+        // === 星星打分交互逻辑 ===
+        function initStars() {
+            const stars = document.querySelectorAll('.star');
+            const scoreText = document.getElementById('scoreText');
+            const desc = ['', '极差 🤮', '很差 😞', '较差 😟', '平庸 😕', '一般 😐', '及格 🙂', '还行 😌', '不错 😋', '推荐 🤩', '神作 🤯'];
+
+            stars.forEach(star => {
+                // 点击确定分数
+                star.addEventListener('click', function() {
+                    currentRatingScore = parseInt(this.getAttribute('data-value'));
+                    updateStars(currentRatingScore);
+                    scoreText.innerText = `${currentRatingScore} 分 - ${desc[currentRatingScore]}`;
+                });
+                // 悬浮预览
+                star.addEventListener('mouseover', function() {
+                    const val = parseInt(this.getAttribute('data-value'));
+                    updateStars(val);
+                });
+                // 移开恢复
+                star.addEventListener('mouseout', function() {
+                    updateStars(currentRatingScore);
+                });
+            });
+        }
+
+        function updateStars(val) {
+            document.querySelectorAll('.star').forEach(s => {
+                if (parseInt(s.getAttribute('data-value')) <= val) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+        }
+
+        // === Tab 切换逻辑 ===
+        function switchTab(tabId) {
+            // UI 按钮状态
+            ['want', 'watched', 'radar'].forEach(id => {
+                const btn = document.getElementById(`tab-${id}`);
+                if (id === tabId) {
+                    btn.className = "flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
+                } else {
+                    btn.className = "flex-1 py-1.5 bg-transparent text-gray-500 rounded-full font-bold transition-all hover:bg-white text-sm";
+                }
+            });
+
+            // 视图显示控制
+            document.getElementById('wantView').classList.add('hidden');
+            document.getElementById('watchedView').classList.add('hidden');
+            document.getElementById('radarView').classList.add('hidden');
+            
+            // 顶部的添加框只在想看列表显示
+            const addSec = document.getElementById('addMovieSection');
+            if(tabId === 'want') addSec.classList.remove('hidden');
+            else addSec.classList.add('hidden');
+
+            document.getElementById(`${tabId}View`).classList.remove('hidden');
+
+            if (tabId === 'radar') {
+                renderRadarChart();
+            }
+        }
+
+        // === 数据通讯层 (模拟 Github 交互 + LocalStorage 兜底) ===
+        async function fetchMoviesData() {
+            if (!GITHUB_TOKEN) {
+                // 回退到本地存储 (方便预览演示)
+                const localData = localStorage.getItem('loveGacha_movies');
+                if (localData) moviesData = JSON.parse(localData);
+                else {
+                    // 初始化一些演示数据
+                    moviesData = {
+                        movies: [
+                            { id: Date.now()-10000, title: "星际穿越", genre: ["科幻", "剧情"], addedBy: "哼哼", ratings: { "哼哼": {score: 10, comment:"神作！"}, "亲亲": {score: 8, comment:"有点烧脑"} } },
+                            { id: Date.now()-5000, title: "爱乐之城", genre: ["爱情", "剧情"], addedBy: "亲亲", ratings: { "哼哼": {score: 6, comment:"歌好听"}, "亲亲": {score: 10, comment:"看哭了"} } },
+                            { id: Date.now(), title: "头脑特工队2", genre: ["动画", "喜剧"], addedBy: "哼哼", ratings: {} } // 想看状态
+                        ]
+                    };
+                }
+                return;
+            }
+
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_MOVIES}?t=${timestamp}`, {
+                    method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                
+                if (response.status === 404) {
+                    moviesData = { movies: [] };
+                    return;
+                }
+                
+                const result = await response.json();
+                const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                moviesData = JSON.parse(contentStr || '{"movies":[]}');
+                shaMovies = result.sha;
+            } catch (error) {
+                showToast("网络请求失败，加载了本地缓存");
+            }
+        }
+
+        async function updateMoviesData() {
+            // 本地兜底保存
+            localStorage.setItem('loveGacha_movies', JSON.stringify(moviesData));
+
+            if (!GITHUB_TOKEN) return { success: true }; // 仅本地模式
+
+            try {
+                const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(moviesData, null, 2)))); 
+                const body = { message: `Update movies data`, content: encodedContent };
+                if (shaMovies) body.sha = shaMovies;
+
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_MOVIES}`, {
+                    method: 'PUT', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                
+                if (!response.ok) return { success: false };
+                
+                const result = await response.json();
+                shaMovies = result.content.sha;
+                return { success: true };
+            } catch (error) { 
+                return { success: false }; 
+            }
+        }
+
+        // === 业务逻辑与渲染 ===
+        function addMovie() {
+            const title = document.getElementById('movieTitleInput').value.trim();
+            const selectedGenreBtns = document.querySelectorAll('.genre-btn.bg-rose-500');
+            const genres = Array.from(selectedGenreBtns).map(btn => btn.getAttribute('data-genre'));
+            
+            if (!title) { showToast("请输入电影名称"); return; }
+            if (genres.length === 0) { showToast("请至少选择一个电影类型"); return; }
+
+            const newMovie = {
+                id: Date.now(),
+                title: title,
+                genre: genres, // 存为数组
+                addedBy: myIdentity,
+                ratings: {} // 为空代表“想看”，有内容代表“已看”
+            };
+
+            moviesData.movies.unshift(newMovie);
+            
+            document.getElementById('movieTitleInput').value = ''; // 清空输入
+            
+            // 清空选中的类型
+            document.querySelectorAll('.genre-btn.bg-rose-500').forEach(btn => {
+                btn.classList.remove('bg-rose-500', 'text-white', 'border-rose-500');
+                btn.classList.add('text-gray-500', 'border-rose-100');
+            });
+            
+            renderViews();
+            updateMoviesData().then(res => {
+                if(!res.success) showToast("同步到云端失败，已保存至本地");
+            });
+        }
+
+        function renderViews() {
+            const wantList = moviesData.movies.filter(m => Object.keys(m.ratings).length === 0);
+            const watchedList = moviesData.movies.filter(m => Object.keys(m.ratings).length > 0);
+
+            // 渲染想看清单
+            const wantContainer = document.getElementById('wantView');
+            if (wantList.length === 0) {
+                wantContainer.innerHTML = '<div class="flex-1 flex flex-col justify-center items-center opacity-50"><span class="text-4xl mb-2">🍿</span><p class="text-sm text-gray-500">清单空空如也，快添加想看的电影吧！</p></div>';
+            } else {
+                wantContainer.innerHTML = wantList.map(m => {
+                    const mGenres = Array.isArray(m.genre) ? m.genre : [m.genre];
+                    const genresHtml = mGenres.map(g => `<span class="text-[10px] bg-white border border-gray-200 text-gray-500 px-1.5 py-0.5 rounded-md">${g}</span>`).join('');
+                    
+                    return `
+                    <div class="bg-rose-50/50 border border-rose-100 rounded-xl p-3 flex justify-between items-center animate-fade-in group hover:bg-rose-50 transition-colors">
+                        <div>
+                            <div class="font-bold text-gray-800 text-sm flex items-center gap-2 flex-wrap">
+                                <span>《${m.title}》</span>
+                                <div class="flex gap-1 flex-wrap">${genresHtml}</div>
+                            </div>
+                            <div class="text-[11px] text-rose-400 mt-1">👤 由 ${m.addedBy} 添加</div>
+                        </div>
+                        <button onclick="openRatingModal(${m.id})" class="shrink-0 bg-white border-2 border-rose-200 text-rose-500 px-3 py-1.5 rounded-full text-xs font-bold hover:bg-rose-500 hover:text-white transition-colors shadow-sm">
+                            打分已看
+                        </button>
+                    </div>
+                    `;
+                }).join('');
+            }
+
+            // 渲染已看评价
+            const watchedContainer = document.getElementById('watchedView');
+            if (watchedList.length === 0) {
+                watchedContainer.innerHTML = '<div class="flex-1 flex flex-col justify-center items-center opacity-50"><span class="text-4xl mb-2">🎬</span><p class="text-sm text-gray-500">还没有一起看完的电影呢~</p></div>';
+            } else {
+                watchedContainer.innerHTML = watchedList.map(m => {
+                    const heng = m.ratings['哼哼'];
+                    const qin = m.ratings['亲亲'];
+                    
+                    const mGenres = Array.isArray(m.genre) ? m.genre : [m.genre];
+                    const genresHtml = mGenres.map(g => `<span class="text-[10px] text-gray-500 bg-white/60 px-1.5 rounded-sm">${g}</span>`).join('');
+                    
+                    // 计算综合评分
+                    let avgScoreText = '?';
+                    if (heng && qin) {
+                        avgScoreText = ((heng.score + qin.score) / 2).toFixed(1);
+                    } else if (heng) avgScoreText = heng.score.toFixed(1);
+                    else if (qin) avgScoreText = qin.score.toFixed(1);
+
+                    // 个人评价渲染
+                    const renderUserReview = (user, data) => {
+                        if (!data) return `
+                            <div class="flex-1 bg-gray-50/80 rounded-lg p-2 border border-gray-100 border-dashed flex flex-col justify-center items-center text-gray-400 cursor-pointer hover:bg-gray-100" ${myIdentity === user ? `onclick="openRatingModal(${m.id})"` : ''}>
+                                <span class="text-xs mb-1">${user}</span>
+                                <span class="text-[10px] bg-white px-2 py-0.5 rounded shadow-sm">等待打分...</span>
+                            </div>
+                        `;
+                        return `
+                            <div class="flex-1 bg-white rounded-lg p-2 border border-rose-50 shadow-sm flex flex-col">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-xs font-bold text-gray-700">${user}</span>
+                                    <span class="text-xs font-bold text-amber-500">${data.score} 分</span>
+                                </div>
+                                <p class="text-[11px] text-gray-500 mt-1 line-clamp-2 italic">"${data.comment || '没有留下短评~'}"</p>
+                            </div>
+                        `;
+                    };
+
+                    return `
+                    <div class="bg-gradient-to-br from-rose-50 to-pink-50/30 border border-rose-100 rounded-xl p-3 flex flex-col gap-2 animate-fade-in shadow-sm relative overflow-hidden">
+                        
+                        <div class="flex justify-between items-start mb-1">
+                            <div>
+                                <h4 class="font-bold text-gray-800 text-sm">《${m.title}》</h4>
+                                <div class="flex gap-1 mt-1 flex-wrap">${genresHtml}</div>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-[10px] text-rose-400 font-bold">综合评分</span>
+                                <div class="flex items-baseline gap-0.5">
+                                    <span class="text-lg font-black text-rose-500">${avgScoreText}</span>
+                                    <span class="text-xs text-rose-300">/ 10.0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 w-full mt-1">
+                            ${renderUserReview('哼哼', heng)}
+                            ${renderUserReview('亲亲', qin)}
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function openRatingModal(movieId) {
+            const movie = moviesData.movies.find(m => m.id === movieId);
+            if (!movie) return;
+
+            document.getElementById('ratingMovieTitle').innerText = `《${movie.title}》`;
+            document.getElementById('currentRatingMovieId').value = movieId;
+            
+            // 重置表单
+            currentRatingScore = 0;
+            updateStars(0);
+            document.getElementById('scoreText').innerText = '';
+            document.getElementById('reviewInput').value = '';
+
+            const modal = document.getElementById('ratingModal');
+            const modalContent = document.getElementById('ratingModalContent');
+            
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            });
+        }
+
+        function closeRatingModal() {
+            const modal = document.getElementById('ratingModal');
+            const modalContent = document.getElementById('ratingModalContent');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => { modal.classList.add('hidden'); }, 200); 
+        }
+
+        function submitRating() {
+            if (currentRatingScore === 0) { showToast("请先点击星星打个分哦~"); return; }
+            
+            const movieId = parseInt(document.getElementById('currentRatingMovieId').value);
+            const comment = document.getElementById('reviewInput').value.trim();
+            
+            const movie = moviesData.movies.find(m => m.id === movieId);
+            if (!movie) return;
+
+            const btn = document.getElementById('submitRatingBtn');
+            btn.innerText = "保存中...";
+            btn.disabled = true;
+
+            // 记录评分
+            movie.ratings[myIdentity] = {
+                score: currentRatingScore,
+                comment: comment
+            };
+
+            updateMoviesData().then(res => {
+                if(!res.success) showToast("同步失败，已保存至本地");
+                else showToast("评价保存成功！");
+                
+                renderViews();
+                closeRatingModal();
+                btn.innerText = "保存评价 ✔️";
+                btn.disabled = false;
+                
+                // 如果在雷达图页面，强制刷新
+                if(!document.getElementById('radarView').classList.contains('hidden')){
+                    renderRadarChart();
+                }
+            });
+        }
+
+        function renderRadarChart() {
+            const genres = ['科幻', '爱情', '悬疑', '恐怖', '喜剧', '动作', '动画', '剧情'];
+            
+            // 数据聚合统计
+            let stats = {
+                '哼哼': { counts: {}, totalScore: {} },
+                '亲亲': { counts: {}, totalScore: {} }
+            };
+
+            genres.forEach(g => {
+                ['哼哼', '亲亲'].forEach(person => {
+                    stats[person].counts[g] = 0;
+                    stats[person].totalScore[g] = 0;
+                });
+            });
+
+            moviesData.movies.forEach(m => {
+                const mGenres = Array.isArray(m.genre) ? m.genre : [m.genre];
+                mGenres.forEach(g => {
+                    if (genres.includes(g)) {
+                        ['哼哼', '亲亲'].forEach(person => {
+                            if (m.ratings[person]) {
+                                stats[person].counts[g]++;
+                                stats[person].totalScore[g] += m.ratings[person].score;
+                            }
+                        });
+                    }
+                });
+            });
+
+            // 计算平均分数组
+            const getAverages = (person) => {
+                return genres.map(g => {
+                    if (stats[person].counts[g] === 0) return 0; // 没有评分的类型默认为0
+                    return stats[person].totalScore[g] / stats[person].counts[g];
+                });
+            };
+
+            const dataHeng = getAverages('哼哼');
+            const dataQin = getAverages('亲亲');
+
+            const ctx = document.getElementById('radarChart').getContext('2d');
+            
+            // 销毁旧实例，防止重影
+            if (radarChartInstance) {
+                radarChartInstance.destroy();
+            }
+
+            radarChartInstance = new Chart(ctx, {
+                type: 'radar',
+                data: {
+                    labels: genres,
+                    datasets: [
+                        {
+                            label: '哼哼的口味',
+                            data: dataHeng,
+                            fill: true,
+                            backgroundColor: 'rgba(56, 189, 248, 0.2)', // 蓝色系
+                            borderColor: 'rgb(56, 189, 248)',
+                            pointBackgroundColor: 'rgb(56, 189, 248)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(56, 189, 248)'
+                        },
+                        {
+                            label: '亲亲的口味',
+                            data: dataQin,
+                            fill: true,
+                            backgroundColor: 'rgba(244, 114, 182, 0.2)', // 粉色系
+                            borderColor: 'rgb(244, 114, 182)',
+                            pointBackgroundColor: 'rgb(244, 114, 182)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(244, 114, 182)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(0, 0, 0, 0.05)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                            pointLabels: {
+                                font: { family: 'Noto Sans SC', size: 12, weight: 'bold' },
+                                color: '#6b7280'
+                            },
+                            ticks: {
+                                beginAtZero: true,
+                                min: 0,
+                                max: 10,
+                                stepSize: 2,
+                                display: false // 不显示具体的网格数字
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: { family: 'Noto Sans SC' },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.r !== null) {
+                                        label += context.parsed.r.toFixed(1) + ' 分';
+                                    }
+                                    if (context.parsed.r === 0) {
+                                        label = context.dataset.label + ': 暂未观看';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // === 工具函数 ===
+        function showToast(msg) { 
+            const toast = document.getElementById('toast'); 
+            toast.innerText = msg; 
+            toast.classList.remove('hidden'); 
+            toast.classList.add('toast-animate'); 
+            setTimeout(() => { 
+                toast.classList.add('hidden'); 
+                toast.classList.remove('toast-animate'); 
+            }, 3000); 
+        }
+
+    </script>
+</body>
+</html>
