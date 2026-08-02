@@ -164,22 +164,30 @@
                 <div id="miniGamePrompt" class="absolute top-8 left-1/2 transform -translate-x-1/2 z-50 bg-rose-500 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg hidden pointer-events-none animate-bounce flex items-center gap-2 whitespace-nowrap"></div>
 
                 <div class="flex justify-between items-start mb-2 relative z-10">
-                    <div>
-                        <div class="flex items-center gap-2">
-                            <h2 id="displayPetName" class="text-2xl font-bold text-gray-800">儿子</h2>
-                            <button onclick="openPreviewModal()" class="text-[10px] sm:text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 px-2.5 py-1 rounded-full shadow-sm hover:bg-indigo-100 transition-colors pointer-events-auto font-bold flex items-center gap-1 active:scale-95">
-                                🧬 进化图鉴
-                            </button>
+                    <div class="w-full">
+                        <div class="flex items-center justify-between w-full">
+                            <div class="flex items-center gap-2">
+                                <h2 id="displayPetName" class="text-2xl font-bold text-gray-800">儿子</h2>
+                                <button onclick="openPreviewModal()" class="text-[10px] sm:text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 px-2.5 py-1 rounded-full shadow-sm hover:bg-indigo-100 transition-colors pointer-events-auto font-bold flex items-center gap-1 active:scale-95">
+                                    🧬 进化图鉴
+                                </button>
+                            </div>
+                            <div class="bg-rose-50 px-3 py-1 rounded-full border border-rose-100 mt-1">
+                                <span class="text-xs text-rose-500 font-bold">EXP: <span id="displayPetExp">0</span>/<span id="displayMaxExp">100</span></span>
+                            </div>
                         </div>
                         <p class="text-rose-400 text-sm font-medium mt-1">Lv.<span id="displayPetLevel">1</span> <span class="text-gray-400 text-xs ml-1" id="displayPetStatus">幼年犬</span></p>
-                    </div>
-                    <div class="bg-rose-50 px-3 py-1 rounded-full border border-rose-100 mt-1">
-                        <span class="text-xs text-rose-500 font-bold">EXP: <span id="displayPetExp">0</span>/<span id="displayMaxExp">100</span></span>
+                        
+                        <!-- 新增：展示已穿戴的装备图标 -->
+                        <div id="equippedItemsDisplay" class="flex flex-wrap gap-1.5 mt-2 hidden">
+                            <!-- 动态注入装备图标 -->
+                        </div>
                     </div>
                 </div>
 
                 <div class="py-12 flex justify-center items-center relative min-h-[320px] select-none touch-none">
                     <div id="glowEffect" class="absolute w-48 h-48 rounded-full mix-blend-multiply filter blur-2xl opacity-40 animate-pulse transition-all duration-1000 z-0"></div>
+                    <!-- 宠物本体容器 -->
                     <div id="petVisualizer" class="z-10 cursor-pointer w-64 h-64 relative flex items-end justify-center pb-10 transition-transform duration-300"></div>
                     <div id="sleepZzzContainer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
                     <div id="interactionText" class="absolute top-4 text-rose-500 font-bold opacity-0 transition-opacity z-20 whitespace-nowrap text-lg shadow-sm"></div>
@@ -369,6 +377,16 @@
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
 
     <script>
+        // 定义装备元数据字典，用于展示UI
+        const PET_ITEMS = {
+            "cwsbyj": { name: "赛博眼镜", icon: "👓" },
+            "cwsbtk": { name: "赛博头盔", icon: "🪖" },
+            "cwsbxq": { name: "赛博项圈", icon: "◎" },
+            "cwsbgl": { name: "赛博狗链", icon: "⛓️‍💥" },
+            "cwsbbj": { name: "赛博背景", icon: "⬜️" },
+            "cwsbjgy": { name: "赛博激光", icon: "⚡️" }
+        };
+
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
 
@@ -393,7 +411,6 @@
         let isProcessing = false; 
         let isNightTime = false; 
 
-        // 统一处理全局锁定状态与按钮UI样式
         function setProcessingState(state) {
             isProcessing = state;
             const buttonsToDisable = [
@@ -406,11 +423,9 @@
                 if (btn) {
                     if (state) {
                         btn.classList.add('opacity-50', 'grayscale', 'pointer-events-none');
-                        // 移除 hover 效果防止视觉误导
                         btn.classList.remove('hover:shadow-md', 'hover:shadow-lg', 'transform', 'hover:-translate-y-1', 'hover:-translate-y-0.5');
                     } else {
                         btn.classList.remove('opacity-50', 'grayscale', 'pointer-events-none');
-                        // 恢复 hover 效果
                         if(btnId === 'adoptBtn' || btnId === 'btn_resonance' || btnId === 'btn_battle') {
                             btn.classList.add('hover:shadow-lg', 'transform', 'hover:-translate-y-0.5');
                         } else {
@@ -420,7 +435,6 @@
                 }
             });
 
-            // 保持因为次数用完而禁用的按钮状态
             if (!state) {
                 updateActionCounts();
             }
@@ -538,7 +552,6 @@
             if (!petData.lastEventDate || petData.lastEventDate !== todayStr) {
                 if (Math.random() < 0.15) {
                     petData.lastEventDate = todayStr;
-                    // ... events definition ...
                     const events = [
                         { type: 'good', title: '🎉 惊喜发现', icon: '🦴', desc: '儿子在院子里刨出了骨头碎片，经验值 +30！', effect: () => { addExp(30); } },
                         { type: 'good', title: '✨ 心情大好', icon: '🦋', desc: '儿子追到了电子蝴蝶，开心得不得了！心情 +20', effect: () => { petData.mood = Math.min(100, petData.mood + 20); } },
@@ -578,7 +591,8 @@
                 mood: 80,
                 clean: 80,
                 lastUpdated: new Date().getTime(),
-                lastEventDate: null
+                lastEventDate: null,
+                equipped: [] // 初始化装备数组
             };
             
             const upRes = await updateFile(FILE_PET, petData, petSha);
@@ -746,11 +760,10 @@
         function cancelMiniGame() {
             document.getElementById('miniGameOverlay').classList.add('hidden');
             document.getElementById('miniGamePrompt').classList.add('hidden');
-            setProcessingState(false); // 主动取消时解锁
+            setProcessingState(false); 
         }
 
         function finishMiniGame(type) {
-            // 结算时隐藏 UI，但不解锁，等待网络请求完成
             document.getElementById('miniGameOverlay').classList.add('hidden');
             document.getElementById('miniGamePrompt').classList.add('hidden');
             executeAction(type, mgState.extra);
@@ -758,7 +771,7 @@
 
         async function doAction(type) {
             if (isProcessing || !petData) return;
-            setProcessingState(true); // 进入任何动作前立刻全盘锁定
+            setProcessingState(true); 
 
             if (isNightTime && ['feed', 'fan', 'walk', 'train', 'battle'].includes(type)) {
                 showToast("嘘... 儿子正在休眠充能，明天再玩吧！"); showInteractionText("Zzz..."); 
@@ -776,7 +789,6 @@
             if (type === 'battle') {
                 await logAction('battle', "进入了虚拟竞技场进行特训 ⚔️");
                 window.location.href = 'battle_arena.html';
-                // 页面跳转，无需解锁
                 return;
             }
 
@@ -795,12 +807,10 @@
                 return;
             }
 
-            // 锁定状态下进入小游戏，直到小游戏 finish 或 cancel 才改变状态
             startMiniGame(type); 
         }
 
         async function executeAction(type, extraData) {
-            // executeAction 被调用时，必定处于锁定状态（继承自 doAction）
             const latestPetRes = await fetchFile(FILE_PET);
             if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; calculateTimeDecay(); }
 
@@ -848,10 +858,10 @@
                 } else { 
                     showToast("网络波动或数据冲突，正在强制刷新..."); 
                     setTimeout(() => window.location.reload(), 1500); 
-                    return; // 发生冲突不解锁，直接等刷新
+                    return; 
                 }
             }
-            setProcessingState(false); // 请求全部完成且成功，全面解锁
+            setProcessingState(false); 
         }
 
         function lerp(start, end, t) { return start + (end - start) * t; }
@@ -873,26 +883,131 @@
             return { head: lerpArray(p1.head, p2.head, t).join(','), earL: lerpArray(p1.earL, p2.earL, t).join(','), earR: lerpArray(p1.earR, p2.earR, t).join(','), visor: lerpArray(p1.visor, p2.visor, t).join(','), core: lerpArray(p1.core, p2.core, t).join(','), eyeSize: lerp(p1.eyeSize, p2.eyeSize, t), wingScale: lerp(p1.wingScale, p2.wingScale, t), fangLength: lerp(p1.fangLength, p2.fangLength, t), armorOpacity: lerp(p1.armorOpacity, p2.armorOpacity, t), crownScale: Math.max(0, (level - 90) / 10) };
         }
 
-        function getPetSVG(level, isNightTime) {
+        // 修改：增加 equipped 参数以注入重制版炫酷道具
+        function getPetSVG(level, isNightTime, equipped = []) {
             const baseHue = (190 + level * 5) % 360;
             const cMain = `hsla(${baseHue}, 80%, 50%, 0.15)`; const cStroke = `hsl(${baseHue}, 100%, 60%)`; const cVisor = `hsl(${(baseHue + 330) % 360}, 100%, 70%)`; const cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
-            const props = getInterpolatedPet(level); let innerSVG = '';
+            const props = getInterpolatedPet(level); 
             
+            // 注入特效所需的 SVG defs 定义 (渐变、遮罩等)
+            let innerSVG = `
+            <defs>
+                <linearGradient id="laserGradL" x1="1" y1="0" x2="0" y2="0">
+                    <stop offset="0%" stop-color="#ef4444" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="laserGradR" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stop-color="#ef4444" stop-opacity="1" />
+                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
+                </linearGradient>
+                <linearGradient id="mechGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#0f172a" />
+                    <stop offset="100%" stop-color="#1e293b" />
+                </linearGradient>
+            </defs>`;
+            
+            // 基础身体结构
             if (props.wingScale > 0.01) { innerSVG += `<g opacity="${isNightTime ? 0.3 : 0.6}" stroke="var(--c-visor)" stroke-width="2" fill="none" stroke-linejoin="round"><polygon points="100,100 ${100 - 50*props.wingScale},${100 - 50*props.wingScale} ${100 - 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/><polygon points="100,100 ${100 + 50*props.wingScale},${100 - 50*props.wingScale} ${100 + 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/><polygon points="100,100 ${100 - 60*props.wingScale},${100 + 10*props.wingScale} ${100 - 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/><polygon points="100,100 ${100 + 60*props.wingScale},${100 + 10*props.wingScale} ${100 + 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/></g>`; }
             innerSVG += `<polygon points="${props.earL}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" /><polygon points="${props.earR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
             if (props.armorOpacity > 0.01) { innerSVG += `<polygon points="50,110 35,130 60,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" /><polygon points="150,110 165,130 140,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" />`; }
             innerSVG += `<polygon points="${props.head}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
             if (props.fangLength > 0.01) { innerSVG += `<polygon points="80,140 75,${140 + 12 * props.fangLength} 90,140" fill="var(--c-stroke)" stroke-linejoin="round" /><polygon points="120,140 125,${140 + 12 * props.fangLength} 110,140" fill="var(--c-stroke)" stroke-linejoin="round" />`; }
+            
+            // 基础眼罩
             if (level >= 10) { const h = Math.min((level-10)*0.5, 10); innerSVG += `<polygon points="100,${60-h} 90,60 110,60" fill="var(--c-visor)" stroke="var(--c-stroke)" stroke-width="1.5" stroke-linejoin="round"/>`; }
             innerSVG += `<g class="cyber-visor"><polygon points="${props.visor}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" /><polygon points="${props.visor}" fill="var(--c-visor)" opacity="${isNightTime ? 0.2 : 0.5}" filter="drop-shadow(0 0 8px var(--c-visor))" stroke-linejoin="round" />${(props.eyeSize > 0.1 && !isNightTime) ? `<circle cx="85" cy="95" r="${props.eyeSize}" fill="#fff" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" /><circle cx="115" cy="95" r="${props.eyeSize}" fill="#fff" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" />` : ''}${(props.eyeSize <= 0.1 && !isNightTime) ? `<circle cx="100" cy="98" r="2" fill="#fff" opacity="0.8" />` : ''}</g>`;
+            
+            // 嘴部、核心
             innerSVG += `<polyline points="75,125 90,130 110,130 125,125" fill="none" stroke="var(--c-stroke)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.5" />`;
             innerSVG += `<g class="${isNightTime ? '' : 'animate-pulse'}" style="transform-origin: 100px 165px; animation-duration: 2s;"><polygon points="${props.core}" fill="var(--c-visor)" filter="drop-shadow(0 0 15px var(--c-visor))" opacity="${isNightTime ? 0.3 : 0.8}" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="${isNightTime ? 0.2 : 0.6}" stroke="var(--c-visor)" stroke-width="1.5" stroke-linejoin="round" /></g>`;
             if (props.crownScale > 0) { innerSVG += `<g transform="translate(80, ${25 - props.crownScale * 15}) scale(${0.4 * props.crownScale})" stroke="#fbbf24" stroke-width="4" fill="#fde047" filter="drop-shadow(0 0 8px #fbbf24)" stroke-linejoin="round"><path d="M 10 90 L 10 40 L 35 60 L 50 10 L 65 60 L 90 40 L 90 90 Z" /></g>`; }
+            
+            // ========== 重制版炫酷宠物装备 ==========
+            let lFac = Math.min(1, level / 100); 
+            let topY = 75 - lFac * 30; // 头部顶端大致Y坐标
+            let botY = 135 + lFac * 25; // 颈部大致Y坐标
+            
+            // 1. 赛博项圈 (霓虹能量流动)
+            if (equipped.includes('cwsbxq')) {
+                innerSVG += `
+                <g filter="drop-shadow(0 0 8px #a78bfa)">
+                    <path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
+                    <path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#ddd6fe" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 6">
+                        <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1s" repeatCount="indefinite" linear/>
+                    </path>
+                    <circle cx="100" cy="${botY+7}" r="7" fill="#10b981" stroke="#047857" stroke-width="2" filter="drop-shadow(0 0 6px #34d399)"/>
+                    <circle cx="100" cy="${botY+7}" r="3" fill="#fff">
+                        <animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                </g>`;
+            }
+
+            // 2. 赛博狗链 (等离子光束链条)
+            if (equipped.includes('cwsbgl')) {
+                innerSVG += `
+                <g filter="drop-shadow(0 0 5px #10b981)">
+                    <path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" />
+                    <path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#6ee7b7" stroke-width="1.5" stroke-dasharray="10 10">
+                        <animate attributeName="stroke-dashoffset" from="40" to="0" dur="0.8s" repeatCount="indefinite" linear/>
+                    </path>
+                </g>`;
+            }
+
+            // 3. 赛博头盔 (机甲金属感 + 动态天线)
+            if (equipped.includes('cwsbtk')) {
+                innerSVG += `
+                <g filter="drop-shadow(0 -5px 15px rgba(6, 182, 212, 0.4))">
+                    <path d="M 45 ${topY+15} Q 100 ${topY-45} 155 ${topY+15} L 145 ${topY+35} Q 100 ${topY-20} 55 ${topY+35} Z" fill="url(#mechGradient)" stroke="#06b6d4" stroke-width="2" stroke-linejoin="round" />
+                    <path d="M 80 ${topY-10} L 120 ${topY-10}" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+                    <line x1="100" y1="${topY-22}" x2="100" y2="${topY-50}" stroke="#06b6d4" stroke-width="2" />
+                    <circle cx="100" cy="${topY-50}" r="4" fill="#f43f5e" filter="drop-shadow(0 0 8px #f43f5e)">
+                        <animate attributeName="opacity" values="1;0.1;1" dur="1s" repeatCount="indefinite" />
+                    </circle>
+                    <polygon points="35,${topY+10} 50,${topY} 50,${topY+25} 35,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" />
+                    <polygon points="165,${topY+10} 150,${topY} 150,${topY+25} 165,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" />
+                </g>`;
+            }
+
+            // 4. 赛博眼镜 (HUD全息投影扫描)
+            if (equipped.includes('cwsbyj')) {
+                innerSVG += `
+                <g filter="drop-shadow(0 0 10px #ec4899)">
+                    <polygon points="${props.visor}" fill="#831843" fill-opacity="0.8" stroke="#ec4899" stroke-width="3" stroke-linejoin="round" />
+                    <polygon points="${props.visor}" fill="none" stroke="#fbcfe8" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
+                    <line x1="45" y1="95" x2="155" y2="95" stroke="#f9a8d4" stroke-width="2">
+                         <animate attributeName="y1" values="80; 120; 80" dur="2s" repeatCount="indefinite"/>
+                         <animate attributeName="y2" values="80; 120; 80" dur="2s" repeatCount="indefinite"/>
+                    </line>
+                    <circle cx="85" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="85 95"/></circle>
+                    <circle cx="115" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="115 95"/></circle>
+                </g>`;
+            }
+
+            // 5. 赛博激光 (高频闪烁等离子光束)
+            if (equipped.includes('cwsbjgy') && !isNightTime) {
+                innerSVG += `
+                <g filter="drop-shadow(0 0 20px #ef4444)">
+                    <polygon points="85,95 -60,60 -60,130 85,100" fill="url(#laserGradL)">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="0.15s" repeatCount="indefinite"/>
+                    </polygon>
+                    <polygon points="85,95 -60,90 -60,100 85,100" fill="#ffffff" opacity="0.9" />
+                    
+                    <polygon points="115,95 260,60 260,130 115,100" fill="url(#laserGradR)">
+                        <animate attributeName="opacity" values="0.6;1;0.6" dur="0.15s" repeatCount="indefinite"/>
+                    </polygon>
+                    <polygon points="115,95 260,90 260,100 115,100" fill="#ffffff" opacity="0.9" />
+                </g>`;
+            }
+
             return { innerSVG, cMain, cStroke, cVisor, cGlow };
         }
 
         function renderPetVisual(pet) {
-            const level = pet.level; const container = document.getElementById('petVisualizer'); const { innerSVG, cMain, cStroke, cVisor, cGlow } = getPetSVG(level, isNightTime);
+            const level = pet.level; 
+            const equipped = pet.equipped || []; 
+            const container = document.getElementById('petVisualizer'); 
+            const { innerSVG, cMain, cStroke, cVisor, cGlow } = getPetSVG(level, isNightTime, equipped);
+            
             let scale = 0.9 + (level / 120); let opacity = 1; let filterStyle = ''; let animClass = "animate-mech"; const maxHunger = getMaxHunger(level);
             
             if (isNightTime) { animClass = ""; opacity = 0.8; filterStyle = 'brightness(0.7)'; } else {
@@ -902,10 +1017,26 @@
             }
 
             let html = `<div class="relative flex justify-center items-center transition-all duration-700 w-full h-full" style="transform: scale(${scale}); filter: ${filterStyle}; opacity: ${opacity};">`;
+            
+            // ========== 重制版酷炫：赛博背景 (HUD战术底盘) ==========
+            if (equipped.includes('cwsbbj')) {
+                html += `
+                <div class="absolute inset-[-30%] pointer-events-none flex items-center justify-center z-[-1] opacity-70">
+                    <div class="absolute inset-0 rounded-full border-[12px] border-cyan-500/20 border-dashed mix-blend-screen" style="animation: spin 30s linear infinite;"></div>
+                    <div class="absolute inset-[15%] rounded-full border-4 border-indigo-500/40 mix-blend-screen border-dotted" style="animation: spin 15s linear infinite reverse;"></div>
+                    <div class="absolute inset-[25%] rounded-full border border-fuchsia-500/30"></div>
+                    <div class="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"></div>
+                    <div class="absolute h-full w-[1px] bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent"></div>
+                    <div class="absolute inset-[30%] bg-blue-500/10 rounded-full blur-xl animate-pulse"></div>
+                </div>`;
+            }
+
             if (level >= 1) { const ring1Size = 130 + level * 0.5; const spd1 = isNightTime ? 20 : Math.max(2, 10 - level * 0.05); html += `<div class="absolute border border-dashed rounded-full mix-blend-screen ${isNightTime ? 'opacity-20' : 'opacity-50'}" style="width: ${ring1Size}px; height: ${ring1Size}px; border-color: ${cStroke}; animation: spin ${spd1}s linear infinite; box-shadow: 0 0 15px ${cGlow} inset;"></div>`; }
             if (level >= 20) { const ring2Size = 160 + (level - 20) * 0.6; const spd2 = isNightTime ? 25 : Math.max(1.5, 8 - level * 0.05); html += `<div class="absolute border-2 border-transparent rounded-full mix-blend-screen opacity-60" style="width: ${ring2Size}px; height: ${ring2Size}px; border-left-color: ${cVisor}; border-right-color: ${cVisor}; animation: spin ${spd2}s linear infinite reverse;"></div>`; }
             html += `<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>`;
+            
             html += `<div class="absolute w-32 h-32 md:w-40 md:h-40 filter drop-shadow-xl ${animClass}" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 20px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full overflow-visible">${innerSVG}</svg></div>`;
+            
             if (!isNightTime) {
                 let sparksMult = (pet.mood < 30 || pet.hunger < maxHunger * 0.3) ? 0 : (pet.mood >= 80 ? 1.5 : 1); const numSparks = Math.floor(2 + (level / 10) * sparksMult); const particleIcons = level < 20 ? ['♥', '✨', '⭐'] : (level < 60 ? ['◈', '⟡', '0', '1'] : ['⚡', '🔥', '✦', '0', '1']);
                 for(let i = 0; i < numSparks; i++) { const spread = 60 + (level / 100) * 40; const offsetX = (Math.random() * spread * 2) - spread; const offsetY = -40 + (Math.random() * 80); html += `<div class="sparkle absolute opacity-80 text-xs mix-blend-screen" style="left: calc(50% + ${offsetX}px); bottom: calc(50% + ${offsetY}px); animation-delay: ${Math.random()*2}s; animation-duration: ${1.5 + Math.random()*1.5}s; color: ${cStroke}; text-shadow: 0 0 5px ${cGlow}; font-weight: 900;">${particleIcons[Math.floor(Math.random()*particleIcons.length)]}</div>`; }
@@ -920,9 +1051,24 @@
 
         function renderPetUI() {
             if (!petData) return;
-            document.getElementById('displayPetName').innerText = petData.name; renderPetVisual(petData);
+            document.getElementById('displayPetName').innerText = petData.name; 
+            renderPetVisual(petData);
+            
             const level = petData.level; const baseHue = (190 + level * 5) % 360; const maxHunger = getMaxHunger(level);
             
+            // 展示当前已穿戴的装备徽章
+            const equippedContainer = document.getElementById('equippedItemsDisplay');
+            if (petData.equipped && petData.equipped.length > 0) {
+                equippedContainer.innerHTML = petData.equipped.map(id => {
+                    const item = PET_ITEMS[id];
+                    if (!item) return '';
+                    return `<div class="bg-indigo-50 border border-indigo-100 text-xs px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm"><span class="drop-shadow-sm">${item.icon}</span> <span class="text-indigo-600 font-bold scale-90">${item.name}</span></div>`;
+                }).join('');
+                equippedContainer.classList.remove('hidden');
+            } else {
+                equippedContainer.classList.add('hidden');
+            }
+
             const petContainer = document.getElementById('petContainer');
             if (petData.hunger < maxHunger * 0.2 || petData.mood < 20) { petContainer.classList.add('danger-glitch'); } else { petContainer.classList.remove('danger-glitch'); }
             const glowEl = document.getElementById('glowEffect'); glowEl.style.backgroundColor = isNightTime ? 'transparent' : `hsla(${baseHue}, 80%, 75%, 0.6)`;
@@ -1019,7 +1165,6 @@
             } else {
                 showToast("网络波动或数据冲突，正在强制刷新..."); 
                 setTimeout(() => window.location.reload(), 1500);
-                // 冲突不解锁，等刷新
             }
         }
 
@@ -1085,7 +1230,20 @@
         }
 
         function generatePetPreviewHtml(level) {
-            const { innerSVG, cMain, cStroke, cVisor, cGlow } = getPetSVG(level, false); let scale = 0.8 + (level / 150); let html = `<div class="relative flex justify-center items-center transition-all duration-300" style="transform: scale(${scale});">`;
+            const equipped = petData && petData.equipped ? petData.equipped : [];
+            const { innerSVG, cMain, cStroke, cVisor, cGlow } = getPetSVG(level, false, equipped); 
+            let scale = 0.8 + (level / 150); 
+            let html = `<div class="relative flex justify-center items-center transition-all duration-300" style="transform: scale(${scale});">`;
+            
+            if (equipped.includes('cwsbbj')) {
+                html += `
+                <div class="absolute inset-[-30%] pointer-events-none flex items-center justify-center z-[-1] opacity-70">
+                    <div class="absolute inset-0 rounded-full border-[12px] border-cyan-500/20 border-dashed mix-blend-screen" style="animation: spin 30s linear infinite;"></div>
+                    <div class="absolute inset-[15%] rounded-full border-4 border-indigo-500/40 mix-blend-screen border-dotted" style="animation: spin 15s linear infinite reverse;"></div>
+                    <div class="absolute inset-[25%] rounded-full border border-fuchsia-500/30"></div>
+                </div>`;
+            }
+
             if (level >= 1) { const ring1Size = 130 + level * 0.5; html += `<div class="absolute border border-dashed rounded-full mix-blend-screen opacity-50" style="width: ${ring1Size}px; height: ${ring1Size}px; border-color: ${cStroke}; animation: spin 10s linear infinite; box-shadow: 0 0 15px ${cGlow} inset;"></div>`; }
             if (level >= 20) { const ring2Size = 160 + (level - 20) * 0.6; html += `<div class="absolute border-2 border-transparent rounded-full mix-blend-screen opacity-60" style="width: ${ring2Size}px; height: ${ring2Size}px; border-left-color: ${cVisor}; border-right-color: ${cVisor}; animation: spin 8s linear infinite reverse;"></div>`; }
             html += `<div class="relative w-32 h-32 md:w-40 md:h-40 filter drop-shadow-2xl animate-mech z-10" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 20px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full overflow-visible">${innerSVG}</svg></div></div>`;
