@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>心愿存钱罐 🐷</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #fdf2f8; 
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            overflow-x: hidden; 
+        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes popIn { 0% { opacity: 0; transform: scale(0.9) translateY(10px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+        .animate-pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; opacity: 0; }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 192, 203, 0.5);
+        }
+        
+        .progress-stripes {
+            background-image: linear-gradient(45deg, rgba(255,255,255,0.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+        }
+
+        /* 隐藏滚动条但保留功能 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 relative">
+
+    <!-- 全局加载遮罩 -->
+    <div id="globalLoader" class="fixed inset-0 bg-white/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center hidden">
+        <svg class="animate-spin h-10 w-10 text-rose-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+        <span class="text-rose-600 font-medium" id="loaderText">正在同步数据...</span>
+    </div>
+    
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-xl text-sm font-medium hidden z-[70] whitespace-nowrap border border-gray-700 transition-opacity duration-300 opacity-0"></div>
+
+    <!-- 头部导航 -->
+    <header class="text-center mb-6 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
+        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-rose-500 flex items-center justify-center gap-2">
+               <span>🐷</span> 心愿存钱罐 <span>🐷</span>
+            </h1>
+        </div>
+        <div class="w-9 h-9"></div> 
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center pb-12">
+        
+        <!-- 我的身份与积分卡片 -->
+        <div class="w-full glass-panel rounded-2xl p-4 mb-6 flex justify-between items-center animate-pop-in" style="animation-delay: 0.1s;">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-full bg-gradient-to-br from-rose-200 to-pink-300 flex items-center justify-center text-xl shadow-sm border-2 border-white">
+                    <span id="myAvatar">🐰</span>
+                </div>
+                <div>
+                    <div class="text-xs text-gray-500 mb-0.5">我的身份</div>
+                    <div class="font-bold text-rose-600" id="myIdentityName">加载中...</div>
+                </div>
+            </div>
+            <div class="text-right border-l border-rose-100 pl-4">
+                <div class="text-xs text-gray-500 mb-0.5">我的可用积分</div>
+                <div class="font-black text-rose-600 flex items-baseline justify-end gap-1">
+                    <span class="text-2xl" id="myPoints">--</span>
+                    <span class="text-xs">🪙</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 共同心愿目标列表 -->
+        <div class="w-full flex justify-between items-end px-1 mb-3 animate-pop-in" style="animation-delay: 0.15s;">
+            <h2 class="text-sm font-bold text-gray-500 flex items-center gap-1.5"><span>📋</span> 我们的心愿单</h2>
+            <button onclick="openTargetModal()" class="text-xs bg-white border border-rose-200 text-rose-500 px-3 py-1.5 rounded-full font-bold shadow-sm hover:bg-rose-50 transition-colors flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> 添加心愿
+            </button>
+        </div>
+        
+        <!-- 心愿列表容器 -->
+        <div id="goalsList" class="w-full space-y-4">
+            <!-- 由 JS 动态渲染手风琴卡片 -->
+        </div>
+
+    </main>
+
+    <!-- 设定目标弹窗 -->
+    <div id="targetModal" class="fixed inset-0 bg-black/50 z-50 hidden flex-col justify-end sm:justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity opacity-0 duration-300">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto shadow-2xl transform translate-y-full sm:translate-y-0 sm:scale-95 transition-transform duration-300 flex flex-col overflow-hidden" id="targetModalContent">
+            <div class="p-6 relative">
+                <button onclick="closeTargetModal()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 bg-gray-50 rounded-full p-1.5 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <div class="flex items-center justify-center w-12 h-12 bg-rose-100 text-rose-500 rounded-full mb-4 mx-auto text-2xl">🎯</div>
+                <h3 class="font-black text-gray-800 text-center text-xl mb-6">许下一个新心愿</h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 mb-1 block">心愿名称 (比如：一起去三亚看海)</label>
+                        <input type="text" id="newTargetName" class="w-full px-4 py-3 text-sm border-2 border-gray-100 rounded-xl focus:outline-none focus:border-rose-400 bg-gray-50 text-gray-800" placeholder="写下你们的共同目标">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 mb-1 block">需要达成的总积分</label>
+                        <input type="number" id="newTargetPoints" class="w-full px-4 py-3 text-sm border-2 border-gray-100 rounded-xl focus:outline-none focus:border-rose-400 bg-gray-50 text-gray-800" placeholder="例如: 1000">
+                    </div>
+                </div>
+
+                <button onclick="saveTarget()" class="w-full mt-8 py-3.5 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition-all text-sm flex justify-center items-center gap-2">
+                    添加心愿
+                </button>
+                <p class="text-[10px] text-gray-400 mt-3 text-center">许下心愿后，双方都可以共同存入积分哦</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存入基金弹窗 -->
+    <div id="donateModal" class="fixed inset-0 bg-black/50 z-50 hidden flex-col justify-end sm:justify-center p-0 sm:p-4 backdrop-blur-sm transition-opacity opacity-0 duration-300">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto shadow-2xl transform translate-y-full sm:translate-y-0 sm:scale-95 transition-transform duration-300 flex flex-col overflow-hidden" id="donateModalContent">
+            <div class="p-6 relative">
+                <button onclick="closeDonateModal()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 bg-gray-50 rounded-full p-1.5 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <div class="flex items-center justify-center w-12 h-12 bg-amber-100 text-amber-500 rounded-full mb-4 mx-auto text-2xl">💰</div>
+                <h3 class="font-black text-gray-800 text-center text-xl mb-1" id="donateModalTitle">捐赠积分</h3>
+                <p class="text-xs text-gray-500 text-center mb-6">为共同的心愿添砖加瓦！</p>
+                
+                <div class="bg-gray-50 p-4 rounded-2xl mb-6 flex justify-between items-center border border-gray-100">
+                    <div class="text-gray-500 text-sm font-medium">当前可用余额</div>
+                    <div class="font-black text-amber-500 text-xl" id="donateModalBalance">--</div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-gray-500 mb-2 block flex justify-between items-end">
+                        <span>你想存入多少积分？</span>
+                        <button onclick="setDonateMax()" class="text-rose-500 bg-rose-50 px-2 py-0.5 rounded text-[10px]">全部存入</button>
+                    </label>
+                    <input type="number" id="donateAmount" class="w-full px-4 py-4 text-lg font-bold border-2 border-gray-100 rounded-xl focus:outline-none focus:border-amber-400 bg-white text-gray-800 text-center" placeholder="0">
+                </div>
+
+                <button onclick="confirmDonate()" class="w-full mt-8 py-3.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-bold rounded-xl shadow-md transform hover:-translate-y-0.5 transition-all text-sm flex justify-center items-center gap-2 active:scale-95">
+                    确认存入
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 配置与身份验证 ---
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const myIdentity = localStorage.getItem('loveGacha_myIdentity'); // '哼哼' 或 '亲亲'
+
+        if (!GITHUB_TOKEN || !myIdentity) {
+            document.body.innerHTML = '<div class="flex h-screen items-center justify-center text-rose-500 font-bold text-center p-4">未检测到登录信息，请从主页登录。<br><br>为了演示效果，已自动分配游客身份。</div>';
+            setTimeout(() => {
+                localStorage.setItem('loveGacha_githubToken', 'DEMO_TOKEN');
+                localStorage.setItem('loveGacha_myIdentity', '哼哼');
+                window.location.reload();
+            }, 2000);
+        }
+
+        document.getElementById('myIdentityName').innerText = myIdentity;
+        document.getElementById('myAvatar').innerText = myIdentity === '哼哼' ? '🐰' : '🐱';
+        
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_CK_H = 'data/hck.json'; 
+        const FILE_CK_Q = 'data/qck.json'; 
+        const FILE_FUND = 'data/cqg.json'; 
+        
+        const myCkPath = myIdentity === '哼哼' ? FILE_CK_H : FILE_CK_Q;
+
+        let myCkData = { points: 0 };
+        let myCkSha = null;
+        
+        let fundData = { wishFunds: [] };
+        let fundSha = null;
+        
+        let expandedGoals = {}; 
+        let currentDonateGoalId = null;
+
+        // --- 2. 核心网络请求 ---
+        async function fetchFile(filePath) {
+            try {
+                const ts = new Date().getTime();
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${ts}`, {
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                
+                if (res.status === 404) return { data: null, sha: null }; 
+                if (!res.ok) throw new Error('API Error');
+                
+                const result = await res.json();
+                const content = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                return { data: JSON.parse(content || '{}'), sha: result.sha };
+            } catch (e) {
+                console.warn("读取失败，使用本地测试数据", e);
+                return { data: null, sha: 'mock_sha_' + Math.random() };
+            }
+        }
+
+        async function updateFile(filePath, dataObj, sha) {
+            try {
+                const content = btoa(unescape(encodeURIComponent(JSON.stringify(dataObj, null, 2)))); 
+                const body = { message: `Wish fund update ${new Date().getTime()}`, content: content };
+                if (sha && !sha.startsWith('mock_sha')) body.sha = sha;
+
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT', 
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify(body)
+                });
+                
+                if (!res.ok) throw new Error('Update failed');
+                const result = await res.json();
+                return { success: true, sha: result.content.sha };
+            } catch (e) {
+                console.warn("保存失败，模拟成功", e);
+                return { success: true, sha: 'mock_sha_' + Math.random() };
+            }
+        }
+
+        // --- 3. 页面初始化加载 ---
+        window.onload = async function() {
+            showLoader("正在打开存钱罐...");
+            await loadData();
+            hideLoader();
+            renderUI();
+        };
+
+        async function loadData() {
+            const [meRes, fundRes] = await Promise.all([
+                fetchFile(myCkPath),
+                fetchFile(FILE_FUND)
+            ]);
+            
+            myCkData = meRes.data || { points: 50 }; // 测试默认
+            myCkSha = meRes.sha;
+            
+            if (fundRes.data) {
+                if (fundRes.data.wishFunds) {
+                    fundData = fundRes.data;
+                } else if (fundRes.data.targetName) {
+                    // 兼容旧版单一目标的数据结构
+                    fundData = {
+                        wishFunds: [{
+                            id: 1, 
+                            targetName: fundRes.data.targetName,
+                            targetPoints: fundRes.data.targetPoints,
+                            currentTotal: fundRes.data.currentTotal,
+                            contributions: Object.assign({"哼哼": 0, "亲亲": 0}, fundRes.data.contributions)
+                        }]
+                    };
+                }
+            }
+            fundSha = fundRes.sha;
+            
+            // 默认展开第一个未完成的目标
+            if (fundData.wishFunds.length > 0) {
+                const firstIncomplete = fundData.wishFunds.find(g => g.currentTotal < g.targetPoints);
+                if (firstIncomplete) expandedGoals[firstIncomplete.id] = true;
+                else expandedGoals[fundData.wishFunds[0].id] = true;
+            }
+        }
+
+        // --- 4. 渲染UI逻辑 ---
+        function toggleGoal(id) {
+            expandedGoals[id] = !expandedGoals[id];
+            renderUI();
+        }
+
+        function renderUI() {
+            document.getElementById('myPoints').innerText = myCkData.points;
+            const goalsList = document.getElementById('goalsList');
+            
+            if (!fundData.wishFunds || fundData.wishFunds.length === 0) {
+                goalsList.innerHTML = `<div class="text-center text-gray-400 text-xs py-8 bg-white/50 rounded-2xl border border-rose-100 border-dashed animate-pop-in">还没有设定心愿哦，快去添加一个吧~ ✨</div>`;
+                return;
+            }
+
+            let html = '';
+            // 排序：未完成的在前，完成的在后
+            let sortedGoals = [...fundData.wishFunds].sort((a, b) => {
+                const aDone = a.currentTotal >= a.targetPoints;
+                const bDone = b.currentTotal >= b.targetPoints;
+                if (aDone === bDone) return b.id - a.id; 
+                return aDone ? 1 : -1; 
+            });
+
+            sortedGoals.forEach((goal, index) => {
+                const isExpanded = !!expandedGoals[goal.id];
+                let target = goal.targetPoints > 0 ? goal.targetPoints : 1;
+                
+                let totalRatio = Math.min((goal.currentTotal / target) * 100, 100);
+                const isCompleted = totalRatio >= 100;
+
+                const valH = goal.contributions["哼哼"] || 0;
+                const valQ = goal.contributions["亲亲"] || 0;
+                let hRatio = 0, qRatio = 0;
+                
+                if (goal.currentTotal > 0) {
+                    let calcTotal = isCompleted ? goal.currentTotal : target;
+                    hRatio = (valH / calcTotal) * 100;
+                    qRatio = (valQ / calcTotal) * 100;
+                }
+                
+                let encText = '';
+                let encClass = 'text-gray-500';
+                if (isCompleted) {
+                    encText = `🎉 目标已达成！快去兑现吧！`;
+                    encClass = 'text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 p-2 rounded-lg';
+                } else if (valH === 0 && valQ === 0) {
+                    encText = "存钱罐空空如也，快来投入第一笔积分！🪙";
+                } else if (valH > valQ) {
+                    encText = `目前 <span class="font-bold text-blue-500">🐰哼哼</span> 领先！亲亲还差 ${valH - valQ} 分追平`;
+                } else if (valQ > valH) {
+                    encText = `目前 <span class="font-bold text-pink-500">🐱亲亲</span> 领先！哼哼还差 ${valQ - valH} 分追平`;
+                } else {
+                    encText = `双方势均力敌，贡献一样多！⚖️`;
+                }
+
+                html += `
+                <div class="w-full glass-panel rounded-2xl overflow-hidden transition-all duration-300 animate-pop-in shadow-sm hover:shadow-md" style="animation-delay: ${index * 0.1}s;">
+                    <!-- 卡片头部 (点击折叠) -->
+                    <div onclick="toggleGoal(${goal.id})" class="p-4 flex items-center justify-between cursor-pointer hover:bg-rose-50/50 transition-colors ${isExpanded ? 'bg-white/60' : ''}">
+                        <div class="flex items-center gap-3 flex-1">
+                            <div class="w-10 h-10 rounded-full ${isCompleted ? 'bg-gradient-to-br from-emerald-100 to-green-200 text-emerald-600' : 'bg-gradient-to-br from-rose-100 to-pink-200 text-rose-500'} flex items-center justify-center text-xl shadow-inner border border-white">
+                                ${isCompleted ? '🎉' : '🎁'}
+                            </div>
+                            <div>
+                                <h3 class="font-bold ${isCompleted ? 'text-gray-500 line-through decoration-emerald-300 decoration-2' : 'text-gray-800'} text-base">${goal.targetName}</h3>
+                                <div class="text-xs ${isCompleted ? 'text-emerald-500 font-medium' : 'text-gray-400'} mt-0.5">
+                                    进度: ${Math.floor(totalRatio)}% (${goal.currentTotal}/${goal.targetPoints})
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-gray-400 transform transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- 展开的详细内容 -->
+                    <div class="${isExpanded ? 'block' : 'hidden'} border-t border-rose-50/50 p-4 bg-white/40">
+                        <div class="w-full bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-3">
+                            <div class="flex justify-between text-[10px] font-bold mb-1.5">
+                                <span class="text-gray-400">贡献进度</span>
+                                <span class="text-rose-500 text-xs">${Math.floor(totalRatio)}%</span>
+                            </div>
+                            
+                            <!-- 进度条 -->
+                            <div class="w-full h-5 bg-gray-100 rounded-full overflow-hidden flex relative shadow-inner">
+                                <div class="h-full bg-gradient-to-r from-blue-400 to-indigo-400 progress-stripes transition-all duration-1000 ease-out" style="width: ${hRatio}%;"></div>
+                                <div class="h-full bg-gradient-to-r from-pink-400 to-rose-400 progress-stripes transition-all duration-1000 ease-out" style="width: ${qRatio}%;"></div>
+                            </div>
+                            
+                            <!-- 贡献比例文字 -->
+                            <div class="w-full flex justify-between mt-2">
+                                <div class="flex items-center gap-1 text-[10px] font-medium text-gray-500">
+                                    <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                                    🐰 哼哼: <span class="font-bold text-gray-700">${valH}</span>
+                                </div>
+                                <div class="flex items-center gap-1 text-[10px] font-medium text-gray-500">
+                                    🐱 亲亲: <span class="font-bold text-gray-700">${valQ}</span>
+                                    <div class="w-2 h-2 rounded-full bg-pink-400"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center text-xs mb-3 ${encClass}">${encText}</div>
+
+                        ${!isCompleted ? `
+                        <button onclick="openDonateModal(${goal.id})" class="w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all text-sm flex items-center justify-center gap-1.5 active:scale-95">
+                            <span>💰</span> 存入积分
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+                `;
+            });
+
+            goalsList.innerHTML = html;
+        }
+
+        // --- 5. 交互逻辑 (添加目标) ---
+        function openTargetModal() {
+            document.getElementById('newTargetName').value = '';
+            document.getElementById('newTargetPoints').value = '';
+            
+            const modal = document.getElementById('targetModal');
+            modal.classList.remove('hidden');
+            // Allow display block to apply before animating opacity
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('targetModalContent').classList.remove('translate-y-full', 'sm:scale-95');
+                document.getElementById('targetModalContent').classList.add('translate-y-0', 'sm:scale-100');
+            }, 10);
+        }
+
+        function closeTargetModal() {
+            const modal = document.getElementById('targetModal');
+            modal.classList.add('opacity-0');
+            document.getElementById('targetModalContent').classList.add('translate-y-full', 'sm:scale-95');
+            document.getElementById('targetModalContent').classList.remove('translate-y-0', 'sm:scale-100');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        async function saveTarget() {
+            const newName = document.getElementById('newTargetName').value.trim();
+            const newPoints = parseInt(document.getElementById('newTargetPoints').value);
+
+            if (!newName) return showToast("心愿名称不能为空哦");
+            if (isNaN(newPoints) || newPoints <= 0) return showToast("请输入有效的目标积分数");
+
+            closeTargetModal();
+            showLoader("正在添加新心愿...");
+
+            const newGoal = {
+                id: Date.now(),
+                targetName: newName,
+                targetPoints: newPoints,
+                currentTotal: 0,
+                contributions: { "哼哼": 0, "亲亲": 0 }
+            };
+
+            fundData.wishFunds.unshift(newGoal); // 放到最前面
+            expandedGoals[newGoal.id] = true; // 自动展开新目标
+
+            const res = await updateFile(FILE_FUND, fundData, fundSha);
+            hideLoader();
+
+            if (res.success) {
+                fundSha = res.sha;
+                showToast("🎯 新心愿已添加！");
+                renderUI();
+            } else {
+                fundData.wishFunds.shift(); // 失败回滚
+                showToast("网络开小差了，添加失败");
+            }
+        }
+
+        // --- 6. 交互逻辑 (捐款) ---
+        function openDonateModal(goalId) {
+            if (myCkData.points <= 0) {
+                showToast("你现在没有积分啦，快去其他游戏赚取吧！");
+                return;
+            }
+            
+            currentDonateGoalId = goalId;
+            const goal = fundData.wishFunds.find(g => g.id === goalId);
+            document.getElementById('donateModalTitle').innerText = `为 "${goal.targetName}" 存入`;
+            document.getElementById('donateModalBalance').innerText = myCkData.points;
+            document.getElementById('donateAmount').value = '';
+            
+            const modal = document.getElementById('donateModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                document.getElementById('donateModalContent').classList.remove('translate-y-full', 'sm:scale-95');
+                document.getElementById('donateModalContent').classList.add('translate-y-0', 'sm:scale-100');
+            }, 10);
+        }
+
+        function closeDonateModal() {
+            const modal = document.getElementById('donateModal');
+            modal.classList.add('opacity-0');
+            document.getElementById('donateModalContent').classList.add('translate-y-full', 'sm:scale-95');
+            document.getElementById('donateModalContent').classList.remove('translate-y-0', 'sm:scale-100');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        function setDonateMax() {
+            document.getElementById('donateAmount').value = myCkData.points;
+        }
+
+        async function confirmDonate() {
+            const amount = parseInt(document.getElementById('donateAmount').value);
+            
+            if (isNaN(amount) || amount <= 0) return showToast("请输入正确的积分数量");
+            if (amount > myCkData.points) return showToast("余额不足，赚够了再来哦~");
+            if (!currentDonateGoalId) return showToast("找不到目标心愿");
+
+            const goalIndex = fundData.wishFunds.findIndex(g => g.id === currentDonateGoalId);
+            if (goalIndex === -1) return showToast("目标不存在");
+            
+            const goal = fundData.wishFunds[goalIndex];
+            closeDonateModal();
+            showLoader("正在将积分存入金库...");
+
+            // 1. 本地更新扣款和存入
+            myCkData.points -= amount;
+            goal.contributions[myIdentity] += amount;
+            goal.currentTotal += amount;
+
+            // 2. 并行上传个人和全局数据
+            const [meRes, fundRes] = await Promise.all([
+                updateFile(myCkPath, myCkData, myCkSha),
+                updateFile(FILE_FUND, fundData, fundSha)
+            ]);
+
+            hideLoader();
+
+            if (meRes.success && fundRes.success) {
+                myCkSha = meRes.sha;
+                fundSha = fundRes.sha;
+                showToast(`🎉 成功存入 ${amount} 积分！`);
+                renderUI();
+                
+                // 庆祝动画：如果刚好达标
+                if (goal.currentTotal >= goal.targetPoints && (goal.currentTotal - amount) < goal.targetPoints) {
+                    setTimeout(() => { showToast(`🎊 太棒了！你们共同完成了心愿：${goal.targetName}！`); }, 500);
+                }
+            } else {
+                showToast("同步失败，请刷新页面重试");
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        }
+
+        // --- 7. 工具与特效函数 ---
+        function showLoader(text) {
+            document.getElementById('loaderText').innerText = text;
+            document.getElementById('globalLoader').classList.remove('hidden');
+        }
+        
+        function hideLoader() {
+            document.getElementById('globalLoader').classList.add('hidden');
+        }
+
+        let toastTimeout;
+        function showToast(msg) { 
+            const toast = document.getElementById('toast'); 
+            toast.innerText = msg; 
+            toast.classList.remove('hidden'); 
+            
+            // Trigger reflow
+            void toast.offsetWidth; 
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100', 'translate-y-[-20px]');
+
+            if(toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { 
+                toast.classList.remove('opacity-100', 'translate-y-[-20px]');
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000); 
+        }
+    </script>
+</body>
+</html>
