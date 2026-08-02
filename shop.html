@@ -37,6 +37,10 @@
         
         .tab-active { background-color: #f43f5e; color: white; border-color: #f43f5e; box-shadow: 0 4px 6px -1px rgba(244, 63, 94, 0.2); }
         .tab-inactive { background-color: white; color: #6b7280; border-color: #e5e7eb; }
+
+        /* 子选项卡样式 */
+        .subtab-active { background-color: #fff1f2; color: #f43f5e; font-weight: bold; }
+        .subtab-inactive { color: #9ca3af; font-weight: bold; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-8 px-4 pb-20">
@@ -88,18 +92,46 @@
             
             <!-- 1. 商场视图 -->
             <div id="view_mall" class="w-full animate-fade-in hidden">
-                <!-- 盲盒置顶区 -->
-                <div id="blindBoxContainer" class="mb-3"></div>
-                <!-- 商品网格 -->
-                <div class="grid grid-cols-2 gap-3" id="mallGrid">
-                    <!-- JS 动态渲染商场物品 -->
+                
+                <!-- 新增：商场子选项卡 (道具 / 宠物) -->
+                <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm overflow-hidden p-1 gap-1 border border-gray-100">
+                    <button onclick="switchSubTab('props')" id="subtab_props" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-active">🎁 道具</button>
+                    <button onclick="switchSubTab('pets')" id="subtab_pets" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50">🐾 宠物</button>
                 </div>
+
+                <!-- 道具商品区 -->
+                <div id="mall_props" class="w-full animate-fade-in">
+                    <!-- 盲盒置顶区 -->
+                    <div id="blindBoxContainer" class="mb-3"></div>
+                    <!-- 商品网格 -->
+                    <div class="grid grid-cols-2 gap-3" id="mallGrid">
+                        <!-- JS 动态渲染商场道具 -->
+                    </div>
+                </div>
+
+                <!-- 宠物商品区 -->
+                <div id="mall_pets" class="w-full animate-fade-in hidden">
+                    <div class="grid grid-cols-2 gap-3" id="petsGrid">
+                        <!-- JS 动态渲染商场宠物 -->
+                    </div>
+                </div>
+
             </div>
 
             <!-- 2. 仓库视图 -->
             <div id="view_inventory" class="w-full animate-fade-in hidden">
-                <div class="space-y-3" id="inventoryList">
-                    <!-- JS 动态渲染仓库物品 -->
+                <!-- 新增：仓库子选项卡 -->
+                <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm overflow-hidden p-1 gap-1 border border-gray-100">
+                    <button onclick="switchInventorySubTab('props')" id="inv_subtab_props" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-active">🎁 我的道具</button>
+                    <button onclick="switchInventorySubTab('pets')" id="inv_subtab_pets" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50">🐾 宠物道具</button>
+                </div>
+                
+                <div id="inventory_props" class="space-y-3 animate-fade-in">
+                    <!-- JS 动态渲染仓库道具 -->
+                </div>
+
+                <div id="inventory_pets" class="space-y-3 animate-fade-in hidden">
+                    <!-- JS 动态渲染宠物道具 -->
                 </div>
             </div>
 
@@ -142,7 +174,7 @@
                 <span class="text-rose-500 font-bold text-lg"><span id="buyPrice"></span> 积分</span>
             </div>
             <div class="flex gap-3">
-                <button onclick="closeModal('buyModal')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
+                <button onclick="closeModal('buyModal', 'buyModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
                 <button id="confirmBuyBtn" class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">确认购买</button>
             </div>
         </div>
@@ -221,12 +253,18 @@
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const PARTNER_FILE = `data/${partnerIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
-        const SCWP_FILE = 'data/scwp.json'; // 商场物品配置文件
+        
+        const SCWP_FILE = 'data/scwp.json'; // 道具商品配置
+        const CWSP_FILE = 'data/cwsp.json'; // 宠物商品配置
+        const CW_FILE = 'data/cw.json';     // 宠物拥有的存档数据
 
         // ----------------- 全局状态 -----------------
-        let mallItems = []; // 动态获取的商场物品列表
-        let myData = { points: 0, inventory: {}, pendingUses: [], sha: null }; // 默认送50积分
-        let partnerData = { points: 0, inventory: {}, pendingUses: [], sha: null };
+        let mallItems = []; // 道具列表
+        let petItems = [];  // 宠物列表
+        
+        let myData = { points: 50, inventory: {}, pendingUses: [], sha: null }; 
+        let partnerData = { points: 50, inventory: {}, pendingUses: [], sha: null };
+        let cwData = { sha: null }; // 将结构化为 { "哼哼": {inventory:{}}, "亲亲": {inventory:{}} }
 
         // 编码解码工具
         function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
@@ -283,32 +321,40 @@
             document.getElementById('loadingView').classList.remove('hidden');
             document.getElementById('contentView').classList.add('hidden');
 
-            const [myRes, partnerRes, scwpRes] = await Promise.all([
-                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE)
+            const [myRes, partnerRes, scwpRes, cwspRes, cwRes] = await Promise.all([
+                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE), 
+                fetchFile(CWSP_FILE), fetchFile(CW_FILE)
             ]);
 
-            if (myRes.error || partnerRes.error || scwpRes.error) {
+            if (myRes.error || partnerRes.error || scwpRes.error || cwspRes.error || cwRes.error) {
                 showToast("获取数据失败，请检查网络或Token");
                 return;
             }
 
-            // 获取商场商品配置
+            // 获取道具配置
             if (scwpRes.data && Array.isArray(scwpRes.data)) {
                 mallItems = scwpRes.data;
             } else {
-                // 如果文件不存在或格式不对，提供保底默认商品
                 mallItems = [
                     { id: 'truth', name: '真心话卷', price: 3, icon: '🙊', desc: '强制对方如实回答一个问题' },
-                    { id: 'peace', name: '和解卷', price: 10, icon: '🕊️', desc: '吵架时使用，无条件和好如初' },
-                    { id: 'immunity', name: '豁免券', price: 8, icon: '🛡️', desc: '免除一次家务、跑腿或惩罚' },
-                    { id: 'caprice', name: '任性券', price: 5, icon: '👑', desc: '满足一个小小的、不过分的任性要求' }
+                    { id: 'peace', name: '和解卷', price: 10, icon: '🕊️', desc: '吵架时使用，无条件和好如初' }
                 ];
             }
 
-            // 合并或初始化数据
+            // 获取宠物商品配置
+            if (cwspRes.data && Array.isArray(cwspRes.data)) {
+                petItems = cwspRes.data;
+            } else {
+                // 如果文件不存在，提供默认宠物道具
+                petItems = [
+                    { id: 'pet_food', name: '高级罐头', price: 15, icon: '🥫', desc: '美味的宠物罐头' },
+                    { id: 'pet_toy', name: '毛绒玩具', price: 20, icon: '🪀', desc: '宠物最喜欢的互动玩具' }
+                ];
+            }
+
+            // 合并或初始化玩家数据
             if (myRes.data) {
                 myData = { ...myData, ...myRes.data, sha: myRes.sha };
-                // 兼容旧数据结构，确保字段存在
                 if(typeof myData.points !== 'number') myData.points = 50;
                 if(!myData.inventory) myData.inventory = {};
                 if(!myData.pendingUses) myData.pendingUses = [];
@@ -318,6 +364,15 @@
                 if(!partnerData.pendingUses) partnerData.pendingUses = [];
             }
 
+            // 合并或初始化宠物存档数据
+            if (cwRes.data) {
+                cwData = { ...cwRes.data, sha: cwRes.sha };
+            }
+            if (!cwData[myIdentity]) cwData[myIdentity] = { inventory: {} };
+            if (!cwData[partnerIdentity]) cwData[partnerIdentity] = { inventory: {} };
+            if (!cwData.shared) cwData.shared = { inventory: {} }; // 新增：初始化共有物品仓库
+            if (!cwData.equipped) cwData.equipped = []; // 新增：初始化穿戴列表
+
             // 更新UI
             document.getElementById('myPoints').innerText = myData.points;
             renderMall();
@@ -326,7 +381,10 @@
 
             document.getElementById('loadingView').classList.add('hidden');
             document.getElementById('contentView').classList.remove('hidden');
-            switchTab('mall'); // 默认进商场
+            
+            // 默认进商场的道具面板
+            switchTab('mall'); 
+            switchSubTab('props');
         }
 
         // ----------------- UI 渲染逻辑 -----------------
@@ -344,14 +402,54 @@
             });
         }
 
+        // 切换 商场中的 道具/宠物 子选项卡
+        function switchSubTab(tabName) {
+            const propsBtn = document.getElementById('subtab_props');
+            const petsBtn = document.getElementById('subtab_pets');
+            const propsView = document.getElementById('mall_props');
+            const petsView = document.getElementById('mall_pets');
+
+            if (tabName === 'props') {
+                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
+                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
+                propsView.classList.remove('hidden');
+                petsView.classList.add('hidden');
+            } else {
+                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
+                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
+                petsView.classList.remove('hidden');
+                propsView.classList.add('hidden');
+            }
+        }
+
+        // 切换 仓库中的 道具/宠物 子选项卡
+        function switchInventorySubTab(tabName) {
+            const propsBtn = document.getElementById('inv_subtab_props');
+            const petsBtn = document.getElementById('inv_subtab_pets');
+            const propsView = document.getElementById('inventory_props');
+            const petsView = document.getElementById('inventory_pets');
+
+            if (tabName === 'props') {
+                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
+                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
+                propsView.classList.remove('hidden');
+                petsView.classList.add('hidden');
+            } else {
+                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
+                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
+                petsView.classList.remove('hidden');
+                propsView.classList.add('hidden');
+            }
+        }
+
         function renderMall() {
-            // 渲染置顶盲盒区
+            // 1. 渲染道具置顶盲盒区
             document.getElementById('blindBoxContainer').innerHTML = `
                 <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-md text-white flex items-center justify-between relative overflow-hidden transform transition active:scale-95 cursor-pointer" onclick="promptBuyBlindBox()">
                     <div class="absolute -right-6 -bottom-6 text-8xl opacity-10 transform -rotate-12">🎁</div>
                     <div class="relative z-10 w-2/3">
                         <h3 class="font-black text-lg mb-1 flex items-center gap-1 text-yellow-200 drop-shadow-md">✨ 惊喜盲盒</h3>
-                        <p class="text-[11px] text-white/90 mb-3 leading-snug">花 10 积分抽取商场任意商品，试试今天的手气！</p>
+                        <p class="text-[11px] text-white/90 mb-3 leading-snug">花 10 积分抽取商场任意道具，试试手气！</p>
                         <div class="bg-black/20 backdrop-blur-md rounded-full py-1.5 px-4 text-xs font-bold w-fit border border-white/20">
                             🪙 10 积分抽取
                         </div>
@@ -362,7 +460,7 @@
                 </div>
             `;
 
-            // 渲染常规商品列表
+            // 2. 渲染道具商品网格
             const grid = document.getElementById('mallGrid');
             grid.innerHTML = mallItems.map(item => `
                 <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-sm text-center transform transition-transform active:scale-95 flex flex-col justify-between">
@@ -374,19 +472,104 @@
                         <div class="mt-2 mb-3 bg-rose-50 text-rose-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">
                             🪙 ${item.price} 积分
                         </div>
-                        <button onclick="promptBuy('${item.id}')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold shadow hover:bg-rose-600 transition">
+                        <button onclick="promptBuy('${item.id}', 'prop')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold shadow hover:bg-rose-600 transition">
                             购买
                         </button>
                     </div>
                 </div>
             `).join('');
+
+            // 3. 渲染宠物商品网格
+            const petsGrid = document.getElementById('petsGrid');
+            petsGrid.innerHTML = petItems.map(item => {
+                // 如果 sfgy 为 1，则从共有仓库读取数量；否则从个人仓库读取
+                const currentCount = item.sfgy === 1 
+                    ? (cwData.shared.inventory[item.id] || 0) 
+                    : (cwData[myIdentity].inventory[item.id] || 0);
+                const hasLimit = item.gmcs !== undefined;
+                const reachedLimit = hasLimit && currentCount >= item.gmcs;
+
+                return `
+                <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm text-center transform transition-transform active:scale-95 flex flex-col justify-between relative overflow-hidden">
+                    <div class="absolute -top-3 -right-3 text-5xl opacity-5">🐾</div>
+                    <div>
+                        <div class="text-4xl mb-2 filter drop-shadow-sm">${item.icon}</div>
+                        <h3 class="font-bold text-gray-800 text-sm leading-tight">${item.name}</h3>
+                        <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${item.desc}</p>
+                        ${hasLimit ? `<p class="text-[10px] text-pink-500 font-bold mt-1">限购: ${currentCount}/${item.gmcs}</p>` : ''}
+                    </div>
+                    <div>
+                        <div class="mt-2 mb-3 bg-pink-50 text-pink-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">
+                            🪙 ${item.price} 积分
+                        </div>
+                        ${reachedLimit 
+                            ? `<button class="w-full py-2 bg-gray-300 text-white rounded-xl text-xs font-bold shadow cursor-not-allowed">已达限购</button>` 
+                            : `<button onclick="promptBuy('${item.id}', 'pet')" class="w-full py-2 bg-pink-500 text-white rounded-xl text-xs font-bold shadow hover:bg-pink-600 transition">购买</button>`
+                        }
+                    </div>
+                </div>
+                `;
+            }).join('');
         }
 
         function renderInventory() {
-            const list = document.getElementById('inventoryList');
+            const propsContainer = document.getElementById('inventory_props');
+            const petsContainer = document.getElementById('inventory_pets');
             
-            // 1. 可用物品
-            const availableItemsHtml = Object.keys(myData.inventory)
+            // 1. 渲染拥有的宠物道具 (从 cwData 获取)
+            const personalPets = Object.keys(cwData[myIdentity].inventory)
+                .filter(id => cwData[myIdentity].inventory[id] > 0)
+                .map(id => ({ id, count: cwData[myIdentity].inventory[id], isShared: false }));
+                
+            const sharedPets = Object.keys(cwData.shared.inventory)
+                .filter(id => cwData.shared.inventory[id] > 0)
+                .map(id => ({ id, count: cwData.shared.inventory[id], isShared: true }));
+                
+            const allPets = [...personalPets, ...sharedPets];
+            const cwEquipped = cwData.equipped || [];
+
+            const ownedPetsHtml = allPets.map(pet => {
+                const id = pet.id;
+                const itemDef = petItems.find(i => i.id === id) || { name: id, icon: '🐾', desc: '神秘宠物道具' };
+                const badgeText = pet.isShared ? '👫 双方共有' : '宠物专属';
+                const badgeClass = pet.isShared ? 'text-purple-500 bg-purple-50 border-purple-200' : 'text-pink-400 bg-white border-pink-200';
+                
+                let actionButtonHtml = '';
+                if (itemDef.sfgy === 1) {
+                    const isEquipped = cwEquipped.includes(id);
+                    if (isEquipped) {
+                        actionButtonHtml = `<button onclick="toggleEquipPetItem('${id}', false)" class="px-4 py-1.5 bg-gray-200 text-gray-600 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap">卸下</button>`;
+                    } else {
+                        actionButtonHtml = `<button onclick="toggleEquipPetItem('${id}', true)" class="px-4 py-1.5 bg-purple-500 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap shadow-purple-200">穿戴</button>`;
+                    }
+                } else {
+                    actionButtonHtml = `<button onclick="usePetItem('${id}')" class="px-4 py-1.5 bg-gradient-to-r from-pink-400 to-rose-400 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap shadow-pink-200">使用</button>`;
+                }
+
+                return `
+                <div class="bg-gradient-to-r from-pink-50 to-white rounded-2xl p-4 border border-pink-100 shadow-sm flex items-center justify-between relative overflow-hidden">
+                    <div class="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-pink-100/50 to-transparent"></div>
+                    <div class="flex items-center gap-3 w-[65%] relative z-10">
+                        <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 animate-bounce" style="animation-duration: 3s;">${itemDef.icon}</div>
+                        <div class="flex-1 truncate">
+                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                <span class="truncate">${itemDef.name}</span>
+                                <span class="bg-pink-100 text-pink-500 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">x${pet.count}</span>
+                            </h4>
+                            <p class="text-[10px] text-gray-400 mt-1 truncate">${itemDef.desc}</p>
+                        </div>
+                    </div>
+                    <div class="relative z-10 flex flex-col items-end gap-2">
+                        <div class="text-[10px] font-bold ${badgeClass} border px-2 py-1 rounded-xl shadow-sm whitespace-nowrap">
+                            ${badgeText}
+                        </div>
+                        ${actionButtonHtml}
+                    </div>
+                </div>`;
+            }).join('');
+
+            // 2. 渲染可用道具 (从 myData 获取)
+            const availablePropsHtml = Object.keys(myData.inventory)
                 .filter(id => myData.inventory[id] > 0)
                 .map(id => {
                     const itemDef = mallItems.find(i => i.id === id) || { name: id, icon: '🎁', desc: '神秘物品' };
@@ -408,7 +591,7 @@
                     </div>`;
                 }).join('');
 
-            // 2. 待核销物品 (自己已使用，对方未核销)
+            // 3. 渲染待核销道具 (自己已使用，对方未核销)
             const pendingItemsHtml = (myData.pendingUses || [])
                 .filter(p => p.status === 'pending')
                 .map(p => {
@@ -433,15 +616,28 @@
                     </div>`;
                 }).join('');
 
-            if (!availableItemsHtml && !pendingItemsHtml) {
-                list.innerHTML = `
+            // 渲染宠物道具选项卡
+            if (!ownedPetsHtml) {
+                petsContainer.innerHTML = `
+                    <div class="text-center py-10 text-gray-400 text-sm flex flex-col items-center">
+                        <div class="text-4xl mb-2 opacity-50">🐾</div>
+                        <p>没有宠物道具，快去商场进货吧~</p>
+                    </div>
+                `;
+            } else {
+                petsContainer.innerHTML = ownedPetsHtml;
+            }
+
+            // 渲染普通道具选项卡
+            if (!availablePropsHtml && !pendingItemsHtml) {
+                propsContainer.innerHTML = `
                     <div class="text-center py-10 text-gray-400 text-sm flex flex-col items-center">
                         <div class="text-4xl mb-2 opacity-50">🕸️</div>
                         <p>仓库空空如也，快去商场进货吧~</p>
                     </div>
                 `;
             } else {
-                list.innerHTML = availableItemsHtml + pendingItemsHtml;
+                propsContainer.innerHTML = availablePropsHtml + pendingItemsHtml;
             }
         }
 
@@ -474,7 +670,7 @@
         // ----------------- 交互逻辑 -----------------
         let currentBuyingItem = null;
 
-        // 购买盲盒入口
+        // 购买盲盒入口 (仅限道具)
         function promptBuyBlindBox() {
             if (mallItems.length === 0) {
                 showToast("商场商品还在准备中哦~");
@@ -487,10 +683,11 @@
 
             currentBuyingItem = {
                 id: 'blind_box',
+                type: 'prop',
                 name: '惊喜盲盒',
                 price: 10,
                 icon: '🎁',
-                desc: '随机抽取商场内的任意一件商品！看看今天的运气如何~'
+                desc: '随机抽取商场内的任意一件道具！看看今天的运气如何~'
             };
 
             document.getElementById('buyIcon').innerText = currentBuyingItem.icon;
@@ -504,17 +701,31 @@
             openModal('buyModal', 'buyModalContent');
         }
 
-        // 购买普通商品入口
-        function promptBuy(itemId) {
-            const item = mallItems.find(i => i.id === itemId);
+        // 购买商品入口
+        function promptBuy(itemId, type = 'prop') {
+            const list = type === 'pet' ? petItems : mallItems;
+            const item = list.find(i => i.id === itemId);
             if (!item) return;
             
+            // 校验限购次数
+            if (type === 'pet' && item.gmcs !== undefined) {
+                const currentCount = item.sfgy === 1 
+                    ? (cwData.shared.inventory[item.id] || 0) 
+                    : (cwData[myIdentity].inventory[item.id] || 0);
+                if (currentCount >= item.gmcs) {
+                    showToast("❌ 已经达到该物品的限购次数啦！");
+                    return;
+                }
+            }
+
             if (myData.points < item.price) {
                 showToast("🪙 积分不足，快去做任务赚积分吧！");
                 return;
             }
 
-            currentBuyingItem = item;
+            // 附带类型参数，以便 executeBuy 时知道写哪个文件
+            currentBuyingItem = { ...item, type };
+            
             document.getElementById('buyIcon').innerText = item.icon;
             document.getElementById('buyName').innerText = item.name;
             document.getElementById('buyDesc').innerText = item.desc;
@@ -529,49 +740,92 @@
         async function executeBuy() {
             const item = currentBuyingItem;
             closeModal('buyModal', 'buyModalContent');
-            showToast("购买中，请稍候...");
+            showToast("正在付款处理中，请稍候...");
 
             let itemToGive = item;
             let isBlindBox = false;
 
-            // 盲盒逻辑判断
+            // 盲盒逻辑判断（盲盒只抽道具）
             if (item.id === 'blind_box') {
                 isBlindBox = true;
-                // 从所有商品中随机挑选一个
                 const randomIndex = Math.floor(Math.random() * mallItems.length);
                 itemToGive = mallItems[randomIndex];
             }
 
-            // 扣费 & 增加库存
-            myData.points -= item.price; // 盲盒扣除的是 10 积分
-            myData.inventory[itemToGive.id] = (myData.inventory[itemToGive.id] || 0) + 1;
+            // 1. 扣费（所有消费都从个人积分扣除）
+            myData.points -= item.price; 
+            
+            // 2. 增加库存
+            if (item.type === 'pet') {
+                if (itemToGive.sfgy === 1) {
+                    // 如果是共有物品，写入 shared 仓库
+                    if (!cwData.shared.inventory[itemToGive.id]) cwData.shared.inventory[itemToGive.id] = 0;
+                    cwData.shared.inventory[itemToGive.id] += 1;
+                } else {
+                    // 否则写入个人仓库
+                    if (!cwData[myIdentity].inventory[itemToGive.id]) cwData[myIdentity].inventory[itemToGive.id] = 0;
+                    cwData[myIdentity].inventory[itemToGive.id] += 1;
+                }
+            } else {
+                myData.inventory[itemToGive.id] = (myData.inventory[itemToGive.id] || 0) + 1;
+            }
 
-            // 这里为了安全，先拉取最新sha，防止并发覆盖
-            const latest = await fetchFile(MY_FILE);
-            if(latest.sha) myData.sha = latest.sha;
+            // 为了安全，先拉取最新sha，防止并发覆盖
+            const [latestMy, latestCw] = await Promise.all([
+                fetchFile(MY_FILE),
+                item.type === 'pet' ? fetchFile(CW_FILE) : Promise.resolve({sha: cwData.sha})
+            ]);
+            
+            if (latestMy.sha) myData.sha = latestMy.sha;
+            if (item.type === 'pet' && latestCw.sha) cwData.sha = latestCw.sha;
 
-            const res = await updateFile(MY_FILE, { 
+            // 首先更新自己的积分和道具存档
+            const myRes = await updateFile(MY_FILE, { 
                 points: myData.points, 
                 inventory: myData.inventory, 
                 pendingUses: myData.pendingUses 
             }, myData.sha, `Buy ${isBlindBox ? 'Blind Box' : item.name}`);
 
-            if (res.success) {
-                myData.sha = res.sha;
+            let cwRes = { success: true };
+
+            // 如果购买的是宠物，并且积分扣除成功，再更新宠物文件
+            if (item.type === 'pet' && myRes.success) {
+                // 构建排除 sha 的数据包
+                const cwPayload = { ...cwData };
+                delete cwPayload.sha;
+                
+                cwRes = await updateFile(CW_FILE, cwPayload, cwData.sha, `Buy Pet ${item.name} for ${myIdentity}`);
+            }
+
+            if (myRes.success && cwRes.success) {
+                myData.sha = myRes.sha;
+                if (item.type === 'pet') cwData.sha = cwRes.sha;
+                
                 document.getElementById('myPoints').innerText = myData.points;
                 renderInventory();
+                renderMall(); // 刷新商场界面，更新限购数字
                 
                 if (isBlindBox) {
                     showBlindBoxResult(itemToGive);
                 } else {
-                    showToast(`🎉 成功购买【${item.name}】!`);
+                    showToast(`🎉 成功获得【${item.name}】!`);
                     switchTab('inventory');
                 }
             } else {
-                // 回滚
+                // 简单回滚逻辑
                 myData.points += item.price;
-                myData.inventory[itemToGive.id] -= 1;
-                showToast("购买失败，网络错误");
+                if (item.type === 'pet') {
+                    if (itemToGive.sfgy === 1) {
+                        cwData.shared.inventory[itemToGive.id] -= 1;
+                    } else {
+                        cwData[myIdentity].inventory[itemToGive.id] -= 1;
+                    }
+                } else {
+                    myData.inventory[itemToGive.id] -= 1;
+                }
+                showToast("网络错误，购买未能完成");
+                renderInventory();
+                document.getElementById('myPoints').innerText = myData.points;
             }
         }
 
@@ -588,15 +842,110 @@
             switchTab('inventory');
         }
 
+        // ---------- 新增：宠物道具使用逻辑 ----------
+        async function usePetItem(itemId) {
+            const itemDef = petItems.find(i => i.id === itemId) || { name: itemId };
+            
+            if (!cwData[myIdentity].inventory[itemId] || cwData[myIdentity].inventory[itemId] <= 0) {
+                showToast("物品数量不足");
+                return;
+            }
+
+            // 扣除个人宠物道具库存
+            cwData[myIdentity].inventory[itemId] -= 1;
+
+            showToast("正在喂给宠物...");
+            
+            // 拉取最新宠物档案防冲突
+            const latestCw = await fetchFile(CW_FILE);
+            if (latestCw.sha) {
+                cwData.sha = latestCw.sha;
+                // 合并基础属性，防止覆盖对方的喂食或升级操作
+                if (latestCw.data) {
+                    cwData.level = latestCw.data.level !== undefined ? latestCw.data.level : cwData.level;
+                    cwData.hunger = latestCw.data.hunger !== undefined ? latestCw.data.hunger : cwData.hunger;
+                }
+            }
+
+            // 应用道具效果
+            let effectMsg = "";
+            if (itemId === 'cwsjk') { // 升级卡
+                cwData.level = (cwData.level || 0) + 1;
+                effectMsg = "宠物升了 1 级！";
+            } else if (itemId === 'cwsw') { // 食物
+                const addHunger = Math.floor(Math.random() * 51) + 50; // 50~100 随机饱腹值
+                cwData.hunger = (cwData.hunger || 0) + addHunger;
+                if (cwData.hunger > 100) cwData.hunger = 100; // 封顶 100
+                effectMsg = `饱腹值增加了 ${addHunger}！`;
+            }
+
+            const cwPayload = { ...cwData };
+            delete cwPayload.sha;
+
+            const res = await updateFile(CW_FILE, cwPayload, cwData.sha, `Use Pet Item ${itemDef.name}`);
+
+            if (res.success) {
+                cwData.sha = res.sha;
+                renderInventory();
+                showToast(`🎉 成功使用【${itemDef.name}】! ${effectMsg}`);
+            } else {
+                // 回滚
+                cwData[myIdentity].inventory[itemId] += 1;
+                if (itemId === 'cwsjk') cwData.level -= 1;
+                showToast("网络错误，使用失败");
+            }
+        }
+
+        // ---------- 新增：宠物装备穿卸逻辑 ----------
+        async function toggleEquipPetItem(itemId, isEquip) {
+            const itemDef = petItems.find(i => i.id === itemId) || { name: itemId };
+            
+            showToast("正在为宠物换装...");
+            
+            // 先拉取最新数据，防止互相覆盖换装状态
+            const latestCw = await fetchFile(CW_FILE);
+            if (latestCw.sha) {
+                cwData.sha = latestCw.sha;
+                if (latestCw.data) {
+                    cwData.equipped = latestCw.data.equipped || [];
+                }
+            }
+            if (!cwData.equipped) cwData.equipped = [];
+
+            if (isEquip) {
+                if (!cwData.equipped.includes(itemId)) {
+                    cwData.equipped.push(itemId);
+                }
+            } else {
+                cwData.equipped = cwData.equipped.filter(id => id !== itemId);
+            }
+
+            const cwPayload = { ...cwData };
+            delete cwPayload.sha;
+
+            const res = await updateFile(CW_FILE, cwPayload, cwData.sha, `${isEquip ? 'Equip' : 'Unequip'} Pet Item ${itemDef.name}`);
+
+            if (res.success) {
+                cwData.sha = res.sha;
+                renderInventory(); // 重新渲染刷新按钮状态
+                showToast(`🎉 成功${isEquip ? '穿戴' : '卸下'}了【${itemDef.name}】!`);
+            } else {
+                // UI状态回滚
+                if (isEquip) cwData.equipped = cwData.equipped.filter(id => id !== itemId);
+                else cwData.equipped.push(itemId);
+                showToast("网络错误，换装失败");
+            }
+        }
+
         async function useItem(itemId) {
             const itemDef = mallItems.find(i => i.id === itemId) || { name: itemId };
             
-            // 扣除库存
+            // 扣除道具库存 (宠物不允许核销使用，所以不走这里)
             myData.inventory[itemId] -= 1;
             if (myData.inventory[itemId] < 0) myData.inventory[itemId] = 0;
 
             // 生成6位随机使用码
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // 去除容易混淆的O,1,I
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
             let code = '';
             for(let i=0; i<6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
 
@@ -659,7 +1008,6 @@
             // 状态改为已核销
             partnerData.pendingUses[recordIndex].status = 'verified';
 
-            // 修改的是对方的文件！
             const latest = await fetchFile(PARTNER_FILE);
             if(latest.sha) partnerData.sha = latest.sha;
 
@@ -674,7 +1022,6 @@
                 inputEl.value = '';
                 renderVerify();
                 
-                // 隐藏 toast 提示，改为呼出弹窗
                 document.getElementById('verifiedItemName').innerText = `【${itemDef.name}】`;
                 openModal('verifySuccessModal', 'verifySuccessModalContent');
             } else {
@@ -737,12 +1084,19 @@
             showToast("已复制核销码，快发给TA吧！");
         }
 
+        let toastTimeout;
         function showToast(msg) { 
             const toast = document.getElementById('toast'); 
             toast.innerText = msg; 
             toast.classList.remove('hidden'); 
+            
+            // 重置动画使其可以重复触发
+            toast.classList.remove('toast-animate');
+            void toast.offsetWidth; // 触发重绘
             toast.classList.add('toast-animate'); 
-            setTimeout(() => { 
+            
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => { 
                 toast.classList.add('hidden'); 
                 toast.classList.remove('toast-animate'); 
             }, 3000); 
