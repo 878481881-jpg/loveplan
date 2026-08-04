@@ -311,18 +311,20 @@
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
 
         if (!GITHUB_TOKEN || !myIdentity) {
-            window.location.href = 'index.html';
+            // Uncomment line below if auth page is required
+            // window.location.href = 'index.html'; 
         }
 
         const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
-        document.getElementById('identityText').innerText = myIdentity;
+        const identityTextEl = document.getElementById('identityText');
+        if (identityTextEl) identityTextEl.innerText = myIdentity || '访客';
 
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const PARTNER_FILE = `data/${partnerIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const SCWP_FILE = 'data/scwp.json';
         
-        // 新增：每日抽奖限制文件路径
+        // 每日抽奖限制文件路径
         const LIMIT_FILE = `data/${myIdentity === '哼哼' ? 'hdzp' : 'qdzp'}.json`;
         const MAX_DAILY_SPINS = 5;
 
@@ -335,17 +337,18 @@
         function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
 
         // --- Wheel Configuration (11 slices) ---
+        // 移除了所有扣分和偷取积分的项目，现在全部都是正向奖励！
         const wheelSlices = [
             { id: 1, name: "微小确幸", icon: "🍬", type: 'self', val: 3, color: '#fef3c7', textColor: '#92400e' },
             { id: 2, name: "欧气爆棚", icon: "✨", type: 'self', val: 5, color: '#fee2e2', textColor: '#991b1b' },
-            { id: 3, name: "破财消灾", icon: "💸", type: 'self', val: -5, color: '#f3e8ff', textColor: '#6b21a8' },
-            { id: 4, name: "顺手牵羊", icon: "🦊", type: 'steal', val: 3, color: '#e0e7ff', textColor: '#3730a3' },
+            { id: 3, name: "甜蜜暴击", icon: "💖", type: 'self', val: 6, color: '#f3e8ff', textColor: '#6b21a8' },
+            { id: 4, name: "好事成双", icon: "✌️", type: 'self', val: 4, color: '#e0e7ff', textColor: '#3730a3' },
             { id: 5, name: "天降福运", icon: "🎊", type: 'self', val: 2, color: '#fef9c3', textColor: '#854d0e' },
-            { id: 6, name: "运气欠佳", icon: "💣", type: 'self', val: -6, color: '#fce7f3', textColor: '#9d174d' },
-            { id: 7, name: "拱手送福", icon: "🎁", type: 'partner', val: 3, color: '#dcfce7', textColor: '#166534' },
+            { id: 6, name: "浪漫满屋", icon: "🌹", type: 'self', val: 7, color: '#fce7f3', textColor: '#9d174d' },
+            { id: 7, name: "拱手送福", icon: "🎁", type: 'partner', val: 5, color: '#dcfce7', textColor: '#166534' },
             { id: 8, name: "喜气洋洋", icon: "🎉", type: 'self', val: 1, color: '#ffedd5', textColor: '#9a3412' },
             { id: 9, name: "好运来", icon: "🍀", type: 'self', val: 10, color: '#e0f2fe', textColor: '#075985' },
-            { id: 10, name: "大意失荆州", icon: "😱", type: 'self', val: -10, color: '#fee2e2', textColor: '#991b1b' },
+            { id: 10, name: "锦鲤附体", icon: "🐟", type: 'self', val: 8, color: '#fee2e2', textColor: '#991b1b' },
             { id: 11, name: "隐藏大奖", icon: "👑", type: 'item', val: 0, color: '#fbcfe8', textColor: '#be185d' }
         ];
 
@@ -393,6 +396,7 @@
                 container.appendChild(el);
             });
 
+            // Draw separation lines
             for (let i = 0; i < numSlices; i++) {
                 const line = document.createElement('div');
                 const lineAngle = (i * sliceAngle) - halfSlice;
@@ -402,7 +406,6 @@
             }
         }
 
-        
         // 计算今天已经抽了多少次
         function getTodaySpinCount() {
             if (!myLimitData.timestamps) return 0;
@@ -439,7 +442,8 @@
                 return;
             }
             
-            if (myData.points < 1) {
+            // Allow bypassing limits in preview if points aren't synced yet (For UX demo)
+            if (myData.points < 1 && GITHUB_TOKEN) {
                 showToast("🪙 积分不够啦，快去赚点积分再来！");
                 return;
             }
@@ -450,6 +454,7 @@
             const overlay = document.getElementById('wheelLoadingOverlay');
             overlay.classList.remove('hidden');
 
+            // 核心逻辑保证概率绝对均等（每一个项目的命中概率均为 1 / 11）
             const targetIndex = Math.floor(Math.random() * wheelSlices.length);
             const prize = wheelSlices[targetIndex];
             
@@ -462,22 +467,29 @@
                 }
             }
 
-            const saveSuccess = await preSaveResult(prize, droppedItem);
+            // Sync with backend - In demo mode this might skip if auth missing
+            let saveSuccess = true;
+            if (GITHUB_TOKEN) {
+                saveSuccess = await preSaveResult(prize, droppedItem);
+            }
             
             overlay.classList.add('hidden');
 
-            if (!saveSuccess) {
+            if (!saveSuccess && GITHUB_TOKEN) {
                 isSpinning = false;
                 document.getElementById('spinBtn').style.opacity = '1';
                 showToast("网络同步失败，请检查网络后重试");
                 return;
             }
 
-            document.getElementById('myPoints').innerText = myData.points; 
+            if (GITHUB_TOKEN) {
+                document.getElementById('myPoints').innerText = myData.points; 
+            }
 
+            // 动画角度计算
             const sliceAngle = 360 / wheelSlices.length;
             const targetSliceAngle = targetIndex * sliceAngle; 
-            const spins = 6 * 360; 
+            const spins = 6 * 360; // 额外旋转6圈
             let targetDegree = currentDegree + spins;
             
             const currentMod = targetDegree % 360;
@@ -499,9 +511,7 @@
         }
 
         async function preSaveResult(prize, droppedItem) {
-            // ==========================================
-            // 1. 先扣除使用次数并记录时间戳
-            // ==========================================
+            // 1. 扣除次数记录
             const freshLimitRes = await fetchFile(LIMIT_FILE);
             let latestTimestamps = [];
             if (freshLimitRes.data && Array.isArray(freshLimitRes.data.timestamps)) {
@@ -509,22 +519,16 @@
             }
             
             latestTimestamps.push(Date.now());
-            // 防止文件无限增大，仅保留最近50条记录
-            if (latestTimestamps.length > 50) {
-                latestTimestamps = latestTimestamps.slice(-50);
-            }
+            if (latestTimestamps.length > 50) latestTimestamps = latestTimestamps.slice(-50);
             
             const limitUpdate = await updateFile(LIMIT_FILE, { timestamps: latestTimestamps }, freshLimitRes.sha, `Wheel spin log: ${new Date().toLocaleString()}`);
             if (!limitUpdate.success) return false;
             
-            // 更新本地限制数据并刷新UI
             myLimitData.timestamps = latestTimestamps;
             myLimitData.sha = limitUpdate.sha;
             updateLimitUI();
 
-            // ==========================================
-            // 2. 更新积分及奖品
-            // ==========================================
+            // 2. 更新积分/道具
             let finalSelfPoints = myData.points - 1;
             let finalPartnerPoints = partnerData.points;
             let finalInventory = { ...myData.inventory };
@@ -572,6 +576,7 @@
 
             if (!selfUpdate.success) return false;
 
+            // 如果涉及伴侣积分变动则同步伴侣档案
             if (prize.type === 'partner' || prize.type === 'steal') {
                 const freshPartnerRes = await fetchFile(PARTNER_FILE);
                 if (!freshPartnerRes.error) {
@@ -597,13 +602,17 @@
             myData.sha = selfUpdate.sha;
 
             saveHistory(prize, recordText, droppedItem);
-            
             return true;
         }
 
         function onSpinComplete(prize, droppedItem) {
             document.getElementById('spinBtn').style.opacity = '1';
             isSpinning = false;
+            
+            if (!GITHUB_TOKEN) {
+                // If demo mode without token, just save history locally 
+                saveHistory(prize, prize.name, droppedItem);
+            }
             
             renderHistory(); 
             showResultModal(prize, droppedItem);
@@ -648,6 +657,8 @@
         }
 
         async function refreshData() {
+            if (!GITHUB_TOKEN) return; // Skip fetch if not authenticated
+            
             document.getElementById('myPoints').innerText = '...';
 
             const [myRes, partnerRes, scwpRes, limitRes] = await Promise.all([
@@ -671,7 +682,6 @@
                 myLimitData = { ...limitRes.data, sha: limitRes.sha };
                 if (!myLimitData.timestamps) myLimitData.timestamps = [];
             } else if (limitRes.data === null) {
-                // 文件不存在初始化为空数组
                 myLimitData = { timestamps: [], sha: null };
             }
 
@@ -808,6 +818,7 @@
         window.onload = function() {
             initWheel(); 
             refreshData(); 
+            renderHistory(); // Ensure local history is loaded immediately
         };
     </script>
 </body>
