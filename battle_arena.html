@@ -209,7 +209,7 @@
     </header>
 
     <!-- 主体区域：利用 flex-1 填满剩余空间，内部使用绝对定位层叠面板 -->
-    <main class="flex-1 w-full relative">
+    <main class="flex-1 min-h-0 w-full relative flex flex-col">
         
         <!-- 关卡选择界面 (默认显示，充满父级) -->
         <div id="levelSelectMenu" class="absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
@@ -267,17 +267,17 @@
                 </div>
             </div>
 
-            <!-- 中间战斗舞台 -->
-            <div class="flex-1 w-full max-w-md relative flex items-center justify-between px-2 overflow-hidden mt-4 mb-2">
+            <!-- 中间战斗舞台: 加入 min-h-0 防止挤爆容器，取消 aspect-square，改为自适应高度 -->
+            <div class="flex-1 min-h-0 w-full max-w-md relative flex items-center justify-between px-1 md:px-2 overflow-visible mt-2 mb-2">
                 <!-- 玩家宠物 -->
-                <div id="playerContainer" class="relative z-10 w-[40%] aspect-square flex items-center justify-center anim-mech">
+                <div id="playerContainer" class="relative z-10 w-[45%] h-[90%] flex items-center justify-center anim-mech">
                     <div class="absolute bottom-0 w-[80%] h-[20%] bg-cyan-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
                     <div id="playerShieldVisual" class="absolute w-[110%] h-[110%] rounded-full border-2 border-cyan-400 bg-cyan-900/30 opacity-0 transition-all duration-300 shadow-[0_0_20px_cyan_inset]" style="pointer-events: none; transform: scale(0.8);"></div>
                     <div id="playerVisualizer" class="w-full h-full flex items-center justify-center relative"></div>
                 </div>
 
                 <!-- 敌人宠物 -->
-                <div id="enemyContainer" class="relative z-10 w-[40%] aspect-square flex items-center justify-center anim-mech-enemy">
+                <div id="enemyContainer" class="relative z-10 w-[45%] h-[90%] flex items-center justify-center anim-mech-enemy">
                     <div class="absolute bottom-0 w-[80%] h-[20%] bg-rose-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
                     <div id="enemyShieldVisual" class="absolute w-[110%] h-[110%] rounded-full border-2 border-rose-400 bg-rose-900/30 opacity-0 transition-all duration-300 shadow-[0_0_20px_red_inset]" style="pointer-events: none; transform: scale(0.8);"></div>
                     <div id="enemyVisualizer" class="w-full h-full flex items-center justify-center relative" style="transform: scaleX(-1);"></div>
@@ -364,7 +364,7 @@
 
     <script>
         // ==========================================
-        // 0. API 与 宠物形态算法
+        // 0. API 与 宠物神性形态算法
         // ==========================================
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
         const OWNER_REPO = '878481881-jpg/loveplan'; 
@@ -400,170 +400,196 @@
             } catch (error) { return { success: false }; }
         }
 
-        function getMaxExp(level) { return level >= 100 ? 999999 : Math.floor(100 + (level - 1) * 8); }
+        // 修改上限到200级
+        function getMaxExp(level) { return level >= 200 ? 999999 : Math.floor(100 + (level - 1) * 8); }
         function addExpAndLevelUp(amount) {
             if (!globalPetData) return;
             globalPetData.exp = (globalPetData.exp || 0) + amount;
             let currentMaxExp = getMaxExp(globalPetData.level);
-            while (globalPetData.exp >= currentMaxExp && globalPetData.level < 100) {
+            while (globalPetData.exp >= currentMaxExp && globalPetData.level < 200) {
                 globalPetData.exp -= currentMaxExp; globalPetData.level += 1; currentMaxExp = getMaxExp(globalPetData.level);
             }
-            if (globalPetData.level >= 100) { globalPetData.level = 100; globalPetData.exp = currentMaxExp; }
+            if (globalPetData.level >= 200) { globalPetData.level = 200; globalPetData.exp = currentMaxExp; }
         }
 
         function lerp(start, end, t) { return start + (end - start) * t; }
         function lerpArray(arr1, arr2, t) { return arr1.map((val, i) => lerp(val, arr2[i], t)); }
 
+        // 扩充至 200 级神性形态点阵
         const basePoses = [
-            { level: 1, head: [70,75, 130,75, 150,105, 125,135, 75,135, 50,105], earL: [60,75, 20,90, 30,125, 65,100], earR: [140,75, 180,90, 170,125, 135,100], visor: [70,85, 130,85, 140,100, 125,110, 75,110, 60,100], core: [100,150, 110,160, 100,170, 90,160], eyeSize: 6, wingScale: 0, fangLength: 0, armorOpacity: 0 },
-            { level: 20, head: [70,60, 130,60, 145,95, 110,135, 90,135, 55,95], earL: [65,65, 30,25, 35,50, 50,85], earR: [135,65, 170,25, 165,50, 150,85], visor: [70,88, 130,88, 140,95, 100,105, 100,105, 60,95], core: [100,140, 115,155, 100,170, 85,155], eyeSize: 0, wingScale: 0, fangLength: 0, armorOpacity: 0 },
-            { level: 60, head: [60,50, 140,50, 160,95, 125,150, 75,150, 40,95], earL: [65,55, 15,15, 20,40, 45,90], earR: [135,55, 185,15, 180,40, 155,90], visor: [45,80, 155,80, 145,95, 100,115, 100,115, 55,95], core: [100,145, 120,165, 100,185, 80,165], eyeSize: 0, wingScale: 0.8, fangLength: 0.8, armorOpacity: 0.8 },
-            { level: 100, head: [55,45, 145,45, 165,100, 130,160, 70,160, 35,100], earL: [60,50, 10,10, 15,35, 40,95], earR: [140,50, 190,10, 185,35, 160,95], visor: [35,75, 165,75, 150,95, 100,125, 100,125, 50,95], core: [100,140, 125,165, 100,190, 75,165], eyeSize: 0, wingScale: 1.2, fangLength: 1.2, armorOpacity: 1 }
+            /* 0: Lv 1 */ { level: 1, head: [70,75, 130,75, 150,105, 125,135, 75,135, 50,105], earL: [60,75, 20,90, 30,125, 65,100], earR: [140,75, 180,90, 170,125, 135,100], visor: [70,85, 130,85, 140,100, 125,110, 75,110, 60,100], core: [100,150, 110,160, 100,170, 90,160], eyeSize: 6, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
+            /* 1: Lv 20 */ { level: 20, head: [70,60, 130,60, 145,95, 110,135, 90,135, 55,95], earL: [65,65, 30,25, 35,50, 50,85], earR: [135,65, 170,25, 165,50, 150,85], visor: [70,88, 130,88, 140,95, 100,105, 100,105, 60,95], core: [100,140, 115,155, 100,170, 85,155], eyeSize: 0, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
+            /* 2: Lv 60 */ { level: 60, head: [60,50, 140,50, 160,95, 125,150, 75,150, 40,95], earL: [65,55, 15,15, 20,40, 45,90], earR: [135,55, 185,15, 180,40, 155,90], visor: [45,80, 155,80, 145,95, 100,115, 100,115, 55,95], core: [100,145, 120,165, 100,185, 80,165], eyeSize: 0, wingScale: 0.8, fangLength: 0.8, armorOpacity: 0.8, crownScale: 0 },
+            /* 3: Lv 100 */ { level: 100, head: [55,45, 145,45, 165,100, 130,160, 70,160, 35,100], earL: [60,50, 10,10, 15,35, 40,95], earR: [140,50, 190,10, 185,35, 160,95], visor: [35,75, 165,75, 150,95, 100,125, 100,125, 50,95], core: [100,140, 125,165, 100,190, 75,165], eyeSize: 0, wingScale: 1.2, fangLength: 1.2, armorOpacity: 1, crownScale: 1 },
+            /* 4: Lv 150 */ { level: 150, head: [45,35, 155,35, 175,90, 135,165, 65,165, 25,90], earL: [50,40, -10,0, -5,25, 30,85], earR: [150,40, 210,0, 205,25, 170,85], visor: [20,70, 180,70, 160,95, 100,135, 100,135, 40,95], core: [100,135, 135,165, 100,200, 65,165], eyeSize: 0, wingScale: 2.0, fangLength: 2.0, armorOpacity: 1, crownScale: 2.5 },
+            /* 5: Lv 200 */ { level: 200, head: [30,20, 170,20, 190,80, 140,175, 60,175, 10,80], earL: [40,25, -30,-20, -20,15, 20,75], earR: [160,25, 230,-20, 220,15, 180,75], visor: [5,60, 195,60, 170,100, 100,150, 100,150, 30,100], core: [100,125, 150,165, 100,220, 50,165], eyeSize: 0, wingScale: 3.5, fangLength: 3.2, armorOpacity: 1, crownScale: 5 }
         ];
 
         function getInterpolatedPet(level) {
             let t = 0; let p1, p2;
             if (level < 20) { p1 = basePoses[0]; p2 = basePoses[1]; t = (level - 1) / 19; } 
             else if (level < 60) { p1 = basePoses[1]; p2 = basePoses[2]; t = (level - 20) / 40; } 
-            else if (level <= 100) { p1 = basePoses[2]; p2 = basePoses[3]; t = (level - 60) / 40; }
+            else if (level < 100) { p1 = basePoses[2]; p2 = basePoses[3]; t = (level - 60) / 40; }
+            else if (level < 150) { p1 = basePoses[3]; p2 = basePoses[4]; t = (level - 100) / 50; }
+            else if (level <= 200) { p1 = basePoses[4]; p2 = basePoses[5]; t = (level - 150) / 50; }
+            else { p1 = basePoses[5]; p2 = basePoses[5]; t = 1; }
             t = t * t * (3 - 2 * t);
             return {
-                head: lerpArray(p1.head, p2.head, t).join(','), earL: lerpArray(p1.earL, p2.earL, t).join(','), earR: lerpArray(p1.earR, p2.earR, t).join(','), visor: lerpArray(p1.visor, p2.visor, t).join(','), core: lerpArray(p1.core, p2.core, t).join(','), eyeSize: lerp(p1.eyeSize, p2.eyeSize, t), wingScale: lerp(p1.wingScale, p2.wingScale, t), fangLength: lerp(p1.fangLength, p2.fangLength, t), armorOpacity: lerp(p1.armorOpacity, p2.armorOpacity, t), crownScale: Math.max(0, (level - 90) / 10)
+                head: lerpArray(p1.head, p2.head, t).join(','), earL: lerpArray(p1.earL, p2.earL, t).join(','), earR: lerpArray(p1.earR, p2.earR, t).join(','), visor: lerpArray(p1.visor, p2.visor, t).join(','), core: lerpArray(p1.core, p2.core, t).join(','), eyeSize: lerp(p1.eyeSize, p2.eyeSize, t), wingScale: lerp(p1.wingScale, p2.wingScale, t), fangLength: lerp(p1.fangLength, p2.fangLength, t), armorOpacity: lerp(p1.armorOpacity, p2.armorOpacity, t), crownScale: Math.max(0, lerp(p1.crownScale, p2.crownScale, t))
             };
         }
 
-        // 新增：引入 equipped 渲染逻辑
+        // 新增：极小化缩放系数计算引擎与神性色彩系统
         function renderEntityVisual(containerId, level, theme = 'cyan', equipped = []) {
             const container = document.getElementById(containerId);
             const props = getInterpolatedPet(level);
-            let baseHue = theme === 'cyan' ? (190 + level * 5) % 360 : 350; 
-            if(theme === 'rose') baseHue = (340 + Math.random()*20); 
-
-            const cMain = `hsla(${baseHue}, ${theme==='cyan'?80:90}%, ${theme==='cyan'?50:40}%, 0.15)`;
-            const cStroke = `hsl(${baseHue}, 100%, ${theme==='cyan'?60:50}%)`;
-            const cVisor = `hsl(${(baseHue + (theme==='cyan'?330:30)) % 360}, 100%, 70%)`; 
-            const cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
+            
+            // 加入神性色彩系统
+            let cMain, cStroke, cVisor, cGlow;
+            if (theme === 'cyan') {
+                let baseHue = (190 + level * 5) % 360;
+                cMain = `hsla(${baseHue}, 80%, 50%, 0.15)`; cStroke = `hsl(${baseHue}, 100%, 60%)`; cVisor = `hsl(${(baseHue + 330) % 360}, 100%, 70%)`; cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
+                if (level >= 200) { cMain = `hsla(45, 100%, 90%, 0.25)`; cStroke = `#ffffff`; cVisor = `#fde047`; cGlow = `hsla(45, 100%, 70%, 1)`; }
+                else if (level >= 150) { cMain = `hsla(280, 100%, 40%, 0.25)`; cStroke = `#f43f5e`; cVisor = `#c084fc`; cGlow = `hsla(340, 100%, 60%, 0.9)`; }
+                else if (level >= 100) { cMain = `hsla(190, 100%, 40%, 0.2)`; cStroke = `#2dd4bf`; cVisor = `#60a5fa`; cGlow = `hsla(200, 100%, 60%, 0.8)`; }
+            } else {
+                let baseHue = 340 + Math.random()*20;
+                cMain = `hsla(${baseHue}, 90%, 40%, 0.15)`; cStroke = `hsl(${baseHue}, 100%, 50%)`; cVisor = `hsl(${(baseHue + 30) % 360}, 100%, 70%)`; cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
+                if (level >= 200) { cMain = `hsla(0, 100%, 20%, 0.4)`; cStroke = `#ff0000`; cVisor = `#ffaaaa`; cGlow = `hsla(0, 100%, 50%, 1)`; } 
+                else if (level >= 150) { cMain = `hsla(260, 100%, 20%, 0.4)`; cStroke = `#9333ea`; cVisor = `#f87171`; cGlow = `hsla(280, 100%, 50%, 0.9)`; } 
+                else if (level >= 100) { cMain = `hsla(320, 100%, 30%, 0.3)`; cStroke = `#e11d48`; cVisor = `#fbbf24`; cGlow = `hsla(340, 100%, 50%, 0.8)`; } 
+            }
 
             let innerSVG = `
             <defs>
-                <linearGradient id="laserGradL-${containerId}" x1="1" y1="0" x2="0" y2="0">
-                    <stop offset="0%" stop-color="#ef4444" stop-opacity="1" />
-                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
-                </linearGradient>
-                <linearGradient id="laserGradR-${containerId}" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stop-color="#ef4444" stop-opacity="1" />
-                    <stop offset="100%" stop-color="#ef4444" stop-opacity="0" />
-                </linearGradient>
-                <linearGradient id="mechGradient-${containerId}" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stop-color="#0f172a" />
-                    <stop offset="100%" stop-color="#1e293b" />
-                </linearGradient>
+                <linearGradient id="laserGradL-${containerId}" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="var(--c-stroke)" stop-opacity="1" /><stop offset="100%" stop-color="var(--c-stroke)" stop-opacity="0" /></linearGradient>
+                <linearGradient id="laserGradR-${containerId}" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="var(--c-stroke)" stop-opacity="1" /><stop offset="100%" stop-color="var(--c-stroke)" stop-opacity="0" /></linearGradient>
+                <linearGradient id="mechGradient-${containerId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0f172a" /><stop offset="100%" stop-color="#1e293b" /></linearGradient>
             </defs>`;
 
             if (props.wingScale > 0.01) {
-                innerSVG += `<g opacity="0.6" stroke="var(--c-visor)" stroke-width="2" fill="none" stroke-linejoin="round">
-                        <polygon points="100,100 ${100 - 50*props.wingScale},${100 - 50*props.wingScale} ${100 - 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
-                        <polygon points="100,100 ${100 + 50*props.wingScale},${100 - 50*props.wingScale} ${100 + 80*props.wingScale},${100 - 15*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
-                        <polygon points="100,100 ${100 - 60*props.wingScale},${100 + 10*props.wingScale} ${100 - 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
-                        <polygon points="100,100 ${100 + 60*props.wingScale},${100 + 10*props.wingScale} ${100 + 75*props.wingScale},${100 + 35*props.wingScale}" filter="drop-shadow(0 0 5px var(--c-visor))"/>
+                innerSVG += `<g opacity="0.7" stroke="var(--c-visor)" stroke-width="2" fill="none" stroke-linejoin="round" filter="drop-shadow(0 0 8px var(--c-visor))">
+                        <polygon points="100,100 ${100 - 50*props.wingScale},${100 - 50*props.wingScale} ${100 - 80*props.wingScale},${100 - 15*props.wingScale}"/>
+                        <polygon points="100,100 ${100 + 50*props.wingScale},${100 - 50*props.wingScale} ${100 + 80*props.wingScale},${100 - 15*props.wingScale}"/>
+                        <polygon points="100,100 ${100 - 60*props.wingScale},${100 + 10*props.wingScale} ${100 - 75*props.wingScale},${100 + 35*props.wingScale}"/>
+                        <polygon points="100,100 ${100 + 60*props.wingScale},${100 + 10*props.wingScale} ${100 + 75*props.wingScale},${100 + 35*props.wingScale}"/>
                     </g>`;
+                if (level >= 150) {
+                    let extraWingScale = props.wingScale * 0.85;
+                    innerSVG += `
+                    <g opacity="0.5" stroke="var(--c-stroke)" stroke-width="1.5" fill="none" stroke-linejoin="round" transform="translate(100, 100) rotate(25) translate(-100, -100)" filter="drop-shadow(0 0 10px var(--c-stroke))">
+                        <polygon points="100,100 ${100 - 50*extraWingScale},${100 - 50*extraWingScale} ${100 - 80*extraWingScale},${100 - 15*extraWingScale}"/><polygon points="100,100 ${100 + 50*extraWingScale},${100 - 50*extraWingScale} ${100 + 80*extraWingScale},${100 - 15*extraWingScale}"/>
+                    </g>
+                    <g opacity="0.5" stroke="var(--c-stroke)" stroke-width="1.5" fill="none" stroke-linejoin="round" transform="translate(100, 100) rotate(-25) translate(-100, -100)" filter="drop-shadow(0 0 10px var(--c-stroke))">
+                        <polygon points="100,100 ${100 - 50*extraWingScale},${100 - 50*extraWingScale} ${100 - 80*extraWingScale},${100 - 15*extraWingScale}"/><polygon points="100,100 ${100 + 50*extraWingScale},${100 - 50*extraWingScale} ${100 + 80*extraWingScale},${100 - 15*extraWingScale}"/>
+                    </g>`;
+                }
             }
             innerSVG += `<polygon points="${props.earL}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" /><polygon points="${props.earR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
             if (props.armorOpacity > 0.01) { innerSVG += `<polygon points="50,110 35,130 60,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" /><polygon points="150,110 165,130 140,140" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" />`; }
             innerSVG += `<polygon points="${props.head}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
-            if (props.fangLength > 0.01) { innerSVG += `<polygon points="80,140 75,${140 + 12 * props.fangLength} 90,140" fill="var(--c-stroke)" stroke-linejoin="round" /><polygon points="120,140 125,${140 + 12 * props.fangLength} 110,140" fill="var(--c-stroke)" stroke-linejoin="round" />`; }
-            if (level >= 10) { const h = Math.min((level-10)*0.5, 10); innerSVG += `<polygon points="100,${60-h} 90,60 110,60" fill="var(--c-visor)" stroke="var(--c-stroke)" stroke-width="1.5" stroke-linejoin="round"/>`; }
-            innerSVG += `<g class="cyber-visor"><polygon points="${props.visor}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" /><polygon points="${props.visor}" fill="var(--c-visor)" opacity="0.5" filter="drop-shadow(0 0 8px var(--c-visor))" stroke-linejoin="round" />${(props.eyeSize > 0.1) ? `<circle cx="85" cy="95" r="${props.eyeSize}" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" /><circle cx="115" cy="95" r="${props.eyeSize}" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.9" filter="drop-shadow(0 0 3px #fff)" />` : `<circle cx="100" cy="98" r="2" fill="${theme==='cyan'?'#fff':'#fca5a5'}" opacity="0.8" />`}</g>`;
-            innerSVG += `<polyline points="75,125 90,130 110,130 125,125" fill="none" stroke="var(--c-stroke)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.5" />`;
-            innerSVG += `<g style="transform-origin: 100px 165px;"><polygon points="${props.core}" fill="var(--c-visor)" filter="drop-shadow(0 0 15px var(--c-visor))" opacity="0.8" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="0.6" stroke="var(--c-visor)" stroke-width="1.5" stroke-linejoin="round" /></g>`;
-            if (props.crownScale > 0) { innerSVG += `<g transform="translate(80, ${25 - props.crownScale * 15}) scale(${0.4 * props.crownScale})" stroke="#fbbf24" stroke-width="4" fill="#fde047" filter="drop-shadow(0 0 8px #fbbf24)" stroke-linejoin="round"><path d="M 10 90 L 10 40 L 35 60 L 50 10 L 65 60 L 90 40 L 90 90 Z" /></g>`; }
+            if (props.fangLength > 0.01) { innerSVG += `<polygon points="80,140 75,${140 + 12 * props.fangLength} 90,140" fill="var(--c-stroke)" stroke-linejoin="round" filter="drop-shadow(0 0 3px var(--c-stroke))"/><polygon points="120,140 125,${140 + 12 * props.fangLength} 110,140" fill="var(--c-stroke)" stroke-linejoin="round" filter="drop-shadow(0 0 3px var(--c-stroke))"/>`; }
+            
+            if (level >= 10) { const h = Math.min((level-10)*0.5, 15); innerSVG += `<polygon points="100,${60-h} 90,60 110,60" fill="var(--c-visor)" stroke="var(--c-stroke)" stroke-width="1.5" stroke-linejoin="round"/>`; }
+            innerSVG += `<g class="cyber-visor"><polygon points="${props.visor}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" /><polygon points="${props.visor}" fill="var(--c-visor)" opacity="0.6" filter="drop-shadow(0 0 10px var(--c-visor))" stroke-linejoin="round" />${(props.eyeSize > 0.1) ? `<circle cx="85" cy="95" r="${props.eyeSize}" fill="#fff" opacity="0.9" filter="drop-shadow(0 0 5px #fff)" /><circle cx="115" cy="95" r="${props.eyeSize}" fill="#fff" opacity="0.9" filter="drop-shadow(0 0 5px #fff)" />` : `<circle cx="100" cy="98" r="2.5" fill="#fff" opacity="0.9" filter="drop-shadow(0 0 3px #fff)"/>`}</g>`;
+            
+            innerSVG += `<polyline points="75,125 90,130 110,130 125,125" fill="none" stroke="var(--c-stroke)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.7" />`;
+            
+            const coreAnimDur = level >= 150 ? '0.5s' : '2s';
+            innerSVG += `<g class="animate-pulse" style="transform-origin: 100px 165px; animation-duration: ${coreAnimDur};"><polygon points="${props.core}" fill="var(--c-visor)" filter="drop-shadow(0 0 20px var(--c-visor))" opacity="0.9" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="0.8" stroke="var(--c-visor)" stroke-width="2" stroke-linejoin="round" /></g>`;
+            
+            // 霸气：超维裂空晶角与虚空审判星环
+            if (props.crownScale > 0) { 
+                let s = props.crownScale;
+                innerSVG += `
+                <g transform="translate(100, 65)" filter="drop-shadow(0 0 15px var(--c-stroke))">
+                    <polygon points="-15,0 -${25 * s},-${35 * s} -${10 * s},-${10 * s}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round"/>
+                    <polygon points="-${20 * s},-${20 * s} -${35 * s},-${55 * s} -${25 * s},-${15 * s}" fill="var(--c-visor)" opacity="0.9">
+                        <animateTransform attributeName="transform" type="translate" values="0,0; -5,-5; 0,0" dur="2s" repeatCount="indefinite"/>
+                    </polygon>
+                    <polygon points="15,0 ${25 * s},-${35 * s} ${10 * s},-${10 * s}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round"/>
+                    <polygon points="${20 * s},-${20 * s} ${35 * s},-${55 * s} ${25 * s},-${15 * s}" fill="var(--c-visor)" opacity="0.9">
+                        <animateTransform attributeName="transform" type="translate" values="0,0; 5,-5; 0,0" dur="2s" repeatCount="indefinite"/>
+                    </polygon>
+                    ${s > 2 ? `
+                    <polygon points="-8,-20 0,-${70 * s} 8,-20" fill="url(#laserGradL-${containerId})" opacity="0.8">
+                        <animateTransform attributeName="transform" type="scale" values="1,1; 1,1.2; 1,1" dur="1.5s" repeatCount="indefinite"/>
+                    </polygon>
+                    <circle cx="0" cy="-${75 * s}" r="${3 * s}" fill="#fff" filter="drop-shadow(0 0 10px #fff)">
+                        <animate attributeName="opacity" values="0.4;1;0.4" dur="0.8s" repeatCount="indefinite"/>
+                    </circle>
+                    ` : ''}
+                </g>`;
+                
+                if (level >= 100) {
+                    let haloY = 15 - props.crownScale * 8;
+                    let haloR = 45 + (level - 100) * 0.5;
+                    innerSVG += `
+                    <ellipse cx="100" cy="${haloY}" rx="${haloR}" ry="${haloR * 0.2}" fill="none" stroke="var(--c-stroke)" stroke-width="2" opacity="0.8" filter="drop-shadow(0 0 10px var(--c-visor))"/>
+                    <g transform="translate(100, ${haloY})">
+                        <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="${level >= 150 ? 2 : 4}s" repeatCount="indefinite" />
+                        <ellipse cx="0" cy="0" rx="${haloR + 8}" ry="${(haloR + 8) * 0.2}" fill="none" stroke="var(--c-visor)" stroke-width="2" stroke-dasharray="10 30" filter="drop-shadow(0 0 8px var(--c-visor))"/>
+                        <polygon points="-${haloR+15},0 -${haloR+35},0 -${haloR+15},5" fill="var(--c-stroke)" opacity="0.9" />
+                        <polygon points="${haloR+15},0 ${haloR+35},0 ${haloR+15},-5" fill="var(--c-stroke)" opacity="0.9" />
+                    </g>`;
+                }
+            }
 
-            // === 炫酷装备叠加逻辑 ===
-            let lFac = Math.min(1, level / 100); 
-            let topY = 75 - lFac * 30; 
-            let botY = 135 + lFac * 25; 
+            if (level >= 120) {
+                let fDist = 70 + (level - 120) * 0.3;
+                innerSVG += `
+                <g fill="var(--c-visor)" opacity="0.9" filter="drop-shadow(0 0 10px var(--c-visor))">
+                    <polygon points="${100-fDist},70 ${100-fDist-8},90 ${100-fDist},110 ${100-fDist+8},90">
+                        <animateTransform attributeName="transform" type="translate" values="0,0; 0,-20; 0,0" dur="2.5s" repeatCount="indefinite" />
+                    </polygon>
+                    <polygon points="${100+fDist},70 ${100+fDist+8},90 ${100+fDist},110 ${100+fDist-8},90">
+                        <animateTransform attributeName="transform" type="translate" values="0,0; 0,-20; 0,0" dur="2.5s" repeatCount="indefinite" begin="1.25s"/>
+                    </polygon>
+                </g>`;
+            }
+
+            let lFac = Math.min(1, level / 200); 
+            let topY = 75 - lFac * 35; 
+            let botY = 135 + lFac * 30; 
             
             if (equipped.includes('cwsbxq')) {
-                innerSVG += `
-                <g filter="drop-shadow(0 0 8px #a78bfa)">
-                    <path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/>
-                    <path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#ddd6fe" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 6">
-                        <animate attributeName="stroke-dashoffset" from="20" to="0" dur="1s" repeatCount="indefinite" linear/>
-                    </path>
-                    <circle cx="100" cy="${botY+7}" r="7" fill="#10b981" stroke="#047857" stroke-width="2" filter="drop-shadow(0 0 6px #34d399)"/>
-                    <circle cx="100" cy="${botY+7}" r="3" fill="#fff">
-                        <animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite"/>
-                    </circle>
-                </g>`;
+                innerSVG += `<g filter="drop-shadow(0 0 8px #a78bfa)"><path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#7c3aed" stroke-width="8" stroke-linecap="round"/><path d="M 60 ${botY-5} Q 100 ${botY+20} 140 ${botY-5}" fill="none" stroke="#ddd6fe" stroke-width="2" stroke-linecap="round" stroke-dasharray="4 6"><animate attributeName="stroke-dashoffset" from="20" to="0" dur="1s" repeatCount="indefinite" linear/></path><circle cx="100" cy="${botY+7}" r="7" fill="#10b981" stroke="#047857" stroke-width="2" filter="drop-shadow(0 0 6px #34d399)"/><circle cx="100" cy="${botY+7}" r="3" fill="#fff"><animate attributeName="opacity" values="1;0.2;1" dur="1.5s" repeatCount="indefinite"/></circle></g>`;
             }
             if (equipped.includes('cwsbgl')) {
-                innerSVG += `
-                <g filter="drop-shadow(0 0 5px #10b981)">
-                    <path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" />
-                    <path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#6ee7b7" stroke-width="1.5" stroke-dasharray="10 10">
-                        <animate attributeName="stroke-dashoffset" from="40" to="0" dur="0.8s" repeatCount="indefinite" linear/>
-                    </path>
-                </g>`;
+                innerSVG += `<g filter="drop-shadow(0 0 5px #10b981)"><path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" /><path d="M 100 ${botY+14} Q 120 180 160 250" fill="none" stroke="#6ee7b7" stroke-width="1.5" stroke-dasharray="10 10"><animate attributeName="stroke-dashoffset" from="40" to="0" dur="0.8s" repeatCount="indefinite" linear/></path></g>`;
             }
             if (equipped.includes('cwsbtk')) {
-                innerSVG += `
-                <g filter="drop-shadow(0 -5px 15px rgba(6, 182, 212, 0.4))">
-                    <path d="M 45 ${topY+15} Q 100 ${topY-45} 155 ${topY+15} L 145 ${topY+35} Q 100 ${topY-20} 55 ${topY+35} Z" fill="url(#mechGradient-${containerId})" stroke="#06b6d4" stroke-width="2" stroke-linejoin="round" />
-                    <path d="M 80 ${topY-10} L 120 ${topY-10}" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
-                    <line x1="100" y1="${topY-22}" x2="100" y2="${topY-50}" stroke="#06b6d4" stroke-width="2" />
-                    <circle cx="100" cy="${topY-50}" r="4" fill="#f43f5e" filter="drop-shadow(0 0 8px #f43f5e)">
-                        <animate attributeName="opacity" values="1;0.1;1" dur="1s" repeatCount="indefinite" />
-                    </circle>
-                    <polygon points="35,${topY+10} 50,${topY} 50,${topY+25} 35,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" />
-                    <polygon points="165,${topY+10} 150,${topY} 150,${topY+25} 165,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" />
-                </g>`;
+                innerSVG += `<g filter="drop-shadow(0 -5px 15px rgba(6, 182, 212, 0.4))"><path d="M 45 ${topY+15} Q 100 ${topY-45} 155 ${topY+15} L 145 ${topY+35} Q 100 ${topY-20} 55 ${topY+35} Z" fill="url(#mechGradient-${containerId})" stroke="#06b6d4" stroke-width="2" stroke-linejoin="round" /><path d="M 80 ${topY-10} L 120 ${topY-10}" stroke="#22d3ee" stroke-width="2" stroke-linecap="round" opacity="0.6"/><line x1="100" y1="${topY-22}" x2="100" y2="${topY-50}" stroke="#06b6d4" stroke-width="2" /><circle cx="100" cy="${topY-50}" r="4" fill="#f43f5e" filter="drop-shadow(0 0 8px #f43f5e)"><animate attributeName="opacity" values="1;0.1;1" dur="1s" repeatCount="indefinite" /></circle><polygon points="35,${topY+10} 50,${topY} 50,${topY+25} 35,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" /><polygon points="165,${topY+10} 150,${topY} 150,${topY+25} 165,${topY+35}" fill="#0f172a" stroke="#06b6d4" stroke-width="1.5" /></g>`;
             }
             if (equipped.includes('cwsbyj')) {
-                innerSVG += `
-                <g filter="drop-shadow(0 0 10px #ec4899)">
-                    <polygon points="${props.visor}" fill="#831843" fill-opacity="0.8" stroke="#ec4899" stroke-width="3" stroke-linejoin="round" />
-                    <polygon points="${props.visor}" fill="none" stroke="#fbcfe8" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>
-                    <line x1="45" y1="95" x2="155" y2="95" stroke="#f9a8d4" stroke-width="2">
-                         <animate attributeName="y1" values="80; 120; 80" dur="2s" repeatCount="indefinite"/>
-                         <animate attributeName="y2" values="80; 120; 80" dur="2s" repeatCount="indefinite"/>
-                    </line>
-                    <circle cx="85" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="85 95"/></circle>
-                    <circle cx="115" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="115 95"/></circle>
-                </g>`;
+                innerSVG += `<g filter="drop-shadow(0 0 10px #ec4899)"><polygon points="${props.visor}" fill="#831843" fill-opacity="0.8" stroke="#ec4899" stroke-width="3" stroke-linejoin="round" /><polygon points="${props.visor}" fill="none" stroke="#fbcfe8" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/><line x1="45" y1="95" x2="155" y2="95" stroke="#f9a8d4" stroke-width="2"><animate attributeName="y1" values="80; 120; 80" dur="2s" repeatCount="indefinite"/><animate attributeName="y2" values="80; 120; 80" dur="2s" repeatCount="indefinite"/></line><circle cx="85" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="85 95"/></circle><circle cx="115" cy="95" r="4" fill="none" stroke="#fbcfe8" stroke-width="1.5" opacity="0.8"><animateTransform attributeName="transform" type="scale" values="1;2;1" dur="1s" repeatCount="indefinite" additive="sum" transform-origin="115 95"/></circle></g>`;
             }
             if (equipped.includes('cwsbjgy')) {
-                innerSVG += `
-                <g filter="drop-shadow(0 0 20px #ef4444)">
-                    <polygon points="85,95 -60,60 -60,130 85,100" fill="url(#laserGradL-${containerId})">
-                        <animate attributeName="opacity" values="0.6;1;0.6" dur="0.15s" repeatCount="indefinite"/>
-                    </polygon>
-                    <polygon points="85,95 -60,90 -60,100 85,100" fill="#ffffff" opacity="0.9" />
-                    
-                    <polygon points="115,95 260,60 260,130 115,100" fill="url(#laserGradR-${containerId})">
-                        <animate attributeName="opacity" values="0.6;1;0.6" dur="0.15s" repeatCount="indefinite"/>
-                    </polygon>
-                    <polygon points="115,95 260,90 260,100 115,100" fill="#ffffff" opacity="0.9" />
-                </g>`;
+                innerSVG += `<g filter="drop-shadow(0 0 20px var(--c-stroke))"><polygon points="85,95 -80,40 -80,150 85,100" fill="url(#laserGradL-${containerId})"><animate attributeName="opacity" values="0.6;1;0.6" dur="0.1s" repeatCount="indefinite"/></polygon><polygon points="85,95 -80,90 -80,100 85,100" fill="#ffffff" opacity="0.9" /><polygon points="115,95 280,40 280,150 115,100" fill="url(#laserGradR-${containerId})"><animate attributeName="opacity" values="0.6;1;0.6" dur="0.1s" repeatCount="indefinite"/></polygon><polygon points="115,95 280,90 280,100 115,100" fill="#ffffff" opacity="0.9" /></g>`;
             }
 
-            let scale = 0.8 + (level / 150); 
-            let html = '';
+            // 【关键缩放修复】极小化缓动算法：在竞技场狭小的空间内，就算200级最高也只放大到 0.85
+            let scale = 0.55;
+            if (level <= 100) scale += (level / 500);
+            else scale += (100 / 500) + (level - 100) / 1000; 
+
+            // 外围魔法阵特效，通过给包裹层设置 transform: scale() 保证同步缩小，绝不撑破边界
+            let html = `<div class="absolute inset-0 flex justify-center items-center pointer-events-none z-0" style="transform: scale(${scale});">`;
             
             if (equipped.includes('cwsbbj')) {
-                html += `
-                <div class="absolute inset-[-30%] pointer-events-none flex items-center justify-center z-[-1] opacity-70">
-                    <div class="absolute inset-0 rounded-full border-[12px] border-cyan-500/20 border-dashed mix-blend-screen" style="animation: spin 30s linear infinite;"></div>
-                    <div class="absolute inset-[15%] rounded-full border-4 border-indigo-500/40 mix-blend-screen border-dotted" style="animation: spin 15s linear infinite reverse;"></div>
-                    <div class="absolute inset-[25%] rounded-full border border-fuchsia-500/30"></div>
-                    <div class="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"></div>
-                    <div class="absolute h-full w-[1px] bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent"></div>
-                    <div class="absolute inset-[30%] bg-blue-500/10 rounded-full blur-xl animate-pulse"></div>
-                </div><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>`;
+                html += `<div class="absolute inset-[-30%] pointer-events-none flex items-center justify-center z-[-1] opacity-70"><div class="absolute inset-0 rounded-full border-[12px] border-cyan-500/20 border-dashed mix-blend-screen" style="animation: spin 30s linear infinite;"></div><div class="absolute inset-[15%] rounded-full border-4 border-indigo-500/40 mix-blend-screen border-dotted" style="animation: spin 15s linear infinite reverse;"></div><div class="absolute inset-[25%] rounded-full border border-fuchsia-500/30"></div><div class="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/30 to-transparent"></div><div class="absolute h-full w-[1px] bg-gradient-to-b from-transparent via-cyan-400/30 to-transparent"></div></div>`;
             }
 
+            if (level >= 190) { html += `<div class="absolute rounded-full" style="width: 80px; height: 80px; background: radial-gradient(circle, #000 20%, ${cMain} 80%, transparent 100%); box-shadow: 0 0 30px 15px ${cGlow}, inset 0 0 10px 4px ${cVisor}; animation: singularity-pulse 1.5s infinite alternate; filter: drop-shadow(0 0 15px ${cGlow});"></div>`; }
+            if (level >= 150) { const ring3Size = 120 + (level - 150) * 0.5; html += `<div class="absolute border-4 border-double rounded-full mix-blend-screen opacity-60" style="width: ${ring3Size}px; height: ${ring3Size}px; border-color: ${cVisor}; animation: spin 4s linear infinite; filter: drop-shadow(0 0 10px ${cGlow});"></div>`; }
+            if (level >= 1) { const ring1Size = 80 + level * 0.2; html += `<div class="absolute border border-dashed rounded-full mix-blend-screen opacity-70" style="width: ${ring1Size}px; height: ${ring1Size}px; border-color: ${cStroke}; animation: spin 10s linear infinite; box-shadow: 0 0 15px ${cGlow} inset;"></div>`; }
+            if (level >= 20) { const ring2Size = 100 + (level - 20) * 0.3; html += `<div class="absolute border-2 border-transparent rounded-full mix-blend-screen opacity-80" style="width: ${ring2Size}px; height: ${ring2Size}px; border-left-color: ${cVisor}; border-right-color: ${cVisor}; animation: spin 8s linear infinite reverse;"></div>`; }
+            html += `</div><style>@keyframes spin { 100% { transform: rotate(360deg); } } @keyframes singularity-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }</style>`;
+
+            // SVG 本体
             html += `
-            <div class="relative w-full h-full filter drop-shadow-[0_0_15px_${cGlow}] flex items-center justify-center" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor};">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-[120%] h-[120%] max-w-[200px] overflow-visible" style="transform: scale(${scale});">
+            <div class="relative w-full h-full filter drop-shadow-[0_0_15px_${cGlow}] flex items-center justify-center pointer-events-none" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor};">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-[150%] h-[150%] max-w-[160px] md:max-w-[180px] overflow-visible" style="transform: scale(${scale});">
                     ${innerSVG}
                 </svg>
             </div>`;
@@ -591,7 +617,7 @@
         };
 
         async function initApp() {
-            let petLevel = 58; let petName = '我的儿子';
+            let petLevel = 1; let petName = '我的儿子';
             if (GITHUB_TOKEN) {
                 const res = await fetchFile(FILE_PET);
                 if (res.data && res.data.level) {
@@ -604,7 +630,10 @@
 
         function initLevelSelection() {
             const grid = document.getElementById('levelGrid'); grid.innerHTML = '';
-            const levels = [1]; for (let i = 5; i <= 100; i += 5) levels.push(i);
+            // 支持最高达200级的选择列表
+            const levels = [1]; 
+            for (let i = 10; i <= 200; i += 10) levels.push(i);
+            
             levels.forEach(lv => {
                 const btn = document.createElement('button');
                 const canBeat = battleState.player.level + 10 >= lv; 
@@ -626,7 +655,6 @@
             addLog("正在连接全息核心数据库...", "text-slate-400");
             addLog(`数据同步成功！载入 Lv.${battleState.player.level} [${battleState.player.name}]`, "text-green-400");
             
-            // === 装备加成乘区计算 ===
             let hpMult = 1 + (equipped.includes('cwsbgl') ? 0.05 : 0) + (equipped.includes('cwsbbj') ? 0.02 : 0);
             let atkMult = 1 + (equipped.includes('cwsbyj') ? 0.05 : 0) + (equipped.includes('cwsbjgy') ? 0.05 : 0) + (equipped.includes('cwsbbj') ? 0.02 : 0);
             let defMult = 1 + (equipped.includes('cwsbtk') ? 0.05 : 0) + (equipped.includes('cwsbbj') ? 0.02 : 0);
@@ -650,12 +678,10 @@
             battleState.enemy.dot = 0; battleState.enemy.shield = 0; battleState.enemy.usedBurst = false;
 
             document.getElementById('playerName').innerText = battleState.player.name;
-            
-            // 清理上一局可能遗留的光环状态，避免带入新战斗
             document.getElementById('playerVisualizer').classList.remove('aura-burst');
             document.getElementById('enemyVisualizer').classList.remove('aura-burst');
 
-            // 渲染附带穿戴数据的视觉模型
+            // 渲染全息环境模型
             renderEntityVisual('playerVisualizer', battleState.player.level, 'cyan', equipped);
             renderEntityVisual('enemyVisualizer', battleState.enemy.level, 'rose', []);
             
@@ -670,10 +696,9 @@
             if (defMult > 1) buffTexts.push(`防御+${Math.round((defMult-1)*100)}%`);
             if (energyMult > 1) buffTexts.push(`能量上限+${Math.round((energyMult-1)*100)}%`);
 
-            addLog(`警告：发现 Lv.${enemyLevel} 狂化机械体！`, "text-rose-400 font-bold");
-            if (buffTexts.length > 0) {
-                addLog(`装备系统接入：${buffTexts.join(', ')}`, "text-cyan-400 font-bold");
-            }
+            let enemyRank = enemyLevel >= 150 ? "神话级主宰" : (enemyLevel >= 100 ? "领主级单位" : "狂化机械体");
+            addLog(`警告：发现 Lv.${enemyLevel} ${enemyRank}！`, "text-rose-400 font-bold");
+            if (buffTexts.length > 0) { addLog(`装备系统接入：${buffTexts.join(', ')}`, "text-cyan-400 font-bold"); }
             addLog("战斗开始！每回合将自动恢复部分能量。", "text-amber-400");
             updateActionUI();
         }
@@ -734,7 +759,6 @@
             attacker.energy -= skill.cost; updateStatsUI(attackerId);
             addLog(`${attacker.name} ${skill.log}`, attackerId === 'player' ? 'text-cyan-300' : 'text-rose-300');
 
-            // --- 增益类技能特效 ---
             if (skill.type === 'buff' || skill.type === 'buff_special') {
                 attackerEl.classList.add('anim-buff');
                 
@@ -745,11 +769,7 @@
                     
                     attacker.shield = attacker.maxHp * skill.shield;
                     const shieldVis = document.getElementById(`${attackerId}ShieldVisual`);
-                    if(shieldVis) { 
-                        shieldVis.style.opacity = '1'; 
-                        shieldVis.style.transform = 'scale(1)'; 
-                        shieldVis.style.filter = 'drop-shadow(0 0 10px currentColor)';
-                    }
+                    if(shieldVis) { shieldVis.style.opacity = '1'; shieldVis.style.transform = 'scale(1)'; shieldVis.style.filter = 'drop-shadow(0 0 10px currentColor)'; }
                 } 
                 else if (skillKey === 'burst') {
                     const addedHp = Math.floor(attacker.maxHp * 0.2);
@@ -765,48 +785,30 @@
                 await new Promise(r => setTimeout(r, 800));
                 attackerEl.classList.remove('anim-buff');
             } 
-            // --- 伤害类技能特效 ---
             else if (skill.type === 'damage' || skill.type === 'damage_ultimate') {
-                let animClass = '';
-                let hitClass = 'anim-hit-light';
+                let animClass = ''; let hitClass = 'anim-hit-light';
                 
-                if (skillKey === 'attack') {
-                    animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
-                } else if (skillKey === 'strike') {
-                    animClass = attackerId === 'player' ? 'anim-strike-right' : 'anim-strike-left';
-                    hitClass = 'anim-hit-heavy';
-                } else if (skillKey === 'tornado') {
-                    animClass = 'anim-tornado';
-                    hitClass = 'anim-hit-heavy';
-                } else {
-                    animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left';
-                }
+                if (skillKey === 'attack') { animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left'; } 
+                else if (skillKey === 'strike') { animClass = attackerId === 'player' ? 'anim-strike-right' : 'anim-strike-left'; hitClass = 'anim-hit-heavy'; } 
+                else if (skillKey === 'tornado') { animClass = 'anim-tornado'; hitClass = 'anim-hit-heavy'; } 
+                else { animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left'; }
                 
                 attackerEl.classList.add(animClass);
                 await new Promise(r => setTimeout(r, animClass.includes('strike') ? 400 : 250)); 
                 
-                let isCrit = Math.random() < 0.2; 
-                let critMult = isCrit ? 1.5 : 1;
-                let variance = 0.9 + Math.random() * 0.2;
-                let multiplier = skill.multiplier || 1;
-                let isInstaKill = false;
+                let isCrit = Math.random() < 0.2; let critMult = isCrit ? 1.5 : 1; let variance = 0.9 + Math.random() * 0.2;
+                let multiplier = skill.multiplier || 1; let isInstaKill = false;
                 
                 if (skillKey === 'ultimate') {
                     document.body.classList.add('anim-ult-bg');
-                    const flash = document.createElement('div');
-                    flash.className = 'flash-overlay';
-                    document.getElementById('globalFxLayer').appendChild(flash);
-                    setTimeout(() => {
-                        document.body.classList.remove('anim-ult-bg');
-                        flash.remove();
-                    }, 1000);
+                    const flash = document.createElement('div'); flash.className = 'flash-overlay'; document.getElementById('globalFxLayer').appendChild(flash);
+                    setTimeout(() => { document.body.classList.remove('anim-ult-bg'); flash.remove(); }, 1000);
                     
                     if (Math.random() < 0.2) isInstaKill = true;
                     else if (Math.random() < 0.3) { multiplier = 6; addLog("【爆炎双倍】触发！核心产生核聚变！", "text-rose-400 font-bold"); }
                 }
 
                 let actualDamage = 0;
-                
                 if (isInstaKill) {
                     actualDamage = defender.hp + defender.shield; 
                     addLog(`【绝杀】触发！目标被彻底抹除！`, "text-red-500 font-black");
@@ -814,8 +816,7 @@
                 } else {
                     let rawDamage = (attacker.atk * multiplier * critMult * variance);
                     actualDamage = Math.max(1, rawDamage - defender.def);
-                    if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode');
-                    else defenderEl.classList.add(hitClass);
+                    if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode'); else defenderEl.classList.add(hitClass);
                 }
                 
                 if (defender.shield > 0) {
@@ -842,7 +843,6 @@
                 }
 
                 updateStatsUI(defenderId);
-                
                 setTimeout(() => defenderEl.classList.remove(hitClass, 'anim-explode', 'anim-instakill'), 1000);
                 await new Promise(r => setTimeout(r, 400));
                 attackerEl.classList.remove(animClass);
@@ -890,12 +890,9 @@
             updateStatsUI(battleState.turn);
 
             if (battleState.turn === 'player') {
-                battleState.round++;
-                updateActionUI();
-                addLog(`--- 第 ${battleState.round} 回合开始 ---`, "text-slate-500");
+                battleState.round++; updateActionUI(); addLog(`--- 第 ${battleState.round} 回合开始 ---`, "text-slate-500");
             } else {
-                updateActionUI();
-                setTimeout(enemyAiAct, 1000);
+                updateActionUI(); setTimeout(enemyAiAct, 1000);
             }
         }
 
