@@ -305,27 +305,46 @@
 
     <!-- 纸条弹窗 -->
     <div id="letterModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 hidden flex items-center justify-center animate-fade-in px-4 backdrop-blur-sm">
-        <!-- 保持原有结构 -->
-        <div class="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm relative transform scale-95 transition-transform duration-300" id="letterModalContent">
-            <button onclick="closeLetterModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold text-lg">✖</button>
+        <div class="bg-white rounded-3xl p-6 shadow-2xl w-full max-w-sm relative transform scale-95 transition-transform duration-300 flex flex-col max-h-[85vh]" id="letterModalContent">
+            <button onclick="toggleLetterHistory()" id="btnLetterHistory" class="absolute top-4 left-4 text-gray-400 hover:text-indigo-500 font-bold text-xl z-30 transition-colors" title="历史纸条">📜</button>
+            <button onclick="closeLetterModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 font-bold text-lg z-30">✖</button>
             
-            <div id="letterWriteView" class="hidden flex-col items-center">
-                <h3 class="text-lg font-bold text-indigo-500 mb-2">💌 让儿子带句话</h3>
-                <p class="text-xs text-gray-500 mb-4">写在纸条上挂在儿子脖子上，TA上线就能收到！</p>
-                <textarea id="letterInput" rows="3" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl focus:outline-none focus:border-indigo-400 text-sm text-gray-700 resize-none font-medium" placeholder="悄悄话..."></textarea>
-                <button onclick="sendLetter()" class="mt-5 w-full py-3 bg-indigo-500 text-white font-bold rounded-xl shadow-md hover:bg-indigo-600 transition-colors">发送</button>
-            </div>
-
-            <div id="letterReadView" class="hidden flex-col items-center">
-                <h3 class="text-lg font-bold text-pink-500 mb-4 animate-bounce">💌 儿子叼来一封悄悄话</h3>
-                <div class="w-full bg-pink-50 border border-pink-100 rounded-xl p-5 text-center relative shadow-inner">
-                    <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 text-2xl drop-shadow-sm">📌</div>
-                    <p id="letterContentText" class="text-gray-700 text-[15px] font-bold leading-relaxed mt-2"></p>
-                    <p id="letterSenderText" class="text-xs text-pink-400 mt-4 text-right font-medium"></p>
+            <div id="letterViewsContainer" class="w-full flex-1 overflow-y-auto no-scrollbar pt-4">
+                <div id="letterWriteView" class="hidden flex-col items-center">
+                    <h3 class="text-lg font-bold text-indigo-500 mb-2">💌 让儿子带句话</h3>
+                    <p class="text-xs text-gray-500 mb-4">写在纸条上挂在儿子脖子上，TA上线就能收到！</p>
+                    <textarea id="letterInput" rows="3" class="w-full p-4 bg-indigo-50 border border-indigo-100 rounded-xl focus:outline-none focus:border-indigo-400 text-sm text-gray-700 resize-none font-medium" placeholder="悄悄话..."></textarea>
+                    <button onclick="sendLetter()" class="mt-5 w-full py-3 bg-indigo-500 text-white font-bold rounded-xl shadow-md hover:bg-indigo-600 transition-colors">发送</button>
                 </div>
-                <button onclick="claimLetterReward()" class="mt-6 w-full py-3 bg-pink-500 text-white font-bold rounded-xl shadow-md hover:bg-pink-600 transition-colors flex justify-center items-center gap-2">
-                    <span>摸摸头奖励儿子</span> <span class="text-xs bg-white text-pink-500 px-2 py-0.5 rounded-full">EXP +20</span>
-                </button>
+
+                <div id="letterReadView" class="hidden flex-col items-center">
+                    <h3 class="text-lg font-bold text-pink-500 mb-4 animate-bounce">💌 儿子叼来一封悄悄话</h3>
+                    <div class="w-full bg-pink-50 border border-pink-100 rounded-xl p-5 text-center relative shadow-inner">
+                        <div class="absolute -top-3 left-1/2 transform -translate-x-1/2 text-2xl drop-shadow-sm">📌</div>
+                        <p id="letterContentText" class="text-gray-700 text-[15px] font-bold leading-relaxed mt-2"></p>
+                        <p id="letterSenderText" class="text-xs text-pink-400 mt-4 text-right font-medium"></p>
+                    </div>
+                    <button onclick="claimLetterReward()" class="mt-6 w-full py-3 bg-pink-500 text-white font-bold rounded-xl shadow-md hover:bg-pink-600 transition-colors flex justify-center items-center gap-2">
+                        <span>摸摸头奖励儿子</span> <span class="text-xs bg-white text-pink-500 px-2 py-0.5 rounded-full">EXP +20</span>
+                    </button>
+                </div>
+
+                <div id="letterTransitView" class="hidden flex-col items-center">
+                    <h3 class="text-lg font-bold text-gray-400 mb-4 animate-pulse">🐾 儿子正在投递中...</h3>
+                    <p class="text-xs text-gray-400 mb-3 text-center w-full">你写给 TA 的纸条内容：</p>
+                    <div class="w-full bg-gray-50 border border-gray-200 rounded-xl p-5 text-center relative shadow-inner mb-6">
+                        <p id="transitContentText" class="text-gray-600 text-[15px] font-bold leading-relaxed"></p>
+                    </div>
+                    <button onclick="closeLetterModal()" class="w-full py-3 bg-gray-200 text-gray-600 font-bold rounded-xl shadow-sm hover:bg-gray-300 transition-colors">知道啦</button>
+                </div>
+
+                <div id="letterHistoryView" class="hidden flex-col items-center w-full">
+                    <h3 class="text-lg font-bold text-indigo-500 mb-4">📜 纸条回忆录</h3>
+                    <div id="letterHistoryList" class="w-full space-y-3 overflow-y-auto no-scrollbar mb-4 max-h-64">
+                        <!-- 动态填充 -->
+                    </div>
+                    <button onclick="hideLetterHistory()" class="mt-2 w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-xl shadow-sm hover:bg-gray-200 transition-colors">返回</button>
+                </div>
             </div>
         </div>
     </div>
@@ -406,10 +425,14 @@
         const FILE_PET = 'data/cw.json'; 
         const FILE_H_ACT = 'data/Hcw.json'; 
         const FILE_Q_ACT = 'data/Qcw.json'; 
+        const FILE_LETTER_HISTORY = 'data/ztjl.json';
 
         let petData = null; let petSha = null;
         let myActData = []; let myActSha = null;
         let partnerActData = [];
+        
+        let letterHistoryData = [];
+        let letterHistorySha = null;
         
         let maxActionsPerDay = 1; 
         let isProcessing = false; 
@@ -1190,21 +1213,119 @@
         // 纸条功能
         function handleLetterBtn() {
             if (!petData) return;
-            if (!petData.letter) { document.getElementById('letterWriteView').classList.remove('hidden'); document.getElementById('letterWriteView').classList.add('flex'); document.getElementById('letterReadView').classList.add('hidden'); document.getElementById('letterReadView').classList.remove('flex'); document.getElementById('letterInput').value = ''; openLetterModal(); } else if (petData.letter.sender === myIdentity) { showToast("儿子正带着纸条待命，等TA上线就能看到啦~"); } else { document.getElementById('letterWriteView').classList.add('hidden'); document.getElementById('letterWriteView').classList.remove('flex'); document.getElementById('letterReadView').classList.remove('hidden'); document.getElementById('letterReadView').classList.add('flex'); document.getElementById('letterContentText').innerText = petData.letter.text; document.getElementById('letterSenderText').innerText = `—— 爱你的 ${petData.letter.sender}`; openLetterModal(); }
+            
+            // 重置所有视图状态
+            ['letterWriteView', 'letterReadView', 'letterTransitView', 'letterHistoryView'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+                document.getElementById(id).classList.remove('flex');
+            });
+            document.getElementById('btnLetterHistory').classList.remove('hidden');
+
+            if (!petData.letter) { 
+                document.getElementById('letterWriteView').classList.remove('hidden'); 
+                document.getElementById('letterWriteView').classList.add('flex'); 
+                document.getElementById('letterInput').value = ''; 
+                openLetterModal(); 
+            } else if (petData.letter.sender === myIdentity) { 
+                document.getElementById('letterTransitView').classList.remove('hidden');
+                document.getElementById('letterTransitView').classList.add('flex');
+                document.getElementById('transitContentText').innerText = petData.letter.text;
+                openLetterModal(); 
+            } else { 
+                document.getElementById('letterReadView').classList.remove('hidden'); 
+                document.getElementById('letterReadView').classList.add('flex'); 
+                document.getElementById('letterContentText').innerText = petData.letter.text; 
+                document.getElementById('letterSenderText').innerText = `—— 爱你的 ${petData.letter.sender}`; 
+                openLetterModal(); 
+            }
         }
         function openLetterModal() { document.getElementById('letterModal').classList.remove('hidden'); setTimeout(() => document.getElementById('letterModalContent').classList.replace('scale-95', 'scale-100'), 10); }
         function closeLetterModal() { document.getElementById('letterModalContent').classList.replace('scale-100', 'scale-95'); setTimeout(() => document.getElementById('letterModal').classList.add('hidden'), 300); }
         
+        async function toggleLetterHistory() {
+            ['letterWriteView', 'letterReadView', 'letterTransitView'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el.classList.contains('hidden')) { el.dataset.wasActive = 'true'; el.classList.add('hidden'); el.classList.remove('flex'); }
+            });
+            document.getElementById('btnLetterHistory').classList.add('hidden');
+            document.getElementById('letterHistoryView').classList.remove('hidden'); document.getElementById('letterHistoryView').classList.add('flex');
+            
+            // 动态加载独立的纸条记录
+            document.getElementById('letterHistoryList').innerHTML = '<div class="text-center py-10 text-xs text-indigo-400 animate-pulse">正在读取纸条回忆录...</div>';
+            const histRes = await fetchFile(FILE_LETTER_HISTORY);
+            if (!histRes.error) {
+                letterHistoryData = Array.isArray(histRes.data) ? histRes.data : [];
+                letterHistorySha = histRes.sha;
+            }
+            renderLetterHistory();
+        }
+
+        function hideLetterHistory() {
+            document.getElementById('letterHistoryView').classList.add('hidden'); document.getElementById('letterHistoryView').classList.remove('flex');
+            document.getElementById('btnLetterHistory').classList.remove('hidden');
+            ['letterWriteView', 'letterReadView', 'letterTransitView'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el.dataset.wasActive === 'true') { el.classList.remove('hidden'); el.classList.add('flex'); }
+            });
+        }
+
+        function renderLetterHistory() {
+            const list = document.getElementById('letterHistoryList'); list.innerHTML = '';
+            if (!letterHistoryData || letterHistoryData.length === 0) {
+                list.innerHTML = '<div class="text-center py-10 text-xs text-gray-400">还没有纸条记录哦~</div>'; return;
+            }
+            letterHistoryData.forEach(item => {
+                const isMe = item.sender === myIdentity; const date = new Date(item.time); 
+                const timeStr = `${date.getMonth()+1}-${date.getDate()} ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+                const bgColor = isMe ? 'bg-indigo-50 border-indigo-100' : 'bg-pink-50 border-pink-100';
+                const textColor = isMe ? 'text-indigo-700' : 'text-pink-700';
+                const senderColor = isMe ? 'text-indigo-400' : 'text-pink-400';
+                list.innerHTML += `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'} w-full"><div class="w-[85%] ${bgColor} border rounded-xl p-3 shadow-sm relative"><p class="${textColor} text-sm font-bold mb-1 break-words">${item.text}</p><div class="text-[10px] ${senderColor} flex justify-between items-center w-full mt-2"><span>${isMe ? '我' : item.sender}</span><span>${timeStr}</span></div></div></div>`;
+            });
+        }
+
         async function sendLetter() {
             if (isProcessing) return;
             const text = document.getElementById('letterInput').value.trim(); 
-            if(!text) return showToast("写点什么吧~"); 
-            setProcessingState(true); document.getElementById('letterInput').disabled = true;
+            if(!text) return showToast("写点什么吧，不要发空纸条哦~"); 
+            
+            setProcessingState(true);
+            document.getElementById('letterInput').disabled = true;
+            
             const latestPetRes = await fetchFile(FILE_PET); 
             if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; }
-            petData.letter = { sender: myIdentity, text: text, time: new Date().getTime() }; petData.lastUpdated = new Date().getTime(); 
+            
+            petData.letter = { sender: myIdentity, text: text, time: new Date().getTime() }; 
+            
+            petData.lastUpdated = new Date().getTime(); 
             const upRes = await updateFile(FILE_PET, petData, petSha);
-            if (upRes.success) { petSha = upRes.sha; closeLetterModal(); showToast("使命必达！"); await logAction('letter', "塞了一张纸条 💌"); renderPetUI(); document.getElementById('letterInput').disabled = false; setProcessingState(false); } else { showToast("出错啦，正在重置..."); setTimeout(() => window.location.reload(), 1500); }
+            
+            if (upRes.success) { 
+                petSha = upRes.sha; 
+                
+                // --- 独立保存到 ztjl.json ---
+                const histRes = await fetchFile(FILE_LETTER_HISTORY);
+                if (!histRes.error) {
+                    letterHistoryData = Array.isArray(histRes.data) ? histRes.data : [];
+                    letterHistorySha = histRes.sha;
+                }
+                letterHistoryData.unshift({ sender: myIdentity, text: text, time: petData.letter.time });
+                if (letterHistoryData.length > 50) letterHistoryData.pop(); // 最高保留 50 条
+                
+                const upHistRes = await updateFile(FILE_LETTER_HISTORY, letterHistoryData, letterHistorySha);
+                if (upHistRes.success) letterHistorySha = upHistRes.sha;
+                // ----------------------------
+
+                closeLetterModal(); 
+                showToast("悄悄话已经挂在儿子项圈上啦，使命必达！"); 
+                await logAction('letter', "给儿子塞了一张纸条，让它带给TA 💌"); 
+                renderPetUI(); 
+                document.getElementById('letterInput').disabled = false; 
+                setProcessingState(false);
+            } else {
+                showToast("网络波动或数据冲突，正在强制刷新..."); 
+                setTimeout(() => window.location.reload(), 1500);
+            }
         }
         
         async function claimLetterReward() {
