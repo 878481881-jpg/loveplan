@@ -57,13 +57,15 @@
 <body class="min-h-screen flex flex-col items-center justify-start py-8 px-4 pb-20">
     
     <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
-        <div class="w-9 h-9"></div> <!-- 占位保持居中 -->
+        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 active:scale-95 transition flex items-center justify-center w-9 h-9">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
         <div>
             <h1 class="text-2xl font-black text-rose-500 flex items-center justify-center gap-2 drop-shadow-sm">
                 📈 恋爱股市
             </h1>
         </div>
-        <button onclick="refreshData()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 active:scale-95 transition">
+        <button onclick="refreshData()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 active:scale-95 transition w-9 h-9 flex items-center justify-center">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
         </button>
     </header>
@@ -834,23 +836,30 @@
                 const visibleTrades = myData.tradeHistory.filter(t => t.timestamp >= minTs && t.timestamp <= maxTs);
                 
                 visibleTrades.forEach(trade => {
-                    const cx = mapX(trade.timestamp);
-                    // 卖点画在曲线上方一点，买点画在下方一点，避免遮挡曲线
-                    const cy = mapY(trade.price);
-                    
-                    const isBuy = trade.type === 'buy';
-                    const bgColor = isBuy ? '#ef4444' : '#10b981'; 
-                    const label = isBuy ? 'B' : 'S';
-                    const yOffset = isBuy ? 15 : -15; // 买点靠下，卖点靠上
-                    
-                    // 画一条连接线到曲线上
-                    svgHtml += `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy + yOffset}" stroke="${bgColor}" stroke-width="1.5" stroke-dasharray="2 2" />`;
-                    
-                    // 画圆圈标记
-                    svgHtml += `
-                        <circle cx="${cx}" cy="${cy + yOffset}" r="10" fill="${bgColor}" stroke="#fff" stroke-width="2" />
-                        <text x="${cx}" y="${cy + yOffset + 4}" fill="#fff" font-size="12" font-weight="900" font-family="Arial" text-anchor="middle">${label}</text>
-                    `;
+                    // 寻找该交易发生时对应的“折线拐点”（即距离交易时间最近的上一个数据节点）
+                    let matchedNode = chartData[0]; 
+                    for (let i = chartData.length - 1; i >= 0; i--) {
+                        if (chartData[i].timestamp <= trade.timestamp) {
+                            matchedNode = chartData[i];
+                            break;
+                        }
+                    }
+
+                    if (matchedNode) {
+                        // 使用拐点的时间戳和价格来定位坐标
+                        const cx = mapX(matchedNode.timestamp);
+                        const cy = mapY(matchedNode.price);
+                        
+                        const isBuy = trade.type === 'buy';
+                        const bgColor = isBuy ? '#ef4444' : '#10b981'; 
+                        const label = isBuy ? 'B' : 'S';
+                        
+                        // 画圆圈标记和文字，精准吸附在 (cx, cy) 拐点上
+                        svgHtml += `
+                            <circle cx="${cx}" cy="${cy}" r="10" fill="${bgColor}" stroke="#fff" stroke-width="2" />
+                            <text x="${cx}" y="${cy + 4}" fill="#fff" font-size="12" font-weight="900" font-family="Arial" text-anchor="middle">${label}</text>
+                        `;
+                    }
                 });
             }
 
