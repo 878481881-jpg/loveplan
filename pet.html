@@ -133,9 +133,9 @@
                 <p class="text-gray-500 text-sm text-center mb-6">目前还没有儿子哦，快来迎接一只属于你们的机械毛孩子吧！</p>
                 
                 <div class="flex justify-center gap-4 mb-6">
-                    <button class="p-3 border-2 border-cyan-400 rounded-2xl bg-cyan-50 cursor-default relative flex justify-center items-center h-24 w-24 overflow-hidden">
-                        <div class="w-16 h-16 animate-mech" style="--c-main: hsla(195, 80%, 50%, 0.15); --c-stroke: hsl(195, 100%, 60%); --c-visor: hsl(225, 100%, 70%);">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full drop-shadow-md">
+                    <button class="p-3 border-2 border-cyan-400 rounded-2xl bg-cyan-50 cursor-default relative flex justify-center items-center h-24 w-24 overflow-visible">
+                        <div class="w-16 h-16 animate-mech overflow-visible" style="--c-main: hsla(195, 80%, 50%, 0.15); --c-stroke: hsl(195, 100%, 60%); --c-visor: hsl(225, 100%, 70%);">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible" class="w-full h-full drop-shadow-md overflow-visible">
                                 <polygon points="60,75 20,90 30,125 65,100" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />
                                 <polygon points="140,75 180,90 170,125 135,100" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />
                                 <polygon points="70,75 130,75 150,105 125,135 75,135 50,105" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />
@@ -187,13 +187,13 @@
                 </div>
 
                 <!-- 极高自由度的渲染空间，允许特效溢出 -->
-                <div class="py-12 flex justify-center items-center relative min-h-[360px] select-none touch-none mt-4">
-                    <div id="glowEffect" class="absolute w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse transition-all duration-1000 z-0"></div>
+                <div class="py-12 flex justify-center items-center relative min-h-[360px] select-none touch-none mt-4 overflow-visible">
+                    <div id="glowEffect" class="absolute w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse transition-all duration-1000 z-0 pointer-events-none"></div>
                     
                     <!-- 宠物本体与神级特效挂载点 -->
-                    <div id="petVisualizer" class="z-20 cursor-pointer w-64 h-64 relative flex items-end justify-center pb-10 transition-transform duration-500"></div>
+                    <div id="petVisualizer" class="z-20 cursor-pointer w-64 h-64 relative flex items-end justify-center pb-10 transition-transform duration-500 overflow-visible"></div>
                     
-                    <div id="sleepZzzContainer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden"></div>
+                    <div id="sleepZzzContainer" class="absolute inset-0 pointer-events-none z-30 overflow-visible"></div>
                     <div id="interactionText" class="absolute top-4 text-rose-500 font-black opacity-0 transition-opacity z-40 whitespace-nowrap text-xl drop-shadow-md tracking-widest"></div>
                 </div>
 
@@ -374,8 +374,8 @@
             <p class="text-xs text-gray-500 text-center mb-6 font-bold">滑动预见突破次元的终极形态</p>
             
             <!-- 预览窗口，无 overflow-hidden，允许特效突破 -->
-            <div class="w-full h-64 bg-gray-900 rounded-2xl relative flex items-center justify-center mb-6 shadow-inner ring-4 ring-gray-800">
-                <div id="previewVisualizer" class="w-full h-full flex items-center justify-center relative z-20"></div>
+            <div class="w-full h-64 bg-gray-900 rounded-2xl relative flex items-center justify-center mb-6 shadow-inner ring-4 ring-gray-800 overflow-visible">
+                <div id="previewVisualizer" class="w-full h-full flex items-center justify-center relative z-20 overflow-visible"></div>
                 <div id="previewLevelBgText" class="absolute font-black text-gray-800 opacity-30 text-7xl pointer-events-none select-none z-0 tracking-tighter mix-blend-overlay">Lv.1</div>
             </div>
             
@@ -689,35 +689,64 @@
             mgState = { type: type, progress: 0, extra: null, finished: false };
             
             overlay.classList.remove('hidden'); prompt.classList.remove('hidden'); overlay.innerHTML = '';
-            overlay.onclick = overlay.onmousedown = overlay.ontouchstart = overlay.onmousemove = overlay.ontouchmove = null;
-            window.onmouseup = window.ontouchend = null;
+            
+            // 清理并重新绑定安全取消事件
+            clearMiniGameEvents();
 
             const cancelBtn = document.createElement('button'); cancelBtn.innerHTML = '✖';
             cancelBtn.className = 'absolute top-4 right-4 text-gray-500 bg-white/80 rounded-full w-8 h-8 shadow-md text-sm font-bold z-50 hover:bg-white active:scale-90 transition-transform backdrop-blur-sm';
             cancelBtn.onclick = (e) => { e.stopPropagation(); cancelMiniGame(); }; overlay.appendChild(cancelBtn);
 
-            // 小游戏具体逻辑 (精简提炼)
+            // 小游戏具体逻辑
             switch(type) {
                 case 'feed':
                     const foods = [{ icon: '🍖', name: '高能骨头' }, { icon: '🥩', name: '极品合成肉' }, { icon: '🍗', name: '香脆炸鸡' }, { icon: '🍔', name: '超维汉堡' }];
                     const food = foods[Math.floor(Math.random() * foods.length)]; mgState.extra = food; 
                     prompt.innerHTML = `点击喂食 ${food.icon} (0/3)`;
                     const foodEl = document.createElement('div'); foodEl.innerHTML = food.icon; foodEl.className = 'text-6xl cursor-pointer hover:scale-125 active:scale-90 transition-transform drop-shadow-xl';
-                    foodEl.onclick = (e) => { e.stopPropagation(); mgState.progress++; prompt.innerHTML = `点击喂食 ${food.icon} (${mgState.progress}/3)`; spawnMiniGameParticle(e.clientX, e.clientY, '✨'); if(mgState.progress >= 3) finishMiniGame(type); };
+                    foodEl.onclick = (e) => { 
+                        e.stopPropagation(); 
+                        if(mgState.finished) return;
+                        mgState.progress++; 
+                        prompt.innerHTML = `点击喂食 ${food.icon} (${mgState.progress}/3)`; 
+                        spawnMiniGameParticle(e.clientX, e.clientY, '✨'); 
+                        if(mgState.progress >= 3) { 
+                            mgState.finished = true; 
+                            finishMiniGame(type); 
+                        } 
+                    };
                     overlay.appendChild(foodEl); break;
                 case 'fan':
                     prompt.innerHTML = '向上滑动扔飞盘 🎾';
                     const frisbee = document.createElement('div'); frisbee.innerHTML = '🎾'; frisbee.className = 'text-7xl absolute bottom-10 transition-transform duration-500 drop-shadow-xl'; overlay.appendChild(frisbee);
                     let fStartY = 0, fLastY = 0;
                     const fDown = (e) => { fStartY = getPos(e).y; }; const fMove = (e) => { if(fStartY) fLastY = getPos(e).y; };
-                    const fUp = () => { if(fStartY && (fStartY - fLastY > 80)) { frisbee.style.transform = 'translateY(-300px) scale(0.3) rotate(360deg)'; setTimeout(() => finishMiniGame(type), 400); } fStartY = 0; };
+                    const fUp = () => { 
+                        if(mgState.finished) return;
+                        if(fStartY && (fStartY - fLastY > 80)) { 
+                            mgState.finished = true;
+                            frisbee.style.transform = 'translateY(-300px) scale(0.3) rotate(360deg)'; 
+                            setTimeout(() => finishMiniGame(type), 400); 
+                        } 
+                        fStartY = 0; 
+                    };
                     overlay.onmousedown = overlay.ontouchstart = fDown; overlay.onmousemove = overlay.ontouchmove = fMove; window.onmouseup = window.ontouchend = fUp; break;
                 case 'water':
                     prompt.innerHTML = '来回滑动搓澡 🛁';
                     const sponge = document.createElement('div'); sponge.innerHTML = '🧽'; sponge.className = 'text-5xl absolute pointer-events-none transition-opacity drop-shadow-lg'; overlay.appendChild(sponge);
                     let wIsWashing = false, wLastX = 0; mgState.target = 800; 
                     const wDown = (e) => { wIsWashing = true; let pos = getPos(e); wLastX = pos.x; sponge.style.left = pos.x - 24 + 'px'; sponge.style.top = pos.y - 24 + 'px'; };
-                    const wMove = (e) => { if (!wIsWashing) return; let pos = getPos(e); sponge.style.left = pos.x - 24 + 'px'; sponge.style.top = pos.y - 24 + 'px'; mgState.progress += Math.abs(pos.x - wLastX); wLastX = pos.x; if (Math.random() > 0.8) spawnMiniGameParticle(pos.x, pos.y, '🫧'); if (mgState.progress > mgState.target) { wIsWashing = false; finishMiniGame(type); } };
+                    const wMove = (e) => { 
+                        if (!wIsWashing || mgState.finished) return; 
+                        let pos = getPos(e); sponge.style.left = pos.x - 24 + 'px'; sponge.style.top = pos.y - 24 + 'px'; 
+                        mgState.progress += Math.abs(pos.x - wLastX); wLastX = pos.x; 
+                        if (Math.random() > 0.8) spawnMiniGameParticle(pos.x, pos.y, '🫧'); 
+                        if (mgState.progress > mgState.target) { 
+                            wIsWashing = false; 
+                            mgState.finished = true;
+                            finishMiniGame(type); 
+                        } 
+                    };
                     const wUp = () => wIsWashing = false;
                     overlay.onmousedown = overlay.ontouchstart = wDown; overlay.onmousemove = overlay.ontouchmove = wMove; window.onmouseup = window.ontouchend = wUp; break;
                 case 'tickle':
@@ -725,7 +754,19 @@
                     const feather = document.createElement('div'); feather.innerHTML = '🪶'; feather.className = 'text-5xl absolute pointer-events-none transition-opacity filter drop-shadow-md'; overlay.appendChild(feather);
                     let tIsTickling = false, tLastX = 0; mgState.target = 1000;
                     const tDown = (e) => { tIsTickling = true; let pos = getPos(e); tLastX = pos.x; feather.style.left = pos.x - 24 + 'px'; feather.style.top = pos.y - 24 + 'px'; };
-                    const tMove = (e) => { if (!tIsTickling) return; let pos = getPos(e); feather.style.left = pos.x - 24 + 'px'; feather.style.top = pos.y - 24 + 'px'; mgState.progress += Math.abs(pos.x - tLastX); tLastX = pos.x; let pct = Math.min(100, Math.floor((mgState.progress / mgState.target) * 100)); prompt.innerHTML = `快速左右滑动挠痒 🪶 (${pct}%)`; if (Math.random() > 0.8) spawnMiniGameParticle(pos.x, pos.y, '✨'); if (mgState.progress > mgState.target) { tIsTickling = false; finishMiniGame(type); } };
+                    const tMove = (e) => { 
+                        if (!tIsTickling || mgState.finished) return; 
+                        let pos = getPos(e); feather.style.left = pos.x - 24 + 'px'; feather.style.top = pos.y - 24 + 'px'; 
+                        mgState.progress += Math.abs(pos.x - tLastX); tLastX = pos.x; 
+                        let pct = Math.min(100, Math.floor((mgState.progress / mgState.target) * 100)); 
+                        prompt.innerHTML = `快速左右滑动挠痒 🪶 (${pct}%)`; 
+                        if (Math.random() > 0.8) spawnMiniGameParticle(pos.x, pos.y, '✨'); 
+                        if (mgState.progress > mgState.target) { 
+                            tIsTickling = false; 
+                            mgState.finished = true;
+                            finishMiniGame(type); 
+                        } 
+                    };
                     const tUp = () => tIsTickling = false;
                     overlay.onmousedown = overlay.ontouchstart = tDown; overlay.onmousemove = overlay.ontouchmove = tMove; window.onmouseup = window.ontouchend = tUp; break;
                 case 'walk':
@@ -734,7 +775,21 @@
                     const createFoot = (side) => {
                         const f = document.createElement('div'); f.innerHTML = '🐾'; f.id = `foot-${side}`;
                         f.className = `text-6xl cursor-pointer transition-all duration-300 ${side==='left' ? 'animate-bounce scale-110 drop-shadow-lg' : 'opacity-40 scale-90'}`;
-                        f.onclick = (e) => { e.stopPropagation(); if (expectedSide === side) { mgState.progress++; prompt.innerHTML = `交替点击脚印前进 🦮 (${mgState.progress}/6)`; expectedSide = side === 'left' ? 'right' : 'left'; document.getElementById('foot-left').className = `text-6xl transition-all duration-300 cursor-pointer ${expectedSide==='left' ? 'animate-bounce scale-110 drop-shadow-lg' : 'opacity-40 scale-90'}`; document.getElementById('foot-right').className = `text-6xl transition-all duration-300 cursor-pointer ${expectedSide==='right' ? 'animate-bounce scale-110 drop-shadow-lg' : 'opacity-40 scale-90'}`; if(mgState.progress >= 6) setTimeout(() => finishMiniGame(type), 300); } };
+                        f.onclick = (e) => { 
+                            e.stopPropagation(); 
+                            if (mgState.finished) return;
+                            if (expectedSide === side) { 
+                                mgState.progress++; 
+                                prompt.innerHTML = `交替点击脚印前进 🦮 (${mgState.progress}/6)`; 
+                                expectedSide = side === 'left' ? 'right' : 'left'; 
+                                document.getElementById('foot-left').className = `text-6xl transition-all duration-300 cursor-pointer ${expectedSide==='left' ? 'animate-bounce scale-110 drop-shadow-lg' : 'opacity-40 scale-90'}`; 
+                                document.getElementById('foot-right').className = `text-6xl transition-all duration-300 cursor-pointer ${expectedSide==='right' ? 'animate-bounce scale-110 drop-shadow-lg' : 'opacity-40 scale-90'}`; 
+                                if(mgState.progress >= 6) { 
+                                    mgState.finished = true; 
+                                    setTimeout(() => finishMiniGame(type), 300); 
+                                } 
+                            } 
+                        };
                         return f;
                     };
                     steps.appendChild(createFoot('left')); steps.appendChild(createFoot('right')); overlay.appendChild(steps); break;
@@ -742,20 +797,59 @@
                     prompt.innerHTML = '向下顺势梳毛 🪮 (0/3)';
                     let bStartY = 0, bLastY = 0;
                     const bDown = (e) => { bStartY = getPos(e).y; }; const bMove = (e) => { if(bStartY) bLastY = getPos(e).y; };
-                    const bUp = () => { if(bStartY && (bLastY - bStartY > 80)) { mgState.progress++; prompt.innerHTML = `向下顺势梳毛 🪮 (${mgState.progress}/3)`; spawnMiniGameParticle(window.innerWidth/2, bLastY, '✨'); if(mgState.progress >= 3) finishMiniGame(type); } bStartY = 0; };
+                    const bUp = () => { 
+                        if(mgState.finished) return;
+                        if(bStartY && (bLastY - bStartY > 80)) { 
+                            mgState.progress++; prompt.innerHTML = `向下顺势梳毛 🪮 (${mgState.progress}/3)`; 
+                            spawnMiniGameParticle(window.innerWidth/2, bLastY, '✨'); 
+                            if(mgState.progress >= 3) { 
+                                mgState.finished = true; 
+                                finishMiniGame(type); 
+                            } 
+                        } 
+                        bStartY = 0; 
+                    };
                     overlay.onmousedown = overlay.ontouchstart = bDown; overlay.onmousemove = overlay.ontouchmove = bMove; window.onmouseup = window.ontouchend = bUp; break;
                 case 'train':
                     prompt.innerHTML = '精准击破靶子 🎯 (0/3)';
                     const target = document.createElement('div'); target.innerHTML = '🎯'; target.className = 'text-6xl absolute cursor-pointer active:scale-75 transition-all drop-shadow-xl';
                     const moveTarget = () => { target.style.left = 20 + Math.random() * (overlay.clientWidth - 100) + 'px'; target.style.top = 20 + Math.random() * (overlay.clientHeight - 100) + 'px'; };
                     moveTarget();
-                    target.onclick = (e) => { e.stopPropagation(); mgState.progress++; prompt.innerHTML = `精准击破靶子 🎯 (${mgState.progress}/3)`; spawnMiniGameParticle(e.clientX, e.clientY, '💥'); if (mgState.progress >= 3) finishMiniGame(type); else moveTarget(); };
+                    target.onclick = (e) => { 
+                        e.stopPropagation(); 
+                        if(mgState.finished) return;
+                        mgState.progress++; 
+                        prompt.innerHTML = `精准击破靶子 🎯 (${mgState.progress}/3)`; 
+                        spawnMiniGameParticle(e.clientX, e.clientY, '💥'); 
+                        if (mgState.progress >= 3) { 
+                            mgState.finished = true; 
+                            finishMiniGame(type); 
+                        } 
+                        else moveTarget(); 
+                    };
                     overlay.appendChild(target); break;
             }
         }
 
-        function cancelMiniGame() { document.getElementById('miniGameOverlay').classList.add('hidden'); document.getElementById('miniGamePrompt').classList.add('hidden'); setProcessingState(false); }
-        function finishMiniGame(type) { document.getElementById('miniGameOverlay').classList.add('hidden'); document.getElementById('miniGamePrompt').classList.add('hidden'); executeAction(type, mgState.extra); }
+        function clearMiniGameEvents() {
+            const overlay = document.getElementById('miniGameOverlay');
+            overlay.onmousedown = overlay.ontouchstart = overlay.onmousemove = overlay.ontouchmove = null;
+            window.onmouseup = window.ontouchend = null;
+        }
+
+        function cancelMiniGame() { 
+            clearMiniGameEvents();
+            document.getElementById('miniGameOverlay').classList.add('hidden'); 
+            document.getElementById('miniGamePrompt').classList.add('hidden'); 
+            setProcessingState(false); 
+        }
+        
+        function finishMiniGame(type) { 
+            clearMiniGameEvents();
+            document.getElementById('miniGameOverlay').classList.add('hidden'); 
+            document.getElementById('miniGamePrompt').classList.add('hidden'); 
+            executeAction(type, mgState.extra); 
+        }
 
         async function doAction(type) {
             if (isProcessing || !petData) return;
@@ -1064,8 +1158,8 @@
                 html += `<div class="absolute inset-[-30%] pointer-events-none flex items-center justify-center z-[-1] opacity-70"><div class="absolute inset-0 rounded-full border-[12px] border-cyan-500/30 border-dashed mix-blend-screen" style="animation: spin 20s linear infinite;"></div><div class="absolute inset-[15%] rounded-full border-4 border-indigo-500/50 mix-blend-screen border-dotted" style="animation: spin 10s linear infinite reverse;"></div><div class="absolute w-full h-[1px] bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent"></div><div class="absolute h-full w-[1px] bg-gradient-to-b from-transparent via-cyan-400/50 to-transparent"></div></div>`;
             }
 
-            // 主体 SVG
-            html += `<div class="absolute w-32 h-32 md:w-40 md:h-40 filter drop-shadow-2xl ${animClass}" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 25px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full overflow-visible">${innerSVG}</svg></div>`;
+            // 主体 SVG (强制增加 overflow-visible)
+            html += `<div class="absolute w-32 h-32 md:w-40 md:h-40 filter drop-shadow-2xl overflow-visible ${animClass}" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 25px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible" class="w-full h-full overflow-visible">${innerSVG}</svg></div>`;
             
             // 史诗级粒子飞散特效
             if (!isNightTime) {
@@ -1354,7 +1448,7 @@
             if (level >= 20) { const ring2Size = 140 + (level - 20) * 0.5; html += `<div class="absolute border-4 border-transparent rounded-full mix-blend-screen opacity-60" style="width: ${ring2Size}px; height: ${ring2Size}px; border-left-color: ${cVisor}; border-right-color: ${cVisor}; animation: spin 8s linear infinite reverse;"></div>`; }
             
             html += `</div><div class="relative flex justify-center items-center transition-all duration-300 z-20 pointer-events-auto" style="transform: scale(${scale});">`;
-            html += `<div class="relative w-32 h-32 md:w-40 md:h-40 filter drop-shadow-2xl animate-mech" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 25px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-full h-full overflow-visible">${innerSVG}</svg></div></div>`;
+            html += `<div class="relative w-32 h-32 md:w-40 md:h-40 filter drop-shadow-2xl animate-mech overflow-visible" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; text-shadow: 0 0 25px ${cGlow}; transform-origin: center;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible" class="w-full h-full overflow-visible">${innerSVG}</svg></div></div>`;
             return html;
         }
 
