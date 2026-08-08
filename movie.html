@@ -84,7 +84,7 @@
                 <!-- 动态生成 -->
             </div>
 
-            <!-- 视图 2: 已看清单 -->
+            <!-- 视图 2: 已看清单 (已调整为纵向堆叠展示完整短评内容) -->
             <div id="watchedView" class="hidden flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar flex flex-col">
                 <!-- 动态生成 -->
             </div>
@@ -130,7 +130,7 @@
                 <span id="scoreText" class="text-rose-500 font-bold mt-2 h-5 text-sm"></span>
             </div>
 
-            <textarea id="reviewInput" rows="2" class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 resize-none text-gray-700 placeholder-rose-300 mb-4" placeholder="写一句短评吧（可选）..."></textarea>
+            <textarea id="reviewInput" rows="3" class="w-full px-3 py-2 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 resize-none text-gray-700 placeholder-rose-300 mb-4" placeholder="写一句完整的短评，记录当时的感动或吐槽吧..."></textarea>
             
             <input type="hidden" id="currentRatingMovieId">
 
@@ -264,8 +264,8 @@
                     // 初始化一些演示数据
                     moviesData = {
                         movies: [
-                            { id: Date.now()-10000, title: "星际穿越", genre: ["科幻", "剧情"], addedBy: "哼哼", ratings: { "哼哼": {score: 10, comment:"神作！"}, "亲亲": {score: 8, comment:"有点烧脑"} } },
-                            { id: Date.now()-5000, title: "爱乐之城", genre: ["爱情", "剧情"], addedBy: "亲亲", ratings: { "哼哼": {score: 6, comment:"歌好听"}, "亲亲": {score: 10, comment:"看哭了"} } },
+                            { id: Date.now()-10000, title: "星际穿越", genre: ["科幻", "剧情"], addedBy: "哼哼", ratings: { "哼哼": {score: 10, comment:"神作！音效和剧情都无可挑剔，值得在电影院多刷几次。"}, "亲亲": {score: 8, comment:"有点烧脑，不过后半部分父女情感非常感人。"} } },
+                            { id: Date.now()-5000, title: "爱乐之城", genre: ["爱情", "剧情"], addedBy: "亲亲", ratings: { "哼哼": {score: 6, comment:"歌挺好听的，但是结局意难平啊。"}, "亲亲": {score: 10, comment:"看哭了，完美的浪漫主义色彩。"} } },
                             { id: Date.now(), title: "头脑特工队2", genre: ["动画", "喜剧"], addedBy: "哼哼", ratings: {} } // 想看状态
                         ]
                     };
@@ -381,7 +381,7 @@
                 }).join('');
             }
 
-            // 渲染已看评价
+            // 渲染已看评价（改造成纵向堆叠，让短评完整展示不被截断）
             const watchedContainer = document.getElementById('watchedView');
             if (watchedList.length === 0) {
                 watchedContainer.innerHTML = '<div class="flex-1 flex flex-col justify-center items-center opacity-50"><span class="text-4xl mb-2">🎬</span><p class="text-sm text-gray-500">还没有一起看完的电影呢~</p></div>';
@@ -391,7 +391,7 @@
                     const qin = m.ratings['亲亲'];
                     
                     const mGenres = Array.isArray(m.genre) ? m.genre : [m.genre];
-                    const genresHtml = mGenres.map(g => `<span class="text-[10px] text-gray-500 bg-white/60 px-1.5 rounded-sm">${g}</span>`).join('');
+                    const genresHtml = mGenres.map(g => `<span class="text-[10px] text-gray-500 bg-white/80 border border-rose-100 px-1.5 py-0.5 rounded">${g}</span>`).join('');
                     
                     // 计算综合评分
                     let avgScoreText = '?';
@@ -400,32 +400,34 @@
                     } else if (heng) avgScoreText = heng.score.toFixed(1);
                     else if (qin) avgScoreText = qin.score.toFixed(1);
 
-                    // 个人评价渲染
+                    // 个人评价渲染（改为全宽度垂直卡片，支持长内容完整阅读）
                     const renderUserReview = (user, data) => {
                         if (!data) return `
-                            <div class="flex-1 bg-gray-50/80 rounded-lg p-2 border border-gray-100 border-dashed flex flex-col justify-center items-center text-gray-400 cursor-pointer hover:bg-gray-100" ${myIdentity === user ? `onclick="openRatingModal(${m.id})"` : ''}>
-                                <span class="text-xs mb-1">${user}</span>
-                                <span class="text-[10px] bg-white px-2 py-0.5 rounded shadow-sm">等待打分...</span>
+                            <div class="w-full bg-gray-50/80 rounded-lg p-2.5 border border-gray-100 border-dashed flex justify-between items-center text-gray-400 cursor-pointer hover:bg-gray-100 transition" ${myIdentity === user ? `onclick="openRatingModal(${m.id})"` : ''}>
+                                <span class="text-xs font-medium">${user} 的评价</span>
+                                <span class="text-[10px] bg-white px-2 py-0.5 rounded shadow-sm text-rose-500 font-bold">等待打分... 点击填写</span>
                             </div>
                         `;
                         return `
-                            <div class="flex-1 bg-white rounded-lg p-2 border border-rose-50 shadow-sm flex flex-col">
+                            <div class="w-full bg-white rounded-lg p-2.5 border border-rose-50 shadow-sm flex flex-col">
                                 <div class="flex justify-between items-center mb-1">
-                                    <span class="text-xs font-bold text-gray-700">${user}</span>
-                                    <span class="text-xs font-bold text-amber-500">${data.score} 分</span>
+                                    <span class="text-xs font-bold text-gray-700 flex items-center gap-1">
+                                        <span>✍️</span> ${user} 的短评
+                                    </span>
+                                    <span class="text-xs font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full">${data.score} 分</span>
                                 </div>
-                                <p class="text-[11px] text-gray-500 mt-1 line-clamp-2 italic">"${data.comment || '没有留下短评~'}"</p>
+                                <p class="text-xs text-gray-600 mt-1 leading-relaxed break-words whitespace-pre-wrap">"${data.comment || '没有留下文字短评~'}"</p>
                             </div>
                         `;
                     };
 
                     return `
-                    <div class="bg-gradient-to-br from-rose-50 to-pink-50/30 border border-rose-100 rounded-xl p-3 flex flex-col gap-2 animate-fade-in shadow-sm relative overflow-hidden">
+                    <div class="bg-gradient-to-br from-rose-50 to-pink-50/30 border border-rose-100 rounded-xl p-3.5 flex flex-col gap-2.5 animate-fade-in shadow-sm relative overflow-hidden">
                         
-                        <div class="flex justify-between items-start mb-1">
+                        <div class="flex justify-between items-start border-b border-rose-100/60 pb-2">
                             <div>
                                 <h4 class="font-bold text-gray-800 text-sm">《${m.title}》</h4>
-                                <div class="flex gap-1 mt-1 flex-wrap">${genresHtml}</div>
+                                <div class="flex gap-1 mt-1.5 flex-wrap">${genresHtml}</div>
                             </div>
                             <div class="flex flex-col items-end">
                                 <span class="text-[10px] text-rose-400 font-bold">综合评分</span>
@@ -436,7 +438,8 @@
                             </div>
                         </div>
 
-                        <div class="flex gap-2 w-full mt-1">
+                        <!-- 纵向排列两个人各自的评价，保证长文字可以完整浏览 -->
+                        <div class="flex flex-col gap-2 w-full">
                             ${renderUserReview('哼哼', heng)}
                             ${renderUserReview('亲亲', qin)}
                         </div>
