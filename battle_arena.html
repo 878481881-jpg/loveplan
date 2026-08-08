@@ -15,13 +15,11 @@
                 linear-gradient(rgba(30, 41, 59, 0.8) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(30, 41, 59, 0.8) 1px, transparent 1px);
             background-size: 30px 30px;
-            /* 关键布局优化：防止移动端上下滑动 */
             overscroll-behavior-y: none;
             touch-action: pan-x pan-y;
             color: #e2e8f0;
         }
         
-        /* 赛博朋克网格扫描线动画 */
         .scanline {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -35,8 +33,17 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* 状态条过渡 */
+        /* 状态条过渡与护盾特效 */
         .hp-bar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s ease; }
+        
+        .shield-bar { 
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), left 0.3s cubic-bezier(0.4, 0, 0.2, 1), right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: #f8fafc;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8), inset 0 0 5px rgba(0,0,0,0.2);
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(148, 163, 184, 0.4) 4px, rgba(148, 163, 184, 0.4) 8px);
+            border-radius: inherit;
+        }
+
         .ep-bar { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         
         .glass-panel {
@@ -72,11 +79,7 @@
             white-space: nowrap;
         }
 
-        /* --------------------------------- */
-        /* 特效动画定制区域 */
-        /* --------------------------------- */
-
-        /* 1. 能量爪击 (Attack): 快速锐利的突进 */
+        /* 1. 能量爪击 */
         @keyframes attack-claw-right {
             0% { transform: translateX(0) scale(1); filter: brightness(1); }
             15% { transform: translateX(-15px) scale(0.95); filter: brightness(1.2); }
@@ -95,7 +98,7 @@
         }
         .anim-attack-left { animation: attack-claw-left 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
 
-        /* 2. 暴力强击 (Strike): 蓄力后沉重打击 */
+        /* 2. 暴力强击 */
         @keyframes strike-heavy-right {
             0% { transform: translateX(0) scale(1); filter: brightness(1); }
             40% { transform: translateX(-30px) scale(0.9) rotate(-5deg); filter: brightness(0.8) sepia(0.5); }
@@ -133,7 +136,7 @@
         }
         .anim-hit-heavy { animation: hit-heavy 0.5s ease-out; }
 
-        /* 3. 巨型旋风 (Tornado): 狂暴旋转 */
+        /* 3. 巨型旋风 */
         @keyframes tornado-spin {
             0% { transform: scale(1) rotate(0deg); }
             20% { transform: scale(1.1) rotate(180deg) translateY(-10px); filter: hue-rotate(90deg) blur(2px); }
@@ -143,7 +146,7 @@
         }
         .anim-tornado { animation: tornado-spin 0.8s ease-in-out; }
 
-        /* 4. 治愈护盾 (Shield) & 增益基础 */
+        /* 4. 治愈护盾 & 增益基础 */
         @keyframes buff-powerup {
             0% { filter: drop-shadow(0 0 0px #60a5fa); transform: translateY(0) scale(1); }
             30% { filter: drop-shadow(0 0 40px #60a5fa) brightness(1.8); transform: translateY(-15px) scale(1.1); }
@@ -151,14 +154,14 @@
         }
         .anim-buff { animation: buff-powerup 0.8s ease-out; z-index: 30; }
 
-        /* 5. 火力全开 (Burst): 持续发光状态 */
+        /* 5. 火力全开 */
         @keyframes aura-pulse {
             0%, 100% { filter: drop-shadow(0 0 15px rgba(245, 158, 11, 0.5)) brightness(1); }
             50% { filter: drop-shadow(0 0 30px rgba(239, 68, 68, 0.9)) brightness(1.3) contrast(1.1); }
         }
         .aura-burst { animation: aura-pulse 2s infinite ease-in-out; }
 
-        /* 6. 天穹爆炎 (Ultimate) & 绝杀 */
+        /* 6. 天穹爆炎 */
         .anim-ult-bg {
             background-color: #000 !important;
             background-image: none !important;
@@ -192,12 +195,27 @@
             animation: screen-flash 1s ease-out forwards;
         }
 
+        /* 能量护体：六边形能量场 */
+        .energy-body-active::after {
+            content: '';
+            position: absolute;
+            inset: -20%;
+            border: 3px solid #2dd4bf;
+            border-radius: 40%;
+            border-style: dashed;
+            animation: spin 3s linear infinite;
+            filter: drop-shadow(0 0 10px #2dd4bf);
+            pointer-events: none;
+            mix-blend-mode: screen;
+            z-index: 50;
+        }
+
     </style>
 </head>
 <body class="h-[100dvh] w-screen overflow-hidden flex flex-col pb-[env(safe-area-inset-bottom)]">
     <div class="scanline"></div>
 
-    <!-- 头部：固定高度 -->
+    <!-- 头部 -->
     <header class="flex-none w-full flex justify-between items-center z-20 px-4 py-3 h-14">
         <a href="pet.html" class="w-8 h-8 flex items-center justify-center bg-slate-800 text-cyan-400 rounded-full shadow-lg border border-cyan-800 hover:bg-slate-700 transition">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
@@ -208,10 +226,10 @@
         <div class="w-8 h-8"></div>
     </header>
 
-    <!-- 主体区域：利用 flex-1 填满剩余空间，内部使用绝对定位层叠面板 -->
+    <!-- 主体区域 -->
     <main class="flex-1 min-h-0 w-full relative flex flex-col">
         
-        <!-- 关卡选择界面 (默认显示，充满父级) -->
+        <!-- 关卡选择界面 -->
         <div id="levelSelectMenu" class="absolute inset-0 z-10 flex flex-col items-center justify-center px-4">
             <h2 class="text-cyan-400 font-bold text-lg md:text-xl mb-4 drop-shadow-[0_0_5px_cyan] flex items-center gap-2"><span>🎯</span> 选择挑战目标</h2>
             <div class="glass-panel p-3 md:p-4 rounded-2xl w-full max-w-md border border-slate-600 shadow-lg flex flex-col max-h-[70%]">
@@ -221,23 +239,27 @@
             </div>
         </div>
 
-        <!-- 战斗主区域 (默认隐藏，充满父级) -->
+        <!-- 战斗主区域 -->
         <div id="battleArena" class="absolute inset-0 flex flex-col items-center hidden pb-2 px-2 md:px-4">
             
             <!-- 顶部状态栏 -->
             <div class="flex-none w-full max-w-lg flex justify-between items-start gap-2 z-10 mt-2">
+                
                 <!-- 玩家状态 -->
                 <div class="flex-1 glass-panel rounded-xl p-2 md:p-3 shadow-lg border-l-4 border-l-cyan-400 transform -skew-x-3">
                     <div class="flex justify-between items-end mb-1 transform skew-x-3">
                         <span class="font-bold text-cyan-400 text-sm md:text-base drop-shadow-[0_0_5px_rgba(34,211,238,0.8)] truncate max-w-[60%]" id="playerName">我的儿子</span>
                         <span class="text-[10px] md:text-xs text-slate-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded" id="playerLevel">Lv.1</span>
                     </div>
+                    
+                    <!-- 优化后的护盾与HP层叠结构 -->
                     <div class="w-full bg-slate-900 rounded-full h-2 md:h-3 border border-slate-700 overflow-hidden transform skew-x-3 relative">
-                        <div id="playerHpBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 hp-bar" style="width: 100%;"></div>
-                        <div id="playerShieldEffect" class="absolute inset-0 bg-cyan-300 opacity-0 transition-opacity duration-300 pointer-events-none" style="mix-blend-mode: overlay;"></div>
+                        <div id="playerHpBar" class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 hp-bar absolute left-0 top-0 z-10" style="width: 100%;"></div>
+                        <div id="playerShieldBar" class="h-full shield-bar absolute top-0 z-20" style="left: 100%; width: 0%;"></div>
+                        <div id="playerShieldEffect" class="absolute inset-0 bg-cyan-300 opacity-0 transition-opacity duration-300 pointer-events-none z-30" style="mix-blend-mode: overlay;"></div>
                     </div>
                     <div class="w-full bg-slate-900 rounded-full h-1 md:h-1.5 border border-slate-700 overflow-hidden transform skew-x-3 relative mt-1">
-                        <div id="playerEpBar" class="h-full bg-gradient-to-r from-amber-400 to-yellow-500 ep-bar" style="width: 100%;"></div>
+                        <div id="playerEpBar" class="h-full bg-gradient-to-r from-amber-400 to-yellow-500 ep-bar absolute left-0 top-0" style="width: 100%;"></div>
                     </div>
                     <div class="flex justify-between text-[9px] md:text-[10px] mt-1 font-mono text-slate-300 transform skew-x-3">
                         <span id="playerHpText">-- / --</span>
@@ -253,16 +275,21 @@
                         <span class="text-[10px] md:text-xs text-slate-400 font-bold bg-slate-800 px-1.5 py-0.5 rounded" id="enemyLevel">Lv.--</span>
                         <span class="font-bold text-rose-500 text-sm md:text-base drop-shadow-[0_0_5px_rgba(244,63,94,0.8)] truncate max-w-[60%] text-right" id="enemyName">狂化实体</span>
                     </div>
+                    
+                    <!-- 敌方血条与护盾白条 -->
                     <div class="w-full bg-slate-900 rounded-full h-2 md:h-3 border border-slate-700 overflow-hidden transform -skew-x-3 relative flex justify-end">
-                        <div id="enemyHpBar" class="h-full bg-gradient-to-l from-rose-500 to-orange-500 hp-bar" style="width: 100%;"></div>
-                        <div id="enemyShieldEffect" class="absolute inset-0 bg-rose-300 opacity-0 transition-opacity duration-300 pointer-events-none" style="mix-blend-mode: overlay;"></div>
+                        <div id="enemyHpBar" class="h-full bg-gradient-to-l from-rose-500 to-orange-500 hp-bar absolute right-0 top-0 z-10" style="width: 100%;"></div>
+                        <div id="enemyShieldBar" class="h-full shield-bar absolute top-0 z-20" style="right: 100%; width: 0%;"></div>
+                        <div id="enemyShieldEffect" class="absolute inset-0 bg-rose-300 opacity-0 transition-opacity duration-300 pointer-events-none z-30" style="mix-blend-mode: overlay;"></div>
                     </div>
+                    
                     <div class="w-full bg-slate-900 rounded-full h-1 md:h-1.5 border border-slate-700 overflow-hidden transform -skew-x-3 relative flex justify-end mt-1">
-                        <div id="enemyEpBar" class="h-full bg-gradient-to-l from-amber-400 to-yellow-500 ep-bar" style="width: 100%;"></div>
+                        <div id="enemyEpBar" class="h-full bg-gradient-to-l from-amber-400 to-yellow-500 ep-bar absolute right-0 top-0" style="width: 100%;"></div>
                     </div>
-                    <div class="flex justify-between text-[9px] md:text-[10px] mt-1 font-mono text-slate-300 transform -skew-x-3">
-                        <span class="text-amber-400 font-bold">EP: <span id="enemyEpText">--</span>/<span id="enemyMaxEpText">100</span></span>
+                    
+                    <div class="flex justify-between text-[9px] md:text-[10px] mt-1 font-mono text-slate-300 transform -skew-x-3 flex-row-reverse">
                         <span id="enemyHpText">-- / --</span>
+                        <span class="text-amber-400 font-bold">EP: <span id="enemyEpText">--</span>/<span id="enemyMaxEpText">100</span></span>
                     </div>
                 </div>
             </div>
@@ -274,6 +301,7 @@
                     <div class="absolute bottom-0 w-[80%] h-[20%] bg-cyan-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
                     <div id="playerShieldVisual" class="absolute w-[110%] h-[110%] rounded-full border-2 border-cyan-400 bg-cyan-900/30 opacity-0 transition-all duration-300 shadow-[0_0_20px_cyan_inset]" style="pointer-events: none; transform: scale(0.8);"></div>
                     <div id="playerVisualizer" class="w-full h-full flex items-center justify-center relative"></div>
+                    <div id="playerSummonVis" class="absolute left-[-20%] top-[10%] w-[40%] h-[40%] opacity-0 transition-opacity duration-500 pointer-events-none z-20"></div>
                 </div>
 
                 <!-- 敌人宠物 -->
@@ -281,6 +309,7 @@
                     <div class="absolute bottom-0 w-[80%] h-[20%] bg-rose-500 rounded-full mix-blend-screen opacity-30 filter blur-md"></div>
                     <div id="enemyShieldVisual" class="absolute w-[110%] h-[110%] rounded-full border-2 border-rose-400 bg-rose-900/30 opacity-0 transition-all duration-300 shadow-[0_0_20px_red_inset]" style="pointer-events: none; transform: scale(0.8);"></div>
                     <div id="enemyVisualizer" class="w-full h-full flex items-center justify-center relative" style="transform: scaleX(-1);"></div>
+                    <div id="enemySummonVis" class="absolute right-[-20%] top-[10%] w-[40%] h-[40%] opacity-0 transition-opacity duration-500 pointer-events-none z-20"></div>
                 </div>
             </div>
             
@@ -291,53 +320,72 @@
                     <div class="text-slate-400 text-center py-2">等待信号接入...</div>
                 </div>
 
-                <!-- 技能面板 -->
-                <div class="grid grid-cols-3 gap-2" id="controlPanel">
-                    <button onclick="useSkill('attack')" id="btn_attack" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-slate-600 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale">
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-md">⚔️</span>
-                        <span class="text-[9px] md:text-[10px] font-bold text-slate-200">能量爪击</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-cyan-400 font-mono">0EP</div>
-                        <div id="lock_attack" class="absolute inset-0 bg-black/70 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.1</div>
+                <!-- 技能面板 (扩充为 4列×2行) -->
+                <div class="grid grid-cols-4 gap-1.5 md:gap-2" id="controlPanel">
+                    <button onclick="useSkill('attack')" id="btn_attack" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-slate-600 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale">
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">⚔️</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-slate-200">能量爪击</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-cyan-400 font-mono">0EP</div>
+                        <div id="lock_attack" class="absolute inset-0 bg-black/70 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.1</div>
                     </button>
 
-                    <button onclick="useSkill('strike')" id="btn_strike" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-orange-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
+                    <button onclick="useSkill('strike')" id="btn_strike" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-orange-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
                         <div class="absolute inset-0 bg-gradient-to-t from-orange-900/20 to-transparent pointer-events-none"></div>
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-md">🥊</span>
-                        <span class="text-[9px] md:text-[10px] font-bold text-orange-400">暴力强击</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-amber-300 font-mono">30EP</div>
-                        <div id="lock_strike" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.5</div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">🥊</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-orange-400">暴力强击</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-amber-300 font-mono">30EP</div>
+                        <div id="lock_strike" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.5</div>
                     </button>
 
-                    <button onclick="useSkill('shield')" id="btn_shield" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-blue-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
+                    <button onclick="useSkill('shield')" id="btn_shield" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-blue-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden">
                         <div class="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent pointer-events-none"></div>
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-md">🛡️</span>
-                        <span class="text-[9px] md:text-[10px] font-bold text-blue-400">治愈护盾</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-blue-200 font-mono">50EP</div>
-                        <div id="lock_shield" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.10</div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">🛡️</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-blue-400">治愈护盾</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-blue-200 font-mono">40EP</div>
+                        <div id="lock_shield" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.10</div>
                     </button>
 
-                    <button onclick="useSkill('tornado')" id="btn_tornado" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-purple-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                    <button onclick="useSkill('tornado')" id="btn_tornado" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-purple-900/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
                         <div class="absolute inset-0 bg-gradient-to-t from-purple-900/20 to-transparent pointer-events-none"></div>
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-md">🌪️</span>
-                        <span class="text-[9px] md:text-[10px] font-bold text-purple-400">巨型旋风</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-purple-300 font-mono">50EP</div>
-                        <div id="lock_tornado" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.20</div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">🌪️</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-purple-400">巨型旋风</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-purple-300 font-mono">50EP</div>
+                        <div id="lock_tornado" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.20</div>
                     </button>
                     
-                    <button onclick="useSkill('burst')" id="btn_burst" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
-                        <div class="absolute inset-0 bg-gradient-to-t from-amber-500/20 to-transparent pointer-events-none"></div>
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-md">🔥</span>
-                        <span class="text-[9px] md:text-[10px] font-bold text-amber-400">火力全开</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-amber-200 font-mono">50EP</div>
-                        <div id="lock_burst" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.30</div>
+                    <!-- 新增技能：能量护体 -->
+                    <button onclick="useSkill('energy_body')" id="btn_energy_body" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-teal-500/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-t from-teal-900/30 to-transparent pointer-events-none"></div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">💠</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-teal-300">能量护体</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-teal-200 font-mono">20EP</div>
+                        <div id="lock_energy_body" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.40</div>
+                        <div id="cd_energy_body" class="absolute inset-0 bg-black/60 flex items-center justify-center text-lg md:text-xl font-black text-white hidden z-20 rounded-xl">0</div>
                     </button>
 
-                    <button onclick="useSkill('ultimate')" id="btn_ultimate" class="skill-btn relative flex flex-col items-center justify-center py-1.5 md:py-2 bg-slate-800 rounded-xl border border-rose-900/80 shadow-[0_0_15px_rgba(225,29,72,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                    <button onclick="useSkill('burst')" id="btn_burst" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-amber-500/50 shadow-[0_0_10px_rgba(245,158,11,0.2)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-t from-amber-500/20 to-transparent pointer-events-none"></div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">🔥</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-amber-400">火力全开</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-amber-200 font-mono">50EP</div>
+                        <div id="lock_burst" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.30</div>
+                    </button>
+                    
+                    <!-- 新增技能：召唤伙伴 -->
+                    <button onclick="useSkill('summon')" id="btn_summon" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-emerald-500/50 shadow-md transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
+                        <div class="absolute inset-0 bg-gradient-to-t from-emerald-900/30 to-transparent pointer-events-none"></div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-md">🛰️</span>
+                        <span class="text-[7px] md:text-[9px] font-bold text-emerald-400">召唤伙伴</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-emerald-200 font-mono">50EP</div>
+                        <div id="lock_summon" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.60</div>
+                    </button>
+
+                    <button onclick="useSkill('ultimate')" id="btn_ultimate" class="skill-btn relative flex flex-col items-center justify-center py-1 md:py-2 bg-slate-800 rounded-xl border border-rose-900/80 shadow-[0_0_15px_rgba(225,29,72,0.3)] transition-all active:scale-95 disabled:opacity-50 disabled:grayscale overflow-hidden group">
                         <div class="absolute inset-0 bg-gradient-to-t from-rose-900/40 to-transparent pointer-events-none group-hover:from-rose-900/60 transition-colors"></div>
-                        <span class="text-lg md:text-xl mb-0.5 md:mb-1 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">💥</span>
-                        <span class="text-[9px] md:text-[10px] font-black text-rose-500 tracking-wider">天穹爆炎</span>
-                        <div class="absolute bottom-1 right-1 text-[7px] md:text-[8px] text-rose-300 font-mono">100EP</div>
-                        <div id="lock_ultimate" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.50</div>
+                        <span class="text-base md:text-xl mb-0.5 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]">💥</span>
+                        <span class="text-[7px] md:text-[9px] font-black text-rose-500 tracking-wider">天穹爆炎</span>
+                        <div class="absolute bottom-0.5 right-1 text-[6px] md:text-[8px] text-rose-300 font-mono">100EP</div>
+                        <div id="lock_ultimate" class="absolute inset-0 bg-black/80 flex items-center justify-center text-[9px] md:text-[10px] font-bold text-red-500 hidden z-10 rounded-xl backdrop-blur-[1px]">Lv.100</div>
                     </button>
                 </div>
             </div>
@@ -400,7 +448,6 @@
             } catch (error) { return { success: false }; }
         }
 
-        // 修改上限到200级
         function getMaxExp(level) { return level >= 200 ? 999999 : Math.floor(100 + (level - 1) * 8); }
         function addExpAndLevelUp(amount) {
             if (!globalPetData) return;
@@ -415,7 +462,6 @@
         function lerp(start, end, t) { return start + (end - start) * t; }
         function lerpArray(arr1, arr2, t) { return arr1.map((val, i) => lerp(val, arr2[i], t)); }
 
-        // 扩充至 200 级神性形态点阵
         const basePoses = [
             /* 0: Lv 1 */ { level: 1, head: [70,75, 130,75, 150,105, 125,135, 75,135, 50,105], earL: [60,75, 20,90, 30,125, 65,100], earR: [140,75, 180,90, 170,125, 135,100], visor: [70,85, 130,85, 140,100, 125,110, 75,110, 60,100], core: [100,150, 110,160, 100,170, 90,160], eyeSize: 6, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
             /* 1: Lv 20 */ { level: 20, head: [70,60, 130,60, 145,95, 110,135, 90,135, 55,95], earL: [65,65, 30,25, 35,50, 50,85], earR: [135,65, 170,25, 165,50, 150,85], visor: [70,88, 130,88, 140,95, 100,105, 100,105, 60,95], core: [100,140, 115,155, 100,170, 85,155], eyeSize: 0, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
@@ -439,12 +485,10 @@
             };
         }
 
-        // 新增：极小化缩放系数计算引擎与神性色彩系统
         function renderEntityVisual(containerId, level, theme = 'cyan', equipped = []) {
             const container = document.getElementById(containerId);
             const props = getInterpolatedPet(level);
             
-            // 加入神性色彩系统
             let cMain, cStroke, cVisor, cGlow;
             if (theme === 'cyan') {
                 let baseHue = (190 + level * 5) % 360;
@@ -498,7 +542,6 @@
             const coreAnimDur = level >= 150 ? '0.5s' : '2s';
             innerSVG += `<g class="animate-pulse" style="transform-origin: 100px 165px; animation-duration: ${coreAnimDur};"><polygon points="${props.core}" fill="var(--c-visor)" filter="drop-shadow(0 0 20px var(--c-visor))" opacity="0.9" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="0.8" stroke="var(--c-visor)" stroke-width="2" stroke-linejoin="round" /></g>`;
             
-            // 霸气：超维裂空晶角与虚空审判星环
             if (props.crownScale > 0) { 
                 let s = props.crownScale;
                 innerSVG += `
@@ -568,12 +611,10 @@
                 innerSVG += `<g filter="drop-shadow(0 0 20px var(--c-stroke))"><polygon points="85,95 -80,40 -80,150 85,100" fill="url(#laserGradL-${containerId})"><animate attributeName="opacity" values="0.6;1;0.6" dur="0.1s" repeatCount="indefinite"/></polygon><polygon points="85,95 -80,90 -80,100 85,100" fill="#ffffff" opacity="0.9" /><polygon points="115,95 280,40 280,150 115,100" fill="url(#laserGradR-${containerId})"><animate attributeName="opacity" values="0.6;1;0.6" dur="0.1s" repeatCount="indefinite"/></polygon><polygon points="115,95 280,90 280,100 115,100" fill="#ffffff" opacity="0.9" /></g>`;
             }
 
-            // 【关键缩放修复】极小化缓动算法：在竞技场狭小的空间内，就算200级最高也只放大到 0.85
             let scale = 0.55;
             if (level <= 100) scale += (level / 500);
             else scale += (100 / 500) + (level - 100) / 1000; 
 
-            // 外围魔法阵特效，通过给包裹层设置 transform: scale() 保证同步缩小，绝不撑破边界
             let html = `<div class="absolute inset-0 flex justify-center items-center pointer-events-none z-0" style="transform: scale(${scale});">`;
             
             if (equipped.includes('cwsbbj')) {
@@ -586,7 +627,6 @@
             if (level >= 20) { const ring2Size = 100 + (level - 20) * 0.3; html += `<div class="absolute border-2 border-transparent rounded-full mix-blend-screen opacity-80" style="width: ${ring2Size}px; height: ${ring2Size}px; border-left-color: ${cVisor}; border-right-color: ${cVisor}; animation: spin 8s linear infinite reverse;"></div>`; }
             html += `</div><style>@keyframes spin { 100% { transform: rotate(360deg); } } @keyframes singularity-pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }</style>`;
 
-            // SVG 本体
             html += `
             <div class="relative w-full h-full filter drop-shadow-[0_0_15px_${cGlow}] flex items-center justify-center pointer-events-none" style="--c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor};">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" class="w-[150%] h-[150%] max-w-[160px] md:max-w-[180px] overflow-visible" style="transform: scale(${scale});">
@@ -603,17 +643,81 @@
 
         let battleState = {
             turn: 'player', round: 1, isAnimating: false,
-            player: { id: 'player', name: '我的儿子', level: 1, maxHp: 100, hp: 100, atk: 20, def: 10, energy: 100, maxEnergy: 100, shield: 0, dot: 0, usedBurst: false, containerId: 'playerContainer', barId: 'playerHpBar', textId: 'playerHpText', epBarId: 'playerEpBar', epTextId: 'playerEpText' },
-            enemy: { id: 'enemy', name: '狂化机械犬', level: 1, maxHp: 100, hp: 100, atk: 20, def: 10, energy: 100, maxEnergy: 100, shield: 0, dot: 0, usedBurst: false, containerId: 'enemyContainer', barId: 'enemyHpBar', textId: 'enemyHpText', epBarId: 'enemyEpBar', epTextId: 'enemyEpText' }
+            player: { id: 'player', name: '我的儿子', level: 1, maxHp: 100, hp: 100, atk: 20, def: 10, energy: 150, maxEnergy: 150, shield: 0, dot: 0, usedBurst: false, energyBodyTurns: 0, cooldowns: {}, usedSummon: false, containerId: 'playerContainer', barId: 'playerHpBar', textId: 'playerHpText', epBarId: 'playerEpBar', epTextId: 'playerEpText' },
+            enemy: { id: 'enemy', name: '狂化机械犬', level: 1, maxHp: 100, hp: 100, atk: 20, def: 10, energy: 150, maxEnergy: 150, shield: 0, dot: 0, usedBurst: false, energyBodyTurns: 0, cooldowns: {}, usedSummon: false, containerId: 'enemyContainer', barId: 'enemyHpBar', textId: 'enemyHpText', epBarId: 'enemyEpBar', epTextId: 'enemyEpText' }
         };
 
+        // --- 技能数值与配置参数 (可在此处修改数值) ---
         const SKILLS = {
-            attack: { name: '能量爪击', type: 'damage', multiplier: 1, cost: 0, req: 1, log: '发动【能量爪击】，撕裂装甲！' },
-            strike: { name: '暴力强击', type: 'damage', multiplier: 1.5, cost: 30, req: 5, log: '施展【暴力强击】，动能重拳冲击！' },
-            shield: { name: '治愈护盾', type: 'buff', heal: 0.3, shield: 0.5, cost: 50, req: 10, log: '展开【治愈护盾】，修复生命并生成护罩！' },
-            tornado: { name: '巨型旋风', type: 'damage', multiplier: 2, dot: 0.05, cost: 50, req: 20, log: '卷起【巨型旋风】，切割一切阻碍！' },
-            burst: { name: '火力全开', type: 'buff_special', cost: 50, req: 30, log: '解除限制协议！【火力全开】状态激活！' },
-            ultimate: { name: '天穹爆炎', type: 'damage_ultimate', multiplier: 3, cost: 100, req: 50, log: '【天穹爆炎】降临！核心能量倾泻殆尽！' }
+            attack: { 
+                name: '能量爪击', 
+                type: 'damage_true', 
+                cost: 0,        // 消耗 EP
+                req: 1,         // 解锁需要的等级
+                // 注：真实伤害无视防御与护盾。10%概率3倍，20%概率2倍 (概率逻辑在 executeAction 和 summonAttack 中硬编码)
+                log: '发动【能量爪击】，真实伤害无视护盾！' 
+            },
+            strike: { 
+                name: '暴力强击', 
+                type: 'damage', 
+                multiplier: 1.5, // 基础伤害倍率 = 攻击力 * 1.5
+                cost: 30,        // 消耗 EP
+                req: 5,          // 解锁等级
+                // 注：如果有护盾，会消耗全部护盾值并将其 1:1 附加为额外真实伤害
+                log: '施展【暴力强击】，动能重拳冲击！' 
+            },
+            shield: { 
+                name: '治愈护盾', 
+                type: 'buff', 
+                heal: 0.3,       // 回复最大生命值的比例 (0.3 = 30%)
+                shield: 0.5,     // 生成护盾的比例 (0.5 = 50% 的最大生命值)，可无限叠加
+                cost: 40,        // 消耗 EP
+                req: 10,         // 解锁等级
+                log: '展开【治愈护盾】，修复生命并叠加护罩！' 
+            },
+            tornado: { 
+                name: '巨型旋风', 
+                type: 'damage', 
+                multiplier: 2,   // 基础伤害倍率 = 攻击力 * 2
+                dot: 0.05,       // 附加流血 (DOT)：每回合扣除目标 5% 的最大生命值
+                cost: 50,        // 消耗 EP
+                req: 20,         // 解锁等级
+                log: '卷起【巨型旋风】，切割一切阻碍！' 
+            },
+            burst: { 
+                name: '火力全开', 
+                type: 'buff_special', 
+                cost: 50,        // 消耗 EP
+                req: 30,         // 解锁等级
+                // 注：单场战斗限用1次。生命值上限+20%并回血，攻击与防御+50%，后续施放护盾量额外+30%
+                log: '解除限制协议！【火力全开】状态激活！' 
+            },
+            energy_body: { 
+                name: '能量护体', 
+                type: 'buff_special', 
+                cost: 20,        // 消耗 EP
+                req: 40,         // 解锁等级
+                cd: 5,           // 冷却时间 (回合)
+                // 注：激活后，接下来的 2 个回合受到的任何伤害(包含流血和真伤)全部强制变为 1 点
+                log: '激活【能量护体】，偏转接下来所有攻击！' 
+            },
+            summon: { 
+                name: '召唤伙伴', 
+                type: 'summon', 
+                cost: 50,        // 消耗 EP
+                req: 60,         // 解锁等级
+                // 注：召唤一只拥有自身 50% 属性的浮游单元，会随等级解锁对应技能并协同攻击
+                log: '【召唤伙伴】！战术浮游单元已部署！' 
+            },
+            ultimate: { 
+                name: '天穹爆炎', 
+                type: 'damage_ultimate', 
+                multiplier: 3,   // 基础伤害倍率 = 攻击力 * 3
+                cost: 100,       // 消耗 EP
+                req: 100,        // 解锁等级
+                // 注：20%概率绝杀(秒杀)，若未绝杀则有30%概率暴击产生 6 倍伤害
+                log: '【天穹爆炎】降临！核心能量倾泻殆尽！' 
+            }
         };
 
         async function initApp() {
@@ -630,7 +734,6 @@
 
         function initLevelSelection() {
             const grid = document.getElementById('levelGrid'); grid.innerHTML = '';
-            // 支持最高达200级的选择列表
             const levels = [1]; 
             for (let i = 10; i <= 200; i += 10) levels.push(i);
             
@@ -664,22 +767,28 @@
             battleState.player.hp = battleState.player.maxHp;
             battleState.player.atk = Math.floor(calcAtk(battleState.player.level) * atkMult); 
             battleState.player.def = Math.floor(calcDef(battleState.player.level) * defMult);
-            battleState.player.maxEnergy = Math.floor(100 * energyMult);
+            battleState.player.maxEnergy = Math.floor(150 * energyMult);
             battleState.player.energy = battleState.player.maxEnergy; 
             battleState.player.dot = 0; battleState.player.shield = 0; battleState.player.usedBurst = false;
+            battleState.player.energyBodyTurns = 0; battleState.player.cooldowns = {}; battleState.player.usedSummon = false;
             
             battleState.enemy.level = enemyLevel; 
             battleState.enemy.maxHp = Math.floor(calcMaxHp(enemyLevel) * 1.2); 
             battleState.enemy.hp = battleState.enemy.maxHp; 
             battleState.enemy.atk = Math.floor(calcAtk(enemyLevel) * 1.1);
             battleState.enemy.def = Math.floor(calcDef(enemyLevel) * 0.8);
-            battleState.enemy.maxEnergy = 100;
-            battleState.enemy.energy = 100; 
+            battleState.enemy.maxEnergy = 150;
+            battleState.enemy.energy = 150; 
             battleState.enemy.dot = 0; battleState.enemy.shield = 0; battleState.enemy.usedBurst = false;
+            battleState.enemy.energyBodyTurns = 0; battleState.enemy.cooldowns = {}; battleState.enemy.usedSummon = false;
 
             document.getElementById('playerName').innerText = battleState.player.name;
             document.getElementById('playerVisualizer').classList.remove('aura-burst');
             document.getElementById('enemyVisualizer').classList.remove('aura-burst');
+            document.getElementById('playerContainer').classList.remove('energy-body-active');
+            document.getElementById('enemyContainer').classList.remove('energy-body-active');
+            document.getElementById('playerSummonVis').style.opacity = '0';
+            document.getElementById('enemySummonVis').style.opacity = '0';
 
             // 渲染全息环境模型
             renderEntityVisual('playerVisualizer', battleState.player.level, 'cyan', equipped);
@@ -687,9 +796,10 @@
             
             document.getElementById('playerLevel').innerText = `Lv.${battleState.player.level}`;
             document.getElementById('enemyLevel').innerText = `Lv.${battleState.enemy.level}`;
+            document.getElementById('enemyName').innerText = battleState.enemy.name;
             
             updateStatsUI('player'); updateStatsUI('enemy');
-            
+
             let buffTexts = [];
             if (hpMult > 1) buffTexts.push(`HP+${Math.round((hpMult-1)*100)}%`);
             if (atkMult > 1) buffTexts.push(`攻击+${Math.round((atkMult-1)*100)}%`);
@@ -714,12 +824,42 @@
 
         function updateStatsUI(targetId) {
             const entity = battleState[targetId];
-            const hpBar = document.getElementById(entity.barId); const hpText = document.getElementById(entity.textId);
-            const epBar = document.getElementById(entity.epBarId); const epText = document.getElementById(entity.epTextId);
+            const hpBar = document.getElementById(entity.barId); 
+            const hpText = document.getElementById(entity.textId);
+            const epBar = document.getElementById(entity.epBarId); 
+            const epText = document.getElementById(entity.epTextId);
             const maxEpText = document.getElementById(targetId + 'MaxEpText');
             
+            // 护盾白条元素
+            const shieldBar = document.getElementById(targetId + 'ShieldBar');
+            
             const hpPct = Math.max(0, (entity.hp / entity.maxHp) * 100);
-            hpBar.style.width = `${hpPct}%`; hpText.innerText = `${Math.floor(entity.hp)} / ${entity.maxHp}`;
+            const shieldPct = Math.max(0, (entity.shield / entity.maxHp) * 100);
+            
+            hpBar.style.width = `${hpPct}%`; 
+            
+            // 带护盾数字的血量文本显示
+            if (entity.shield > 0) {
+                hpText.innerHTML = `${Math.floor(entity.hp)} <span class="text-white drop-shadow-[0_0_3px_white] font-black">+${Math.floor(entity.shield)}</span> / ${entity.maxHp}`;
+            } else {
+                hpText.innerText = `${Math.floor(entity.hp)} / ${entity.maxHp}`;
+            }
+
+            // 更新护盾条偏移与宽度，使其接在血条末端。溢出则向左延展盖住血条。
+            if (shieldBar) {
+                let offset = hpPct;
+                let width = shieldPct;
+                if (offset + width > 100) {
+                    offset = 100 - width;
+                    if (offset < 0) { offset = 0; width = 100; } // 超出总宽度部分截断
+                }
+                shieldBar.style.width = `${width}%`;
+                if (targetId === 'player') {
+                    shieldBar.style.left = `${offset}%`;
+                } else {
+                    shieldBar.style.right = `${offset}%`;
+                }
+            }
             
             if (hpPct < 20) {
                 hpBar.classList.replace('from-cyan-500', 'from-red-600'); hpBar.classList.replace('to-blue-500', 'to-red-500');
@@ -747,6 +887,22 @@
             
             targetEl.appendChild(el); setTimeout(() => el.remove(), 1200);
         }
+        
+        // 渲染浮游召唤物特效
+        function renderSummonVisual(targetId) {
+            const el = document.getElementById(`${targetId}SummonVis`);
+            if (!el) return;
+            const isEnemy = targetId === 'enemy';
+            el.innerHTML = `
+            <svg viewBox="0 0 100 100" class="w-full h-full drop-shadow-[0_0_8px_emerald] anim-mech" style="transform: ${isEnemy ? 'scaleX(-1)' : ''}">
+                <polygon points="20,50 50,20 80,50 50,80" fill="rgba(16, 185, 129, 0.3)" stroke="#34d399" stroke-width="3"/>
+                <circle cx="50" cy="50" r="8" fill="#fff" filter="drop-shadow(0 0 5px #fff)"/>
+                <circle cx="50" cy="50" r="14" fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="4 4">
+                    <animateTransform attributeName="transform" type="rotate" from="0 50 50" to="360 50 50" dur="2s" repeatCount="indefinite"/>
+                </circle>
+            </svg>`;
+            el.style.opacity = '1';
+        }
 
         async function executeAction(attackerId, defenderId, skillKey) {
             battleState.isAnimating = true;
@@ -759,7 +915,7 @@
             attacker.energy -= skill.cost; updateStatsUI(attackerId);
             addLog(`${attacker.name} ${skill.log}`, attackerId === 'player' ? 'text-cyan-300' : 'text-rose-300');
 
-            if (skill.type === 'buff' || skill.type === 'buff_special') {
+            if (skill.type === 'buff' || skill.type === 'buff_special' || skill.type === 'summon') {
                 attackerEl.classList.add('anim-buff');
                 
                 if (skillKey === 'shield') {
@@ -767,7 +923,10 @@
                     attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
                     createDamageText(attackerEl, healAmt, false, true);
                     
-                    attacker.shield = attacker.maxHp * skill.shield;
+                    let shieldAmt = attacker.maxHp * skill.shield;
+                    if (attacker.usedBurst) shieldAmt *= 1.3; // 火力全开护盾增益
+                    attacker.shield += shieldAmt; // 护盾叠加
+                    
                     const shieldVis = document.getElementById(`${attackerId}ShieldVisual`);
                     if(shieldVis) { shieldVis.style.opacity = '1'; shieldVis.style.transform = 'scale(1)'; shieldVis.style.filter = 'drop-shadow(0 0 10px currentColor)'; }
                 } 
@@ -776,17 +935,29 @@
                     attacker.maxHp += addedHp; attacker.hp += addedHp; 
                     attacker.atk = Math.floor(attacker.atk * 1.5); attacker.def = Math.floor(attacker.def * 1.5);
                     attacker.usedBurst = true;
-                    addLog(`动力炉超载！(HP上限+20%, 攻防+50%)`, "text-yellow-400 font-bold");
+                    addLog(`动力炉超载！(HP+20%, 攻防+50%, 护盾效能+30%)`, "text-yellow-400 font-bold");
                     createDamageText(attackerEl, "火力全开!", true, true, "text-yellow-400");
                     document.getElementById(`${attackerId}Visualizer`).classList.add('aura-burst');
+                }
+                else if (skillKey === 'energy_body') {
+                    attacker.energyBodyTurns = 2;
+                    attacker.cooldowns['energy_body'] = skill.cd;
+                    attackerEl.classList.add('energy-body-active');
+                    createDamageText(attackerEl, "护体启动!", false, true, "text-teal-300");
+                }
+                else if (skillKey === 'summon') {
+                    attacker.usedSummon = true;
+                    createDamageText(attackerEl, "支援抵达!", false, true, "text-emerald-400");
+                    renderSummonVisual(attackerId);
                 }
                 
                 updateStatsUI(attackerId);
                 await new Promise(r => setTimeout(r, 800));
                 attackerEl.classList.remove('anim-buff');
             } 
-            else if (skill.type === 'damage' || skill.type === 'damage_ultimate') {
+            else if (skill.type === 'damage' || skill.type === 'damage_ultimate' || skill.type === 'damage_true') {
                 let animClass = ''; let hitClass = 'anim-hit-light';
+                let isTrueDamage = (skill.type === 'damage_true');
                 
                 if (skillKey === 'attack') { animClass = attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left'; } 
                 else if (skillKey === 'strike') { animClass = attackerId === 'player' ? 'anim-strike-right' : 'anim-strike-left'; hitClass = 'anim-hit-heavy'; } 
@@ -796,8 +967,28 @@
                 attackerEl.classList.add(animClass);
                 await new Promise(r => setTimeout(r, animClass.includes('strike') ? 400 : 250)); 
                 
-                let isCrit = Math.random() < 0.2; let critMult = isCrit ? 1.5 : 1; let variance = 0.9 + Math.random() * 0.2;
+                let isCrit = false; let critMult = 1; let variance = 0.9 + Math.random() * 0.2;
                 let multiplier = skill.multiplier || 1; let isInstaKill = false;
+                let strikeBonus = 0;
+
+                // 攻击逻辑分支
+                if (skillKey === 'attack') {
+                    let roll = Math.random();
+                    if (roll < 0.10) { isCrit = true; critMult = 3; addLog("【精准破甲】3倍真实伤害！", "text-amber-400 font-bold"); }
+                    else if (roll < 0.30) { isCrit = true; critMult = 2; addLog("【弱点打击】2倍真实伤害！", "text-amber-400 font-bold"); }
+                } else {
+                    if (Math.random() < 0.2) { isCrit = true; critMult = 1.5; }
+                }
+
+                // 暴力强击护盾引爆逻辑
+                if (skillKey === 'strike' && attacker.shield > 0) {
+                    strikeBonus = attacker.shield;
+                    attacker.shield = 0;
+                    updateStatsUI(attackerId); // 立即更新攻击者护盾消失
+                    const shieldVis = document.getElementById(`${attackerId}ShieldVisual`);
+                    if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                    addLog(`引爆全部护盾，附加 ${Math.floor(strikeBonus)} 点动能伤害！`, "text-orange-400 font-bold");
+                }
                 
                 if (skillKey === 'ultimate') {
                     document.body.classList.add('anim-ult-bg');
@@ -809,25 +1000,42 @@
                 }
 
                 let actualDamage = 0;
+                let rawDamage = (attacker.atk * multiplier * critMult * variance) + strikeBonus;
+
                 if (isInstaKill) {
                     actualDamage = defender.hp + defender.shield; 
                     addLog(`【绝杀】触发！目标被彻底抹除！`, "text-red-500 font-black");
                     defenderEl.classList.add('anim-instakill');
                 } else {
-                    let rawDamage = (attacker.atk * multiplier * critMult * variance);
-                    actualDamage = Math.max(1, rawDamage - defender.def);
-                    if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode'); else defenderEl.classList.add(hitClass);
+                    if (isTrueDamage) {
+                        actualDamage = rawDamage; // 真实伤害无视防御
+                        defenderEl.classList.add('anim-hit-light');
+                    } else {
+                        actualDamage = Math.max(1, rawDamage - defender.def);
+                        if (skillKey === 'ultimate') defenderEl.classList.add('anim-explode'); else defenderEl.classList.add(hitClass);
+                    }
+                    
+                    // 能量护体：所有伤害强制变 1 (包括真实伤害)
+                    if (defender.energyBodyTurns > 0) {
+                        actualDamage = 1;
+                        addLog(`【能量护体】偏转了攻击，伤害强制降为1！`, "text-teal-300 font-bold");
+                    }
                 }
                 
-                if (defender.shield > 0) {
-                    const shieldVis = document.getElementById(`${defenderId}ShieldVisual`);
-                    if (defender.shield >= actualDamage) {
-                        defender.shield -= actualDamage; actualDamage = 0;
-                        createDamageText(defenderEl, "-0", false, false, "text-blue-300");
-                        if (shieldVis) shieldVis.style.opacity = Math.max(0.2, defender.shield / defender.maxHp);
+                // 护盾抵消伤害逻辑 (真实伤害和绝杀不可被护盾抵消)
+                if (defender.shield > 0 && !isInstaKill) {
+                    if (isTrueDamage) {
+                        addLog("真实伤害直接穿透了护盾屏障！", "text-red-400 font-bold");
                     } else {
-                        actualDamage -= defender.shield; defender.shield = 0;
-                        if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                        const shieldVis = document.getElementById(`${defenderId}ShieldVisual`);
+                        if (defender.shield >= actualDamage) {
+                            defender.shield -= actualDamage; actualDamage = 0;
+                            createDamageText(defenderEl, "-0 (抵消)", false, false, "text-blue-300");
+                            if (shieldVis) shieldVis.style.opacity = Math.max(0.2, defender.shield / defender.maxHp);
+                        } else {
+                            actualDamage -= defender.shield; defender.shield = 0;
+                            if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                        }
                     }
                 }
 
@@ -848,6 +1056,11 @@
                 attackerEl.classList.remove(animClass);
             }
 
+            // 执行伙伴协同攻击
+            if (attacker.usedSummon && defender.hp > 0) {
+                await triggerSummonAttack(attackerId, defenderId);
+            }
+
             if (defender.hp <= 0) {
                 defenderEl.style.transition = "all 1s ease-in";
                 defenderEl.style.filter = "grayscale(1) brightness(0.1)";
@@ -860,6 +1073,122 @@
             battleState.isAnimating = false;
             nextTurn();
         }
+        
+        async function triggerSummonAttack(attackerId, defenderId) {
+            const attacker = battleState[attackerId];
+            const defender = battleState[defenderId];
+            
+            // 召唤物属性计算 (等级与本体相同，属性取本体的50%)
+            const sLvl = attacker.level;
+            const sAtk = Math.floor(attacker.atk * 0.5);
+            const sMaxHp = Math.floor(attacker.maxHp * 0.5);
+            
+            addLog(`${attacker.name} 的浮游单元正在锁定目标...`, "text-emerald-300");
+            const summonEl = document.getElementById(`${attackerId}SummonVis`);
+            if (summonEl) {
+                summonEl.classList.add(attackerId === 'player' ? 'anim-attack-right' : 'anim-attack-left');
+                await new Promise(r => setTimeout(r, 250));
+            }
+
+            // --- 召唤物技能池与 AI ---
+            // 自动筛选召唤物可以释放的技能 (过滤掉火力全开、能量护体等自身特化BUFF)
+            let sSkills = ['attack'];
+            if (sLvl >= SKILLS.strike.req) sSkills.push('strike');
+            if (sLvl >= SKILLS.shield.req) sSkills.push('shield');
+            if (sLvl >= SKILLS.tornado.req) sSkills.push('tornado');
+            if (sLvl >= SKILLS.ultimate.req) sSkills.push('ultimate');
+            
+            // 召唤物随机选择一个技能
+            let chosenKey = sSkills[Math.floor(Math.random() * sSkills.length)];
+            let skill = SKILLS[chosenKey];
+            
+            addLog(`=> 战术单元协同施放了【${skill.name}】！`, "text-emerald-400 font-bold");
+
+            // --- 召唤物技能效果执行 ---
+            if (skill.type === 'buff') {
+                // 若召唤物释放了【治愈护盾】，则基于召唤物的最大生命值 (sMaxHp) 为本体加血和护盾
+                const healAmt = sMaxHp * skill.heal;
+                attacker.hp = Math.min(attacker.maxHp, attacker.hp + healAmt);
+                createDamageText(document.getElementById(attacker.containerId), healAmt, false, true);
+                
+                let shieldAmt = sMaxHp * skill.shield;
+                attacker.shield += shieldAmt; 
+                const shieldVis = document.getElementById(`${attackerId}ShieldVisual`);
+                if(shieldVis) { shieldVis.style.opacity = '1'; shieldVis.style.transform = 'scale(1)'; }
+                updateStatsUI(attackerId);
+                
+            } else {
+                // 若召唤物释放攻击技能
+                let isTrueDamage = (chosenKey === 'attack');
+                let isCrit = false; let critMult = 1; let variance = 0.9 + Math.random() * 0.2;
+                let multiplier = skill.multiplier || 1; let isInstaKill = false;
+                
+                // 判定暴击和特殊效果
+                if (chosenKey === 'attack') {
+                    let roll = Math.random();
+                    if (roll < 0.10) { isCrit = true; critMult = 3; }
+                    else if (roll < 0.30) { isCrit = true; critMult = 2; }
+                } else if (chosenKey === 'ultimate') {
+                    if (Math.random() < 0.2) isInstaKill = true;
+                    else if (Math.random() < 0.3) multiplier = 6;
+                } else {
+                    if (Math.random() < 0.2) { isCrit = true; critMult = 1.5; }
+                }
+
+                // 召唤物基础攻击力为 sAtk
+                let rawDamage = sAtk * multiplier * critMult * variance;
+                let actualDamage = 0;
+
+                if (isInstaKill) {
+                    actualDamage = defender.hp + defender.shield; 
+                    addLog(`战术单元触发了【绝杀】！`, "text-red-500 font-black");
+                    document.getElementById(defender.containerId).classList.add('anim-instakill');
+                } else {
+                    if (isTrueDamage) {
+                        actualDamage = rawDamage; // 真实伤害
+                    } else {
+                        actualDamage = Math.max(1, rawDamage - defender.def); // 普通物理伤害减去防御
+                    }
+                    // 能量护体减伤
+                    if (defender.energyBodyTurns > 0) actualDamage = 1;
+                }
+
+                // 护盾抵消伤害逻辑 (真实伤害穿透)
+                if (defender.shield > 0 && !isInstaKill) {
+                    if (isTrueDamage) {
+                        // 穿透护盾不处理
+                    } else {
+                        const shieldVis = document.getElementById(`${defenderId}ShieldVisual`);
+                        if (defender.shield >= actualDamage) {
+                            defender.shield -= actualDamage; actualDamage = 0;
+                            createDamageText(document.getElementById(defender.containerId), "-0 (抵消)", false, false, "text-blue-300");
+                            if (shieldVis) shieldVis.style.opacity = Math.max(0.2, defender.shield / defender.maxHp);
+                        } else {
+                            actualDamage -= defender.shield; defender.shield = 0;
+                            if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                        }
+                    }
+                }
+                
+                // 扣除HP
+                if (actualDamage > 0) {
+                    defender.hp = Math.max(0, defender.hp - actualDamage);
+                    if (isInstaKill) createDamageText(document.getElementById(defender.containerId), "秒！", true, false, "text-rose-500");
+                    else createDamageText(document.getElementById(defender.containerId), actualDamage, isCrit);
+                    document.getElementById(defender.containerId).classList.add('anim-hit-light');
+                }
+
+                // 巨型旋风附加流血 (比例按照被攻击者自身血量计算，保持一致)
+                if (chosenKey === 'tornado' && !isInstaKill && defender.hp > 0) {
+                    defender.dot = skill.dot;
+                }
+
+                updateStatsUI(defenderId);
+            }
+
+            if (summonEl) setTimeout(() => summonEl.classList.remove('anim-attack-right', 'anim-attack-left', 'anim-hit-light'), 300);
+            await new Promise(r => setTimeout(r, 400));
+        }
 
         async function nextTurn() {
             if (battleState.turn === 'end') return;
@@ -869,11 +1198,40 @@
             
             activeEntity.energy = Math.min(activeEntity.maxEnergy, activeEntity.energy + 10 + Math.floor(activeEntity.level/5));
             
+            // 状态倒计时与CD刷新
+            if (activeEntity.energyBodyTurns > 0) {
+                activeEntity.energyBodyTurns--;
+                if (activeEntity.energyBodyTurns <= 0) {
+                    document.getElementById(activeEntity.containerId).classList.remove('energy-body-active');
+                    addLog(`${activeEntity.name} 的能量护体已失效。`, "text-slate-500");
+                }
+            }
+            for (let k in activeEntity.cooldowns) {
+                if (activeEntity.cooldowns[k] > 0) activeEntity.cooldowns[k]--;
+            }
+            
             if (activeEntity.dot > 0) {
-                const dotDamage = Math.floor(activeEntity.maxHp * activeEntity.dot);
-                activeEntity.hp -= dotDamage;
-                addLog(`${activeEntity.name} 受到撕裂伤害 (-${dotDamage})`, "text-purple-400");
-                createDamageText(document.getElementById(activeEntity.containerId), dotDamage, false, false, 'text-purple-500');
+                let dotDamage = Math.floor(activeEntity.maxHp * activeEntity.dot);
+                
+                if (activeEntity.energyBodyTurns > 0) dotDamage = 1;
+
+                if (activeEntity.shield > 0) {
+                    const shieldVis = document.getElementById(`${battleState.turn}ShieldVisual`);
+                    if (activeEntity.shield >= dotDamage) {
+                        activeEntity.shield -= dotDamage; dotDamage = 0;
+                        if (shieldVis) shieldVis.style.opacity = Math.max(0.2, activeEntity.shield / activeEntity.maxHp);
+                    } else {
+                        dotDamage -= activeEntity.shield; activeEntity.shield = 0;
+                        if (shieldVis) { shieldVis.style.opacity = '0'; shieldVis.style.transform = 'scale(0.8)'; }
+                    }
+                }
+
+                if (dotDamage > 0) {
+                    activeEntity.hp -= dotDamage;
+                }
+                
+                addLog(`${activeEntity.name} 受到撕裂伤害`, "text-purple-400");
+                createDamageText(document.getElementById(activeEntity.containerId), Math.floor(activeEntity.maxHp * activeEntity.dot), false, false, 'text-purple-500');
                 
                 if (activeEntity.hp <= 0) {
                     updateStatsUI(battleState.turn);
@@ -900,6 +1258,7 @@
             Object.keys(SKILLS).forEach(key => {
                 const btn = document.getElementById(`btn_${key}`);
                 const lock = document.getElementById(`lock_${key}`);
+                const cdOverlay = document.getElementById(`cd_${key}`);
                 const skill = SKILLS[key];
                 if (!btn) return;
 
@@ -910,7 +1269,15 @@
                     const isPlayerTurn = battleState.turn === 'player' && !battleState.isAnimating;
                     const notEnoughEp = battleState.player.energy < skill.cost;
                     const alreadyBurst = key === 'burst' && battleState.player.usedBurst;
-                    btn.disabled = !isPlayerTurn || notEnoughEp || alreadyBurst;
+                    const alreadySummoned = key === 'summon' && battleState.player.usedSummon;
+                    const onCooldown = battleState.player.cooldowns[key] > 0;
+                    
+                    if (cdOverlay) {
+                        if (onCooldown) { cdOverlay.classList.remove('hidden'); cdOverlay.innerText = battleState.player.cooldowns[key]; }
+                        else { cdOverlay.classList.add('hidden'); }
+                    }
+
+                    btn.disabled = !isPlayerTurn || notEnoughEp || alreadyBurst || alreadySummoned || onCooldown;
                 }
             });
         }
@@ -919,6 +1286,7 @@
             if (battleState.turn !== 'player' || battleState.isAnimating) return;
             const skill = SKILLS[skillKey];
             if (battleState.player.energy < skill.cost) return; 
+            if (battleState.player.cooldowns[skillKey] > 0) return;
             updateActionUI(); executeAction('player', 'enemy', skillKey);
         }
 
@@ -929,6 +1297,8 @@
                 if (enemy.level < sk.req) return false;
                 if (enemy.energy < sk.cost) return false;
                 if (key === 'burst' && enemy.usedBurst) return false;
+                if (key === 'summon' && enemy.usedSummon) return false;
+                if (enemy.cooldowns[key] > 0) return false;
                 return true;
             });
             if (availableSkills.length === 0) availableSkills = ['attack']; 
@@ -936,6 +1306,8 @@
             let chosenSkill = 'attack';
             if (availableSkills.includes('ultimate') && Math.random() < 0.6) chosenSkill = 'ultimate'; 
             else if (availableSkills.includes('burst') && Math.random() < 0.8) chosenSkill = 'burst'; 
+            else if (availableSkills.includes('summon') && Math.random() < 0.9) chosenSkill = 'summon';
+            else if (availableSkills.includes('energy_body') && hpPct < 0.4 && Math.random() < 0.8) chosenSkill = 'energy_body';
             else if (availableSkills.includes('shield') && hpPct < 0.5 && Math.random() < 0.7) chosenSkill = 'shield'; 
             else if (availableSkills.includes('tornado') && Math.random() < 0.5) chosenSkill = 'tornado'; 
             else if (availableSkills.includes('strike') && Math.random() < 0.6) chosenSkill = 'strike';
