@@ -265,7 +265,6 @@
                     <h2 class="text-xl font-black text-cyan-400 tracking-widest drop-shadow-[0_0_10px_rgba(34,211,238,0.6)] flex items-center gap-2 whitespace-nowrap">
                         <span class="text-lg">🛠️</span> 系统强化
                     </h2>
-                    <!-- 修改此处：增加重置强化按钮 -->
                     <div class="flex items-center gap-2 shrink-0">
                         <button id="btnResetUpgrade" onclick="resetUpgrades()" class="bg-rose-900/80 hover:bg-rose-800 text-rose-300 px-2 py-1.5 rounded-lg border border-rose-700/50 shadow-[0_0_10px_rgba(225,29,72,0.2)] transition-all active:scale-95 text-[10px] font-black tracking-widest">
                             重置强化
@@ -328,6 +327,21 @@
             </div>
         </div>
 
+        <div id="confirmMenu" class="absolute inset-0 z-[100] flex flex-col items-center justify-center px-5 bg-slate-950/80 backdrop-blur-md transition-opacity duration-300 opacity-0 pointer-events-none hidden">
+            <div class="glass-panel p-6 rounded-[2rem] w-full max-w-[280px] flex flex-col items-center gap-4 border border-rose-800/50 shadow-[0_0_50px_rgba(225,29,72,0.15)] transform scale-95 transition-transform duration-300 relative overflow-hidden" id="confirmMenuContent">
+                <h2 class="text-xl font-black tracking-[0.2em] text-rose-400 drop-shadow-lg mb-2">系统警告</h2>
+                <p class="text-slate-300 text-sm text-center mb-2 font-bold tracking-wider" id="confirmMessage">确定要重置所有强化吗？</p>
+                <div class="w-full flex gap-3 mt-2">
+                    <button id="btnConfirmCancel" class="w-full py-3 bg-slate-800/80 hover:bg-slate-700 text-cyan-300 text-sm font-bold tracking-[0.15em] rounded-xl border border-cyan-800/60 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.15)]">
+                        取消
+                    </button>
+                    <button id="btnConfirmOk" class="w-full py-3 bg-rose-900/90 hover:bg-rose-800 text-rose-400 text-sm font-bold tracking-[0.15em] rounded-xl border border-rose-900/60 transition-all active:scale-95 shadow-[0_0_15px_rgba(225,29,72,0.1)]">
+                        确认重置
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div id="fxLayer" class="absolute inset-0 pointer-events-none z-40 overflow-hidden"></div>
     </main>
 
@@ -369,7 +383,6 @@
         let wingmen = [];
         let activeSkillDurations = { summon: 0, invinc: 0, shield: 0, burst: 0 };
         let skillCooldowns = { summon: 0, invinc: 0, shield: 0, burst: 0 };
-        // === 🛠️ 可修改: 技能全局最大冷却时间 (单位: 毫秒, 20000 = 20秒) ===
         const SKILL_COOLDOWN_MAX = 20000;
 
         let audioCtx = null;
@@ -662,7 +675,6 @@
             container.innerHTML = html;
         }
 
-        // 动态构建显示【当前等级效果 ➔ 下一等级效果】，并在技能后附加【CD: 20s】说明
         function createUpgradeItemHTML(category, key, config, level, currentScore) {
             let canAfford1 = currentScore >= 5000;
             let canAfford10 = currentScore >= 50000;
@@ -682,7 +694,6 @@
                 else if (key === 'atk') descHtml = `<span class="text-slate-400">武器出力:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>`;
                 else if (key === 'def') descHtml = `<span class="text-slate-400">防御加成:</span> <span class="text-cyan-300 ml-1">${Math.min(60, curr * 5)}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${Math.min(60, next * 5)}%</span>`;
             } else if (category === 'skill') {
-                // 统一的冷却时间描述
                 let cdText = `<span class="text-slate-500 ml-2 border-l border-slate-700 pl-2">CD:<span class="text-rose-400 font-bold ml-1">20s</span></span>`;
                 if (key === 'summon') descHtml = `<span class="text-slate-400">攻速提升:</span> <span class="text-cyan-300 ml-1">+${curr * 2}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 2}%</span>${cdText}`;
                 else if (key === 'invinc') descHtml = `<span class="text-slate-400">持续时间:</span> <span class="text-cyan-300 ml-1">${10 + curr * 2}s</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${10 + next * 2}s</span>${cdText}`;
@@ -714,7 +725,6 @@
         }
 
         window.buyUpgrade = async function(category, key, amount = 1) {
-            // === 🛠️ 可修改: 每次升级的基础消耗分数 (当前为 5000 分) ===
             let totalCost = amount * 5000;
             if ((upgradeData.score || 0) < totalCost) return;
             showLoader("升级协议注入中...");
@@ -732,6 +742,70 @@
                 renderUpgrades(); 
                 hideLoader();
             }
+        };
+
+        let confirmAction = null;
+
+        function showConfirm(message, onConfirm) {
+            document.getElementById('confirmMessage').innerText = message;
+            confirmAction = onConfirm;
+            
+            const uiConfirm = document.getElementById('confirmMenu');
+            uiConfirm.classList.remove('hidden');
+            setTimeout(() => {
+                uiConfirm.classList.remove('opacity-0', 'pointer-events-none');
+                document.getElementById('confirmMenuContent').classList.replace('scale-95', 'scale-100');
+            }, 10);
+        }
+
+        function closeConfirm() {
+            const uiConfirm = document.getElementById('confirmMenu');
+            document.getElementById('confirmMenuContent').classList.replace('scale-100', 'scale-95');
+            uiConfirm.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => {
+                uiConfirm.classList.add('hidden');
+                confirmAction = null;
+            }, 300);
+        }
+
+        document.getElementById('btnConfirmCancel').addEventListener('click', closeConfirm);
+        document.getElementById('btnConfirmOk').addEventListener('click', () => {
+            if (confirmAction) confirmAction();
+            closeConfirm();
+        });
+
+        window.resetUpgrades = function() {
+            let totalLevels = 0;
+            if (upgradeData.attr) {
+                totalLevels += (upgradeData.attr.hp || 0) + (upgradeData.attr.atk || 0) + (upgradeData.attr.def || 0);
+            }
+            if (upgradeData.skill) {
+                totalLevels += (upgradeData.skill.summon || 0) + (upgradeData.skill.invinc || 0) + (upgradeData.skill.shield || 0) + (upgradeData.skill.burst || 0);
+            }
+            
+            if (totalLevels === 0) {
+                return;
+            }
+
+            showConfirm("确定要重置所有强化并返还积分吗？", async () => {
+                showLoader("重置协议注入中...");
+                
+                let refundScore = totalLevels * 5000;
+                upgradeData.score = (upgradeData.score || 0) + refundScore;
+                
+                upgradeData.attr = { hp: 0, atk: 0, def: 0 };
+                upgradeData.skill = { summon: 0, invinc: 0, shield: 0, burst: 0 };
+                
+                try {
+                    const newUpgradeSha = await updateGithubFile(upgradeFile, upgradeData, upgradeSha);
+                    if (newUpgradeSha) upgradeSha = newUpgradeSha;
+                } catch(e) {
+                    console.error("保存重置数据失败", e);
+                } finally {
+                    renderUpgrades(); 
+                    hideLoader();
+                }
+            });
         };
 
         const basePoses = [
@@ -844,38 +918,15 @@
                 if (!this.active) return;
                 ctx.save(); 
                 ctx.translate(this.x, this.y);
+                ctx.shadowBlur = 10; ctx.shadowColor = '#60a5fa';
+                ctx.fillStyle = '#1e3a8a'; ctx.strokeStyle = '#60a5fa'; ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(0, -12); ctx.lineTo(8, 8); ctx.lineTo(0, 4); ctx.lineTo(-8, 8); ctx.closePath();
+                ctx.fill(); ctx.stroke();
                 
-                ctx.shadowBlur = 10; 
-                ctx.shadowColor = '#60a5fa';
-                
-                ctx.fillStyle = '#1e3a8a';
-                ctx.strokeStyle = '#60a5fa';
-                ctx.lineWidth = 1.5;
-                
-                ctx.beginPath();
-                ctx.moveTo(0, -12);
-                ctx.lineTo(8, 8);
-                ctx.lineTo(0, 4);
-                ctx.lineTo(-8, 8);
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-                
-                ctx.fillStyle = '#eff6ff';
-                ctx.beginPath();
-                ctx.arc(0, -2, 2.5, 0, Math.PI*2);
-                ctx.fill();
-
+                ctx.fillStyle = '#eff6ff'; ctx.beginPath(); ctx.arc(0, -2, 2.5, 0, Math.PI*2); ctx.fill();
                 const fireScale = 0.5 + Math.abs(Math.sin(gameTime * 0.02)) * 0.5;
-                ctx.fillStyle = '#38bdf8';
-                ctx.shadowColor = '#38bdf8';
-                ctx.beginPath();
-                ctx.moveTo(-4, 8);
-                ctx.lineTo(0, 8 + 8 * fireScale);
-                ctx.lineTo(4, 8);
-                ctx.closePath();
-                ctx.fill();
-
+                ctx.fillStyle = '#38bdf8'; ctx.shadowColor = '#38bdf8';
+                ctx.beginPath(); ctx.moveTo(-4, 8); ctx.lineTo(0, 8 + 8 * fireScale); ctx.lineTo(4, 8); ctx.closePath(); ctx.fill();
                 ctx.restore();
             }
         }
@@ -890,7 +941,6 @@
             }
             update(dt) {
                 const timeScale = dt / 16; 
-                
                 if (this.isHoming && this.owner === 'player') {
                     if (!this.target || !this.target.active) {
                         let nearest = null; let minDist = Infinity;
@@ -903,31 +953,18 @@
                         }
                         this.target = nearest;
                     }
-                    
                     if (this.target && this.target.active) {
                         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                        const dx = this.target.x - this.x;
-                        const dy = this.target.y - this.y;
+                        const dx = this.target.x - this.x; const dy = this.target.y - this.y;
                         const targetAngle = Math.atan2(dy, dx);
-                        
-                        const targetVx = Math.cos(targetAngle) * speed;
-                        const targetVy = Math.sin(targetAngle) * speed;
-                        
+                        const targetVx = Math.cos(targetAngle) * speed; const targetVy = Math.sin(targetAngle) * speed;
                         const turnFactor = 0.1 * timeScale;
-                        this.vx += (targetVx - this.vx) * turnFactor;
-                        this.vy += (targetVy - this.vy) * turnFactor;
-                        
+                        this.vx += (targetVx - this.vx) * turnFactor; this.vy += (targetVy - this.vy) * turnFactor;
                         const newSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
-                        if (newSpeed > 0) {
-                            this.vx = (this.vx / newSpeed) * speed;
-                            this.vy = (this.vy / newSpeed) * speed;
-                        }
+                        if (newSpeed > 0) { this.vx = (this.vx / newSpeed) * speed; this.vy = (this.vy / newSpeed) * speed; }
                     }
                 }
-                
-                this.x += this.vx * timeScale; 
-                this.y += this.vy * timeScale;
-                
+                this.x += this.vx * timeScale; this.y += this.vy * timeScale;
                 if (this.y < -50 || this.y > height + 50 || this.x < -50 || this.x > width + 50) this.active = false;
             }
             draw(ctx) {
@@ -968,7 +1005,6 @@
         class Player {
             constructor() {
                 this.level = playerLevel;
-                // === 🛠️ 可修改: 战机碰撞判定半径 (越小越容易躲子弹) ===
                 this.radius = 20;
                 this.x = width / 2; this.y = height - 100;
                 this.targetX = this.x; this.targetY = this.y;
@@ -981,17 +1017,13 @@
                 let hpMult = (1 + upgHp * 0.05) * (1 + (equipList.includes('cwsbgl') ? 0.05 : 0) + (equipList.includes('cwsbbj') ? 0.02 : 0));
                 let atkMult = (1 + upgAtk * 0.05) * (1 + (equipList.includes('cwsbyj') ? 0.05 : 0) + (equipList.includes('cwsbjgy') ? 0.05 : 0) + (equipList.includes('cwsbbj') ? 0.02 : 0));
                 
-                // === 🛠️ 可修改: 战机基础耐久度(HP)计算公式 (500为基础, 每级加35) ===
                 this.maxHp = Math.floor((500 + this.level * 35) * hpMult);
                 this.hp = this.maxHp;
-                // === 🛠️ 可修改: 战机基础攻击力(ATK)计算公式 (50为基础, 每级加4.5) ===
                 this.atk = Math.floor((50 + this.level * 4.5) * atkMult);
                 this.defMult = 1 - Math.min(0.6, upgDef * 0.05); 
                 
-                // === 🛠️ 可修改: 战机基础射速 (数值越小射速越快) ===
                 this.fireTimer = 0; this.fireRate = 150 / (1 + this.level * 0.01);
                 this.shield = 0; this.invincibleTimer = 0; this.burstTimer = 0;
-                // === 🛠️ 可修改: 战机移动的跟手度 (easing越接近1越灵敏, 越小越滑) ===
                 this.easing = 0.2; this.scale = 0.3;
                 this.petProps = getInterpolatedPet(this.level);
                 
@@ -1167,14 +1199,12 @@
             constructor(type, configOverride = null) {
                 this.type = type; this.active = true; this.y = -50; this.x = random(30, width - 30); this.fireTimer = 0; 
                 
-                // === 🛠️ 可修改: 敌人随玩家等级提升的难度系数 ===
                 let scaleHp = 1 + playerLevel * 0.8; let scaleAtk = 1 + playerLevel * 0.5;
 
                 this.radius = 16; this.hp = 20 * scaleHp; this.def = 5; this.atk = 10 * scaleAtk;
                 this.speed = random(1.5, 2.5); this.color = '#f43f5e'; this.score = 50; this.fireRate = random(1500, 2500);
 
                 switch(type) {
-                    // === 🛠️ 可修改: 敌人基础属性设定 (radius半径, speed速度, score击杀得分) ===
                     case 0: this.radius = 16; this.speed = random(1.5, 2.8); this.color = '#f43f5e'; this.score = 50; break;
                     case 1: this.radius = 12; this.speed = random(3.5, 5.5); this.color = '#fbbf24'; this.score = 100; break;
                     case 2: this.radius = 26; this.speed = random(0.5, 1.2); this.color = '#9f1239'; this.score = 300; break;
@@ -1183,10 +1213,8 @@
                         this.radius = 48; 
                         this.speed = 0; 
                         this.color = '#e11d48'; 
-                        // === 🛠️ 可修改: BOSS击杀基础得分 ===
                         this.score = 5000; 
                         this.x = width / 2; 
-                        // === 🛠️ 可修改: BOSS 警戒范围 (战机无法进入该半径, 修改此数值可改变圈的大小) ===
                         this.alertRadius = 200; 
                         break;
                 }
@@ -1281,17 +1309,15 @@
             draw(ctx) {
                 ctx.save(); ctx.translate(this.x, this.y);
                 
-                // 绘制 BOSS 警戒范围提示
                 if (this.type === 4) {
                     ctx.save();
                     ctx.beginPath();
                     ctx.arc(0, 0, this.alertRadius, 0, Math.PI * 2);
-                    // 呼吸闪烁红
                     ctx.strokeStyle = `rgba(225, 29, 72, ${0.4 + Math.abs(Math.sin(gameTime*0.003))*0.2})`; 
                     ctx.lineWidth = 2;
                     ctx.setLineDash([15, 10]); 
                     ctx.stroke();
-                    ctx.fillStyle = `rgba(225, 29, 72, 0.08)`; // 内部淡淡的红光
+                    ctx.fillStyle = `rgba(225, 29, 72, 0.08)`;
                     ctx.fill();
                     ctx.restore();
                 }
@@ -1432,24 +1458,20 @@
                     }
                 }
                 if (e.active && player) {
-                    // BOSS 警戒区域碰撞排斥逻辑
                     if (e.type === 4) {
                         const dx = player.x - e.x;
                         const dy = player.y - e.y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
-                        // 当战机距离小于警戒半径 + 机体半径时，强制将战机排斥在圈外
                         if (dist < e.alertRadius + player.radius) {
                             const angle = Math.atan2(dy, dx);
                             const safeDist = e.alertRadius + player.radius;
                             player.x = e.x + Math.cos(angle) * safeDist;
                             player.y = e.y + Math.sin(angle) * safeDist;
-                            // 同步修改 targetX/Y 避免疯狂冲撞导致的抖动
                             player.targetX = player.x;
                             player.targetY = player.y;
                         }
                     }
                     
-                    // 实际伤害碰撞判定 (对于 Boss 来说，上面已经被排斥了，这里不会触发伤害，除非护盾过大)
                     const distSq = (player.x - e.x)**2 + (player.y - e.y)**2;
                     if (distSq < (player.radius + e.radius - 5)**2) {
                         player.takeDamage(e.hp); 
@@ -1510,8 +1532,6 @@
 
         function setPlayerTarget(e) {
             if (gameState !== 'playing' || !player) return;
-            
-            // 修复1：仅当事件发生在游戏画布 (Canvas) 时，才更新战机位置
             if (e.target.id !== 'gameCanvas') return;
 
             let clientX, clientY;
@@ -1521,7 +1541,6 @@
             player.targetX = clientX - rect.left; player.targetY = clientY - rect.top - 40; 
         }
 
-        // 修改此处事件监听：避免点击顶部 UI 时让飞机飞到屏幕顶端
         window.addEventListener('mousemove', setPlayerTarget);
         window.addEventListener('touchmove', (e) => { 
             if(e.target.id === 'gameCanvas') { e.preventDefault(); }
@@ -1592,7 +1611,6 @@
             if (skillCooldowns[skillName] > 0 || activeSkillDurations[skillName] > 0) return;
             
             if (skillName === 'summon') {
-                // === 🛠️ 可修改: 僚机基础持续时间 (20000 = 20秒) ===
                 let duration = 20000;
                 activeSkillDurations.summon = duration;
                 wingmen.push(new Wingman(player, -45)); wingmen.push(new Wingman(player, 45));
@@ -1601,7 +1619,6 @@
                 showFloatingText(player.x, player.y - 35, "支援抵达!", "text-blue-400 font-bold text-2xl drop-shadow-[0_0_10px_rgba(96,165,250,0.9)]");
             } else if (skillName === 'invinc') {
                 let upgInvinc = upgradeData?.skill?.invinc || 0;
-                // === 🛠️ 可修改: 无敌技能基础时间 (10000=10秒) 与每级成长增量 (2000=2秒) ===
                 let duration = 10000 + (upgInvinc * 2000);
                 activeSkillDurations.invinc = duration;
                 player.invincibleTimer = duration;
@@ -1611,11 +1628,9 @@
                 let duration = 9999999; 
                 activeSkillDurations.shield = duration;
                 let upgShield = upgradeData?.skill?.shield || 0;
-                // === 🛠️ 可修改: 护盾回血比例(基础0.3)与每级成长比例(0.05) ===
                 let healAmount = player.maxHp * (0.3 + upgShield * 0.05);
                 let actualHeal = Math.min(healAmount, player.maxHp - player.hp);
                 player.hp += actualHeal; 
-                // === 🛠️ 可修改: 护盾最大护甲比例(基础0.5)与每级成长比例(0.05) ===
                 player.shield = player.maxHp * (0.5 + upgShield * 0.05);
                 updateHUD(); 
                 createExplosion(player.x, player.y, 40, '#10b981');
@@ -1623,7 +1638,6 @@
                 setTimeout(() => showFloatingText(player.x, player.y - 70, "能量重塑!", "text-cyan-300 font-bold text-2xl drop-shadow-[0_0_10px_rgba(34,211,238,0.9)]"), 400);
             } else if (skillName === 'burst') {
                 let upgBurst = upgradeData?.skill?.burst || 0;
-                // === 🛠️ 可修改: 暴走技能基础时间(15000=15秒)与每级成长增量(2000=2秒) ===
                 let duration = 15000 + upgBurst * 2000;
                 activeSkillDurations.burst = duration;
                 player.burstTimer = duration;
@@ -1638,7 +1652,6 @@
 
         function generateStageConfig(stage) {
             let waves = [];
-            // === 🛠️ 可修改: 离线动态生成的关卡基础波次数 (默认3 + 每5关加1波) ===
             let totalWaves = 3 + Math.floor(stage / 5);
             let currentTime = 2000;
             
