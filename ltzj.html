@@ -265,7 +265,7 @@
                         <span class="text-xl">🛠️</span> 系统强化
                     </h2>
                     <div class="bg-slate-900/90 px-3 py-1.5 rounded-xl border border-amber-700/50 shadow-inner flex items-center gap-2">
-                        <span class="text-[10px] text-slate-400 font-bold tracking-wider">积分</span>
+                        <span class="text-[10px] text-slate-400 font-bold tracking-wider">得分</span>
                         <span class="text-gradient-amber font-mono text-base font-black drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]" id="currentPointsDisplay">0</span>
                     </div>
                 </div>
@@ -459,11 +459,8 @@
         let playerName = '神性机体';
         let equipped = [];
 
-        let pointsFile = 'data/hck.json';
         let upgradeFile = 'data/ltzj/hsj.json';
-        
         if (myIdentity === '亲亲' || myIdentity.includes('qs')) {
-            pointsFile = 'data/qck.json';
             upgradeFile = 'data/ltzj/qsj.json';
         }
 
@@ -471,9 +468,7 @@
         let totalStages = 10; 
         let stageConfig = null;
         
-        let globalPointsData = { points: 0 };
-        let globalPointsSha = null;
-        let upgradeData = { attr: { hp: 0, atk: 0, def: 0 }, skill: { summon: 0, invinc: 0, shield: 0, burst: 0 }, currentLevel: 1 };
+        let upgradeData = { attr: { hp: 0, atk: 0, def: 0 }, skill: { summon: 0, invinc: 0, shield: 0, burst: 0 }, currentLevel: 1, score: 0 };
         let upgradeSha = null;
 
         // 倍速切换逻辑
@@ -569,15 +564,13 @@
                 if (gqRes && gqRes.data) {
                     totalStages = gqRes.data.totalLevels || 10;
                 }
-
-                const pointsRes = await fetchGithubFile(pointsFile);
-                if (pointsRes && pointsRes.data) { globalPointsData = pointsRes.data; globalPointsSha = pointsRes.sha; }
                 
                 const upgRes = await fetchGithubFile(upgradeFile);
                 if (upgRes && upgRes.data) {
                     upgradeData = upgRes.data;
                     if (!upgradeData.attr) upgradeData.attr = { hp: 0, atk: 0, def: 0 };
                     if (!upgradeData.skill) upgradeData.skill = { summon: 0, invinc: 0, shield: 0, burst: 0 };
+                    if (!upgradeData.score) upgradeData.score = 0;
                     
                     if (upgradeData.currentLevel) {
                         currentStage = upgradeData.currentLevel;
@@ -587,7 +580,7 @@
                     }
                     upgradeSha = upgRes.sha;
                 } else {
-                    upgradeData = { attr: { hp: 0, atk: 0, def: 0 }, skill: { summon: 0, invinc: 0, shield: 0, burst: 0 }, currentLevel: 1 };
+                    upgradeData = { attr: { hp: 0, atk: 0, def: 0 }, skill: { summon: 0, invinc: 0, shield: 0, burst: 0 }, currentLevel: 1, score: 0 };
                     currentStage = 1;
                 }
 
@@ -639,7 +632,7 @@
         };
 
         function renderUpgrades() {
-            document.getElementById('currentPointsDisplay').innerText = globalPointsData.points || 0;
+            document.getElementById('currentPointsDisplay').innerText = upgradeData.score || 0;
             const container = document.getElementById('upgradeContent');
             let html = '';
             
@@ -647,7 +640,7 @@
             html += '<div class="grid gap-2.5">';
             ['hp', 'atk', 'def'].forEach(key => {
                 let lv = upgradeData.attr[key] || 0;
-                let canAfford = (globalPointsData.points || 0) >= 5;
+                let canAfford = (upgradeData.score || 0) >= 5000;
                 html += createUpgradeItemHTML('attr', key, UPGRADE_CONFIG.attr[key], lv, canAfford);
             });
             html += '</div>';
@@ -656,7 +649,7 @@
             html += '<div class="grid gap-2.5">';
             ['summon', 'invinc', 'shield', 'burst'].forEach(key => {
                 let lv = upgradeData.skill[key] || 0;
-                let canAfford = (globalPointsData.points || 0) >= 5;
+                let canAfford = (upgradeData.score || 0) >= 5000;
                 html += createUpgradeItemHTML('skill', key, UPGRADE_CONFIG.skill[key], lv, canAfford);
             });
             html += '</div>';
@@ -699,23 +692,20 @@
                     </div>
                 </div>
                 <button onclick="buyUpgrade('${category}', '${key}')" ${!canAfford ? 'disabled' : ''} class="flex-none px-3 py-2 rounded-xl font-black text-[11px] font-mono transition-all border ${btnClass}">
-                    5 积分
+                    5000 得分
                 </button>
             </div>`;
         }
 
         window.buyUpgrade = async function(category, key) {
-            if ((globalPointsData.points || 0) < 5) return;
+            if ((upgradeData.score || 0) < 5000) return;
             showLoader("升级协议注入中...");
             
-            globalPointsData.points -= 5;
+            upgradeData.score -= 5000;
             if (!upgradeData[category]) upgradeData[category] = {};
             upgradeData[category][key] = (upgradeData[category][key] || 0) + 1;
             
             try {
-                const newPointsSha = await updateGithubFile(pointsFile, globalPointsData, globalPointsSha);
-                if (newPointsSha) globalPointsSha = newPointsSha;
-                
                 const newUpgradeSha = await updateGithubFile(upgradeFile, upgradeData, upgradeSha);
                 if (newUpgradeSha) upgradeSha = newUpgradeSha;
             } catch(e) {
@@ -825,8 +815,9 @@
                 this.y += (this.owner.y + 20 - this.y) * 0.1;
                 this.fireTimer += dt;
                 if (this.fireTimer >= this.fireRate) {
-                    let dmg = this.owner.atk; 
-                    bullets.push(new Bullet(this.x, this.y - 15, -15, '#60a5fa', 0, 'player', dmg));
+                    let dmg = this.owner.atk;
+                    let vx = this.offsetX < 0 ? -3 : 3; // 僚机向外倾斜射击
+                    bullets.push(new Bullet(this.x, this.y - 15, -15, '#60a5fa', vx, 'player', dmg));
                     playShootSound(true);
                     this.fireTimer = 0;
                 }
@@ -1599,6 +1590,17 @@
         function startGame() {
             if (gameState === 'playing') return;
             initAudio(); // 初始化或恢复音频上下文
+            
+            // 彻底清理并重置各项状态防止卡顿
+            fxLayer.innerHTML = ''; // 清理上一局所有悬浮字特效
+            document.querySelectorAll('.flash-overlay').forEach(el => el.remove()); // 移除所有可能残留的闪光特效
+            gameSpeedMultiplier = 1;
+            const speedBtn = document.getElementById('speedBtn');
+            if (speedBtn) {
+                speedBtn.innerText = `x1`;
+                speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 font-mono font-black text-xs rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50";
+            }
+
             score = 0; gameTime = 0; currentWaveIndex = 0; waveSpawnTimer = 0; enemiesSpawnedInCurrentWave = 0; bossSpawned = false;
             player = new Player(); bullets = []; enemies = []; particles = []; wingmen = [];
             
@@ -1668,6 +1670,8 @@
                     if (newSha) globalPetSha = newSha;
                 }
                 
+                // 将本次获得的分数计入主数据中，并同步关卡
+                upgradeData.score = (upgradeData.score || 0) + score;
                 if (currentStage < totalStages) {
                     currentStage++;
                 }
