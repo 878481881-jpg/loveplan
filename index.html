@@ -97,6 +97,10 @@
                         <span class="text-lg group-hover:scale-110 transition-transform">🐷</span>
                         <span class="text-xs md:text-sm font-bold text-rose-600 tracking-wide">存钱罐</span>
                     </a>
+                    <a href="qd.html" class="flex items-center gap-3 py-2.5 px-3 bg-gradient-to-r from-white/90 to-white/40 hover:from-rose-50 hover:to-white backdrop-blur-md border border-white/80 rounded-xl shadow-sm hover:shadow-md transform hover:translate-x-1 transition-all group">
+                        <span class="text-lg group-hover:scale-110 transition-transform">📅</span>
+                        <span class="text-xs md:text-sm font-bold text-rose-600 tracking-wide">日签到</span>
+                    </a>
                     <div class="flex items-center gap-3 py-2 px-3 bg-white/30 backdrop-blur-sm border border-dashed border-rose-200/70 rounded-xl opacity-70">
                         <span class="text-lg">🔒</span>
                         <span class="text-[11px] md:text-xs font-medium text-rose-400 tracking-wide">更多待解锁</span>
@@ -284,7 +288,6 @@
         const checkInTasksConfig = [
             { id: 'morning', name: '早起签到', icon: '🌅', sh: 5, sm: 0, eh: 8, em: 0 },
             { id: 'lunch', name: '按时午饭', icon: '🍱', sh: 11, sm: 30, eh: 13, em: 0 },
-            { id: 'dring', name: '按时晚饭', icon: '🍱', sh: 17, sm: 0, eh: 19, em: 0 },
             { id: 'night', name: '早睡签到', icon: '🌙', sh: 21, sm: 0, eh: 23, em: 0 }
             
             // 💡 示例：如果你想加个下午茶签到，只需取消下面的注释即可：
@@ -330,25 +333,28 @@
                 }
             }
 
-            // 要是不在规定时间点，咱们就不发网络请求浪费流量啦~ 直接结束！
+            // 要是不在规定时间点，直接结束，不产生任何请求与交互
             if (!taskToExecute) return; 
 
-            // ===== 新增：在确认时间吻合后，立即呼出防止操作的遮罩层 =====
+            // 2. 静默获取云端签到记录，不打断玩家正常操作
+            const QD_FILE = 'data/qd.json';
+            const qdRes = await fetchFile(QD_FILE);
+            if (qdRes.error) return;
+
+            let qdData = qdRes.data || { "哼哼": {}, "亲亲": {} };
+            if (!qdData[myIdentity]) qdData[myIdentity] = {};
+            
+            // 3. 判断是否已经签到过
+            if (isToday(qdData[myIdentity][taskToExecute.id])) {
+                return; // 已经签过到了，什么都不提示，直接结束
+            }
+
+            // ===== 核心修改：确认玩家【没有签到】后，才弹出遮罩层防止操作 =====
             const loadingOverlay = document.getElementById('autoCheckInLoadingOverlay');
             if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
             try {
-                // 2. 只有确认在时间点内，才会去找 GitHub 判断今天签没签过
-                const QD_FILE = 'data/qd.json';
-                const qdRes = await fetchFile(QD_FILE);
-                if (qdRes.error) return;
-
-                let qdData = qdRes.data || { "哼哼": {}, "亲亲": {} };
-                if (!qdData[myIdentity]) qdData[myIdentity] = {};
-                
-                if (isToday(qdData[myIdentity][taskToExecute.id])) return; // 今天签过了，结束
-
-                // 3. 执行签到数据保存
+                // 4. 执行签到数据保存
                 qdData[myIdentity][taskToExecute.id] = Date.now();
                 
                 let pointsToAdd = 2;
@@ -375,10 +381,10 @@
                     await updateFile(MY_FILE, myData, myRes.sha, `Initial auto add ${pointsToAdd} pts for ${taskToExecute.id}`);
                 }
 
-                // 4. 蹦出庆祝弹窗告诉对方加分啦！
+                // 5. 蹦出庆祝弹窗告诉对方加分啦！
                 showAutoCheckInModal(taskToExecute, isAllDone);
             } finally {
-                // ===== 新增：无论请求成功、中途跳出还是失败，最后都隐藏遮罩层 =====
+                // ===== 无论保存成功还是失败，最后都隐藏遮罩层 =====
                 if (loadingOverlay) loadingOverlay.classList.add('hidden');
             }
         }
@@ -387,7 +393,7 @@
             document.getElementById('autoCheckInTitle').innerText = isAllDone ? `🎉 大满贯！${task.name}` : `✨ 自动签到成功：${task.name}`;
             document.getElementById('autoCheckInDesc').innerText = isAllDone 
                 ? `恭喜完成今日所有打卡，获得 2 积分 + 额外 4 积分奖励！` 
-                : `自动打卡成功，存入 2 积分！`;
+                : `您在规定时间内进入了网页，自动打卡成功，存入 2 积分！`;
             
             const modal = document.getElementById('autoCheckInModal');
             const content = document.getElementById('autoCheckInModalContent');
