@@ -52,6 +52,14 @@
         
         .subtab-active { background-color: #f5f3ff; color: #8b5cf6; font-weight: bold; }
         .subtab-inactive { color: #9ca3af; font-weight: bold; }
+
+        /* 禁用状态 */
+        .btn-disabled {
+            filter: grayscale(1);
+            opacity: 0.7;
+            cursor: not-allowed;
+            pointer-events: none; /* 阻止点击事件 */
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 pb-24 relative">
@@ -107,12 +115,16 @@
                         <h3 class="font-black text-gray-800 text-lg">当前盲盒池</h3>
                         <p class="text-xs text-gray-500 mt-0.5">共包含 <span id="poolCount" class="font-bold text-purple-500">0</span> 个惊喜</p>
                     </div>
-                    <button onclick="openPoolModal()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full font-bold hover:bg-purple-100 transition-colors flex items-center gap-1 border border-purple-200 shadow-sm active:scale-95">
+                    <!-- Limit Badge: Dynamic state -->
+                    <div id="drawLimitBadge" class="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-100 shadow-sm flex items-center gap-1 transition-colors">
+                        <span>今日可用: -/-</span>
+                    </div>
+                    <button onclick="openPoolModal()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full font-bold hover:bg-purple-100 transition-colors flex items-center gap-1 border border-purple-200 shadow-sm active:scale-95 ml-2">
                         查看奖池 🔍
                     </button>
                 </div>
 
-                <div class="relative w-48 h-48 mx-auto mb-6 cursor-pointer group" onclick="startDrawFlow()">
+                <div class="relative w-48 h-48 mx-auto mb-6 cursor-pointer group" onclick="startDrawFlow()" id="drawBoxArea">
                     <div class="absolute inset-0 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
                     <div id="drawBoxVisual" class="relative text-[120px] filter drop-shadow-xl transform transition-transform group-hover:scale-110 active:scale-95">
                         🎁
@@ -129,7 +141,7 @@
                 </div>
             </div>
             
-            <button onclick="startDrawFlow()" class="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-purple-200 hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2">
+            <button onclick="startDrawFlow()" id="drawBtn" class="w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-purple-200 hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2">
                 <span>✨ 立即抽取盲盒 ✨</span>
             </button>
         </div>
@@ -306,10 +318,13 @@
         const FILE_MHJL_MY = `data/${myIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; // 我的记录
         const FILE_MHJL_PARTNER = `data/${partnerIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; // 对方记录
 
+        // 每日抽奖限制
+        const MAX_DAILY_DRAWS = 1;
+
         // 数据状态
         let myCkData = { points: 0, sha: null };
         let mhData = { pool: [], sha: null }; // pool array: [{id, name, price, creator}]
-        let myMhjlData = { inventory: {}, pendingUses: [], sha: null }; // inventory: {"ItemName": count}
+        let myMhjlData = { inventory: {}, pendingUses: [], drawTimestamps: [], sha: null }; // inventory: {"ItemName": count}
         let partnerMhjlData = { inventory: {}, pendingUses: [], sha: null };
         
         let calculatedAvgPrice = 0;
@@ -401,6 +416,7 @@
             }
             if (!myMhjlData.inventory) myMhjlData.inventory = {};
             if (!myMhjlData.pendingUses) myMhjlData.pendingUses = [];
+            if (!myMhjlData.drawTimestamps) myMhjlData.drawTimestamps = [];
 
             // 初始化对方记录
             if (partnerMhjlRes.data) {
@@ -428,8 +444,38 @@
                 document.getElementById('drawCost').innerText = calculatedAvgPrice;
             }
 
+            updateLimitUI();
             renderRewardsList();
             renderVerifyList();
+        }
+
+        // 计算今天已经抽了多少次
+        function getTodayDrawCount() {
+            if (!myMhjlData.drawTimestamps) return 0;
+            const today = new Date().toDateString();
+            return myMhjlData.drawTimestamps.filter(ts => new Date(ts).toDateString() === today).length;
+        }
+
+        // 更新剩余次数 UI
+        function updateLimitUI() {
+            const count = getTodayDrawCount();
+            const remain = Math.max(0, MAX_DAILY_DRAWS - count);
+            const badge = document.getElementById('drawLimitBadge');
+            const drawBtn = document.getElementById('drawBtn');
+            const drawBoxArea = document.getElementById('drawBoxArea');
+            
+            if (badge) {
+                badge.innerHTML = `<span>今日可用: ${remain}/${MAX_DAILY_DRAWS}</span>`;
+                if (remain === 0) {
+                    badge.className = "bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full text-xs font-bold border border-gray-200 shadow-sm flex items-center gap-1 transition-colors";
+                    drawBtn.classList.add('btn-disabled');
+                    drawBoxArea.classList.add('btn-disabled'); // 盲盒图标也禁用点击
+                } else {
+                    badge.className = "bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-100 shadow-sm flex items-center gap-1 transition-colors";
+                    drawBtn.classList.remove('btn-disabled');
+                    drawBoxArea.classList.remove('btn-disabled');
+                }
+            }
         }
 
         function switchTab(tabName) {
@@ -491,8 +537,18 @@
         }
 
         async function startDrawFlow() {
+            // 检查今日次数限制
+            const todayCount = getTodayDrawCount();
+            if (todayCount >= MAX_DAILY_DRAWS) {
+                return showToast(`🎁 每天只能抽取 ${MAX_DAILY_DRAWS} 次盲盒哦，明天再来吧！`);
+            }
+
             if (mhData.pool.length === 0) return showToast("奖池是空的，无法抽取！");
             if (myCkData.points < calculatedAvgPrice) return showToast(`积分不足！需要 ${calculatedAvgPrice} 积分。`);
+
+            // 禁用按钮防止连点
+            document.getElementById('drawBtn').classList.add('btn-disabled');
+            document.getElementById('drawBoxArea').classList.add('btn-disabled');
 
             // 打开动画模态框
             const modal = document.getElementById('drawResultModal');
@@ -510,6 +566,13 @@
 
             myCkData.points -= cost;
             myMhjlData.inventory[drawnItem.name] = (myMhjlData.inventory[drawnItem.name] || 0) + 1;
+            
+            // 记录抽奖时间戳
+            myMhjlData.drawTimestamps.push(Date.now());
+            // 保持数组不要无限膨胀，保留最近50条记录
+            if (myMhjlData.drawTimestamps.length > 50) {
+                myMhjlData.drawTimestamps = myMhjlData.drawTimestamps.slice(-50);
+            }
 
             // 记录动画开始的时间
             const startTime = Date.now();
@@ -559,6 +622,8 @@
                     myCkData.points += cost;
                     myMhjlData.inventory[drawnItem.name] -= 1;
                     if(myMhjlData.inventory[drawnItem.name] <= 0) delete myMhjlData.inventory[drawnItem.name];
+                    // 移除最新添加的时间戳
+                    myMhjlData.drawTimestamps.pop();
                     
                     // 如果第一步(扣分)成功但第二步(记录)失败了，向云端发起退还积分
                     if (ckRes.success && !mhjlRes.success) {
@@ -568,6 +633,9 @@
 
                     closeDrawResult();
                     showToast("网络不稳定，抽取失败，积分已安全退回");
+                    
+                    // 恢复按钮点击
+                    updateLimitUI();
                 }
             }, delay); // 动态延迟计算
         }
