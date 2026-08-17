@@ -561,11 +561,15 @@
             requestAnimationFrame(() => modal.classList.remove('opacity-0'));
 
             // 本地数据处理
-            const drawnItem = mhData.pool[Math.floor(Math.random() * mhData.pool.length)];
+            const drawIndex = Math.floor(Math.random() * mhData.pool.length);
+            const drawnItem = mhData.pool[drawIndex];
             const cost = calculatedAvgPrice;
 
             myCkData.points -= cost;
             myMhjlData.inventory[drawnItem.name] = (myMhjlData.inventory[drawnItem.name] || 0) + 1;
+            
+            // 🌟 核心修改：从本地奖池数组中彻底移除该物品
+            mhData.pool.splice(drawIndex, 1);
             
             // 记录抽奖时间戳
             myMhjlData.drawTimestamps.push(Date.now());
@@ -577,15 +581,21 @@
             // 记录动画开始的时间
             const startTime = Date.now();
 
-            // 修复1：串行请求网络，避免 GitHub API 的 409 并发写入冲突
-            // 修复2：剥离 sha 属性，防止污染存入云端的 JSON 内容
+            // 串行请求网络 (1.扣积分 -> 2.删奖池物品 -> 3.增加背包物品)
             const ckPayload = { ...myCkData }; delete ckPayload.sha;
             const ckRes = await updateFile(FILE_CK_MY, ckPayload, myCkData.sha, `Draw Blindbox cost ${cost}`);
             
+            let mhRes = { success: false };
             let mhjlRes = { success: false };
+            
             if (ckRes.success) {
-                const mhjlPayload = { ...myMhjlData }; delete mhjlPayload.sha;
-                mhjlRes = await updateFile(FILE_MHJL_MY, mhjlPayload, myMhjlData.sha, `Obtain ${drawnItem.name}`);
+                const mhPayload = { pool: mhData.pool };
+                mhRes = await updateFile(FILE_MH, mhPayload, mhData.sha, `Remove drawn item ${drawnItem.name}`);
+                
+                if (mhRes.success) {
+                    const mhjlPayload = { ...myMhjlData }; delete mhjlPayload.sha;
+                    mhjlRes = await updateFile(FILE_MHJL_MY, mhjlPayload, myMhjlData.sha, `Obtain ${drawnItem.name}`);
+                }
             }
 
             // 计算还需等待多久才能达到 1.8 秒的最佳动画体验时长
@@ -593,8 +603,9 @@
             const delay = Math.max(0, 1800 - elapsed);
 
             setTimeout(async () => {
-                if (ckRes.success && mhjlRes.success) {
+                if (ckRes.success && mhRes.success && mhjlRes.success) {
                     myCkData.sha = ckRes.sha;
+                    mhData.sha = mhRes.sha;
                     myMhjlData.sha = mhjlRes.sha;
                     
                     // 切换到结果阶段
@@ -622,17 +633,23 @@
                     myCkData.points += cost;
                     myMhjlData.inventory[drawnItem.name] -= 1;
                     if(myMhjlData.inventory[drawnItem.name] <= 0) delete myMhjlData.inventory[drawnItem.name];
-                    // 移除最新添加的时间戳
                     myMhjlData.drawTimestamps.pop();
                     
-                    // 如果第一步(扣分)成功但第二步(记录)失败了，向云端发起退还积分
-                    if (ckRes.success && !mhjlRes.success) {
+                    // 恢复奖池中的物品
+                    mhData.pool.splice(drawIndex, 0, drawnItem);
+                    
+                    // 云端数据回滚 (按需)
+                    if (ckRes.success && (!mhRes.success || !mhjlRes.success)) {
                         const rollbackPayload = { ...myCkData }; delete rollbackPayload.sha;
-                        await updateFile(FILE_CK_MY, rollbackPayload, ckRes.sha, `Rollback Draw`);
+                        await updateFile(FILE_CK_MY, rollbackPayload, ckRes.sha, `Rollback Draw Points`);
+                    }
+                    if (mhRes.success && !mhjlRes.success) {
+                        const rollbackMhPayload = { pool: mhData.pool };
+                        await updateFile(FILE_MH, rollbackMhPayload, mhRes.sha, `Rollback Pool Item`);
                     }
 
                     closeDrawResult();
-                    showToast("网络不稳定，抽取失败，积分已安全退回");
+                    showToast("网络不稳定，抽取失败，数据已安全退回");
                     
                     // 恢复按钮点击
                     updateLimitUI();
