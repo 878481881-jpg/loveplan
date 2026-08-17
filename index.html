@@ -97,10 +97,6 @@
                         <span class="text-lg group-hover:scale-110 transition-transform">🐷</span>
                         <span class="text-xs md:text-sm font-bold text-rose-600 tracking-wide">存钱罐</span>
                     </a>
-                    <a href="qd.html" class="flex items-center gap-3 py-2.5 px-3 bg-gradient-to-r from-white/90 to-white/40 hover:from-rose-50 hover:to-white backdrop-blur-md border border-white/80 rounded-xl shadow-sm hover:shadow-md transform hover:translate-x-1 transition-all group">
-                        <span class="text-lg group-hover:scale-110 transition-transform">📅</span>
-                        <span class="text-xs md:text-sm font-bold text-rose-600 tracking-wide">日签到</span>
-                    </a>
                     <div class="flex items-center gap-3 py-2 px-3 bg-white/30 backdrop-blur-sm border border-dashed border-rose-200/70 rounded-xl opacity-70">
                         <span class="text-lg">🔒</span>
                         <span class="text-[11px] md:text-xs font-medium text-rose-400 tracking-wide">更多待解锁</span>
@@ -163,6 +159,16 @@
             <button onclick="closeAutoCheckInModal()" class="w-full py-3 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">
                 开心收下
             </button>
+        </div>
+    </div>
+
+    <!-- 自动签到处理中遮罩层（防止误操作） -->
+    <div id="autoCheckInLoadingOverlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] hidden flex flex-col items-center justify-center transition-opacity">
+        <div class="bg-white rounded-3xl p-8 flex flex-col items-center shadow-2xl animate-pop max-w-[80vw]">
+            <!-- 旋转的沙漏动画 -->
+            <div class="text-5xl mb-4 animate-[spin-slow_3s_linear_infinite]">⏳</div>
+            <h3 class="font-black text-rose-500 text-xl tracking-wide mb-2">正在自动签到</h3>
+            <p class="text-sm text-gray-500 font-medium">请勿进行其他操作，正在同步云端数据...</p>
         </div>
     </div>
     
@@ -278,6 +284,7 @@
         const checkInTasksConfig = [
             { id: 'morning', name: '早起签到', icon: '🌅', sh: 5, sm: 0, eh: 8, em: 0 },
             { id: 'lunch', name: '按时午饭', icon: '🍱', sh: 11, sm: 30, eh: 13, em: 0 },
+            { id: 'dring', name: '按时晚饭', icon: '🍱', sh: 17, sm: 0, eh: 19, em: 0 },
             { id: 'night', name: '早睡签到', icon: '🌙', sh: 21, sm: 0, eh: 23, em: 0 }
             
             // 💡 示例：如果你想加个下午茶签到，只需取消下面的注释即可：
@@ -326,52 +333,61 @@
             // 要是不在规定时间点，咱们就不发网络请求浪费流量啦~ 直接结束！
             if (!taskToExecute) return; 
 
-            // 2. 只有确认在时间点内，才会去找 GitHub 判断今天签没签过
-            const QD_FILE = 'data/qd.json';
-            const qdRes = await fetchFile(QD_FILE);
-            if (qdRes.error) return;
+            // ===== 新增：在确认时间吻合后，立即呼出防止操作的遮罩层 =====
+            const loadingOverlay = document.getElementById('autoCheckInLoadingOverlay');
+            if (loadingOverlay) loadingOverlay.classList.remove('hidden');
 
-            let qdData = qdRes.data || { "哼哼": {}, "亲亲": {} };
-            if (!qdData[myIdentity]) qdData[myIdentity] = {};
-            
-            if (isToday(qdData[myIdentity][taskToExecute.id])) return; // 今天签过了，结束
+            try {
+                // 2. 只有确认在时间点内，才会去找 GitHub 判断今天签没签过
+                const QD_FILE = 'data/qd.json';
+                const qdRes = await fetchFile(QD_FILE);
+                if (qdRes.error) return;
 
-            // 3. 执行签到数据保存
-            qdData[myIdentity][taskToExecute.id] = Date.now();
-            
-            let pointsToAdd = 2;
-            let isAllDone = false;
-            let completedCount = 0;
-            
-            for (let t of checkInTasksConfig) {
-                if (isToday(qdData[myIdentity][t.id])) completedCount++;
+                let qdData = qdRes.data || { "哼哼": {}, "亲亲": {} };
+                if (!qdData[myIdentity]) qdData[myIdentity] = {};
+                
+                if (isToday(qdData[myIdentity][taskToExecute.id])) return; // 今天签过了，结束
+
+                // 3. 执行签到数据保存
+                qdData[myIdentity][taskToExecute.id] = Date.now();
+                
+                let pointsToAdd = 2;
+                let isAllDone = false;
+                let completedCount = 0;
+                
+                for (let t of checkInTasksConfig) {
+                    if (isToday(qdData[myIdentity][t.id])) completedCount++;
+                }
+                if (completedCount === checkInTasksConfig.length) {
+                    pointsToAdd += 4;
+                    isAllDone = true;
+                }
+
+                const saveQdRes = await updateFile(QD_FILE, qdData, qdRes.sha, `Initial auto checkin ${taskToExecute.id} by ${myIdentity}`);
+                if (!saveQdRes.success) return;
+
+                const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
+                const myRes = await fetchFile(MY_FILE);
+                if (!myRes.error && myRes.data) {
+                    let myData = myRes.data;
+                    if(typeof myData.points !== 'number') myData.points = 0;
+                    myData.points += pointsToAdd;
+                    await updateFile(MY_FILE, myData, myRes.sha, `Initial auto add ${pointsToAdd} pts for ${taskToExecute.id}`);
+                }
+
+                // 4. 蹦出庆祝弹窗告诉对方加分啦！
+                showAutoCheckInModal(taskToExecute, isAllDone);
+            } finally {
+                // ===== 新增：无论请求成功、中途跳出还是失败，最后都隐藏遮罩层 =====
+                if (loadingOverlay) loadingOverlay.classList.add('hidden');
             }
-            if (completedCount === checkInTasksConfig.length) {
-                pointsToAdd += 4;
-                isAllDone = true;
-            }
-
-            const saveQdRes = await updateFile(QD_FILE, qdData, qdRes.sha, `Initial auto checkin ${taskToExecute.id} by ${myIdentity}`);
-            if (!saveQdRes.success) return;
-
-            const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
-            const myRes = await fetchFile(MY_FILE);
-            if (!myRes.error && myRes.data) {
-                let myData = myRes.data;
-                if(typeof myData.points !== 'number') myData.points = 0;
-                myData.points += pointsToAdd;
-                await updateFile(MY_FILE, myData, myRes.sha, `Initial auto add ${pointsToAdd} pts for ${taskToExecute.id}`);
-            }
-
-            // 4. 蹦出庆祝弹窗告诉对方加分啦！
-            showAutoCheckInModal(taskToExecute, isAllDone);
         }
 
         function showAutoCheckInModal(task, isAllDone) {
             document.getElementById('autoCheckInTitle').innerText = isAllDone ? `🎉 大满贯！${task.name}` : `✨ 自动签到成功：${task.name}`;
             document.getElementById('autoCheckInDesc').innerText = isAllDone 
                 ? `恭喜完成今日所有打卡，获得 2 积分 + 额外 4 积分奖励！` 
-                : `您在规定时间内进入了网页，自动打卡成功，存入 2 积分！`;
+                : `自动打卡成功，存入 2 积分！`;
             
             const modal = document.getElementById('autoCheckInModal');
             const content = document.getElementById('autoCheckInModalContent');
