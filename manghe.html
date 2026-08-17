@@ -760,25 +760,43 @@
         async function requestUseReward(itemName) {
             if (!myMhjlData.inventory[itemName] || myMhjlData.inventory[itemName] <= 0) return;
 
-            // 用户要求：盲盒奖励抽取到后就消失 (使用即消失，不再走核销流程)
-            showGlobalLoader("正在消耗奖励...");
+            showGlobalLoader("生成核销凭证中...");
 
+            // 1. 从可用库存中扣除
             myMhjlData.inventory[itemName] -= 1;
             if(myMhjlData.inventory[itemName] <= 0) delete myMhjlData.inventory[itemName];
 
-            // 剥离 sha
+            // 2. 生成6位随机核销码
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for(let i=0; i<6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+
+            // 3. 加入到待核销列表
+            if (!myMhjlData.pendingUses) myMhjlData.pendingUses = [];
+            myMhjlData.pendingUses.push({
+                code: code,
+                itemName: itemName,
+                time: Date.now(),
+                status: 'pending'
+            });
+
+            // 4. 提交到云端
             const payload = { ...myMhjlData }; delete payload.sha;
-            const res = await updateFile(FILE_MHJL_MY, payload, myMhjlData.sha, `Consumed ${itemName}`);
+            const res = await updateFile(FILE_MHJL_MY, payload, myMhjlData.sha, `Request use reward: ${itemName}`);
             hideGlobalLoader();
 
             if (res.success) {
                 myMhjlData.sha = res.sha;
                 renderRewardsList();
-                showToast(`已成功使用：${itemName}`);
+                
+                // 5. 弹出核销码展示窗口
+                document.getElementById('generatedCode').innerText = code;
+                openModal('codeModal', 'codeModalContent');
             } else {
-                // 回滚
+                // 回滚失败状态
                 myMhjlData.inventory[itemName] = (myMhjlData.inventory[itemName]||0) + 1;
-                showToast("网络错误，使用奖励失败");
+                myMhjlData.pendingUses.pop();
+                showToast("网络错误，生成核销码失败");
             }
         }
 
