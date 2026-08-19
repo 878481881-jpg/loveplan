@@ -103,6 +103,10 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        .no-arrows::-webkit-outer-spin-button,
+        .no-arrows::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .no-arrows { -moz-appearance: textfield; }
+
         .loader-ring {
             width: 56px;
             height: 56px;
@@ -138,9 +142,11 @@
             <span>⚡</span> 全息雷霆 <span>⚡</span>
         </h1>
         <div class="flex items-center gap-2">
-            <!-- 自动战斗按钮 -->
-            <button id="autoBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-slate-500 font-mono font-black text-[10px] rounded-full shadow-lg border border-slate-700/50 hover:bg-slate-700 hover:text-cyan-400 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50">
+            <button id="autoBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-slate-500 font-mono font-black text-[10px] rounded-full shadow-lg border border-slate-700/50 hover:bg-slate-700 hover:text-cyan-400 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50" title="自动战斗">
                 AUTO
+            </button>
+            <button id="rushBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-rose-400 font-mono font-black text-xs rounded-full shadow-lg border border-rose-700/50 hover:bg-slate-700 hover:border-rose-400 hover:shadow-[0_0_10px_rgba(244,63,94,0.3)] transition-all active:scale-95 cursor-pointer z-50" title="快速战斗 (10s内放出本关所有敌人)">
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
             </button>
             <button id="pauseBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -154,7 +160,6 @@
     <div class="scanline"></div>
 
     <main id="mainContainer" class="flex-1 min-h-0 w-full relative flex flex-col mx-auto max-w-md">
-        <!-- 注意这里我们给了canvas固定的id，方便后续事件判断，只有摸在canvas上战机才移动 -->
         <canvas id="gameCanvas"></canvas>
 
         <div id="uiLayer" class="absolute inset-0 z-20 pointer-events-none flex flex-col justify-between p-2 pb-5">
@@ -240,23 +245,39 @@
                 </div>
                 
                 <div class="w-full bg-slate-900/90 rounded-2xl p-4 border border-slate-700/80 flex flex-col items-center shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] z-10">
-                     <span class="text-slate-500 text-[10px] font-black tracking-[0.2em] mb-2 flex items-center gap-2">
+                     <span class="text-slate-500 text-[10px] font-black tracking-[0.2em] mb-2 flex items-center gap-2 whitespace-nowrap">
                          <span class="w-4 h-[1px] bg-slate-600"></span> 当前作战区域 <span class="w-4 h-[1px] bg-slate-600"></span>
                      </span>
-                     <p id="gameLevelDisplay" class="text-gradient-rose font-black text-xl tracking-[0.1em] drop-shadow-[0_0_10px_rgba(225,29,72,0.4)]">-- / --</p>
+                     <p id="gameLevelDisplay" class="text-gradient-rose font-black text-lg md:text-xl tracking-[0.1em] drop-shadow-[0_0_10px_rgba(225,29,72,0.4)] whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">-- / --</p>
                 </div>
 
-                <div class="w-full flex gap-3 z-10">
+                <!-- 战斗模式选择卡 -->
+                <div class="w-full flex bg-slate-900/80 rounded-xl p-1 border border-slate-700/50 shadow-inner z-10 gap-1 -mt-2 mb-1">
+                    <button id="tabNormal" onclick="setBattleMode('normal')" class="flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]">
+                        普通战
+                    </button>
+                    <button id="tabBoss" onclick="setBattleMode('boss')" class="flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all text-slate-500 hover:text-slate-300 border border-transparent">
+                        BOSS战
+                    </button>
+                </div>
+
+                <div class="w-full flex gap-3 z-10 mt-1">
                     <button onclick="openUpgradeModal()" class="w-full py-3.5 bg-slate-800/80 hover:bg-slate-700 text-cyan-300 text-sm font-bold tracking-[0.15em] rounded-xl border border-cyan-800/60 transition-all active:scale-95 shadow-[0_0_15px_rgba(34,211,238,0.15)] flex justify-center items-center gap-2">
                         <span class="text-lg">🛠️</span>
                         <span>系统强化</span>
                     </button>
                 </div>
 
-                <button id="btnStart" class="w-full py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black tracking-[0.2em] rounded-xl shadow-[0_0_25px_rgba(34,211,238,0.5)] transition-all active:scale-95 border border-cyan-400/50 text-lg flex items-center justify-center gap-2 z-10">
-                    <span>启动引擎</span>
-                    <svg class="w-5 h-5 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                </button>
+                <div class="w-full flex gap-3 z-10">
+                    <button id="btnStart" class="flex-1 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black tracking-widest rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.5)] transition-all active:scale-95 border border-cyan-400/50 text-base md:text-lg flex items-center justify-center gap-1 z-10">
+                        <span>启动引擎</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </button>
+                    <button id="btnSweep" class="flex-1 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black tracking-widest rounded-xl shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all active:scale-95 border border-purple-400/50 text-base md:text-lg flex items-center justify-center gap-1 z-10">
+                        <span>一键扫荡</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 5l7 7-7 7M5 5l7 7-7 7"></path></svg>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -346,6 +367,18 @@
             </div>
         </div>
 
+        <!-- 扫荡模式控制面板 -->
+        <div id="sweepControlPanel" class="absolute top-24 left-1/2 transform -translate-x-1/2 z-[45] glass-panel px-5 py-3 rounded-2xl flex flex-col items-center gap-3 border border-purple-500/60 shadow-[0_0_30px_rgba(168,85,247,0.4)] transition-all duration-500 opacity-0 pointer-events-none scale-90">
+            <div class="flex items-center gap-2">
+                <div class="w-2.5 h-2.5 rounded-full bg-purple-400 animate-pulse shadow-[0_0_8px_#c084fc] shrink-0"></div>
+                <span id="sweepStatusText" class="text-purple-300 font-black text-sm tracking-[0.1em] drop-shadow-md whitespace-nowrap">扫荡协议执行中</span>
+            </div>
+            <button id="btnStopSweep" class="w-full py-2 bg-slate-800/90 hover:bg-rose-900/80 text-rose-400 text-xs font-bold tracking-widest rounded-xl border border-rose-800/60 shadow-[0_0_10px_rgba(225,29,72,0.2)] transition-all active:scale-95 pointer-events-auto flex items-center justify-center gap-1.5">
+                <svg class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                中止扫荡
+            </button>
+        </div>
+
         <div id="fxLayer" class="absolute inset-0 pointer-events-none z-40 overflow-hidden"></div>
     </main>
 
@@ -372,13 +405,33 @@
         const btnStart = document.getElementById('btnStart');
         const globalLoader = document.getElementById('globalLoader');
         const loaderText = document.getElementById('loaderText');
+        const sweepControlPanel = document.getElementById('sweepControlPanel');
+        const btnStopSweep = document.getElementById('btnStopSweep');
 
         let gameState = 'start'; 
         let score = 0;
         let lastTime = 0;
         let gameTime = 0;
         let gameSpeedMultiplier = 1;
-        let isAutoBattle = false; // 新增自动战斗状态
+        let isAutoBattle = false;
+        let isRushing = false;
+        let isSweeping = false;
+
+        // --- 新增：战斗模式切换 ---
+        let currentBattleMode = 'normal';
+        window.setBattleMode = function(mode) {
+            currentBattleMode = mode;
+            const tabNormal = document.getElementById('tabNormal');
+            const tabBoss = document.getElementById('tabBoss');
+            
+            if (mode === 'normal') {
+                tabNormal.className = "flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all bg-cyan-600/30 text-cyan-300 border border-cyan-500/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]";
+                tabBoss.className = "flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all text-slate-500 hover:text-slate-300 border border-transparent";
+            } else {
+                tabBoss.className = "flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all bg-rose-600/30 text-rose-300 border border-rose-500/50 shadow-[0_0_10px_rgba(225,29,72,0.2)]";
+                tabNormal.className = "flex-1 py-2 rounded-lg text-xs font-black tracking-widest transition-all text-slate-500 hover:text-slate-300 border border-transparent";
+            }
+        };
 
         let player;
         let bullets = [];
@@ -409,6 +462,33 @@
                 autoBtn.classList.replace('border-cyan-400', 'border-slate-700/50');
                 autoBtn.classList.remove('shadow-[0_0_10px_rgba(34,211,238,0.3)]');
                 if (gameState === 'playing') showFloatingText(width/2, height/2, "手动控制 已恢复", "text-slate-400 font-bold text-xl");
+            }
+        });
+
+        // Rush button: release all remaining waves of the entire level within 10 seconds
+        const rushBtn = document.getElementById('rushBtn');
+        rushBtn.addEventListener('click', () => {
+            if (gameState !== 'playing' || isRushing || bossSpawned) return;
+            isRushing = true;
+            rushBtn.classList.replace('text-rose-400', 'text-slate-500');
+            rushBtn.classList.replace('border-rose-700/50', 'border-slate-700/50');
+            rushBtn.classList.remove('hover:border-rose-400', 'hover:shadow-[0_0_10px_rgba(244,63,94,0.3)]');
+            showFloatingText(width/2, height/2, "快速战斗已启动：10s内放出本关所有敌人！", "text-rose-500 font-black text-xl drop-shadow-[0_0_15px_rgba(225,29,72,0.9)] text-center");
+            
+            if (stageConfig && stageConfig.waves) {
+                let rushDuration = 10000; // 10 seconds window
+                // Reset current wave progress so remaining waves span the full 10 seconds
+                enemiesSpawnedInCurrentWave = 0;
+                let remainingWavesCount = stageConfig.waves.length - currentWaveIndex;
+                if (remainingWavesCount > 0) {
+                    let timePerWave = rushDuration / remainingWavesCount;
+                    for (let i = currentWaveIndex; i < stageConfig.waves.length; i++) {
+                        stageConfig.waves[i].time = gameTime + (i - currentWaveIndex) * timePerWave;
+                        stageConfig.waves[i].spawnInterval = Math.max(30, timePerWave / stageConfig.waves[i].count);
+                    }
+                } else {
+                    bossSpawned = true;
+                }
             }
         });
 
@@ -673,6 +753,98 @@
             setTimeout(() => { modal.style.display = 'none'; }, 400);
         };
 
+        let upgradeInputStates = {};
+
+        function getUpgradeDescHtml(category, key, curr, next) {
+            if (category === 'attr') {
+                if (key === 'hp') return `<span class="text-slate-400">耐久上限:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>`;
+                else if (key === 'atk') return `<span class="text-slate-400">武器出力:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>`;
+                else if (key === 'def') return `<span class="text-slate-400">防御加成:</span> <span class="text-cyan-300 ml-1">${Math.min(60, curr * 5)}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${Math.min(60, next * 5)}%</span>`;
+            } else if (category === 'skill') {
+                let cdText = `<span class="text-slate-500 ml-2 border-l border-slate-700 pl-2">CD:<span class="text-rose-400 font-bold ml-1">20s</span></span>`;
+                if (key === 'summon') return `<span class="text-slate-400">攻速提升:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>${cdText}`;
+                else if (key === 'invinc') return `<span class="text-slate-400">免疫次数:</span> <span class="text-cyan-300 ml-1">${10 + curr}次</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${10 + next}次</span>${cdText}`;
+                else if (key === 'shield') return `<span class="text-slate-400">效能加成:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>${cdText}`;
+                else if (key === 'burst') return `<span class="text-slate-400">暴走增伤:</span> <span class="text-cyan-300 ml-1">+${curr * 3}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 3}%</span>${cdText}`;
+            }
+            return '';
+        }
+
+        window.updateCostPreview = function(category, key) {
+            let inputEl = document.getElementById(`upg_in_${category}_${key}`);
+            if (!inputEl) return;
+            let rawVal = parseInt(inputEl.value);
+            
+            let currentScore = upgradeData.score || 0;
+            let maxAffordable = Math.floor(currentScore / 5000);
+            
+            // 限制输入值不能超过当前积分可购买的最大等级
+            if (!isNaN(rawVal) && rawVal > maxAffordable) {
+                rawVal = Math.max(1, maxAffordable);
+                inputEl.value = rawVal;
+            }
+
+            let val = rawVal;
+            let cost = 0;
+            let btnEl = document.getElementById(`upg_btn_${category}_${key}`);
+            let costEl = document.getElementById(`upg_cost_${category}_${key}`);
+            
+            if (isNaN(rawVal) || rawVal < 1) {
+                val = 0;
+                cost = 0;
+            } else {
+                val = rawVal;
+                cost = val * 5000;
+            }
+            
+            upgradeInputStates[`${category}_${key}`] = isNaN(rawVal) ? '' : rawVal;
+
+            if (costEl) costEl.innerText = cost;
+
+            if (currentScore < cost || val < 1) {
+                btnEl.className = "w-full px-1 py-1 rounded font-black text-[9px] font-mono transition-all border leading-tight text-center bg-slate-800/80 text-slate-500 border-slate-700 opacity-60 cursor-not-allowed";
+                btnEl.disabled = true;
+            } else {
+                btnEl.className = "w-full px-1 py-1 rounded font-black text-[9px] font-mono transition-all border leading-tight text-center bg-gradient-to-r from-cyan-600 to-blue-500 text-white border-cyan-400/50 shadow-[0_2px_8px_rgba(34,211,238,0.4)] active:scale-95";
+                btnEl.disabled = false;
+            }
+            
+            let currLevel = (upgradeData[category] && upgradeData[category][key]) ? upgradeData[category][key] : 0;
+            let nextLevel = currLevel + (val < 1 ? 1 : val);
+            let descEl = document.getElementById(`desc_${category}_${key}`);
+            if (descEl) {
+                descEl.innerHTML = getUpgradeDescHtml(category, key, currLevel, nextLevel);
+            }
+        }
+
+        window.changeUpgradeAmount = function(category, key, delta) {
+            let inputEl = document.getElementById(`upg_in_${category}_${key}`);
+            if (!inputEl) return;
+            let val = parseInt(inputEl.value);
+            if (isNaN(val)) val = 1;
+            
+            let currentScore = upgradeData.score || 0;
+            let maxAffordable = Math.floor(currentScore / 5000);
+            
+            val += delta;
+            
+            // 点击加号时，限制不能超过可购买的最大数量
+            if (delta > 0 && val > maxAffordable) {
+                val = Math.max(1, maxAffordable);
+            }
+            
+            if (val < 1) val = 1;
+            inputEl.value = val;
+            updateCostPreview(category, key);
+        }
+
+        window.buyCustomUpgrade = async function(category, key) {
+            let inputEl = document.getElementById(`upg_in_${category}_${key}`);
+            let amount = parseInt(inputEl.value);
+            if (isNaN(amount) || amount < 1) amount = 1;
+            await buyUpgrade(category, key, amount);
+        }
+
         function renderUpgrades() {
             document.getElementById('currentPointsDisplay').innerText = upgradeData.score || 0;
             const container = document.getElementById('upgradeContent');
@@ -698,49 +870,46 @@
         }
 
         function createUpgradeItemHTML(category, key, config, level, currentScore) {
-            let canAfford1 = currentScore >= 5000;
-            let canAfford10 = currentScore >= 50000;
-
-            let btnClass1 = canAfford1 ? 'bg-gradient-to-r from-cyan-600 to-blue-500 text-white border-cyan-400/50 hover:from-cyan-500 hover:to-blue-400 shadow-[0_2px_8px_rgba(34,211,238,0.4)] active:scale-95' 
-                                     : 'bg-slate-800/80 text-slate-500 border-slate-700 opacity-60 cursor-not-allowed';
+            let amount = upgradeInputStates[`${category}_${key}`];
+            if (amount === undefined) amount = 1;
             
-            let btnClass10 = canAfford10 ? 'bg-gradient-to-r from-amber-600 to-yellow-500 text-white border-amber-400/50 hover:from-amber-500 hover:to-yellow-400 shadow-[0_2px_8px_rgba(245,158,11,0.4)] active:scale-95' 
-                                     : 'bg-slate-800/80 text-slate-500 border-slate-700 opacity-60 cursor-not-allowed';
-            
-            let descHtml = '';
-            let curr = level;
-            let next = level + 1;
-            
-            if (category === 'attr') {
-                if (key === 'hp') descHtml = `<span class="text-slate-400">耐久上限:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>`;
-                else if (key === 'atk') descHtml = `<span class="text-slate-400">武器出力:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>`;
-                else if (key === 'def') descHtml = `<span class="text-slate-400">防御加成:</span> <span class="text-cyan-300 ml-1">${Math.min(60, curr * 5)}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${Math.min(60, next * 5)}%</span>`;
-            } else if (category === 'skill') {
-                let cdText = `<span class="text-slate-500 ml-2 border-l border-slate-700 pl-2">CD:<span class="text-rose-400 font-bold ml-1">20s</span></span>`;
-                if (key === 'summon') descHtml = `<span class="text-slate-400">攻速提升:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>${cdText}`;
-                else if (key === 'invinc') descHtml = `<span class="text-slate-400">持续时间:</span> <span class="text-cyan-300 ml-1">${10 + curr * 2}s</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${10 + next * 2}s</span>${cdText}`;
-                else if (key === 'shield') descHtml = `<span class="text-slate-400">效能加成:</span> <span class="text-cyan-300 ml-1">+${curr * 5}%</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">+${next * 5}%</span>${cdText}`;
-                else if (key === 'burst') descHtml = `<span class="text-slate-400">极限时长:</span> <span class="text-cyan-300 ml-1">${15 + curr * 2}s</span> <span class="text-slate-600 mx-1">➔</span> <span class="text-amber-400">${15 + next * 2}s</span>${cdText}`;
+            // 如果缓存的数量超过了当前能买的最大值，自动向下修正（比如购买完一项后积分变少的情况）
+            let maxAffordable = Math.floor(currentScore / 5000);
+            if (amount !== '' && amount > maxAffordable) {
+                amount = Math.max(1, maxAffordable);
+                upgradeInputStates[`${category}_${key}`] = amount;
             }
+            
+            let cost = (amount === '' ? 0 : amount) * 5000;
+            let canAfford = currentScore >= cost && amount !== '' && amount > 0;
+
+            let btnClass = canAfford ? 'bg-gradient-to-r from-cyan-600 to-blue-500 text-white border-cyan-400/50 hover:from-cyan-500 hover:to-blue-400 shadow-[0_2px_8px_rgba(34,211,238,0.4)] active:scale-95' 
+                                     : 'bg-slate-800/80 text-slate-500 border-slate-700 opacity-60 cursor-not-allowed';
+            
+            let curr = level;
+            let next = level + (amount === '' ? 1 : amount);
+            let descHtml = getUpgradeDescHtml(category, key, curr, next);
 
             return `
             <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-700/80 flex justify-between items-center shadow-[inset_0_2px_5px_rgba(0,0,0,0.3)] gap-2">
-                <div class="flex items-center gap-2.5 overflow-hidden">
+                <div class="flex items-center gap-2.5 overflow-hidden flex-1">
                     <div class="flex-none text-lg bg-slate-800/80 w-8 h-8 flex items-center justify-center rounded-lg shadow border border-slate-600/50">${config.icon}</div>
                     <div class="min-w-0">
                         <div class="text-slate-100 font-bold text-[12px] flex items-center gap-1.5 tracking-wide mb-0.5">
                             ${config.name}
                             <span class="text-cyan-400 font-mono text-[9px] bg-cyan-950/80 border border-cyan-800/50 px-1 py-0.5 rounded shadow-inner">Lv.${level}</span>
                         </div>
-                        <div class="text-[9px] font-mono tracking-wide flex items-center whitespace-nowrap overflow-x-auto no-scrollbar">${descHtml}</div>
+                        <div class="text-[9px] font-mono tracking-wide flex items-center whitespace-nowrap overflow-x-auto no-scrollbar" id="desc_${category}_${key}">${descHtml}</div>
                     </div>
                 </div>
-                <div class="flex items-center gap-1 shrink-0">
-                    <button onclick="buyUpgrade('${category}', '${key}', 1)" ${!canAfford1 ? 'disabled' : ''} class="flex-none px-2 py-1.5 rounded-lg font-black text-[10px] font-mono transition-all border ${btnClass1} leading-tight text-center">
-                        升1级<br><span class="text-[8px] opacity-80">5000</span>
-                    </button>
-                    <button onclick="buyUpgrade('${category}', '${key}', 10)" ${!canAfford10 ? 'disabled' : ''} class="flex-none px-2 py-1.5 rounded-lg font-black text-[10px] font-mono transition-all border ${btnClass10} leading-tight text-center">
-                        升10级<br><span class="text-[8px] opacity-80">50000</span>
+                <div class="flex flex-col items-end gap-1.5 shrink-0 w-[85px]">
+                    <div class="flex items-center w-full bg-slate-950 rounded border border-slate-700/80 overflow-hidden shadow-inner h-6">
+                        <button onclick="changeUpgradeAmount('${category}', '${key}', -1)" class="w-6 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors h-full flex items-center justify-center font-bold text-xs">-</button>
+                        <input type="number" id="upg_in_${category}_${key}" value="${amount}" min="1" class="flex-1 w-full bg-transparent text-center text-cyan-300 font-mono text-[11px] outline-none no-arrows" oninput="updateCostPreview('${category}', '${key}')" onchange="updateCostPreview('${category}', '${key}')">
+                        <button onclick="changeUpgradeAmount('${category}', '${key}', 1)" class="w-6 text-slate-400 hover:text-cyan-400 hover:bg-slate-800 transition-colors h-full flex items-center justify-center font-bold text-xs">+</button>
+                    </div>
+                    <button id="upg_btn_${category}_${key}" onclick="buyCustomUpgrade('${category}', '${key}')" ${!canAfford ? 'disabled' : ''} class="w-full px-1 py-1 rounded font-black text-[9px] font-mono transition-all border ${btnClass} leading-tight text-center">
+                        <span class="opacity-80">消耗</span> <span id="upg_cost_${category}_${key}">${cost}</span>
                     </button>
                 </div>
             </div>`;
@@ -960,9 +1129,12 @@
                 this.active = true; this.damage = damage; this.owner = owner;
                 this.isHoming = isHoming;
                 this.target = null;
+                this.lifeTime = 0; // 新增：记录子弹存活时间
             }
             update(dt) {
                 const timeScale = dt / 16; 
+                this.lifeTime += dt; // 累加存活时间
+                
                 if (this.isHoming && this.owner === 'player') {
                     if (!this.target || !this.target.active) {
                         let nearest = null; let minDist = Infinity;
@@ -979,8 +1151,12 @@
                         const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                         const dx = this.target.x - this.x; const dy = this.target.y - this.y;
                         const targetAngle = Math.atan2(dy, dx);
+                        
+                        // 动态增加转向系数：存活越久，追踪拐弯越猛，彻底打破死循环绕圈（Orbit Bug）
+                        let currentTurn = 0.08 + (this.lifeTime / 1500) * 0.3;
+                        const turnFactor = Math.min(0.5, currentTurn) * timeScale;
+                        
                         const targetVx = Math.cos(targetAngle) * speed; const targetVy = Math.sin(targetAngle) * speed;
-                        const turnFactor = 0.1 * timeScale;
                         this.vx += (targetVx - this.vx) * turnFactor; this.vy += (targetVy - this.vy) * turnFactor;
                         const newSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
                         if (newSpeed > 0) { this.vx = (this.vx / newSpeed) * speed; this.vy = (this.vy / newSpeed) * speed; }
@@ -1045,7 +1221,8 @@
                 this.defMult = 1 - Math.min(0.6, upgDef * 0.05); 
                 
                 this.fireTimer = 0; this.fireRate = 150 / (1 + this.level * 0.01);
-                this.shield = 0; this.invincibleTimer = 0; this.burstTimer = 0;
+                this.shield = 0; this.invincibilityStacks = 0; this.burstTimer = 0;
+                this.hitCooldown = 0;
                 this.easing = 0.2; this.scale = 0.3;
                 this.petProps = getInterpolatedPet(this.level);
                 
@@ -1065,7 +1242,8 @@
                 if (this.burstTimer > 0) this.burstTimer -= dt;
 
                 this.fireTimer += dt;
-                const currentFireRate = this.burstTimer > 0 ? this.fireRate * 0.6 : this.fireRate;
+                // 修正：攻速严格变为2倍（射击间隔乘0.5）
+                const currentFireRate = this.burstTimer > 0 ? this.fireRate * 0.5 : this.fireRate;
                 if (this.fireTimer >= currentFireRate) { this.fire(); this.fireTimer = 0; }
                 this.haloRotation = (this.haloRotation || 0) + (dt / 16) * 0.02;
             }
@@ -1073,7 +1251,8 @@
             fire() {
                 let upgBurst = upgradeData?.skill?.burst || 0;
                 const isBurst = this.burstTimer > 0;
-                const dmg = isBurst ? this.atk * 1.5 : this.atk;
+                // 修正：基础倍率为1，开启后通过暴走协议升级每级增加3%伤害加成
+                const dmg = isBurst ? this.atk * (1 + upgBurst * 0.03) : this.atk;
                 const color = isBurst ? '#f43f5e' : '#22d3ee'; 
                 
                 const baseN = isBurst ? 5 : 2;
@@ -1101,13 +1280,25 @@
             }
 
             takeDamage(amount) {
-                if (this.invincibleTimer > 0) { showFloatingText(this.x, this.y, "免疫", "text-amber-300 font-bold"); return; }
+                if (this.hitCooldown > 0) return;
+
+                if (this.invincibilityStacks > 0) { 
+                    this.invincibilityStacks--;
+                    this.hitCooldown = 500;
+                    showFloatingText(this.x, this.y, "免疫", "text-amber-300 font-bold"); 
+                    if (this.invincibilityStacks <= 0) {
+                        activeSkillDurations.invinc = 0;
+                        skillCooldowns.invinc = SKILL_COOLDOWN_MAX;
+                    }
+                    return; 
+                }
                 
                 amount = amount * (this.defMult || 1);
 
                 if (this.shield > 0) {
                     if (this.shield >= amount) { 
                         this.shield -= amount; 
+                        this.hitCooldown = 200;
                         showFloatingText(this.x, this.y, "吸收", "text-blue-300"); 
                         if (this.shield <= 0) {
                             this.shield = 0;
@@ -1123,12 +1314,47 @@
                     }
                 }
                 this.hp -= amount; 
+                this.hitCooldown = 200;
                 
                 showFloatingText(this.x, this.y - 20, `-${Math.floor(amount)}`, "text-rose-500 font-black text-2xl drop-shadow-[0_0_8px_rgba(225,29,72,0.8)]");
                 
                 updateHUD();
                 ctx.fillStyle = 'rgba(225, 29, 72, 0.3)'; ctx.fillRect(0,0,width,height);
                 if (this.hp <= 0) { createExplosion(this.x, this.y, 50, '#38bdf8'); endGame(false); }
+            }
+
+            fire() {
+                const isBurst = this.burstTimer > 0;
+                let currentDmg = this.atk;
+                if (isBurst) {
+                    let upgBurst = upgradeData?.skill?.burst || 0;
+                    currentDmg = this.atk * (1 + upgBurst * 0.03);
+                }
+                const dmg = currentDmg; 
+                const color = isBurst ? '#f43f5e' : '#22d3ee'; 
+                
+                const baseN = isBurst ? 5 : 2;
+                const extraLines = Math.floor(this.level / 20);
+                const totalLines = baseN + extraLines;
+                
+                const speedMult = 1 + this.level * 0.01;
+                const baseVy = (isBurst ? -20 : -18) * speedMult;
+
+                playShootSound(true);
+
+                for (let i = 0; i < totalLines; i++) {
+                    let c = i - (totalLines - 1) / 2;
+                    let x_offset = c * 12;
+                    let y_offset = -20 + Math.abs(c) * 2;
+                    
+                    let vx = 0;
+                    if (totalLines > 3) {
+                        if (c < -1) vx = (c + 1) * 2;
+                        else if (c > 1) vx = (c - 1) * 2;
+                    }
+                    
+                    bullets.push(new Bullet(this.x + x_offset, this.y + y_offset, baseVy, color, vx, 'player', dmg));
+                }
             }
 
             draw(ctx) {
@@ -1145,7 +1371,7 @@
                     ctx.fillText(`🛡️${Math.floor(this.shield)}`, this.radius + 25, -10);
                     ctx.restore();
                 }
-                if (this.invincibleTimer > 0) {
+                if (this.invincibilityStacks > 0) {
                     ctx.beginPath(); ctx.arc(0, 0, this.radius + 25, 0, Math.PI*2);
                     ctx.fillStyle = 'rgba(251, 191, 36, 0.15)'; ctx.fill();
                     ctx.strokeStyle = '#fbbf24'; ctx.lineWidth = 2; ctx.stroke();
@@ -1155,7 +1381,7 @@
                     ctx.font = 'bold 11px "JetBrains Mono", monospace';
                     ctx.shadowColor = '#fbbf24'; ctx.shadowBlur = 4;
                     ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-                    ctx.fillText(`✨${(this.invincibleTimer / 1000).toFixed(1)}s`, this.radius + 25, 10);
+                    ctx.fillText(`✨${this.invincibilityStacks}次`, this.radius + 25, 10);
                     ctx.restore();
                 }
                 
@@ -1220,6 +1446,7 @@
         class Enemy {
             constructor(type, configOverride = null) {
                 this.type = type; this.active = true; this.y = -50; this.x = random(30, width - 30); this.fireTimer = 0; 
+                this.frameDamage = 0; // 新增：用于合并同一帧内命中的海量伤害
                 
                 let scaleHp = 1 + playerLevel * 0.8; let scaleAtk = 1 + playerLevel * 0.5;
 
@@ -1245,6 +1472,7 @@
                     if (configOverride.hp) this.hp = configOverride.hp;
                     if (configOverride.def) this.def = configOverride.def;
                     if (configOverride.atkSpeed) this.fireRate = configOverride.atkSpeed;
+                    if (configOverride.atk) this.atk = configOverride.atk; // 加入对攻击力覆盖的支持
                 }
                 this.maxHp = this.hp;
             }
@@ -1269,6 +1497,12 @@
                 if (this.type !== 4 && this.y > height + 50) {
                     this.y = -50;
                     this.x = random(30, width - 30);
+                }
+
+                // 性能优化：每帧统一显示一次累加伤害，防止卡顿
+                if (this.frameDamage > 0) {
+                    showFloatingText(this.x + (Math.random() - 0.5) * 40, this.y - 15, `-${Math.floor(this.frameDamage)}`, "text-white font-black text-lg drop-shadow-md");
+                    this.frameDamage = 0;
                 }
             }
             
@@ -1308,14 +1542,20 @@
             takeDamage(amount) {
                 const actualDamage = Math.max(1, amount - this.def);
                 this.hp -= actualDamage;
+                this.frameDamage += actualDamage; // 累加本帧收到的子弹伤害
                 
                 ctx.fillStyle = 'rgba(255,255,255,0.6)';
                 ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
-                showFloatingText(this.x + (Math.random() - 0.5) * 40, this.y - 15, `-${Math.floor(actualDamage)}`, "text-white font-black text-lg drop-shadow-md");
 
                 if (this.type === 4) updateBossHpUI(this.hp, this.maxHp);
 
                 if (this.hp <= 0) {
+                    // 死亡时如果还有没弹出来的数字，立即弹出
+                    if (this.frameDamage > 0) {
+                        showFloatingText(this.x, this.y - 15, `-${Math.floor(this.frameDamage)}`, "text-white font-black text-lg drop-shadow-md");
+                        this.frameDamage = 0;
+                    }
+
                     this.active = false; score += this.score; updateScoreUI();
                     createExplosion(this.x, this.y, this.radius * 2.5, this.color);
                     createExplosion(this.x, this.y, this.radius, '#fff'); 
@@ -1388,7 +1628,6 @@
             let nearestEnemy = null;
             let minDist = Infinity;
             
-            // Find target enemy to align X axis
             for (let e of enemies) {
                 if (!e.active) continue;
                 let distSq = (e.x - player.x)**2 + (e.y - player.y)**2;
@@ -1401,15 +1640,11 @@
             if (nearestEnemy) {
                 targetX = nearestEnemy.x;
                 if (nearestEnemy.type === 4) {
-                    // Keep distance from boss alert radius
-                    let dx = player.x - nearestEnemy.x;
-                    let dy = player.y - nearestEnemy.y;
-                    let angle = Math.atan2(dy, dx);
-                    let safeDist = nearestEnemy.alertRadius + player.radius + 30;
-                    targetX = nearestEnemy.x + Math.cos(angle) * safeDist;
-                    targetY = nearestEnemy.y + Math.sin(angle) * safeDist;
+                    let safeDist = nearestEnemy.alertRadius + player.radius + 60;
+                    targetX = nearestEnemy.x; 
+                    targetY = nearestEnemy.y + safeDist; 
                 } else {
-                    targetY = height - 150; // default fighting height
+                    targetY = height - 150;
                 }
             }
 
@@ -1417,7 +1652,6 @@
             let repelY = 0;
             let dangerCount = 0;
 
-            // Avoid bullets
             for (let b of bullets) {
                 if (b.owner === 'enemy' && b.active) {
                     let dx = player.x - b.x;
@@ -1434,7 +1668,6 @@
                 }
             }
 
-            // Avoid getting too close to regular enemies
             for (let e of enemies) {
                 if (!e.active || e.type === 4) continue;
                 let dx = player.x - e.x;
@@ -1453,15 +1686,12 @@
             let finalTargetX = targetX + repelX;
             let finalTargetY = targetY + repelY;
 
-            // Keep within screen bounds
             finalTargetX = Math.max(player.radius + 10, Math.min(width - player.radius - 10, finalTargetX));
             finalTargetY = Math.max(height * 0.2, Math.min(height - player.radius - 20, finalTargetY));
 
-            // Smooth target transition for Auto Battle
             player.targetX += (finalTargetX - player.targetX) * 0.15;
             player.targetY += (finalTargetY - player.targetY) * 0.15;
 
-            // Auto skill casting
             if (player.hp / player.maxHp < 0.6) {
                 useSkill('shield');
             }
@@ -1524,7 +1754,7 @@
                         }
                         if (enemiesSpawnedInCurrentWave >= wave.count) {
                             currentWaveIndex++; enemiesSpawnedInCurrentWave = 0; waveSpawnTimer = 0;
-                            if (currentWaveIndex < stageConfig.waves.length) {
+                            if (currentWaveIndex < stageConfig.waves.length && !isRushing) {
                                 showFloatingText(width/2, height/3, `波次 ${currentWaveIndex+1}`, "text-cyan-400 text-4xl font-black drop-shadow-[0_0_15px_cyan]");
                             }
                             updateWaveUI();
@@ -1548,13 +1778,12 @@
                 }
             }
 
-            stars.forEach(star => star.update(dt));
-            
-            if (isAutoBattle && player) {
+            if (isAutoBattle && player && gameState === 'playing') {
                 executeAutoBattleLogic(dt);
             }
+
+            stars.forEach(star => star.update(dt));
             if (player) player.update(dt);
-            
             wingmen.forEach(w => w.update(dt));
 
             for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1582,7 +1811,7 @@
                         const dx = player.x - e.x;
                         const dy = player.y - e.y;
                         const dist = Math.sqrt(dx * dx + dy * dy);
-                        if (dist < e.alertRadius + player.radius) {
+                        if (dist < e.alertRadius + player.radius && !isAutoBattle) {
                             const angle = Math.atan2(dy, dx);
                             const safeDist = e.alertRadius + player.radius;
                             player.x = e.x + Math.cos(angle) * safeDist;
@@ -1597,6 +1826,13 @@
                         player.takeDamage(e.hp); 
                         if (e.type !== 4) {
                             e.takeDamage(e.hp); 
+                        } else {
+                            const knockbackDist = player.radius + e.radius + 30;
+                            const dx = player.x - e.x;
+                            const dy = player.y - e.y;
+                            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                            player.targetX = e.x + (dx / dist) * knockbackDist;
+                            player.targetY = e.y + (dy / dist) * knockbackDist;
                         }
                     }
                 }
@@ -1651,7 +1887,6 @@
         }
 
         function setPlayerTarget(e) {
-            // Block manual targeting if Auto Battle is active
             if (gameState !== 'playing' || !player || isAutoBattle) return;
             if (e.target.id !== 'gameCanvas') return;
 
@@ -1695,7 +1930,8 @@
         function updateScoreUI() { scoreDisplay.innerText = padScore(score); }
         function updateBossHpUI(hp, maxHp) {
             const pct = Math.max(0, (hp / maxHp) * 100);
-            document.getElementById('bossHpBar').style.width = `${pct}%`; document.getElementById('bossHpText').innerText = `${Math.floor(pct)}%`;
+            document.getElementById('bossHpBar').style.width = `${pct}%`; 
+            document.getElementById('bossHpText').innerText = `${Math.floor(Math.max(0, hp))} / ${maxHp} (${Math.floor(pct)}%)`;
         }
 
         function togglePause() {
@@ -1721,10 +1957,42 @@
         document.getElementById('btnResume').addEventListener('click', togglePause);
         
         document.getElementById('btnQuit').addEventListener('click', () => {
+            isSweeping = false;
+            hideSweepPanel();
             togglePause();
             setTimeout(() => {
                 endGame(false);
             }, 350);
+        });
+
+        function showSweepPanel() {
+            document.getElementById('sweepStatusText').innerText = `扫荡中 - 区域 ${currentStage}`;
+            sweepControlPanel.classList.remove('opacity-0', 'pointer-events-none', 'scale-90');
+            sweepControlPanel.classList.add('scale-100');
+        }
+
+        function hideSweepPanel() {
+            sweepControlPanel.classList.add('opacity-0', 'pointer-events-none', 'scale-90');
+            sweepControlPanel.classList.remove('scale-100');
+        }
+
+        btnStopSweep.addEventListener('click', () => {
+            isSweeping = false;
+            hideSweepPanel();
+            showFloatingText(width/2, height/2, "扫荡已中止", "text-rose-400 font-bold text-xl drop-shadow-[0_0_10px_rgba(225,29,72,0.8)]");
+            
+            // 恢复1倍速
+            gameSpeedMultiplier = 1;
+            if (speedBtn) {
+                speedBtn.innerText = `x1`;
+                speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 font-mono font-black text-xs rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50";
+            }
+            
+            // 关闭自动战斗
+            isAutoBattle = false;
+            autoBtn.classList.replace('text-cyan-400', 'text-slate-500');
+            autoBtn.classList.replace('border-cyan-400', 'border-slate-700/50');
+            autoBtn.classList.remove('shadow-[0_0_10px_rgba(34,211,238,0.3)]');
         });
 
         window.useSkill = function(skillName) {
@@ -1740,9 +2008,9 @@
                 showFloatingText(player.x, player.y - 35, "支援抵达!", "text-blue-400 font-bold text-2xl drop-shadow-[0_0_10px_rgba(96,165,250,0.9)]");
             } else if (skillName === 'invinc') {
                 let upgInvinc = upgradeData?.skill?.invinc || 0;
-                let duration = 10000 + (upgInvinc * 2000);
-                activeSkillDurations.invinc = duration;
-                player.invincibleTimer = duration;
+                let stacks = 10 + upgInvinc;
+                activeSkillDurations.invinc = 9999999;
+                player.invincibilityStacks = stacks;
                 createExplosion(player.x, player.y, 35, '#fbbf24');
                 showFloatingText(player.x, player.y - 35, "护体启动!", "text-amber-400 font-bold text-2xl drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]");
             } else if (skillName === 'shield') {
@@ -1758,12 +2026,11 @@
                 showFloatingText(player.x, player.y - 35, `+${Math.floor(actualHeal)}`, "text-green-400 font-black text-4xl drop-shadow-[0_0_15px_rgba(16,185,129,0.9)]");
                 setTimeout(() => showFloatingText(player.x, player.y - 70, "能量重塑!", "text-cyan-300 font-bold text-2xl drop-shadow-[0_0_10px_rgba(34,211,238,0.9)]"), 400);
             } else if (skillName === 'burst') {
-                let upgBurst = upgradeData?.skill?.burst || 0;
-                let duration = 15000 + upgBurst * 2000;
+                let duration = 20000;
                 activeSkillDurations.burst = duration;
                 player.burstTimer = duration;
                 createExplosion(player.x, player.y, 60, '#f43f5e');
-                showFloatingText(player.x, player.y - 40, `火力全开! ${duration/1000}s`, "text-rose-500 font-black text-3xl drop-shadow-[0_0_20px_rgba(244,63,94,1)] whitespace-nowrap");
+                showFloatingText(player.x, player.y - 40, `火力全开! 20s`, "text-rose-500 font-black text-3xl drop-shadow-[0_0_20px_rgba(244,63,94,1)] whitespace-nowrap");
                 const flash = document.createElement('div'); flash.className = 'flash-overlay';
                 document.body.appendChild(flash); setTimeout(() => flash.remove(), 800);
             }
@@ -1788,19 +2055,19 @@
                 
                 if (type === 0) {
                     waveConf.count = 10 + stage * 3 + extraCount;
-                    waveConf.hp = 500 + stage * 20;
+                    waveConf.hp = 500 + stage * 200;
                     waveConf.def = stage * 8;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
                 } else if (type === 1) {
                     waveConf.count = 8 + stage * 2 + extraCount;
-                    waveConf.hp = 800 + stage * 40;
+                    waveConf.hp = 800 + stage * 400;
                     waveConf.def = stage * 12;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
                 } else if (type === 2) {
                     waveConf.count = 5 + stage * 1 + extraCount;
-                    waveConf.hp = 1000 + stage * 100;
+                    waveConf.hp = 1000 + stage * 1000;
                     waveConf.def = stage * 8;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
@@ -1816,7 +2083,7 @@
                     time: currentTime,
                     type: 3,
                     count: Math.floor(2 + stage * 0.1),
-                    hp: 5000 + stage * 500,
+                    hp: 5000 + stage * 5000,
                     def: stage * 10,
                     atkSpeed: Math.max(1000, 3000 - stage * 50),
                     spawnInterval: Math.max(500, 2000 - stage * 100)
@@ -1826,7 +2093,7 @@
             }
             
             let boss = {
-                hp: 20000 + stage * 10000,
+                hp: 20000 + stage * 100000,
                 def: 50 + stage * 15,
                 atkSpeed: Math.max(200, 2000 - stage * 100)
             };
@@ -1847,13 +2114,25 @@
             fxLayer.innerHTML = ''; 
             document.querySelectorAll('.flash-overlay').forEach(el => el.remove());
             
-            // Auto Battle state persists visually, but does not need reset unless you want it to.
-            // gameSpeedMultiplier resets
-            gameSpeedMultiplier = 1;
+            // Note: gameSpeedMultiplier is kept and not reset across rounds/levels as requested.
             const speedBtn = document.getElementById('speedBtn');
             if (speedBtn) {
-                speedBtn.innerText = `x1`;
-                speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 font-mono font-black text-xs rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50";
+                speedBtn.innerText = `x${gameSpeedMultiplier}`;
+                if (gameSpeedMultiplier === 1) {
+                    speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 font-mono font-black text-xs rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50";
+                } else if (gameSpeedMultiplier === 2) {
+                    speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-amber-400 font-mono font-black text-xs rounded-full shadow-[0_0_10px_rgba(251,191,36,0.3)] border border-amber-400 hover:bg-slate-700 transition-all active:scale-95 cursor-pointer z-50";
+                } else {
+                    speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-rose-400 font-mono font-black text-xs rounded-full shadow-[0_0_15px_rgba(244,63,94,0.5)] border border-rose-400 hover:bg-slate-700 transition-all active:scale-95 cursor-pointer z-50";
+                }
+            }
+            
+            isRushing = false;
+            const rushBtn = document.getElementById('rushBtn');
+            if(rushBtn) {
+                rushBtn.classList.replace('text-slate-500', 'text-rose-400');
+                rushBtn.classList.replace('border-slate-700/50', 'border-rose-700/50');
+                rushBtn.classList.add('hover:border-rose-400', 'hover:shadow-[0_0_10px_rgba(244,63,94,0.3)]');
             }
 
             score = 0; gameTime = 0; currentWaveIndex = 0; waveSpawnTimer = 0; enemiesSpawnedInCurrentWave = 0; bossSpawned = false;
@@ -1882,12 +2161,19 @@
                 updateWaveUI();
                 showFloatingText(width/2, height/3, `作战区域 ${currentStage}`, "text-cyan-400 text-3xl font-black drop-shadow-[0_0_15px_cyan]");
                 
-                if (isAutoBattle) {
+                if (isAutoBattle && !isSweeping) {
                      setTimeout(() => showFloatingText(width/2, height/2, "自动战斗 已就绪", "text-cyan-400 font-bold text-xl drop-shadow-[0_0_10px_cyan]"), 1000);
                 }
 
                 gameState = 'playing';
                 lastTime = performance.now();
+
+                if (isSweeping) {
+                    const sweepStatusText = document.getElementById('sweepStatusText');
+                    if (sweepStatusText) sweepStatusText.innerText = `扫荡中 - 区域 ${currentStage}`;
+                    const rushBtnElement = document.getElementById('rushBtn');
+                    if (rushBtnElement) rushBtnElement.click();
+                }
             }, 400);
         }
 
@@ -1940,8 +2226,18 @@
                 if (newUpgradeSha) upgradeSha = newUpgradeSha;
                 
                 hideLoader();
+                
+                if (isSweeping) {
+                    setTimeout(() => {
+                        if (isSweeping && !document.getElementById('btnRestart').disabled) {
+                            document.getElementById('btnRestart').click();
+                        }
+                    }, 1500);
+                }
 
             } else {
+                isSweeping = false;
+                hideSweepPanel();
                 resultTitle.innerText = "机体损毁";
                 resultTitle.className = "text-4xl font-black tracking-widest text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)]";
                 resultDesc.innerText = "生命体征微弱，强制脱离";
@@ -1976,32 +2272,110 @@
                     uiStartMenu.classList.remove('modal-enter');
                     uiStartMenu.classList.add('modal-enter-active');
                     document.getElementById('startMenuContent').classList.replace('scale-95', 'scale-100');
-                    loadGameData();
+                    
+                    loadGameData().then(() => {
+                        if (isSweeping) {
+                            setTimeout(() => {
+                                if (isSweeping) executeStartGame();
+                            }, 500);
+                        }
+                    });
                 }, 500);
             });
         }
 
-        if (btnStart) {
-            btnStart.addEventListener('click', async () => {
-                showLoader("构建作战区域...");
-                try {
-                    btnStart.disabled = true;
+        async function executeStartGame() {
+            showLoader("构建作战区域...");
+            try {
+                if(btnStart) btnStart.disabled = true;
+                const btnSweep = document.getElementById('btnSweep');
+                if(btnSweep) btnSweep.disabled = true;
 
-                    const stageRes = await fetchGithubFile(`data/ltzj/${currentStage}.json`);
-                    if (stageRes && stageRes.data) {
-                        stageConfig = stageRes.data;
-                    } else {
-                        console.warn("未获取到云端数据，切换至动态作战协议");
-                        stageConfig = generateStageConfig(currentStage);
-                    }
-                } catch (err) {
-                    console.error("引擎通信失败, 启用离线动态协议:", err);
+                const stageRes = await fetchGithubFile(`data/ltzj/${currentStage}.json`);
+                if (stageRes && stageRes.data) {
+                    stageConfig = stageRes.data;
+                } else {
+                    console.warn("未获取到云端数据，切换至动态作战协议");
                     stageConfig = generateStageConfig(currentStage);
-                } finally {
-                    btnStart.disabled = false;
-                    hideLoader();
-                    startGame();
                 }
+                
+                // ===== 处理BOSS战模式配置覆盖 =====
+                if (currentBattleMode === 'boss') {
+                    stageConfig.waves = []; // 清空普通敌人波数，直接打BOSS
+                    
+                    // ==========================================
+                    // 在这里修改 BOSS战 的核心数值倍率：
+                    // ==========================================
+                    const bossHpMult = 5; // BOSS血量倍率 (默认100倍)
+                    const bossAtkMult = 5;  // BOSS攻击力倍率 (默认5倍)
+                    const bossDefMult = 5;  // BOSS防御力倍率 (默认5倍)
+                    // ==========================================
+                    
+                    // 动态计算该BOSS在当前关卡的基础攻击力，再乘倍率
+                    let scaleAtk = 1 + playerLevel * 0.5;
+                    let baseBossAtk = 10 * scaleAtk;
+                    
+                    stageConfig.boss.hp = (stageConfig.boss.hp || 20000) * bossHpMult;
+                    stageConfig.boss.def = (stageConfig.boss.def || 50) * bossDefMult;
+                    stageConfig.boss.atk = baseBossAtk * bossAtkMult;
+                    
+                    // BOSS战通关经验加成（可选，默认提高10倍）
+                    stageConfig.rewardExp = (stageConfig.rewardExp || 50) * 1; 
+                }
+
+            } catch (err) {
+                console.error("引擎通信失败, 启用离线动态协议:", err);
+                stageConfig = generateStageConfig(currentStage);
+                
+                // 异常回退时也保证应用BOSS模式逻辑
+                if (currentBattleMode === 'boss') {
+                    stageConfig.waves = [];
+                    const bossHpMult = 100;
+                    const bossAtkMult = 5;
+                    const bossDefMult = 5;
+                    let scaleAtk = 1 + playerLevel * 0.5;
+                    let baseBossAtk = 10 * scaleAtk;
+                    stageConfig.boss.hp *= bossHpMult;
+                    stageConfig.boss.def *= bossDefMult;
+                    stageConfig.boss.atk = baseBossAtk * bossAtkMult;
+                }
+            } finally {
+                if(btnStart) btnStart.disabled = false;
+                const btnSweep = document.getElementById('btnSweep');
+                if(btnSweep) btnSweep.disabled = false;
+                hideLoader();
+                startGame();
+            }
+        }
+
+        if (btnStart) {
+            btnStart.addEventListener('click', () => {
+                isSweeping = false;
+                hideSweepPanel();
+                executeStartGame();
+            });
+        }
+
+        const btnSweep = document.getElementById('btnSweep');
+        if (btnSweep) {
+            btnSweep.addEventListener('click', () => {
+                isSweeping = true;
+                showSweepPanel();
+                
+                if (!isAutoBattle) {
+                    isAutoBattle = true;
+                    autoBtn.classList.replace('text-slate-500', 'text-cyan-400');
+                    autoBtn.classList.replace('border-slate-700/50', 'border-cyan-400');
+                    autoBtn.classList.add('shadow-[0_0_10px_rgba(34,211,238,0.3)]');
+                }
+                
+                gameSpeedMultiplier = 5;
+                if (speedBtn) {
+                    speedBtn.innerText = `x5`;
+                    speedBtn.className = "w-8 h-8 flex items-center justify-center bg-slate-800/90 text-rose-400 font-mono font-black text-xs rounded-full shadow-[0_0_15px_rgba(244,63,94,0.5)] border border-rose-400 hover:bg-slate-700 transition-all active:scale-95 cursor-pointer z-50";
+                }
+                
+                executeStartGame();
             });
         }
 
