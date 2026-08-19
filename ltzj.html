@@ -1216,15 +1216,15 @@
                 let atkMult = (1 + upgAtk * 0.05) * (1 + (equipList.includes('cwsbyj') ? 0.05 : 0) + (equipList.includes('cwsbjgy') ? 0.05 : 0) + (equipList.includes('cwsbbj') ? 0.02 : 0));
                 
                 this.maxHp = Math.floor((500 + this.level * 35) * hpMult);
-                this.hp = this.maxHp;
-                this.atk = Math.floor((50 + this.level * 4.5) * atkMult);
-                this.defMult = 1 - Math.min(0.6, upgDef * 0.05); 
-                
-                this.fireTimer = 0; this.fireRate = 150 / (1 + this.level * 0.01);
-                this.shield = 0; this.invincibilityStacks = 0; this.burstTimer = 0;
-                this.hitCooldown = 0;
-                this.easing = 0.2; this.scale = 0.3;
-                this.petProps = getInterpolatedPet(this.level);
+            this.hp = this.maxHp;
+            this.atk = Math.floor((50 + this.level * 4.5) * atkMult);
+            this.defMult = 1 - Math.min(0.6, upgDef * 0.05); 
+            
+            this.fireTimer = 0; this.fireRate = 150 / (1 + this.level * 0.01);
+            this.shield = 0; this.invincibilityStacks = 0; this.burstTimer = 0;
+            this.hitFlashTimer = 0;
+            this.easing = 0.2; this.scale = 0.3;
+            this.petProps = getInterpolatedPet(this.level);
                 
                 let baseHue = (190 + this.level * 5) % 360;
                 this.colors = { main: `hsla(${baseHue}, 80%, 50%, 0.15)`, stroke: `hsl(${baseHue}, 100%, 60%)`, visor: `hsl(${(baseHue + 330) % 360}, 100%, 70%)` };
@@ -1232,105 +1232,67 @@
             }
 
             update(dt) {
-                const dx = this.targetX - this.x; const dy = this.targetY - this.y;
-                this.tilt = dx * 0.05; this.tilt = Math.max(-0.5, Math.min(0.5, this.tilt)); 
-                this.x += dx * this.easing; this.y += dy * this.easing;
-                this.x = Math.max(this.radius, Math.min(width - this.radius, this.x));
-                this.y = Math.max(this.radius, Math.min(height - this.radius, this.y));
+            const dx = this.targetX - this.x; const dy = this.targetY - this.y;
+            this.tilt = dx * 0.05; this.tilt = Math.max(-0.5, Math.min(0.5, this.tilt)); 
+            this.x += dx * this.easing; this.y += dy * this.easing;
+            this.x = Math.max(this.radius, Math.min(width - this.radius, this.x));
+            this.y = Math.max(this.radius, Math.min(height - this.radius, this.y));
 
-                if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
-                if (this.burstTimer > 0) this.burstTimer -= dt;
+            if (this.burstTimer > 0) this.burstTimer -= dt;
+            if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
 
-                this.fireTimer += dt;
-                // 修正：攻速严格变为2倍（射击间隔乘0.5）
-                const currentFireRate = this.burstTimer > 0 ? this.fireRate * 0.5 : this.fireRate;
+            this.fireTimer += dt;
+            const currentFireRate = this.burstTimer > 0 ? this.fireRate * 0.5 : this.fireRate;
                 if (this.fireTimer >= currentFireRate) { this.fire(); this.fireTimer = 0; }
                 this.haloRotation = (this.haloRotation || 0) + (dt / 16) * 0.02;
             }
 
-            fire() {
-                let upgBurst = upgradeData?.skill?.burst || 0;
-                const isBurst = this.burstTimer > 0;
-                // 修正：基础倍率为1，开启后通过暴走协议升级每级增加3%伤害加成
-                const dmg = isBurst ? this.atk * (1 + upgBurst * 0.03) : this.atk;
-                const color = isBurst ? '#f43f5e' : '#22d3ee'; 
-                
-                const baseN = isBurst ? 5 : 2;
-                const extraLines = Math.floor(this.level / 20);
-                const totalLines = baseN + extraLines;
-                
-                const speedMult = 1 + this.level * 0.01;
-                const baseVy = (isBurst ? -20 : -18) * speedMult;
-
-                playShootSound(true);
-
-                for (let i = 0; i < totalLines; i++) {
-                    let c = i - (totalLines - 1) / 2;
-                    let x_offset = c * 12;
-                    let y_offset = -20 + Math.abs(c) * 2;
-                    
-                    let vx = 0;
-                    if (totalLines > 3) {
-                        if (c < -1) vx = (c + 1) * 2;
-                        else if (c > 1) vx = (c - 1) * 2;
-                    }
-                    
-                    bullets.push(new Bullet(this.x + x_offset, this.y + y_offset, baseVy, color, vx, 'player', dmg));
-                }
-            }
-
             takeDamage(amount) {
-                if (this.hitCooldown > 0) return;
-
-                if (this.invincibilityStacks > 0) { 
-                    this.invincibilityStacks--;
-                    this.hitCooldown = 500;
-                    showFloatingText(this.x, this.y, "免疫", "text-amber-300 font-bold"); 
-                    if (this.invincibilityStacks <= 0) {
-                        activeSkillDurations.invinc = 0;
-                        skillCooldowns.invinc = SKILL_COOLDOWN_MAX;
-                    }
-                    return; 
+            if (this.invincibilityStacks > 0) { 
+                this.invincibilityStacks--;
+                showFloatingText(this.x, this.y, "免疫", "text-amber-300 font-bold"); 
+                if (this.invincibilityStacks <= 0) {
+                    activeSkillDurations.invinc = 0;
+                    skillCooldowns.invinc = SKILL_COOLDOWN_MAX;
                 }
-                
-                amount = amount * (this.defMult || 1);
+                return; 
+            }
+            
+            amount = amount * (this.defMult || 1);
 
-                if (this.shield > 0) {
-                    if (this.shield >= amount) { 
-                        this.shield -= amount; 
-                        this.hitCooldown = 200;
-                        showFloatingText(this.x, this.y, "吸收", "text-blue-300"); 
-                        if (this.shield <= 0) {
-                            this.shield = 0;
-                            activeSkillDurations.shield = 0;
-                            skillCooldowns.shield = SKILL_COOLDOWN_MAX;
-                        }
-                        return; 
-                    } else { 
-                        amount -= this.shield; 
-                        this.shield = 0; 
+            if (this.shield > 0) {
+                if (this.shield >= amount) { 
+                    this.shield -= amount; 
+                    showFloatingText(this.x, this.y, "吸收", "text-blue-300"); 
+                    if (this.shield <= 0) {
+                        this.shield = 0;
                         activeSkillDurations.shield = 0;
                         skillCooldowns.shield = SKILL_COOLDOWN_MAX;
                     }
+                    return; 
+                } else { 
+                    amount -= this.shield; 
+                    this.shield = 0; 
+                    activeSkillDurations.shield = 0;
+                    skillCooldowns.shield = SKILL_COOLDOWN_MAX;
                 }
-                this.hp -= amount; 
-                this.hitCooldown = 200;
-                
-                showFloatingText(this.x, this.y - 20, `-${Math.floor(amount)}`, "text-rose-500 font-black text-2xl drop-shadow-[0_0_8px_rgba(225,29,72,0.8)]");
-                
-                updateHUD();
-                ctx.fillStyle = 'rgba(225, 29, 72, 0.3)'; ctx.fillRect(0,0,width,height);
-                if (this.hp <= 0) { createExplosion(this.x, this.y, 50, '#38bdf8'); endGame(false); }
             }
+            
+            this.hp -= amount; 
+            
+            showFloatingText(this.x, this.y - 20, `-${Math.floor(amount)}`, "text-rose-500 font-black text-2xl drop-shadow-[0_0_8px_rgba(225,29,72,0.8)]");
+            
+            updateHUD();
+            
+            this.hitFlashTimer = 150;
+            
+            if (this.hp <= 0) { createExplosion(this.x, this.y, 50, '#38bdf8'); endGame(false); }
+        }
 
-            fire() {
+        fire() {
+                let upgBurst = upgradeData?.skill?.burst || 0;
                 const isBurst = this.burstTimer > 0;
-                let currentDmg = this.atk;
-                if (isBurst) {
-                    let upgBurst = upgradeData?.skill?.burst || 0;
-                    currentDmg = this.atk * (1 + upgBurst * 0.03);
-                }
-                const dmg = currentDmg; 
+                const dmg = isBurst ? this.atk * (1 + upgBurst * 0.03) : this.atk;
                 const color = isBurst ? '#f43f5e' : '#22d3ee'; 
                 
                 const baseN = isBurst ? 5 : 2;
@@ -1437,16 +1399,23 @@
                 ctx.globalAlpha = 1.0;
 
                 const pulse = Math.abs(Math.sin((gameTime * 0.005) % Math.PI));
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.5})`; ctx.strokeStyle = this.colors.visor;
-                drawPolygon(ctx, this.petProps.core, this.scale, 0, 5); ctx.fill(); ctx.stroke();
-                ctx.restore();
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.5 + pulse * 0.5})`; ctx.strokeStyle = this.colors.visor;
+            drawPolygon(ctx, this.petProps.core, this.scale, 0, 5); ctx.fill(); ctx.stroke();
+            ctx.restore();
+
+            if (this.hitFlashTimer > 0) {
+                ctx.fillStyle = `rgba(244, 63, 94, ${this.hitFlashTimer / 150})`;
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 1.5, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
+    }
 
-        class Enemy {
+    class Enemy {
             constructor(type, configOverride = null) {
                 this.type = type; this.active = true; this.y = -50; this.x = random(30, width - 30); this.fireTimer = 0; 
-                this.frameDamage = 0; // 新增：用于合并同一帧内命中的海量伤害
+                this.hitFlashTimer = 0;
                 
                 let scaleHp = 1 + playerLevel * 0.8; let scaleAtk = 1 + playerLevel * 0.5;
 
@@ -1462,7 +1431,8 @@
                         this.radius = 48; 
                         this.speed = 0; 
                         this.color = '#e11d48'; 
-                        this.score = 1000; 
+                        // 根据要求：BOSS战击败BOSS获得的得分为关卡的1000倍
+                        this.score = currentBattleMode === 'boss' ? currentStage * 1000 : 1000; 
                         this.x = width / 2; 
                         this.alertRadius = 200; 
                         break;
@@ -1499,11 +1469,7 @@
                     this.x = random(30, width - 30);
                 }
 
-                // 性能优化：每帧统一显示一次累加伤害，防止卡顿
-                if (this.frameDamage > 0) {
-                    showFloatingText(this.x + (Math.random() - 0.5) * 40, this.y - 15, `-${Math.floor(this.frameDamage)}`, "text-white font-black text-lg drop-shadow-md");
-                    this.frameDamage = 0;
-                }
+                if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
             }
             
             fire() {
@@ -1542,20 +1508,13 @@
             takeDamage(amount) {
                 const actualDamage = Math.max(1, amount - this.def);
                 this.hp -= actualDamage;
-                this.frameDamage += actualDamage; // 累加本帧收到的子弹伤害
+                this.hitFlashTimer = 60;
                 
-                ctx.fillStyle = 'rgba(255,255,255,0.6)';
-                ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); ctx.fill();
+                showFloatingText(this.x + random(-25, 25), this.y + random(-15, 5), `-${Math.floor(actualDamage)}`, "text-white font-black text-lg drop-shadow-md");
 
                 if (this.type === 4) updateBossHpUI(this.hp, this.maxHp);
 
                 if (this.hp <= 0) {
-                    // 死亡时如果还有没弹出来的数字，立即弹出
-                    if (this.frameDamage > 0) {
-                        showFloatingText(this.x, this.y - 15, `-${Math.floor(this.frameDamage)}`, "text-white font-black text-lg drop-shadow-md");
-                        this.frameDamage = 0;
-                    }
-
                     this.active = false; score += this.score; updateScoreUI();
                     createExplosion(this.x, this.y, this.radius * 2.5, this.color);
                     createExplosion(this.x, this.y, this.radius, '#fff'); 
@@ -1616,6 +1575,13 @@
                     ctx.fillStyle = hpPct > 0.4 ? '#10b981' : '#f43f5e';
                     ctx.shadowBlur = 5; ctx.shadowColor = ctx.fillStyle;
                     ctx.fillRect(-barW/2, this.radius + 6, barW * hpPct, 4);
+                }
+                
+                if (this.hitFlashTimer > 0) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius * 1.1, 0, Math.PI * 2);
+                    ctx.fill();
                 }
                 ctx.restore();
             }
@@ -1844,7 +1810,8 @@
                     let b = bullets[j];
                     if (b.owner === 'enemy' && b.active) {
                         if (Math.abs(b.x - player.x) < player.radius * 0.8 && Math.abs(b.y - player.y) < player.radius * 0.8) {
-                            player.takeDamage(b.damage); b.active = false;
+                            player.takeDamage(b.damage); 
+                            b.active = false;
                             createExplosion(b.x, b.y, 3, b.color);
                         }
                     }
@@ -2055,19 +2022,19 @@
                 
                 if (type === 0) {
                     waveConf.count = 10 + stage * 3 + extraCount;
-                    waveConf.hp = 500 + stage * 200;
+                    waveConf.hp = 500 + stage * 100;
                     waveConf.def = stage * 8;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
                 } else if (type === 1) {
                     waveConf.count = 8 + stage * 2 + extraCount;
-                    waveConf.hp = 800 + stage * 400;
+                    waveConf.hp = 800 + stage * 200;
                     waveConf.def = stage * 12;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
                 } else if (type === 2) {
                     waveConf.count = 5 + stage * 1 + extraCount;
-                    waveConf.hp = 1000 + stage * 1000;
+                    waveConf.hp = 1000 + stage * 700;
                     waveConf.def = stage * 8;
                     waveConf.atkSpeed = Math.max(500, 2000 - stage * 50);
                     waveConf.spawnInterval = Math.max(100, 2000 - stage * 100);
@@ -2083,7 +2050,7 @@
                     time: currentTime,
                     type: 3,
                     count: Math.floor(2 + stage * 0.1),
-                    hp: 5000 + stage * 5000,
+                    hp: 5000 + stage * 3000,
                     def: stage * 10,
                     atkSpeed: Math.max(1000, 3000 - stage * 50),
                     spawnInterval: Math.max(500, 2000 - stage * 100)
@@ -2093,7 +2060,7 @@
             }
             
             let boss = {
-                hp: 20000 + stage * 100000,
+                hp: 20000 + stage * 50000,
                 def: 50 + stage * 15,
                 atkSpeed: Math.max(200, 2000 - stage * 100)
             };
