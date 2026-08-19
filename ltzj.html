@@ -138,6 +138,10 @@
             <span>⚡</span> 全息雷霆 <span>⚡</span>
         </h1>
         <div class="flex items-center gap-2">
+            <!-- 自动战斗按钮 -->
+            <button id="autoBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-slate-500 font-mono font-black text-[10px] rounded-full shadow-lg border border-slate-700/50 hover:bg-slate-700 hover:text-cyan-400 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50">
+                AUTO
+            </button>
             <button id="pauseBtn" class="w-8 h-8 flex items-center justify-center bg-slate-800/90 text-cyan-400 rounded-full shadow-lg border border-cyan-700/50 hover:bg-slate-700 hover:border-cyan-400 hover:shadow-[0_0_10px_rgba(34,211,238,0.3)] transition-all active:scale-95 cursor-pointer z-50">
                 <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             </button>
@@ -374,6 +378,7 @@
         let lastTime = 0;
         let gameTime = 0;
         let gameSpeedMultiplier = 1;
+        let isAutoBattle = false; // 新增自动战斗状态
 
         let player;
         let bullets = [];
@@ -389,6 +394,23 @@
         let lastShootTimePlayer = 0;
         let lastShootTimeEnemy = 0;
         let lastHitTime = 0;
+
+        // Auto battle toggle event listener
+        const autoBtn = document.getElementById('autoBtn');
+        autoBtn.addEventListener('click', () => {
+            isAutoBattle = !isAutoBattle;
+            if (isAutoBattle) {
+                autoBtn.classList.replace('text-slate-500', 'text-cyan-400');
+                autoBtn.classList.replace('border-slate-700/50', 'border-cyan-400');
+                autoBtn.classList.add('shadow-[0_0_10px_rgba(34,211,238,0.3)]');
+                if (gameState === 'playing') showFloatingText(width/2, height/2, "自动战斗 已启动", "text-cyan-400 font-bold text-xl drop-shadow-[0_0_10px_cyan]");
+            } else {
+                autoBtn.classList.replace('text-cyan-400', 'text-slate-500');
+                autoBtn.classList.replace('border-cyan-400', 'border-slate-700/50');
+                autoBtn.classList.remove('shadow-[0_0_10px_rgba(34,211,238,0.3)]');
+                if (gameState === 'playing') showFloatingText(width/2, height/2, "手动控制 已恢复", "text-slate-400 font-bold text-xl");
+            }
+        });
 
         function initAudio() {
             if (!audioCtx) {
@@ -1359,6 +1381,99 @@
             }
         }
 
+        function executeAutoBattleLogic(dt) {
+            let targetX = width / 2;
+            let targetY = height - 120;
+
+            let nearestEnemy = null;
+            let minDist = Infinity;
+            
+            // Find target enemy to align X axis
+            for (let e of enemies) {
+                if (!e.active) continue;
+                let distSq = (e.x - player.x)**2 + (e.y - player.y)**2;
+                if (distSq < minDist) {
+                    minDist = distSq;
+                    nearestEnemy = e;
+                }
+            }
+
+            if (nearestEnemy) {
+                targetX = nearestEnemy.x;
+                if (nearestEnemy.type === 4) {
+                    // Keep distance from boss alert radius
+                    let dx = player.x - nearestEnemy.x;
+                    let dy = player.y - nearestEnemy.y;
+                    let angle = Math.atan2(dy, dx);
+                    let safeDist = nearestEnemy.alertRadius + player.radius + 30;
+                    targetX = nearestEnemy.x + Math.cos(angle) * safeDist;
+                    targetY = nearestEnemy.y + Math.sin(angle) * safeDist;
+                } else {
+                    targetY = height - 150; // default fighting height
+                }
+            }
+
+            let repelX = 0;
+            let repelY = 0;
+            let dangerCount = 0;
+
+            // Avoid bullets
+            for (let b of bullets) {
+                if (b.owner === 'enemy' && b.active) {
+                    let dx = player.x - b.x;
+                    let dy = player.y - b.y;
+                    let distSq = dx*dx + dy*dy;
+                    let dangerRadius = 120;
+                    if (distSq < dangerRadius * dangerRadius) {
+                        let dist = Math.sqrt(distSq);
+                        let force = (dangerRadius - dist) / dangerRadius;
+                        repelX += (dx / dist) * force * 180;
+                        repelY += (dy / dist) * force * 180;
+                        dangerCount++;
+                    }
+                }
+            }
+
+            // Avoid getting too close to regular enemies
+            for (let e of enemies) {
+                if (!e.active || e.type === 4) continue;
+                let dx = player.x - e.x;
+                let dy = player.y - e.y;
+                let distSq = dx*dx + dy*dy;
+                let dangerRadius = e.radius + player.radius + 60;
+                if (distSq < dangerRadius * dangerRadius) {
+                    let dist = Math.sqrt(distSq);
+                    let force = (dangerRadius - dist) / dangerRadius;
+                    repelX += (dx / dist) * force * 250;
+                    repelY += (dy / dist) * force * 250;
+                    dangerCount++;
+                }
+            }
+
+            let finalTargetX = targetX + repelX;
+            let finalTargetY = targetY + repelY;
+
+            // Keep within screen bounds
+            finalTargetX = Math.max(player.radius + 10, Math.min(width - player.radius - 10, finalTargetX));
+            finalTargetY = Math.max(height * 0.2, Math.min(height - player.radius - 20, finalTargetY));
+
+            // Smooth target transition for Auto Battle
+            player.targetX += (finalTargetX - player.targetX) * 0.15;
+            player.targetY += (finalTargetY - player.targetY) * 0.15;
+
+            // Auto skill casting
+            if (player.hp / player.maxHp < 0.6) {
+                useSkill('shield');
+            }
+            if (dangerCount >= 3 || bossSpawned) {
+                useSkill('invinc');
+            }
+            if (enemies.length > 0) {
+                useSkill('summon');
+                useSkill('burst');
+            }
+        }
+
         let currentWaveIndex = 0; let waveSpawnTimer = 0; let enemiesSpawnedInCurrentWave = 0; let bossSpawned = false;
         
         function updateGame(dt) {
@@ -1434,7 +1549,12 @@
             }
 
             stars.forEach(star => star.update(dt));
+            
+            if (isAutoBattle && player) {
+                executeAutoBattleLogic(dt);
+            }
             if (player) player.update(dt);
+            
             wingmen.forEach(w => w.update(dt));
 
             for (let i = bullets.length - 1; i >= 0; i--) {
@@ -1531,7 +1651,8 @@
         }
 
         function setPlayerTarget(e) {
-            if (gameState !== 'playing' || !player) return;
+            // Block manual targeting if Auto Battle is active
+            if (gameState !== 'playing' || !player || isAutoBattle) return;
             if (e.target.id !== 'gameCanvas') return;
 
             let clientX, clientY;
@@ -1725,6 +1846,9 @@
             
             fxLayer.innerHTML = ''; 
             document.querySelectorAll('.flash-overlay').forEach(el => el.remove());
+            
+            // Auto Battle state persists visually, but does not need reset unless you want it to.
+            // gameSpeedMultiplier resets
             gameSpeedMultiplier = 1;
             const speedBtn = document.getElementById('speedBtn');
             if (speedBtn) {
@@ -1757,6 +1881,11 @@
                 waveDisplayContainer.classList.remove('opacity-0');
                 updateWaveUI();
                 showFloatingText(width/2, height/3, `作战区域 ${currentStage}`, "text-cyan-400 text-3xl font-black drop-shadow-[0_0_15px_cyan]");
+                
+                if (isAutoBattle) {
+                     setTimeout(() => showFloatingText(width/2, height/2, "自动战斗 已就绪", "text-cyan-400 font-bold text-xl drop-shadow-[0_0_10px_cyan]"), 1000);
+                }
+
                 gameState = 'playing';
                 lastTime = performance.now();
             }, 400);
