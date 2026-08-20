@@ -141,7 +141,6 @@
                 <div class="flex justify-center gap-4 mb-6">
                     <button class="p-3 border-2 border-cyan-400 rounded-2xl bg-cyan-50 cursor-default relative flex justify-center items-center h-24 w-24 overflow-visible">
                         <div class="w-16 h-16 animate-mech overflow-visible" style="--c-main: hsla(195, 80%, 50%, 0.15); --c-stroke: hsl(195, 100%, 60%); --c-visor: hsl(225, 100%, 70%);">
-                            <!-- 领养界面的初始小狗图标 (简化的新比例) -->
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" overflow="visible" class="w-full h-full drop-shadow-md overflow-visible">
                                 <polygon points="85,90 115,90 130,160 70,160" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />
                                 <polygon points="68,175 95,175 90,185 68,185" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />
@@ -193,11 +192,9 @@
                     </div>
                 </div>
 
-                <!-- 极高自由度的渲染空间，解除所有固定宽高限制 -->
                 <div class="py-12 flex justify-center items-center relative min-h-[380px] select-none touch-none mt-4 overflow-visible w-full">
                     <div id="glowEffect" class="absolute w-64 h-64 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse transition-all duration-1000 z-0 pointer-events-none"></div>
                     
-                    <!-- 宠物本体与神级特效挂载点 - 完全自适应且不裁剪 -->
                     <div id="petVisualizer" class="z-20 cursor-pointer w-full max-w-[340px] aspect-square relative flex items-center justify-center transition-transform duration-500 overflow-visible"></div>
                     
                     <div id="sleepZzzContainer" class="absolute inset-0 pointer-events-none z-30 overflow-visible"></div>
@@ -233,6 +230,13 @@
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- 一键操作按钮 -->
+            <div class="w-full mb-3 relative z-30">
+                <button id="btn_quick_all" onclick="doAllActions()" class="w-full py-3 bg-gradient-to-r from-teal-400 to-emerald-500 text-white font-bold rounded-2xl shadow-sm hover:shadow-md transform hover:-translate-y-1 transition-all flex items-center justify-center gap-2">
+                    ⚡ 一键照顾
+                </button>
             </div>
 
             <div class="grid grid-cols-4 gap-2 w-full mb-4 relative z-30">
@@ -456,7 +460,7 @@
             isProcessing = state;
             const buttonsToDisable = [
                 'btn_feed', 'btn_fan', 'btn_water', 'btn_tickle', 'btn_walk', 
-                'btn_brush', 'btn_train', 'btn_battle', 'btn_resonance', 'btn_letter', 'adoptBtn'
+                'btn_brush', 'btn_train', 'btn_battle', 'btn_resonance', 'btn_letter', 'adoptBtn', 'btn_quick_all'
             ];
             
             buttonsToDisable.forEach(btnId => {
@@ -867,16 +871,7 @@
                 window.location.href = 'battle_arena.html'; return;
             }
 
-            const maxHunger = getMaxHunger(petData.level);
-            let blockReason = null;
-            if (type === 'feed' && petData.hunger >= maxHunger) blockReason = `能量核心已满载，再吃要溢出了！`;
-            if (type === 'fan' && petData.hunger < maxHunger * 0.2) blockReason = `能源告急，缺乏追逐动力！`;
-            if (type === 'water' && petData.clean >= 100) blockReason = `装甲已经一尘不染，闪耀夺目啦！`;
-            if (type === 'walk' && petData.hunger < maxHunger * 0.3) blockReason = `系统能源过低，无法执行漫步指令！`;
-            if (type === 'brush' && petData.clean >= 100 && petData.mood >= 100) blockReason = `状态已达完美临界点，无需维护！`;
-            if (type === 'train' && petData.hunger < maxHunger * 0.4) blockReason = `能量不足，处理器无法维持高强度特训！`;
-
-            if (blockReason) { showToast(blockReason); setProcessingState(false); return; }
+            // 移除了所有状态满了或过低的限制（直接开始小游戏操作）
             startMiniGame(type); 
         }
 
@@ -926,6 +921,109 @@
                 else { showToast("网络波动，正在重组数据链..."); setTimeout(() => window.location.reload(), 1500); return; }
             }
             setProcessingState(false); 
+        }
+
+        // ==========================================
+        // 新增功能：一键完成所有可用操作（不包含战斗）
+        // ==========================================
+        async function doAllActions() {
+            if (isProcessing || !petData) return;
+            setProcessingState(true);
+
+            // 获取最新宠物数据
+            const latestPetRes = await fetchFile(FILE_PET);
+            if (!latestPetRes.error && latestPetRes.data) { petData = latestPetRes.data; petSha = latestPetRes.sha; calculateTimeDecay(); }
+
+            // 可一键执行的操作列表（排除 battle）
+            const actionsToRun = ['feed', 'fan', 'water', 'tickle', 'walk', 'brush', 'train'];
+            const todayStart = new Date().setHours(0, 0, 0, 0);
+
+            let actionsExecuted = 0;
+            let totalExp = 0;
+
+            for (let type of actionsToRun) {
+                if (isNightTime && ['feed', 'fan', 'walk', 'train', 'battle'].includes(type)) continue;
+
+                const usedCount = myActData.filter(l => l.action === type && l.time >= todayStart).length;
+                if (usedCount >= maxActionsPerDay) continue;
+
+                // 已经移除原先的一键判断门槛（如不满某个状态不能进行操作）
+                const maxHunger = getMaxHunger(petData.level);
+
+                let logMsg = "";
+                if (type === 'feed') {
+                    const food = { icon: '🍖', name: '高能骨头' };
+                    const gainPercent = 0.3 + Math.random() * 0.7; 
+                    const hungerGain = Math.floor(maxHunger * gainPercent);
+                    petData.hunger = Math.min(maxHunger, petData.hunger + hungerGain); petData.mood = Math.min(100, petData.mood + 5); petData.clean = Math.max(0, petData.clean - 5); 
+                    addExp(15); logMsg = `投喂了${food.name} ${food.icon}，饱食度 +${hungerGain}`;
+                    totalExp += 15;
+                } 
+                else if (type === 'fan') { 
+                    petData.mood = Math.min(100, petData.mood + 20); petData.hunger = Math.max(0, petData.hunger - 15); petData.clean = Math.max(0, petData.clean - 10); 
+                    addExp(10); logMsg = "扔出光束飞盘 🎾，全速追逐拦截";
+                    totalExp += 10;
+                }
+                else if (type === 'water') { 
+                    petData.clean = Math.min(100, petData.clean + 30); petData.mood = Math.max(0, petData.mood - 5); 
+                    addExp(5); logMsg = "执行了深层等离子洗浴 🛁，装甲焕发神采";
+                    totalExp += 5;
+                }
+                else if (type === 'tickle') {
+                    petData.mood = Math.min(100, petData.mood + 15);
+                    addExp(10); logMsg = "进行装甲感官刺激 🪶，系统反馈极致愉悦";
+                    totalExp += 10;
+                }
+                else if (type === 'walk') {
+                    petData.hunger = Math.max(0, petData.hunger - 20); petData.clean = Math.max(0, petData.clean - 15); petData.mood = Math.min(100, petData.mood + 25);
+                    addExp(15); logMsg = "开启星际漫游模式 🦮，巡视了领地";
+                    totalExp += 15;
+                }
+                else if (type === 'brush') {
+                    petData.clean = Math.min(100, petData.clean + 10); petData.mood = Math.min(100, petData.mood + 10);
+                    addExp(10); logMsg = "重塑了机械外壳的微观结构 🪮";
+                    totalExp += 10;
+                }
+                else if (type === 'train') {
+                    petData.hunger = Math.max(0, petData.hunger - 30); petData.mood = Math.max(0, petData.mood - 10);
+                    addExp(30); logMsg = "完成了高维战斗推演特训 🎯，经验暴涨";
+                    totalExp += 30;
+                }
+
+                // 添加单独的日志记录，时间稍作偏移以保证排序
+                myActData.push({ id: new Date().getTime() + actionsExecuted, user: myIdentity, action: type, desc: `[一键操作] ${logMsg}`, time: new Date().getTime() + actionsExecuted });
+                actionsExecuted++;
+            }
+
+            if (actionsExecuted === 0) {
+                showToast("暂无可用的一键日常（所有次数均已用完）");
+                setProcessingState(false);
+                return;
+            }
+
+            petData.lastUpdated = new Date().getTime();
+            renderPetUI(); 
+            
+            // 将累加后的最终结果一次性提交到 GitHub
+            const upPetRes = await updateFile(FILE_PET, petData, petSha);
+            if (upPetRes.success) { 
+                petSha = upPetRes.sha; 
+                if (myActData.length > 50) myActData = myActData.slice(myActData.length - 50);
+                const myPath = myIdentity === '哼哼' ? FILE_H_ACT : FILE_Q_ACT;
+                const upLogRes = await updateFile(myPath, myActData, myActSha);
+                if (upLogRes.success) {
+                    myActSha = upLogRes.sha;
+                }
+                renderLogs();
+                updateActionCounts();
+                showToast(`⚡ 一键照顾完成！共执行 ${actionsExecuted} 项，获得 ${totalExp} 经验！`);
+                showInteractionText(`+${totalExp} EXP ✨`);
+            } else { 
+                showToast("网络波动，正在重组数据链..."); 
+                setTimeout(() => window.location.reload(), 1500); 
+            }
+
+            setProcessingState(false);
         }
 
         function lerp(start, end, t) { return start + (end - start) * t; }
