@@ -6,7 +6,7 @@
     <title>惊喜盲盒 🎁</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <style>
         body { 
@@ -24,7 +24,7 @@
         .toast-animate { animation: slideUpFade 3s forwards; }
         
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.4s ease-in-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
         
         @keyframes pop { 0% { transform: scale(0.5); opacity: 0; } 70% { transform: scale(1.1); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
         .animate-pop { animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
@@ -53,13 +53,10 @@
         .subtab-active { background-color: #f5f3ff; color: #8b5cf6; font-weight: bold; }
         .subtab-inactive { color: #9ca3af; font-weight: bold; }
 
-        /* 禁用状态 */
-        .btn-disabled {
-            filter: grayscale(1);
-            opacity: 0.7;
-            cursor: not-allowed;
-            pointer-events: none; /* 阻止点击事件 */
-        }
+        .type-tab-active-normal { background-color: white; color: #9333ea; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .type-tab-active-premium { background-color: white; color: #d97706; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+
+        .btn-disabled { filter: grayscale(1); opacity: 0.7; cursor: not-allowed; pointer-events: none; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 pb-24 relative">
@@ -71,9 +68,7 @@
     </div>
 
     <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
-        <a href="index.html" class="p-2 bg-white text-purple-500 rounded-full shadow-sm border border-purple-100">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-        </a>
+        <div class="w-9 h-9"></div> 
         <div>
             <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center gap-2 drop-shadow-sm">
                 🎁 惊喜盲盒机 🎁
@@ -96,10 +91,11 @@
         </button>
     </div>
 
+    <!-- 顶部导航栏 -->
     <div class="flex gap-2 w-full max-w-md mb-6 p-1.5 bg-white rounded-full shadow-sm border border-gray-100">
         <button onclick="switchTab('draw')" id="tab_draw" class="flex-1 py-2.5 rounded-full text-sm font-bold transition-all tab-active">抽盲盒</button>
         <button onclick="switchTab('deposit')" id="tab_deposit" class="flex-1 py-2.5 rounded-full text-sm font-bold transition-all tab-inactive">放盲盒</button>
-        <button onclick="switchTab('rewards')" id="tab_rewards" class="flex-1 py-2.5 rounded-full text-sm font-bold transition-all tab-inactive">盲盒奖励</button>
+        <button onclick="switchTab('rewards')" id="tab_rewards" class="flex-1 py-2.5 rounded-full text-sm font-bold transition-all tab-inactive">我的奖励</button>
     </div>
 
     <main class="w-full max-w-md flex flex-col items-center">
@@ -107,25 +103,42 @@
         <!-- 视图 1: 抽取盲盒 -->
         <div id="view_draw" class="w-full animate-fade-in flex flex-col items-center">
             
-            <div class="w-full bg-white rounded-3xl p-6 shadow-sm border border-purple-100 text-center relative overflow-hidden mb-4">
-                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-pink-400"></div>
+            <!-- 类型切换 (普通/高级) -->
+            <div class="flex gap-1 w-full bg-purple-50/50 p-1 rounded-xl mb-3 border border-purple-100">
+                <button onclick="setDrawType('normal')" id="drawTypeBtnNormal" class="flex-1 py-2.5 text-sm font-bold rounded-lg transition-all type-tab-active-normal">
+                    🎲 普通池
+                </button>
+                <button onclick="setDrawType('premium')" id="drawTypeBtnPremium" class="flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all">
+                    👑 高级池(碎片)
+                </button>
+            </div>
+
+            <div class="w-full bg-white rounded-3xl p-6 shadow-sm border border-purple-100 text-center relative overflow-hidden mb-4 transition-colors" id="drawPanelBg">
+                <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-pink-400" id="drawPanelTopBar"></div>
                 
                 <div class="flex justify-between items-center mb-6">
                     <div class="text-left">
                         <h3 class="font-black text-gray-800 text-lg">当前盲盒池</h3>
                         <p class="text-xs text-gray-500 mt-0.5">共包含 <span id="poolCount" class="font-bold text-purple-500">0</span> 个惊喜</p>
                     </div>
-                    <!-- Limit Badge: Dynamic state -->
                     <div id="drawLimitBadge" class="bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-100 shadow-sm flex items-center gap-1 transition-colors">
                         <span>今日可用: -/-</span>
                     </div>
                     <button onclick="openPoolModal()" class="text-xs bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full font-bold hover:bg-purple-100 transition-colors flex items-center gap-1 border border-purple-200 shadow-sm active:scale-95 ml-2">
-                        查看奖池 🔍
+                        查看 🔍
                     </button>
                 </div>
 
+                <!-- 新增：高级池专属指定目标选择器 -->
+                <div id="premiumTargetSelector" class="hidden mb-6 bg-orange-50/50 p-3 rounded-xl border border-orange-100 text-left">
+                    <label class="text-xs font-bold text-orange-600 block mb-1.5">抽取模式</label>
+                    <select id="premiumTargetSelect" onchange="updateDrawPanelUI()" class="w-full bg-white border border-orange-200 text-sm font-bold text-gray-700 py-2 px-3 rounded-lg focus:outline-none focus:border-orange-400 shadow-sm">
+                        <option value="random">🎲 随机奖池目标 (20积分)</option>
+                    </select>
+                </div>
+
                 <div class="relative w-48 h-48 mx-auto mb-6 cursor-pointer group" onclick="startDrawFlow()" id="drawBoxArea">
-                    <div class="absolute inset-0 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
+                    <div class="absolute inset-0 bg-purple-200 rounded-full mix-blend-multiply filter blur-xl opacity-50 group-hover:opacity-70 transition-opacity" id="drawBoxGlow"></div>
                     <div id="drawBoxVisual" class="relative text-[120px] filter drop-shadow-xl transform transition-transform group-hover:scale-110 active:scale-95">
                         🎁
                     </div>
@@ -137,7 +150,7 @@
                         <span class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500" id="drawCost">--</span>
                         <span class="text-gray-500 font-bold">积分</span>
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-2">（价格根据奖池内所有物品平均价值动态计算）</p>
+                    <p class="text-[10px] text-gray-400 mt-2" id="drawCostTip">（价格根据奖池内所有物品平均价值动态计算）</p>
                 </div>
             </div>
             
@@ -148,16 +161,28 @@
 
         <!-- 视图 2: 投入盲盒 -->
         <div id="view_deposit" class="w-full animate-fade-in hidden">
-            <div class="bg-white rounded-3xl p-6 shadow-sm border border-pink-100 relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-pink-50 rounded-bl-full -z-10"></div>
+            
+            <!-- 类型切换 (普通/高级) -->
+            <div class="flex gap-1 w-full bg-pink-50/50 p-1 rounded-xl mb-3 border border-pink-100">
+                <button onclick="setDepositType('normal')" id="depositTypeBtnNormal" class="flex-1 py-2.5 text-sm font-bold rounded-lg bg-white shadow-sm text-pink-600 transition-all">
+                    🎲 普通奖励
+                </button>
+                <button onclick="setDepositType('premium')" id="depositTypeBtnPremium" class="flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all">
+                    👑 高级碎片
+                </button>
+            </div>
+
+            <div class="bg-white rounded-3xl p-6 shadow-sm border border-pink-100 relative overflow-hidden" id="depositPanelBg">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-pink-50 rounded-bl-full -z-10" id="depositPanelDeco"></div>
                 <div class="text-5xl mb-4 text-center">📥</div>
-                <h3 class="font-black text-gray-800 text-xl text-center mb-2">向奖池投入惊喜</h3>
-                <p class="text-xs text-gray-500 text-center mb-6 leading-relaxed">你可以自定义任何奖励放入盲盒池中，对方抽取到后，你需负责兑现哦！</p>
+                <h3 class="font-black text-gray-800 text-xl text-center mb-2" id="depositTitle">向普通池投入惊喜</h3>
+                <p class="text-xs text-gray-500 text-center mb-6 leading-relaxed" id="depositDesc">你可以自定义奖励放入盲盒池中，对方抽取后整个奖励立刻归对方所有！</p>
                 
-                <div class="space-y-5">
+                <!-- 普通池表单 -->
+                <div id="depositNormalFields" class="space-y-5">
                     <div>
                         <label class="text-xs font-bold text-gray-600 mb-1.5 block ml-1">盲盒内容 (物品/服务)</label>
-                        <input type="text" id="depositName" class="w-full px-4 py-3.5 text-sm border-2 border-pink-100 rounded-xl focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors font-medium text-gray-800" placeholder="例如：做一顿大餐 / 50元红包">
+                        <input type="text" id="depositNameNormal" class="w-full px-4 py-3.5 text-sm border-2 border-pink-100 rounded-xl focus:outline-none focus:border-pink-400 bg-gray-50 transition-colors font-medium text-gray-800" placeholder="例如：做一顿大餐 / 50元红包">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-gray-600 mb-1.5 block ml-1">该内容的估值 (积分)</label>
@@ -166,17 +191,32 @@
                             <span class="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">🪙</span>
                         </div>
                     </div>
-                    
-                    <button onclick="confirmDeposit()" class="w-full mt-2 py-4 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-200 active:scale-95 transition-all text-sm">
-                        塞入盲盒机
-                    </button>
                 </div>
+
+                <!-- 高级池表单 -->
+                <div id="depositPremiumFields" class="space-y-5 hidden">
+                    <div>
+                        <label class="text-xs font-bold text-gray-600 mb-1.5 block ml-1">终极目标内容 (物品/服务)</label>
+                        <input type="text" id="depositNamePremium" class="w-full px-4 py-3.5 text-sm border-2 border-amber-100 rounded-xl focus:outline-none focus:border-amber-400 bg-gray-50 transition-colors font-medium text-gray-800" placeholder="例如：一台Switch / 清空购物车">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-600 mb-1.5 block ml-1">合成所需收集的碎片个数</label>
+                        <div class="relative">
+                            <input type="number" id="depositPieces" class="w-full px-4 py-3.5 text-sm border-2 border-amber-100 rounded-xl focus:outline-none focus:border-amber-400 bg-gray-50 transition-colors font-black text-amber-600 pl-10" placeholder="建议输入: 5 到 10">
+                            <span class="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 font-bold">🧩</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button onclick="confirmDeposit()" id="depositBtn" class="w-full mt-7 py-4 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-200 active:scale-95 transition-all text-sm">
+                    塞入盲盒机
+                </button>
             </div>
             
             <div class="mt-6 text-center">
                 <p class="text-xs text-gray-400 font-medium flex items-center justify-center gap-1">
-                    <svg class="w-4 h-4 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
-                    投入的内容会自动合并到公共盲盒池中
+                    <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                    投入的内容会自动同步到公共奖池中
                 </p>
             </div>
         </div>
@@ -184,12 +224,12 @@
         <!-- 视图 3: 盲盒奖励 -->
         <div id="view_rewards" class="w-full animate-fade-in hidden">
             <div class="flex w-full mb-5 bg-white rounded-xl shadow-sm overflow-hidden p-1.5 gap-1 border border-gray-100">
-                <button onclick="switchRewardSubTab('mine')" id="subtab_mine" class="flex-1 py-2.5 text-sm rounded-lg transition-colors subtab-active">🎒 我的战利品</button>
+                <button onclick="switchRewardSubTab('mine')" id="subtab_mine" class="flex-1 py-2.5 text-sm rounded-lg transition-colors subtab-active">🎒 战利品与碎片</button>
                 <button onclick="switchRewardSubTab('verify')" id="subtab_verify" class="flex-1 py-2.5 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50">✍️ 核销对方请求</button>
             </div>
 
             <!-- 我的战利品 -->
-            <div id="rewards_mine" class="w-full animate-fade-in space-y-3">
+            <div id="rewards_mine" class="w-full animate-fade-in">
                 <!-- 列表由JS填充 -->
             </div>
 
@@ -198,7 +238,7 @@
                 <div class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 mb-6 text-center relative overflow-hidden">
                     <div class="absolute -right-4 -top-4 text-6xl opacity-5">🛡️</div>
                     <h3 class="font-bold text-gray-800 mb-2 relative z-10">核销使用码</h3>
-                    <p class="text-xs text-gray-500 mb-4 relative z-10">对方使用盲盒奖励后会生成6位核销码，输入确认后奖励生效。</p>
+                    <p class="text-xs text-gray-500 mb-4 relative z-10">对方使用完整奖励后会生成6位核销码，在此确认生效。</p>
                     <div class="flex gap-2 relative z-10">
                         <input type="text" id="verifyInput" placeholder="输入6位码" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-center font-mono font-bold text-lg focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 uppercase">
                         <button onclick="executeVerify()" class="bg-purple-500 text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-purple-600 transition-colors active:scale-95">核销</button>
@@ -222,7 +262,7 @@
     <div id="poolModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex flex-col justify-end sm:justify-center p-0 sm:p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-md mx-auto shadow-2xl transform translate-y-full sm:translate-y-0 sm:scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]" id="poolModalContent">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-3xl sm:rounded-t-3xl">
-                <h3 class="font-black text-gray-800 text-lg flex items-center gap-2">🔍 盲盒池一览</h3>
+                <h3 class="font-black text-gray-800 text-lg flex items-center gap-2">🔍 奖池一览</h3>
                 <button onclick="closeModal('poolModal', 'poolModalContent')" class="text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full p-1.5 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
@@ -242,23 +282,30 @@
             <div class="text-[150px] filter drop-shadow-2xl animate-shake inline-block" id="animBox">🎁</div>
         </div>
 
-        <!-- 结果展示阶段容器 (初始隐藏) -->
+        <!-- 结果展示阶段容器 -->
         <div id="drawResultPhase" class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center relative overflow-hidden hidden transform scale-50">
-            <div class="absolute -top-10 -left-10 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float"></div>
-            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float" style="animation-delay: 1.5s;"></div>
+            <div class="absolute -top-10 -left-10 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float" id="resultBgGlow1"></div>
+            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float" style="animation-delay: 1.5s;" id="resultBgGlow2"></div>
             
             <h3 class="font-bold text-gray-500 text-sm mb-4 relative z-10 tracking-widest uppercase">恭喜你抽中了</h3>
             
             <div class="mb-8 relative z-10 flex flex-col items-center justify-center min-h-[120px]">
-                <div class="text-6xl mb-3 animate-pop drop-shadow-md">🎉</div>
+                <div class="text-6xl mb-3 animate-pop drop-shadow-md" id="resultIcon">🎉</div>
                 <h4 class="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 px-4 leading-tight" id="resultItemName"></h4>
             </div>
             
-            <div class="bg-purple-50 rounded-xl p-3 mb-6 relative z-10 border border-purple-100 flex items-center justify-center gap-2 text-sm text-purple-700 font-medium">
+            <!-- 普通池显示价格 -->
+            <div id="resultPriceTag" class="bg-purple-50 rounded-xl p-3 mb-6 relative z-10 border border-purple-100 flex items-center justify-center gap-2 text-sm text-purple-700 font-medium">
                 该物品估值: <span class="font-black text-lg" id="resultItemPrice"></span> 积分
             </div>
+            
+            <!-- 高级池显示提示 -->
+            <div id="resultPremiumTag" class="bg-amber-50 rounded-xl p-3 mb-6 relative z-10 border border-amber-100 flex flex-col items-center justify-center gap-1 text-xs text-amber-700 font-medium hidden">
+                <p>已自动放入碎片背包</p>
+                <p class="text-[10px] text-amber-600/80">集齐所有编号即可合成完整目标！</p>
+            </div>
 
-            <button onclick="closeDrawResult()" class="relative z-10 w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:opacity-90 active:scale-95 transition-all text-lg">
+            <button onclick="closeDrawResult()" class="relative z-10 w-full py-3.5 bg-gray-900 text-white rounded-xl font-bold shadow-lg hover:bg-black active:scale-95 transition-all text-lg">
                 开心收下
             </button>
         </div>
@@ -268,7 +315,7 @@
     <div id="codeModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform text-center" id="codeModalContent">
             <div class="text-5xl mb-2">🎫</div>
-            <h3 class="font-bold text-gray-800 text-lg mb-1">使用凭证已生成</h3>
+            <h3 class="font-bold text-gray-800 text-lg mb-1">兑换凭证已生成</h3>
             <p class="text-xs text-gray-500 mb-5">请将此码发送给对方，核销后即代表兑现成功</p>
             <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 mb-5">
                 <span id="generatedCode" class="text-4xl font-mono font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 tracking-widest"></span>
@@ -294,7 +341,7 @@
     <input type="text" id="clipboardInput" class="hidden absolute -left-9999">
 
     <script>
-        // --- 配置与环境 ---
+        // --- 核心配置与全局状态 ---
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
 
@@ -313,27 +360,43 @@
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         
         // 文件路径映射
-        const FILE_CK_MY = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`; // 我的积分
-        const FILE_MH = 'data/mh.json'; // 公共盲盒池
-        const FILE_MHJL_MY = `data/${myIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; // 我的记录
-        const FILE_MHJL_PARTNER = `data/${partnerIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; // 对方记录
+        const FILE_CK_MY = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`; 
+        const FILE_MH = 'data/mh.json'; 
+        const FILE_MHJL_MY = `data/${myIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; 
+        const FILE_MHJL_PARTNER = `data/${partnerIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`; 
 
-        // 每日抽奖限制
-        const MAX_DAILY_DRAWS = 1;
+        // 限制配置
+        const MAX_DAILY_DRAWS_NORMAL = 1;
+        const MAX_DAILY_DRAWS_PREMIUM = 1;
+        const PREMIUM_DRAW_COST = 20;
+
+        // UI 状态
+        let currentDrawType = 'normal'; // 'normal' | 'premium'
+        let currentDepositType = 'normal'; // 'normal' | 'premium'
+        let currentMineTab = 'loot'; // 'loot' | 'fragments'
 
         // 数据状态
         let myCkData = { points: 0, sha: null };
-        let mhData = { pool: [], sha: null }; // pool array: [{id, name, price, creator}]
-        let myMhjlData = { inventory: {}, pendingUses: [], drawTimestamps: [], sha: null }; // inventory: {"ItemName": count}
-        let partnerMhjlData = { inventory: {}, pendingUses: [], sha: null };
+        let mhData = { pool: [], premiumPool: [], sha: null }; 
+        // pool: [{id, name, price, creator}]
+        // premiumPool: [{id, name, piecesCount, creator}]
+        
+        let myMhjlData = { 
+            inventory: {}, 
+            fragments: {}, // {"ItemName": { total: 5, pieces: [1, 2, 4] }}
+            pendingUses: [], 
+            drawTimestamps: [], 
+            premiumDrawTimestamps: [],
+            sha: null 
+        }; 
+        let partnerMhjlData = { pendingUses: [], sha: null };
         
         let calculatedAvgPrice = 0;
 
-        // Base64 编解码 (处理中文)
+        // --- 辅助函数 ---
         function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
         function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str.replace(/\s/g, '')))); }
 
-        // --- 网络请求封装 ---
         async function fetchFile(filePath) {
             if (GITHUB_TOKEN === 'DEMO_TOKEN') return { data: null, sha: 'mock_sha' };
             try {
@@ -372,6 +435,8 @@
         }
 
         window.onload = async function() {
+            setDrawType('normal');
+            setDepositType('normal');
             await refreshData();
         };
 
@@ -389,39 +454,26 @@
                 showToast("网络不稳定，部分数据可能未更新");
             }
 
-            // 初始化积分
-            if (ckRes.data) {
-                myCkData = { ...ckRes.data, sha: ckRes.sha };
-                if (typeof myCkData.points !== 'number') myCkData.points = 0;
-            } else {
-                myCkData = { points: 100, sha: ckRes.sha }; // Demo 默认100分
-            }
+            // 数据容错与结构初始化
+            myCkData = { points: ckRes.data?.points ?? 100, sha: ckRes.sha };
+            
+            mhData = { 
+                pool: mhRes.data?.pool ?? (Array.isArray(mhRes.data) ? mhRes.data : []), 
+                premiumPool: mhRes.data?.premiumPool ?? [],
+                sha: mhRes.sha 
+            };
 
-            // 初始化盲盒池
-            if (mhRes.data && Array.isArray(mhRes.data)) {
-                mhData = { pool: mhRes.data, sha: mhRes.sha };
-            } else if (mhRes.data && Array.isArray(mhRes.data.pool)) {
-                mhData = { pool: mhRes.data.pool, sha: mhRes.sha };
-            } else {
-                // 如果为空，提供默认池 (用户要求删除系统提供的盲盒，初始化为空)
-                mhData = { 
-                    pool: [], 
-                    sha: mhRes.sha 
-                };
-            }
-
-            // 初始化我的记录
-            if (myMhjlRes.data) {
-                myMhjlData = { ...myMhjlRes.data, sha: myMhjlRes.sha };
-            }
+            myMhjlData = { 
+                ...myMhjlRes.data, 
+                sha: myMhjlRes.sha 
+            };
             if (!myMhjlData.inventory) myMhjlData.inventory = {};
+            if (!myMhjlData.fragments) myMhjlData.fragments = {};
             if (!myMhjlData.pendingUses) myMhjlData.pendingUses = [];
             if (!myMhjlData.drawTimestamps) myMhjlData.drawTimestamps = [];
+            if (!myMhjlData.premiumDrawTimestamps) myMhjlData.premiumDrawTimestamps = [];
 
-            // 初始化对方记录
-            if (partnerMhjlRes.data) {
-                partnerMhjlData = { ...partnerMhjlRes.data, sha: partnerMhjlRes.sha };
-            }
+            partnerMhjlData = { ...partnerMhjlRes.data, sha: partnerMhjlRes.sha };
             if (!partnerMhjlData.pendingUses) partnerMhjlData.pendingUses = [];
 
             updateUIAfterFetch();
@@ -430,51 +482,153 @@
         function updateUIAfterFetch() {
             document.getElementById('myPoints').innerText = myCkData.points;
             
-            // 计算盲盒均价
-            const poolSize = mhData.pool.length;
-            document.getElementById('poolCount').innerText = poolSize;
-            
-            if (poolSize === 0) {
+            // 计算普通池均价
+            const normalPoolSize = mhData.pool.length;
+            if (normalPoolSize === 0) {
                 calculatedAvgPrice = 0;
-                document.getElementById('drawCost').innerText = '--';
             } else {
                 const totalVal = mhData.pool.reduce((sum, item) => sum + parseInt(item.price || 0), 0);
-                calculatedAvgPrice = Math.round(totalVal / poolSize);
-                if (calculatedAvgPrice < 1) calculatedAvgPrice = 1; // 最小1分
-                document.getElementById('drawCost').innerText = calculatedAvgPrice;
+                calculatedAvgPrice = Math.round(totalVal / normalPoolSize);
+                if (calculatedAvgPrice < 1) calculatedAvgPrice = 1;
             }
 
-            updateLimitUI();
+            // 更新抽奖面板信息
+            if (typeof populatePremiumTargetSelect === 'function') populatePremiumTargetSelect();
+            updateDrawPanelUI();
+            
+            // 更新奖励列表
             renderRewardsList();
             renderVerifyList();
         }
 
-        // 计算今天已经抽了多少次
-        function getTodayDrawCount() {
-            if (!myMhjlData.drawTimestamps) return 0;
+        function getTodayDrawCount(type) {
+            const tsArray = type === 'normal' ? myMhjlData.drawTimestamps : myMhjlData.premiumDrawTimestamps;
+            if (!tsArray) return 0;
             const today = new Date().toDateString();
-            return myMhjlData.drawTimestamps.filter(ts => new Date(ts).toDateString() === today).length;
+            return tsArray.filter(ts => new Date(ts).toDateString() === today).length;
         }
 
-        // 更新剩余次数 UI
-        function updateLimitUI() {
-            const count = getTodayDrawCount();
-            const remain = Math.max(0, MAX_DAILY_DRAWS - count);
+        function populatePremiumTargetSelect() {
+            const select = document.getElementById('premiumTargetSelect');
+            if(!select) return;
+            const currentVal = select.value;
+            let html = `<option value="random">🎲 随机抽取目标 (20积分)</option>`;
+            if (mhData && mhData.premiumPool) {
+                mhData.premiumPool.forEach(item => {
+                    html += `<option value="${item.name}">🎯 指定: ${item.name} (100积分)</option>`;
+                });
+            }
+            select.innerHTML = html;
+            
+            if (currentVal !== 'random' && mhData.premiumPool.find(i => i.name === currentVal)) {
+                select.value = currentVal;
+            } else {
+                select.value = 'random';
+            }
+        }
+
+        function setDrawType(type) {
+            currentDrawType = type;
+            const btnNormal = document.getElementById('drawTypeBtnNormal');
+            const btnPremium = document.getElementById('drawTypeBtnPremium');
+            const bgPanel = document.getElementById('drawPanelBg');
+            const topBar = document.getElementById('drawPanelTopBar');
+            const targetSelector = document.getElementById('premiumTargetSelector');
+            
+            if (type === 'normal') {
+                btnNormal.className = "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all type-tab-active-normal";
+                btnPremium.className = "flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all";
+                bgPanel.className = "w-full bg-white rounded-3xl p-6 shadow-sm border border-purple-100 text-center relative overflow-hidden mb-4 transition-colors";
+                topBar.className = "absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-purple-400 to-pink-400";
+                if (targetSelector) targetSelector.classList.add('hidden');
+            } else {
+                btnPremium.className = "flex-1 py-2.5 text-sm font-bold rounded-lg transition-all type-tab-active-premium";
+                btnNormal.className = "flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all";
+                bgPanel.className = "w-full bg-orange-50/30 rounded-3xl p-6 shadow-sm border border-amber-200 text-center relative overflow-hidden mb-4 transition-colors";
+                topBar.className = "absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-amber-400 to-orange-400";
+                if (targetSelector) {
+                    targetSelector.classList.remove('hidden');
+                    populatePremiumTargetSelect();
+                }
+            }
+            updateDrawPanelUI();
+        }
+
+        function updateDrawPanelUI() {
+            const countEl = document.getElementById('poolCount');
+            const costEl = document.getElementById('drawCost');
+            const tipEl = document.getElementById('drawCostTip');
             const badge = document.getElementById('drawLimitBadge');
             const drawBtn = document.getElementById('drawBtn');
             const drawBoxArea = document.getElementById('drawBoxArea');
             
-            if (badge) {
-                badge.innerHTML = `<span>今日可用: ${remain}/${MAX_DAILY_DRAWS}</span>`;
-                if (remain === 0) {
-                    badge.className = "bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full text-xs font-bold border border-gray-200 shadow-sm flex items-center gap-1 transition-colors";
-                    drawBtn.classList.add('btn-disabled');
-                    drawBoxArea.classList.add('btn-disabled'); // 盲盒图标也禁用点击
-                } else {
-                    badge.className = "bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-100 shadow-sm flex items-center gap-1 transition-colors";
-                    drawBtn.classList.remove('btn-disabled');
-                    drawBoxArea.classList.remove('btn-disabled');
-                }
+            const poolSize = currentDrawType === 'normal' ? mhData.pool.length : mhData.premiumPool.length;
+            const maxDraws = currentDrawType === 'normal' ? MAX_DAILY_DRAWS_NORMAL : MAX_DAILY_DRAWS_PREMIUM;
+            const todayCount = getTodayDrawCount(currentDrawType);
+            const remain = Math.max(0, maxDraws - todayCount);
+
+            countEl.innerText = poolSize;
+            
+            if (currentDrawType === 'normal') {
+                costEl.innerText = poolSize === 0 ? '--' : calculatedAvgPrice;
+                tipEl.innerText = "（价格根据奖池内所有物品平均价值动态计算）";
+                drawBtn.className = "w-full py-4 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-purple-200 hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2";
+            } else {
+                const select = document.getElementById('premiumTargetSelect');
+                const isTargeted = select && select.value !== 'random';
+                costEl.innerText = isTargeted ? 100 : PREMIUM_DRAW_COST;
+                tipEl.innerText = isTargeted ? "（指定目标抽取固定消耗100积分）" : "（随机高级池抽取消耗20积分）";
+                drawBtn.className = "w-full py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-orange-200 hover:opacity-90 active:scale-95 transition-all flex justify-center items-center gap-2";
+            }
+
+            badge.innerHTML = `<span>今日可用: ${remain}/${maxDraws}</span>`;
+            if (remain === 0) {
+                badge.className = "bg-gray-100 text-gray-500 px-3 py-1.5 rounded-full text-xs font-bold border border-gray-200 shadow-sm flex items-center gap-1 transition-colors";
+                drawBtn.classList.add('btn-disabled');
+                drawBoxArea.classList.add('btn-disabled');
+            } else {
+                badge.className = currentDrawType === 'normal' 
+                    ? "bg-purple-50 text-purple-600 px-3 py-1.5 rounded-full text-xs font-bold border border-purple-100 shadow-sm flex items-center gap-1 transition-colors"
+                    : "bg-orange-50 text-orange-600 px-3 py-1.5 rounded-full text-xs font-bold border border-orange-100 shadow-sm flex items-center gap-1 transition-colors";
+                drawBtn.classList.remove('btn-disabled');
+                drawBoxArea.classList.remove('btn-disabled');
+            }
+        }
+
+        function setDepositType(type) {
+            currentDepositType = type;
+            const btnNormal = document.getElementById('depositTypeBtnNormal');
+            const btnPremium = document.getElementById('depositTypeBtnPremium');
+            const fieldsNormal = document.getElementById('depositNormalFields');
+            const fieldsPremium = document.getElementById('depositPremiumFields');
+            const bgPanel = document.getElementById('depositPanelBg');
+            const deco = document.getElementById('depositPanelDeco');
+            const title = document.getElementById('depositTitle');
+            const desc = document.getElementById('depositDesc');
+            const btn = document.getElementById('depositBtn');
+
+            if (type === 'normal') {
+                btnNormal.className = "flex-1 py-2.5 text-sm font-bold rounded-lg bg-white shadow-sm text-pink-600 transition-all";
+                btnPremium.className = "flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all";
+                fieldsNormal.classList.remove('hidden');
+                fieldsPremium.classList.add('hidden');
+                
+                bgPanel.className = "bg-white rounded-3xl p-6 shadow-sm border border-pink-100 relative overflow-hidden transition-colors";
+                deco.className = "absolute top-0 right-0 w-32 h-32 bg-pink-50 rounded-bl-full -z-10";
+                title.innerText = "向普通池投入惊喜";
+                desc.innerText = "你可以自定义奖励放入盲盒池中，对方抽取后整个奖励立刻归对方所有！";
+                btn.className = "w-full mt-7 py-4 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl font-black shadow-md shadow-pink-200 active:scale-95 transition-all text-sm";
+            } else {
+                btnPremium.className = "flex-1 py-2.5 text-sm font-bold rounded-lg bg-white shadow-sm text-amber-600 transition-all";
+                btnNormal.className = "flex-1 py-2.5 text-sm font-bold rounded-lg text-gray-500 hover:text-gray-700 transition-all";
+                fieldsNormal.classList.add('hidden');
+                fieldsPremium.classList.remove('hidden');
+
+                bgPanel.className = "bg-white rounded-3xl p-6 shadow-sm border border-amber-100 relative overflow-hidden transition-colors";
+                deco.className = "absolute top-0 right-0 w-32 h-32 bg-amber-50 rounded-bl-full -z-10";
+                title.innerText = "创建高级碎片目标";
+                desc.innerText = "设立一个大目标，对方需要经过多次抽取集齐碎片才能兑换完整奖励！";
+                btn.className = "w-full mt-7 py-4 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-black shadow-md shadow-orange-200 active:scale-95 transition-all text-sm";
             }
         }
 
@@ -490,6 +644,7 @@
                     view.classList.add('hidden');
                 }
             });
+            if (tabName === 'draw') updateDrawPanelUI();
         }
 
         function switchRewardSubTab(tabName) {
@@ -513,13 +668,16 @@
 
         function openPoolModal() {
             const container = document.getElementById('poolListContainer');
+            let html = '';
+
+            // 渲染普通池
+            html += `<h4 class="font-bold text-gray-700 text-sm mt-2 mb-3 flex items-center gap-1">🎲 普通池</h4>`;
             if (mhData.pool.length === 0) {
-                container.innerHTML = '<div class="text-center py-10 text-gray-400 font-medium">奖池空空如也，快去放入奖励吧~</div>';
+                html += '<div class="text-center py-4 text-gray-400 text-xs bg-white rounded-xl border border-gray-100 mb-4">普通池空空如也</div>';
             } else {
-                // 按价格从高到低排序展示
                 const sortedPool = [...mhData.pool].sort((a, b) => b.price - a.price);
-                container.innerHTML = sortedPool.map(item => `
-                    <div class="bg-white rounded-xl p-3 mb-2 shadow-sm border border-gray-100 flex justify-between items-center">
+                html += sortedPool.map(item => `
+                    <div class="bg-white rounded-xl p-3 mb-2 shadow-sm border border-purple-100 flex justify-between items-center">
                         <div class="flex items-center gap-3">
                             <div class="text-2xl opacity-80">🎁</div>
                             <div>
@@ -533,24 +691,71 @@
                     </div>
                 `).join('');
             }
+
+            // 渲染高级池
+            html += `<h4 class="font-bold text-gray-700 text-sm mt-6 mb-3 flex items-center gap-1">👑 高级碎片池</h4>`;
+            if (mhData.premiumPool.length === 0) {
+                html += '<div class="text-center py-4 text-gray-400 text-xs bg-white rounded-xl border border-gray-100">高级池空空如也</div>';
+            } else {
+                html += mhData.premiumPool.map(item => `
+                    <div class="bg-white rounded-xl p-3 mb-2 shadow-sm border border-amber-200 flex justify-between items-center">
+                        <div class="flex items-center gap-3">
+                            <div class="text-2xl opacity-80">🧩</div>
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">${item.name}</div>
+                                <div class="text-[10px] text-gray-400 mt-0.5">提供方: ${item.creator || '神秘人'}</div>
+                            </div>
+                        </div>
+                        <div class="bg-orange-50 text-orange-600 font-bold px-2 py-1 rounded-lg text-xs flex items-center gap-1 border border-orange-100">
+                            需收集 ${item.piecesCount} 个碎片
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            container.innerHTML = html;
             openModal('poolModal', 'poolModalContent');
         }
 
         async function startDrawFlow() {
-            // 检查今日次数限制
-            const todayCount = getTodayDrawCount();
-            if (todayCount >= MAX_DAILY_DRAWS) {
-                return showToast(`🎁 每天只能抽取 ${MAX_DAILY_DRAWS} 次盲盒哦，明天再来吧！`);
+            const maxDraws = currentDrawType === 'normal' ? MAX_DAILY_DRAWS_NORMAL : MAX_DAILY_DRAWS_PREMIUM;
+            const todayCount = getTodayDrawCount(currentDrawType);
+            
+            if (todayCount >= maxDraws) {
+                return showToast(`🎁 当前盲盒池每天只能抽取 ${maxDraws} 次哦，明天再来吧！`);
             }
 
-            if (mhData.pool.length === 0) return showToast("奖池是空的，无法抽取！");
-            if (myCkData.points < calculatedAvgPrice) return showToast(`积分不足！需要 ${calculatedAvgPrice} 积分。`);
+            const pool = currentDrawType === 'normal' ? mhData.pool : mhData.premiumPool;
+            if (pool.length === 0) return showToast("当前奖池是空的，无法抽取！");
+            
+            let cost = currentDrawType === 'normal' ? calculatedAvgPrice : PREMIUM_DRAW_COST;
+            let drawIndex = -1;
+            let drawnItem = null;
 
-            // 禁用按钮防止连点
+            if (currentDrawType === 'premium') {
+                const select = document.getElementById('premiumTargetSelect');
+                const targetValue = select ? select.value : 'random';
+                if (targetValue !== 'random') {
+                    cost = 100;
+                    drawIndex = pool.findIndex(i => i.name === targetValue);
+                    if (drawIndex === -1) return showToast("所选目标已失效，请重新选择");
+                    drawnItem = pool[drawIndex];
+                } else {
+                    drawIndex = Math.floor(Math.random() * pool.length);
+                    drawnItem = pool[drawIndex];
+                }
+            } else {
+                drawIndex = Math.floor(Math.random() * pool.length);
+                drawnItem = pool[drawIndex];
+            }
+
+            if (myCkData.points < cost) return showToast(`积分不足！需要 ${cost} 积分。`);
+
+            // UI 锁定
             document.getElementById('drawBtn').classList.add('btn-disabled');
             document.getElementById('drawBoxArea').classList.add('btn-disabled');
 
-            // 打开动画模态框
+            // 准备动画弹窗
             const modal = document.getElementById('drawResultModal');
             document.getElementById('drawAnimationPhase').classList.remove('hidden');
             document.getElementById('drawResultPhase').classList.add('hidden');
@@ -560,101 +765,138 @@
             modal.classList.remove('hidden');
             requestAnimationFrame(() => modal.classList.remove('opacity-0'));
 
-            // 本地数据处理
-            const drawIndex = Math.floor(Math.random() * mhData.pool.length);
-            const drawnItem = mhData.pool[drawIndex];
-            const cost = calculatedAvgPrice;
-
+            // 执行本地数据更新
             myCkData.points -= cost;
-            myMhjlData.inventory[drawnItem.name] = (myMhjlData.inventory[drawnItem.name] || 0) + 1;
-            
-            // 🌟 核心修改：从本地奖池数组中彻底移除该物品
-            mhData.pool.splice(drawIndex, 1);
-            
-            // 记录抽奖时间戳
-            myMhjlData.drawTimestamps.push(Date.now());
-            // 保持数组不要无限膨胀，保留最近50条记录
-            if (myMhjlData.drawTimestamps.length > 50) {
-                myMhjlData.drawTimestamps = myMhjlData.drawTimestamps.slice(-50);
-            }
-
-            // 记录动画开始的时间
             const startTime = Date.now();
+            let processSuccess = false;
 
-            // 串行请求网络 (1.扣积分 -> 2.删奖池物品 -> 3.增加背包物品)
-            const ckPayload = { ...myCkData }; delete ckPayload.sha;
-            const ckRes = await updateFile(FILE_CK_MY, ckPayload, myCkData.sha, `Draw Blindbox cost ${cost}`);
-            
-            let mhRes = { success: false };
-            let mhjlRes = { success: false };
-            
-            if (ckRes.success) {
-                const mhPayload = { pool: mhData.pool };
-                mhRes = await updateFile(FILE_MH, mhPayload, mhData.sha, `Remove drawn item ${drawnItem.name}`);
+            if (currentDrawType === 'normal') {
+                // 普通池抽取逻辑
+                myMhjlData.inventory[drawnItem.name] = (myMhjlData.inventory[drawnItem.name] || 0) + 1;
+                mhData.pool.splice(drawIndex, 1); // 移除奖池物品
+                myMhjlData.drawTimestamps.push(Date.now());
+                if (myMhjlData.drawTimestamps.length > 50) myMhjlData.drawTimestamps = myMhjlData.drawTimestamps.slice(-50);
+
+                const ckPayload = { ...myCkData }; delete ckPayload.sha;
+                const ckRes = await updateFile(FILE_CK_MY, ckPayload, myCkData.sha, `Draw normal box cost ${cost}`);
                 
-                if (mhRes.success) {
-                    const mhjlPayload = { ...myMhjlData }; delete mhjlPayload.sha;
-                    mhjlRes = await updateFile(FILE_MHJL_MY, mhjlPayload, myMhjlData.sha, `Obtain ${drawnItem.name}`);
+                let mhRes = { success: false }, mhjlRes = { success: false };
+                
+                if (ckRes.success) {
+                    const mhPayload = { pool: mhData.pool, premiumPool: mhData.premiumPool };
+                    mhRes = await updateFile(FILE_MH, mhPayload, mhData.sha, `Remove drawn item ${drawnItem.name}`);
+                    if (mhRes.success) {
+                        const mhjlPayload = { ...myMhjlData }; delete mhjlPayload.sha;
+                        mhjlRes = await updateFile(FILE_MHJL_MY, mhjlPayload, myMhjlData.sha, `Obtain ${drawnItem.name}`);
+                    }
                 }
-            }
+                
+                processSuccess = (ckRes.success && mhRes.success && mhjlRes.success);
 
-            // 计算还需等待多久才能达到 1.8 秒的最佳动画体验时长
-            const elapsed = Date.now() - startTime;
-            const delay = Math.max(0, 1800 - elapsed);
-
-            setTimeout(async () => {
-                if (ckRes.success && mhRes.success && mhjlRes.success) {
-                    myCkData.sha = ckRes.sha;
-                    mhData.sha = mhRes.sha;
-                    myMhjlData.sha = mhjlRes.sha;
-                    
-                    // 切换到结果阶段
-                    document.getElementById('resultItemName').innerText = drawnItem.name;
-                    document.getElementById('resultItemPrice').innerText = drawnItem.price;
-                    
-                    document.getElementById('drawAnimationPhase').classList.add('hidden');
-                    const resPhase = document.getElementById('drawResultPhase');
-                    resPhase.classList.remove('hidden');
-                    requestAnimationFrame(() => {
-                        resPhase.classList.remove('scale-50');
-                        resPhase.classList.add('scale-100');
-                        // 触发彩带动画
-                        confetti({
-                            particleCount: 150,
-                            spread: 70,
-                            origin: { y: 0.6 },
-                            colors: ['#a855f7', '#ec4899', '#fbcfe8', '#ffffff']
-                        });
-                    });
-                    
-                    updateUIAfterFetch();
+                if (processSuccess) {
+                    myCkData.sha = ckRes.sha; mhData.sha = mhRes.sha; myMhjlData.sha = mhjlRes.sha;
                 } else {
-                    // 失败回滚
+                    // 回滚
                     myCkData.points += cost;
                     myMhjlData.inventory[drawnItem.name] -= 1;
                     if(myMhjlData.inventory[drawnItem.name] <= 0) delete myMhjlData.inventory[drawnItem.name];
                     myMhjlData.drawTimestamps.pop();
-                    
-                    // 恢复奖池中的物品
                     mhData.pool.splice(drawIndex, 0, drawnItem);
-                    
-                    // 云端数据回滚 (按需)
-                    if (ckRes.success && (!mhRes.success || !mhjlRes.success)) {
-                        const rollbackPayload = { ...myCkData }; delete rollbackPayload.sha;
-                        await updateFile(FILE_CK_MY, rollbackPayload, ckRes.sha, `Rollback Draw Points`);
-                    }
-                    if (mhRes.success && !mhjlRes.success) {
-                        const rollbackMhPayload = { pool: mhData.pool };
-                        await updateFile(FILE_MH, rollbackMhPayload, mhRes.sha, `Rollback Pool Item`);
-                    }
+                    if (ckRes.success && (!mhRes.success || !mhjlRes.success)) await updateFile(FILE_CK_MY, { ...myCkData, sha: undefined }, ckRes.sha, `Rollback`);
+                    if (mhRes.success && !mhjlRes.success) await updateFile(FILE_MH, { pool: mhData.pool, premiumPool: mhData.premiumPool }, mhRes.sha, `Rollback`);
+                }
 
+            } else {
+                // 高级池抽取逻辑
+                const pieceNo = Math.floor(Math.random() * drawnItem.piecesCount) + 1;
+                
+                if (!myMhjlData.fragments[drawnItem.name]) {
+                    myMhjlData.fragments[drawnItem.name] = { total: parseInt(drawnItem.piecesCount), pieces: [] };
+                }
+                myMhjlData.fragments[drawnItem.name].pieces.push(pieceNo);
+                
+                myMhjlData.premiumDrawTimestamps.push(Date.now());
+                if (myMhjlData.premiumDrawTimestamps.length > 50) myMhjlData.premiumDrawTimestamps = myMhjlData.premiumDrawTimestamps.slice(-50);
+
+                // 高级池不需要更新 mh.json (物品保留)
+                const ckPayload = { ...myCkData }; delete ckPayload.sha;
+                const ckRes = await updateFile(FILE_CK_MY, ckPayload, myCkData.sha, `Premium Draw cost ${cost}`);
+                
+                let mhjlRes = { success: false };
+                if (ckRes.success) {
+                    const mhjlPayload = { ...myMhjlData }; delete mhjlPayload.sha;
+                    mhjlRes = await updateFile(FILE_MHJL_MY, mhjlPayload, myMhjlData.sha, `Obtain fragment ${drawnItem.name} No.${pieceNo}`);
+                }
+
+                processSuccess = (ckRes.success && mhjlRes.success);
+                drawnItem.drawnPieceNo = pieceNo; // 传递给UI展示
+
+                if (processSuccess) {
+                    myCkData.sha = ckRes.sha; myMhjlData.sha = mhjlRes.sha;
+                } else {
+                    // 回滚
+                    myCkData.points += cost;
+                    myMhjlData.fragments[drawnItem.name].pieces.pop();
+                    myMhjlData.premiumDrawTimestamps.pop();
+                    if (ckRes.success && !mhjlRes.success) await updateFile(FILE_CK_MY, { ...myCkData, sha: undefined }, ckRes.sha, `Rollback`);
+                }
+            }
+
+            // 动画延迟
+            const delay = Math.max(0, 1500 - (Date.now() - startTime));
+
+            setTimeout(() => {
+                if (processSuccess) {
+                    showDrawResultContent(drawnItem);
+                    updateUIAfterFetch();
+                } else {
                     closeDrawResult();
                     showToast("网络不稳定，抽取失败，数据已安全退回");
-                    
-                    // 恢复按钮点击
-                    updateLimitUI();
+                    updateDrawPanelUI();
                 }
-            }, delay); // 动态延迟计算
+            }, delay);
+        }
+
+        function showDrawResultContent(drawnItem) {
+            document.getElementById('drawAnimationPhase').classList.add('hidden');
+            const resPhase = document.getElementById('drawResultPhase');
+            
+            // 样式调整
+            const bgGlow1 = document.getElementById('resultBgGlow1');
+            const bgGlow2 = document.getElementById('resultBgGlow2');
+            const icon = document.getElementById('resultIcon');
+            const nameEl = document.getElementById('resultItemName');
+
+            if (currentDrawType === 'normal') {
+                bgGlow1.className = "absolute -top-10 -left-10 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float";
+                bgGlow2.className = "absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float";
+                icon.innerText = "🎉";
+                nameEl.innerText = drawnItem.name;
+                nameEl.className = "font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 px-4 leading-tight";
+                
+                document.getElementById('resultPriceTag').classList.remove('hidden');
+                document.getElementById('resultItemPrice').innerText = drawnItem.price;
+                document.getElementById('resultPremiumTag').classList.add('hidden');
+            } else {
+                bgGlow1.className = "absolute -top-10 -left-10 w-40 h-40 bg-amber-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float";
+                bgGlow2.className = "absolute -bottom-10 -right-10 w-40 h-40 bg-orange-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-float";
+                icon.innerText = "🧩";
+                nameEl.innerHTML = `${drawnItem.name}<br><span class="text-lg opacity-80 mt-1 block text-amber-600">碎片 No.${drawnItem.drawnPieceNo}</span>`;
+                nameEl.className = "font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500 px-4 leading-tight";
+                
+                document.getElementById('resultPriceTag').classList.add('hidden');
+                document.getElementById('resultPremiumTag').classList.remove('hidden');
+            }
+            
+            resPhase.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                resPhase.classList.remove('scale-50');
+                resPhase.classList.add('scale-100');
+                confetti({
+                    particleCount: 150, spread: 70, origin: { y: 0.6 },
+                    colors: currentDrawType === 'normal' ? ['#a855f7', '#ec4899', '#fbcfe8', '#ffffff'] : ['#f59e0b', '#f97316', '#fef3c7', '#ffffff']
+                });
+            });
         }
 
         function closeDrawResult() {
@@ -662,7 +904,6 @@
             modal.classList.add('opacity-0');
             setTimeout(() => { modal.classList.add('hidden'); }, 300);
             
-            // 如果是在奖励展示阶段关闭，切到背包看看
             if(!document.getElementById('drawResultPhase').classList.contains('hidden')) {
                 switchTab('rewards');
                 switchRewardSubTab('mine');
@@ -670,42 +911,50 @@
         }
 
         async function confirmDeposit() {
-            const name = document.getElementById('depositName').value.trim();
-            const price = parseInt(document.getElementById('depositPrice').value);
-
-            if (!name) return showToast("请输入盲盒内容哦");
-            if (isNaN(price) || price < 1) return showToast("请输入合理的估值 (大于0)");
-
             showGlobalLoader("正在将惊喜打包放入奖池...");
 
-            const newItem = {
+            let newItem = {
                 id: Date.now().toString() + Math.floor(Math.random()*1000),
-                name: name,
-                price: price,
                 creator: myIdentity
             };
 
-            // 创建副本
-            const backupPool = [...mhData.pool];
-            mhData.pool.push(newItem);
+            if (currentDepositType === 'normal') {
+                const name = document.getElementById('depositNameNormal').value.trim();
+                const price = parseInt(document.getElementById('depositPrice').value);
+                if (!name) { hideGlobalLoader(); return showToast("请输入盲盒内容哦"); }
+                if (isNaN(price) || price < 1) { hideGlobalLoader(); return showToast("请输入合理的估值 (大于0)"); }
+                
+                newItem.name = name;
+                newItem.price = price;
+                mhData.pool.push(newItem);
+            } else {
+                const name = document.getElementById('depositNamePremium').value.trim();
+                const piecesCount = parseInt(document.getElementById('depositPieces').value);
+                if (!name) { hideGlobalLoader(); return showToast("请输入目标内容哦"); }
+                if (isNaN(piecesCount) || piecesCount < 1) { hideGlobalLoader(); return showToast("请输入合理的碎片个数 (大于0)"); }
+                
+                newItem.name = name;
+                newItem.piecesCount = piecesCount;
+                mhData.premiumPool.push(newItem);
+            }
 
-            // 如果源数据格式是对象包着数组
-            const payload = { pool: mhData.pool };
-
-            const res = await updateFile(FILE_MH, payload, mhData.sha, `Add ${name} to pool`);
+            const payload = { pool: mhData.pool, premiumPool: mhData.premiumPool };
+            const res = await updateFile(FILE_MH, payload, mhData.sha, `Add ${newItem.name} to pool`);
             hideGlobalLoader();
 
             if (res.success) {
                 mhData.sha = res.sha;
-                document.getElementById('depositName').value = '';
+                document.getElementById('depositNameNormal').value = '';
                 document.getElementById('depositPrice').value = '';
-                showToast("🎉 成功投入盲盒！");
-                updateUIAfterFetch(); // 重新计算均价和总数
+                document.getElementById('depositNamePremium').value = '';
+                document.getElementById('depositPieces').value = '';
                 
-                // 返回抽奖页看看
+                showToast("🎉 成功投入盲盒！");
+                updateUIAfterFetch(); 
                 setTimeout(() => switchTab('draw'), 1000);
             } else {
-                mhData.pool = backupPool;
+                if (currentDepositType === 'normal') mhData.pool.pop();
+                else mhData.premiumPool.pop();
                 showToast("网络出错，投入失败");
             }
         }
@@ -713,91 +962,226 @@
         function renderRewardsList() {
             const container = document.getElementById('rewards_mine');
             
+            // 1. 获取完整道具
             let inventoryItems = Object.keys(myMhjlData.inventory)
                 .filter(name => myMhjlData.inventory[name] > 0)
-                .map(name => ({ name, count: myMhjlData.inventory[name], status: 'owned' }));
+                .map(name => ({ name, count: myMhjlData.inventory[name] }));
             
-            let pendingItems = (myMhjlData.pendingUses || [])
-                .filter(p => p.status === 'pending')
-                .map(p => ({ ...p, status: 'pending' }));
+            // 2. 获取待核销
+            let pendingItems = (myMhjlData.pendingUses || []).filter(p => p.status === 'pending');
 
-            if (inventoryItems.length === 0 && pendingItems.length === 0) {
-                container.innerHTML = `<div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed shadow-sm">
-                    <div class="text-4xl mb-3 opacity-50">🎒</div>
-                    <p class="text-sm">背包空空如也，快去抽盲盒吧~</p>
-                </div>`;
-                return;
+            // 3. 获取碎片数据并分类计算
+            let fragmentData = [];
+            for (const itemName in myMhjlData.fragments) {
+                const frag = myMhjlData.fragments[itemName];
+                if (!frag || frag.pieces.length === 0) continue;
+                
+                let pieceCounts = {}; 
+                let uniqueCollected = 0;
+                for (let i = 1; i <= frag.total; i++) {
+                    const count = frag.pieces.filter(p => p === i).length;
+                    pieceCounts[i] = count;
+                    if (count > 0) uniqueCollected++;
+                }
+                fragmentData.push({
+                    name: itemName,
+                    total: frag.total,
+                    uniqueCollected: uniqueCollected,
+                    pieceCounts: pieceCounts,
+                    canCompose: uniqueCollected === frag.total
+                });
             }
 
             let html = '';
             
-            // 渲染拥有的
-            inventoryItems.forEach(item => {
-                html += `
-                <div class="bg-gradient-to-r from-purple-50 to-white rounded-2xl p-4 border border-purple-100 shadow-sm flex items-center justify-between">
-                    <div class="flex items-center gap-3 w-[65%]">
-                        <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl flex-shrink-0 border border-purple-50">🎁</div>
-                        <div class="truncate">
-                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                <span class="truncate">${item.name}</span>
-                                <span class="bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0 font-black">x${item.count}</span>
-                            </h4>
-                            <p class="text-[10px] text-gray-400 mt-1 truncate">抽中的惊喜奖励</p>
-                        </div>
-                    </div>
-                    <div class="flex-shrink-0">
-                        <button onclick="requestUseReward('${item.name}')" class="px-4 py-2 bg-purple-500 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 active:scale-95 transition-all">使用兑换</button>
-                    </div>
-                </div>`;
-            });
+            // 新增：内部选项卡 UI
+            html += `
+            <div class="flex gap-1 mb-3 bg-gray-100/80 p-1 rounded-xl">
+                <button onclick="switchMineTab('loot')" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all ${currentMineTab === 'loot' ? 'bg-white shadow-sm text-purple-600' : 'text-gray-500 hover:text-gray-700'}">🎁 完整道具</button>
+                <button onclick="switchMineTab('fragments')" class="flex-1 py-2 text-xs font-bold rounded-lg transition-all ${currentMineTab === 'fragments' ? 'bg-white shadow-sm text-orange-600' : 'text-gray-500 hover:text-gray-700'}">🧩 碎片收集</button>
+            </div>
+            `;
 
-            // 渲染待核销的
-            pendingItems.forEach(item => {
-                html += `
-                <div class="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-300 shadow-sm flex items-center justify-between opacity-90">
-                    <div class="flex items-center gap-3">
-                        <div class="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-2xl grayscale border border-gray-300">🎫</div>
-                        <div>
-                            <h4 class="font-bold text-gray-500 text-sm flex items-center gap-2">
-                                ${item.itemName} 
-                                <span class="bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded text-[9px] font-black">等待对方核销</span>
-                            </h4>
-                            <div class="text-[11px] text-gray-500 mt-1 flex items-center gap-1 font-mono">
-                                凭证码: <span class="font-bold text-purple-500 tracking-wider">${item.code}</span>
+            if (currentMineTab === 'loot') {
+                html += `<div class="space-y-3 animate-fade-in">`;
+                if (inventoryItems.length === 0 && pendingItems.length === 0) {
+                    html += `<div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed shadow-sm">
+                        <div class="text-4xl mb-3 opacity-50">🎒</div>
+                        <p class="text-sm">背包空空如也，快去抽盲盒吧~</p>
+                    </div>`;
+                } else {
+                    inventoryItems.forEach(item => {
+                        html += `
+                        <div class="bg-gradient-to-r from-purple-50 to-white rounded-2xl p-4 border border-purple-100 shadow-sm flex items-center justify-between">
+                            <div class="flex items-center gap-3 w-[65%]">
+                                <div class="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center text-2xl flex-shrink-0 border border-purple-50">🎁</div>
+                                <div class="truncate">
+                                    <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
+                                        <span class="truncate">${item.name}</span>
+                                        <span class="bg-purple-100 text-purple-600 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0 font-black">x${item.count}</span>
+                                    </h4>
+                                    <p class="text-[10px] text-gray-400 mt-1 truncate">可随时兑换使用</p>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    <button onclick="showCodeModal('${item.code}')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-100 active:scale-95 transition flex items-center gap-1">查看</button>
-                </div>`;
-            });
+                            <div class="flex-shrink-0">
+                                <button onclick="requestUseReward('${item.name}')" class="px-4 py-2 bg-purple-500 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 active:scale-95 transition-all">使用兑换</button>
+                            </div>
+                        </div>`;
+                    });
+
+                    pendingItems.forEach(item => {
+                        html += `
+                        <div class="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-300 shadow-sm flex items-center justify-between opacity-90">
+                            <div class="flex items-center gap-3">
+                                <div class="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-2xl grayscale border border-gray-300">🎫</div>
+                                <div>
+                                    <h4 class="font-bold text-gray-500 text-sm flex items-center gap-2">
+                                        ${item.itemName} 
+                                        <span class="bg-amber-100 text-amber-600 border border-amber-200 px-1.5 py-0.5 rounded text-[9px] font-black">等待核销</span>
+                                    </h4>
+                                    <div class="text-[11px] text-gray-500 mt-1 flex items-center gap-1 font-mono">
+                                        凭证码: <span class="font-bold text-purple-500 tracking-wider">${item.code}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <button onclick="showCodeModal('${item.code}')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-100 active:scale-95 transition flex items-center gap-1">查看</button>
+                        </div>`;
+                    });
+                }
+                html += `</div>`;
+            } else {
+                // 渲染碎片部分 (折叠面板模式)
+                html += `<div class="space-y-3 animate-fade-in">`;
+                if (fragmentData.length === 0) {
+                    html += `<div class="text-center py-12 text-gray-400 bg-white rounded-2xl border border-gray-100 border-dashed shadow-sm">
+                        <div class="text-4xl mb-3 opacity-50">🧩</div>
+                        <p class="text-sm">暂无碎片，去高级池试试手气吧~</p>
+                    </div>`;
+                } else {
+                    fragmentData.forEach((item, index) => {
+                        let boxesHtml = '';
+                        for(let i=1; i<=item.total; i++) {
+                            const count = item.pieceCounts[i];
+                            if(count > 0) {
+                                boxesHtml += `<div class="w-9 h-9 rounded-lg bg-orange-50 border-2 border-orange-200 flex items-center justify-center text-orange-600 font-black text-sm relative shadow-sm">
+                                    ${i}
+                                    ${count > 1 ? `<span class="absolute -top-1.5 -right-1.5 bg-pink-500 text-white text-[9px] px-1.5 rounded-full font-bold shadow-sm">x${count}</span>` : ''}
+                                </div>`;
+                            } else {
+                                boxesHtml += `<div class="w-9 h-9 rounded-lg bg-gray-100 border border-gray-200 flex items-center justify-center text-gray-300 font-bold text-sm">
+                                    ${i}
+                                </div>`;
+                            }
+                        }
+                        
+                        html += `
+                        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm relative overflow-hidden transition-all duration-300">
+                            ${item.canCompose ? '<div class="absolute inset-0 bg-amber-400/5 animate-pulse pointer-events-none"></div>' : ''}
+                            
+                            <!-- 头部信息 (点击展开/折叠) -->
+                            <div class="p-4 flex justify-between items-center cursor-pointer relative z-10 select-none" onclick="toggleFragmentDetails('frag_details_${index}')">
+                                <div class="flex items-center gap-2">
+                                    <div class="text-xl">🧩</div>
+                                    <h5 class="font-bold text-sm text-gray-800">${item.name}</h5>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <span class="text-[10px] bg-orange-50 text-orange-600 px-2.5 py-1 rounded-full border border-orange-100 font-bold tracking-wide">
+                                        进度: ${item.uniqueCollected}/${item.total}
+                                    </span>
+                                    <svg id="frag_details_${index}_icon" class="w-4 h-4 text-gray-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                                </div>
+                            </div>
+                            
+                            <!-- 详细收集进度容器 -->
+                            <div id="frag_details_${index}" class="px-4 pb-4 hidden relative z-10 border-t border-gray-50 pt-3">
+                                <div class="flex flex-wrap gap-2 mb-3">
+                                    ${boxesHtml}
+                                </div>
+                                ${item.canCompose 
+                                    ? `<button onclick="composeFragment('${item.name}')" class="relative z-10 w-full py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl text-sm font-black shadow-md shadow-orange-200 active:scale-95 transition-all flex justify-center items-center gap-1">✨ 集齐啦！立即合成 ✨</button>` 
+                                    : '<div class="text-center text-[10px] text-gray-400">集齐所有编号碎片即可合成道具</div>'}
+                            </div>
+                        </div>`;
+                    });
+                }
+                html += `</div>`;
+            }
 
             container.innerHTML = html;
+        }
+
+        // --- 新增的碎片折叠与选项卡切换功能 ---
+        function switchMineTab(tab) {
+            currentMineTab = tab;
+            renderRewardsList();
+        }
+
+        function toggleFragmentDetails(id) {
+            const details = document.getElementById(id);
+            const icon = document.getElementById(id + '_icon');
+            if (details.classList.contains('hidden')) {
+                details.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                details.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        async function composeFragment(itemName) {
+            const frag = myMhjlData.fragments[itemName];
+            if (!frag) return;
+            
+            // 二次校验是否集齐
+            for (let i = 1; i <= frag.total; i++) {
+                if (!frag.pieces.includes(i)) return showToast("碎片还没集齐哦");
+            }
+            
+            showGlobalLoader("✨ 正在合成终极奖励...");
+            
+            // 扣除碎片 (每个编号扣除1个)
+            for (let i = 1; i <= frag.total; i++) {
+                const idx = frag.pieces.indexOf(i);
+                if (idx !== -1) frag.pieces.splice(idx, 1);
+            }
+            
+            // 加入完整库存
+            myMhjlData.inventory[itemName] = (myMhjlData.inventory[itemName] || 0) + 1;
+            
+            const payload = { ...myMhjlData }; delete payload.sha;
+            const res = await updateFile(FILE_MHJL_MY, payload, myMhjlData.sha, `Compose ${itemName}`);
+            
+            hideGlobalLoader();
+            if(res.success) {
+                myMhjlData.sha = res.sha;
+                // 庆祝动画
+                confetti({ particleCount: 100, spread: 60, origin: { y: 0.5 }, colors: ['#f59e0b', '#f97316'] });
+                showToast("🎉 合成成功！已放入完整战利品背包！");
+                currentMineTab = 'loot'; // 合成成功后自动切换回“完整道具”选项卡
+                renderRewardsList();
+            } else {
+                // 回滚
+                for (let i = 1; i <= frag.total; i++) frag.pieces.push(i);
+                myMhjlData.inventory[itemName] -= 1;
+                showToast("网络错误，合成失败");
+            }
         }
 
         async function requestUseReward(itemName) {
             if (!myMhjlData.inventory[itemName] || myMhjlData.inventory[itemName] <= 0) return;
 
             showGlobalLoader("生成核销凭证中...");
-
-            // 1. 从可用库存中扣除
             myMhjlData.inventory[itemName] -= 1;
             if(myMhjlData.inventory[itemName] <= 0) delete myMhjlData.inventory[itemName];
 
-            // 2. 生成6位随机核销码
             const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
             let code = '';
             for(let i=0; i<6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
 
-            // 3. 加入到待核销列表
-            if (!myMhjlData.pendingUses) myMhjlData.pendingUses = [];
             myMhjlData.pendingUses.push({
-                code: code,
-                itemName: itemName,
-                time: Date.now(),
-                status: 'pending'
+                code: code, itemName: itemName, time: Date.now(), status: 'pending'
             });
 
-            // 4. 提交到云端
             const payload = { ...myMhjlData }; delete payload.sha;
             const res = await updateFile(FILE_MHJL_MY, payload, myMhjlData.sha, `Request use reward: ${itemName}`);
             hideGlobalLoader();
@@ -805,12 +1189,9 @@
             if (res.success) {
                 myMhjlData.sha = res.sha;
                 renderRewardsList();
-                
-                // 5. 弹出核销码展示窗口
                 document.getElementById('generatedCode').innerText = code;
                 openModal('codeModal', 'codeModalContent');
             } else {
-                // 回滚失败状态
                 myMhjlData.inventory[itemName] = (myMhjlData.inventory[itemName]||0) + 1;
                 myMhjlData.pendingUses.pop();
                 showToast("网络错误，生成核销码失败");
@@ -839,7 +1220,7 @@
                             <div class="text-[10px] text-gray-400 mt-0.5">申请时间: ${dateStr}</div>
                         </div>
                     </div>
-                    <div class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold border border-gray-200">待输入核销码</div>
+                    <div class="text-[10px] bg-gray-100 text-gray-500 px-2 py-1.5 rounded-lg font-bold border border-gray-200">待输入凭证码</div>
                 </div>`;
             }).join('');
         }
@@ -847,18 +1228,15 @@
         async function executeVerify() {
             const inputEl = document.getElementById('verifyInput');
             const code = inputEl.value.trim().toUpperCase();
-
             if (!code || code.length !== 6) return showToast("请输入完整的6位凭证码！");
 
             const recordIndex = partnerMhjlData.pendingUses.findIndex(p => p.code === code && p.status === 'pending');
             if (recordIndex === -1) return showToast("❌ 找不到该凭证码，或已被核销");
 
             showGlobalLoader("核销中...");
-            
             const record = partnerMhjlData.pendingUses[recordIndex];
             partnerMhjlData.pendingUses[recordIndex].status = 'verified';
 
-            // 剥离 sha
             const payload = { ...partnerMhjlData }; delete payload.sha;
             const res = await updateFile(FILE_MHJL_PARTNER, payload, partnerMhjlData.sha, `Verify code ${code}`);
             hideGlobalLoader();
@@ -867,7 +1245,6 @@
                 partnerMhjlData.sha = res.sha;
                 inputEl.value = '';
                 renderVerifyList();
-                
                 document.getElementById('verifiedItemName').innerText = `【${record.itemName}】`;
                 openModal('verifySuccessModal', 'verifySuccessModalContent');
             } else {
@@ -927,18 +1304,15 @@
             const toast = document.getElementById('toast'); 
             toast.innerText = msg; 
             toast.classList.remove('hidden'); 
-            
             toast.classList.remove('toast-animate');
-            void toast.offsetWidth; // trigger reflow
+            void toast.offsetWidth; 
             toast.classList.add('toast-animate'); 
-            
             if (toastTimeout) clearTimeout(toastTimeout);
             toastTimeout = setTimeout(() => { 
                 toast.classList.add('hidden'); 
                 toast.classList.remove('toast-animate'); 
             }, 3000); 
         }
-
     </script>
 </body>
 </html>
