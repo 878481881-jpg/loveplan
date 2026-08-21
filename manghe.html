@@ -68,6 +68,9 @@
     </div>
 
     <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
+        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
         <div class="w-9 h-9"></div> 
         <div>
             <h1 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center gap-2 drop-shadow-sm">
@@ -406,17 +409,7 @@
                 if (res.status === 404) return { data: null, sha: null };
                 if (!res.ok) throw new Error('Fetch failed');
                 const result = await res.json();
-                
-                let parsedData = null;
-                try {
-                    parsedData = JSON.parse(b64_to_utf8(result.content));
-                } catch(e) {
-                    console.warn(`JSON parse error for ${filePath}`);
-                    // 如果文件损坏，仍然返回sha以供后续安全覆盖
-                    return { data: null, sha: result.sha, parseError: true };
-                }
-                
-                return { data: parsedData, sha: result.sha };
+                return { data: JSON.parse(b64_to_utf8(result.content)), sha: result.sha };
             } catch (error) {
                 console.warn(`Fetch ${filePath} error:`, error);
                 return { error: true };
@@ -923,40 +916,7 @@
         }
 
         async function confirmDeposit() {
-            let name, price, piecesCount;
-
-            // 1. 表单校验 (在显示加载遮罩前进行)
-            if (currentDepositType === 'normal') {
-                name = document.getElementById('depositNameNormal').value.trim();
-                price = parseInt(document.getElementById('depositPrice').value);
-                if (!name) return showToast("请输入盲盒内容哦");
-                if (isNaN(price) || price < 1) return showToast("请输入合理的估值 (大于0)");
-            } else {
-                name = document.getElementById('depositNamePremium').value.trim();
-                piecesCount = parseInt(document.getElementById('depositPieces').value);
-                if (!name) return showToast("请输入目标内容哦");
-                if (isNaN(piecesCount) || piecesCount < 1) return showToast("请输入合理的碎片个数 (大于0)");
-            }
-
-            showGlobalLoader("正在获取最新奖池状态...");
-
-            // 2. 获取最新奖池数据，避免多端操作导致 SHA 冲突
-            const latestRes = await fetchFile(FILE_MH);
-            if (!latestRes.error && !latestRes.parseError) {
-                if (latestRes.data) {
-                    mhData.pool = latestRes.data.pool || (Array.isArray(latestRes.data) ? latestRes.data : []);
-                    mhData.premiumPool = latestRes.data.premiumPool || [];
-                }
-                mhData.sha = latestRes.sha;
-            } else if (latestRes.parseError) {
-                // 如果云端文件损坏，保留其sha以便强行覆盖
-                mhData.sha = latestRes.sha;
-            } else if (latestRes.error && mhData.sha) {
-                // 如果网络不通，但之前有缓存，可以选择继续，但最好提示
-                console.warn("无法获取最新数据，尝试使用本地缓存提交");
-            }
-
-            document.getElementById('loaderText').innerText = "正在将惊喜打包放入奖池...";
+            showGlobalLoader("正在将惊喜打包放入奖池...");
 
             let newItem = {
                 id: Date.now().toString() + Math.floor(Math.random()*1000),
@@ -964,10 +924,20 @@
             };
 
             if (currentDepositType === 'normal') {
+                const name = document.getElementById('depositNameNormal').value.trim();
+                const price = parseInt(document.getElementById('depositPrice').value);
+                if (!name) { hideGlobalLoader(); return showToast("请输入盲盒内容哦"); }
+                if (isNaN(price) || price < 1) { hideGlobalLoader(); return showToast("请输入合理的估值 (大于0)"); }
+                
                 newItem.name = name;
                 newItem.price = price;
                 mhData.pool.push(newItem);
             } else {
+                const name = document.getElementById('depositNamePremium').value.trim();
+                const piecesCount = parseInt(document.getElementById('depositPieces').value);
+                if (!name) { hideGlobalLoader(); return showToast("请输入目标内容哦"); }
+                if (isNaN(piecesCount) || piecesCount < 1) { hideGlobalLoader(); return showToast("请输入合理的碎片个数 (大于0)"); }
+                
                 newItem.name = name;
                 newItem.piecesCount = piecesCount;
                 mhData.premiumPool.push(newItem);
@@ -979,25 +949,18 @@
 
             if (res.success) {
                 mhData.sha = res.sha;
-                
-                // 清空对应的表单
-                if (currentDepositType === 'normal') {
-                    document.getElementById('depositNameNormal').value = '';
-                    document.getElementById('depositPrice').value = '';
-                } else {
-                    document.getElementById('depositNamePremium').value = '';
-                    document.getElementById('depositPieces').value = '';
-                }
+                document.getElementById('depositNameNormal').value = '';
+                document.getElementById('depositPrice').value = '';
+                document.getElementById('depositNamePremium').value = '';
+                document.getElementById('depositPieces').value = '';
                 
                 showToast("🎉 成功投入盲盒！");
                 updateUIAfterFetch(); 
                 setTimeout(() => switchTab('draw'), 1000);
             } else {
-                // 回滚刚才添加的项
                 if (currentDepositType === 'normal') mhData.pool.pop();
                 else mhData.premiumPool.pop();
-                
-                showToast("网络出错或数据冲突，投入失败");
+                showToast("网络出错，投入失败");
             }
         }
 
