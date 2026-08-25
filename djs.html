@@ -11,6 +11,7 @@
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- 引入基础字体，并在 CSS 中配置了全面的系统备选字体池 -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
     
     <style>
@@ -21,7 +22,8 @@
         }
 
         body { 
-            font-family: 'Noto Sans SC', sans-serif; 
+            /* 字体全面优化：优先 Google 字体，备选苹果、安卓、Windows 默认高清字体 */
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", STHeiti, "Microsoft YaHei", sans-serif; 
             background-color: #fff0f5; 
             background-image: 
                 radial-gradient(circle at 10% 20%, rgba(255, 228, 235, 1) 0%, transparent 40%),
@@ -34,7 +36,8 @@
         }
         
         .font-num { 
-            font-family: 'Nunito', sans-serif; 
+            /* 数字字体优化：确保数字等宽对齐，移动端更锐利 */
+            font-family: 'Nunito', 'SF Pro Display', -apple-system, BlinkMacSystemFont, Arial, sans-serif; 
             font-feature-settings: "tnum";
             font-variant-numeric: tabular-nums;
         }
@@ -164,7 +167,7 @@
 
         <div id="contentView" class="w-full hidden">
             
-            <!-- 正数日：纪念碑核心，采用毛玻璃质感 -->
+            <!-- 正数日：纪念碑核心 -->
             <div class="w-full glass-card rounded-[2.5rem] p-8 text-rose-500 mb-8 relative overflow-hidden group">
                 <div class="absolute -right-8 -top-8 text-9xl opacity-[0.07] transform rotate-12 transition-transform group-hover:rotate-45 group-hover:scale-110 duration-700 ease-out">💖</div>
                 <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-pink-100/50 rounded-full blur-3xl"></div>
@@ -217,7 +220,7 @@
                     <h2 class="text-lg font-black text-rose-500 flex items-center gap-2">
                         <span class="text-xl">✨</span> 期待的日子
                     </h2>
-                    <div class="text-xs text-rose-300 font-bold bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white">滑动可删除</div>
+                    <div class="text-xs text-rose-300 font-bold bg-white/60 px-3 py-1 rounded-full shadow-sm border border-white">左滑可删除</div>
                 </div>
                 
                 <div class="space-y-4" id="countdownList">
@@ -315,6 +318,62 @@
     </div>
 
     <script>
+        // ----------------- 新增：原生移动端左滑删除逻辑 -----------------
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            const front = e.target.closest('.swipe-front');
+            
+            // 如果点击了其它地方，就把已展开的卡片收回
+            document.querySelectorAll('.swipe-front').forEach(el => {
+                if (el !== front) el.style.transform = 'translateX(0)';
+            });
+            
+            if (!front) return;
+            
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+            front.style.transition = 'none'; // 取消动画以实现跟手滑动
+        }, { passive: true });
+
+        document.addEventListener('touchmove', function(e) {
+            const front = e.target.closest('.swipe-front');
+            if (!front || touchStartX === 0) return;
+
+            const deltaX = e.touches[0].clientX - touchStartX;
+            const deltaY = e.touches[0].clientY - touchStartY;
+
+            // 如果垂直滑动幅度大于水平，认为是上下滚动页面，不触发侧滑
+            if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+
+            // 只允许向左滑 (负值)，且最大滑开距离设为 -80px
+            if (deltaX < 0 && deltaX >= -80) {
+                front.style.transform = `translateX(${deltaX}px)`;
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            const front = e.target.closest('.swipe-front');
+            if (!front || touchStartX === 0) return;
+
+            const deltaX = e.changedTouches[0].clientX - touchStartX;
+            
+            // 手指离开，恢复过渡动画
+            front.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+            
+            // 滑动超过 35px 就判定为有意图展开，否则缩回
+            if (deltaX < -35) {
+                front.style.transform = 'translateX(-70px)'; // 露出删除按钮的宽度
+            } else {
+                front.style.transform = 'translateX(0)';
+            }
+            
+            touchStartX = 0;
+            touchStartY = 0;
+        }, { passive: true });
+
+
         // ----------------- 基础配置与鉴权 -----------------
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken'); 
         const OWNER_REPO = '878481881-jpg/loveplan'; 
@@ -500,7 +559,7 @@
             now.setHours(0,0,0,0);
             const currentYear = now.getFullYear();
 
-            // --- 新增：自动计算今年的新历公历日期，如果过了就排到明年 ---
+            // 自动计算今年的新历公历日期，如果过了就排到明年
             const getNextSolarDate = (month, day) => {
                 let d = new Date(currentYear, month - 1, day);
                 if (d.getTime() < now.getTime()) {
@@ -509,9 +568,9 @@
                 return d;
             };
 
-            // --- 新增：自动计算今年的农历公历日期（基于lunar.js），如果过了就排到明年 ---
+            // 自动计算今年的农历公历日期，如果过了就排到明年
             const getNextLunarDate = (lMonth, lDay) => {
-                if (typeof Lunar === 'undefined') return new Date(); // 容错处理
+                if (typeof Lunar === 'undefined') return new Date(); 
                 let lDate = Lunar.fromYmd(currentYear, lMonth, lDay);
                 let sDate = lDate.getSolar();
                 let d = new Date(sDate.getYear(), sDate.getMonth() - 1, sDate.getDay());
@@ -526,7 +585,6 @@
 
             const formatYMD = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 
-            // 置顶数据配置：这里分别定义了新历(solar)和农历(lunar)的月日
             const pinnedConfig = [
                 { 
                     id: 'pinned_qinqin', 
@@ -546,7 +604,7 @@
 
             let htmlStr = '';
 
-            // 1. 渲染专属置顶卡片（每个卡片里并排显示新历和农历）
+            // --- 紧凑版置顶卡片 ---
             pinnedConfig.forEach(item => {
                 const nextSolar = getNextSolarDate(item.solar.month, item.solar.day);
                 const nextLunar = getNextLunarDate(item.lunar.month, item.lunar.day);
@@ -555,40 +613,41 @@
                 const lDiff = Math.ceil((nextLunar - now) / (1000 * 60 * 60 * 24));
 
                 const getDaysHtml = (diff) => {
-                    if(diff === 0) return '<span class="text-xs font-black text-white bg-rose-400 px-2 py-0.5 rounded shadow-sm animate-pulse">就是今天!</span>';
-                    return `<div class="text-right flex items-baseline"><div class="text-[10px] text-rose-400 font-black tracking-widest uppercase mr-0.5">还有</div><div class="text-2xl font-black font-num text-rose-500 tracking-tighter drop-shadow-sm">${diff}</div><div class="text-[10px] text-rose-400 font-bold ml-0.5">天</div></div>`;
+                    if(diff === 0) return '<span class="text-[10px] font-black text-white bg-rose-400 px-1.5 py-0.5 rounded shadow-sm animate-pulse">就是今天!</span>';
+                    return `<div class="text-right flex items-baseline"><div class="text-[9px] text-rose-400 font-black tracking-widest uppercase mr-0.5">还剩</div><div class="text-xl font-black font-num text-rose-500 tracking-tighter drop-shadow-sm leading-none">${diff}</div><div class="text-[9px] text-rose-400 font-bold ml-0.5">天</div></div>`;
                 };
 
                 htmlStr += `
-                <div class="relative overflow-hidden rounded-[1.5rem] mb-4">
-                    <!-- 置顶标签 -->
-                    <div class="absolute top-0 left-0 bg-rose-400 text-white text-[10px] font-bold px-3 py-1 rounded-br-xl z-20 shadow-sm tracking-widest flex items-center gap-1">
-                        <span class="text-xs">📌</span> 置顶
+                <div class="relative overflow-hidden rounded-[1.2rem] mb-3">
+                    <div class="absolute top-0 left-0 bg-rose-400 text-white text-[9px] font-bold px-2 py-0.5 rounded-br-lg z-20 shadow-sm tracking-widest flex items-center gap-0.5">
+                        <span class="text-[10px]">📌</span> 置顶
                     </div>
                     
-                    <div class="p-4 pt-5 bg-rose-50/95 border-2 border-rose-200 shadow-[0_4px_15px_rgba(255,180,200,0.4)] rounded-[1.5rem] relative z-10 flex flex-col gap-3">
+                    <div class="p-3 pt-4 bg-rose-50/95 border-2 border-rose-200 shadow-[0_4px_12px_rgba(255,180,200,0.3)] rounded-[1.2rem] relative z-10 flex flex-col gap-2">
                         
-                        <div class="flex items-center gap-3 ml-1 mt-1">
-                            <div class="w-12 h-12 bg-gradient-to-br from-rose-300 to-rose-400 text-white rounded-[1.2rem] flex items-center justify-center text-2xl shadow-md transform rotate-3">
+                        <div class="flex items-center gap-2 ml-1 mt-0.5">
+                            <div class="w-8 h-8 bg-gradient-to-br from-rose-300 to-rose-400 text-white rounded-lg flex items-center justify-center text-lg shadow-sm transform rotate-3">
                                 ${item.icon}
                             </div>
-                            <h4 class="font-black text-rose-600 text-xl leading-tight tracking-wide">${item.title}</h4>
+                            <h4 class="font-black text-rose-600 text-base leading-tight tracking-wide">${item.title}</h4>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-2 mt-1">
-                            <!-- 新历盒子 -->
-                            <div class="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl p-3 shadow-sm border border-rose-100 relative">
-                                <span class="text-[11px] font-black text-rose-400 tracking-wider mb-0.5">新历 (公历)</span>
-                                <span class="text-[10px] font-bold text-rose-300 font-num mb-2">${formatYMD(nextSolar)}</span>
+                        <div class="grid grid-cols-2 gap-2 mt-0.5">
+                            <div class="flex flex-col bg-white/80 backdrop-blur-md rounded-xl p-2 shadow-sm border border-rose-100 relative justify-between min-h-[4rem]">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[11px] font-black text-rose-400 tracking-wider">新历</span>
+                                    <span class="text-[10px] font-bold text-rose-300 font-num">${formatYMD(nextSolar)}</span>
+                                </div>
                                 <div class="flex items-baseline justify-end z-10 mt-auto">
                                     ${getDaysHtml(sDiff)}
                                 </div>
                             </div>
 
-                            <!-- 农历盒子 -->
-                            <div class="flex flex-col bg-white/80 backdrop-blur-md rounded-2xl p-3 shadow-sm border border-rose-100 relative">
-                                <span class="text-[11px] font-black text-rose-400 tracking-wider mb-0.5">农历${item.lunar.name}</span>
-                                <span class="text-[10px] font-bold text-rose-300 font-num mb-2">${formatYMD(nextLunar)}</span>
+                            <div class="flex flex-col bg-white/80 backdrop-blur-md rounded-xl p-2 shadow-sm border border-rose-100 relative justify-between min-h-[4rem]">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="text-[11px] font-black text-rose-400 tracking-wider">农历${item.lunar.name}</span>
+                                    <span class="text-[10px] font-bold text-rose-300 font-num">${formatYMD(nextLunar)}</span>
+                                </div>
                                 <div class="flex items-baseline justify-end z-10 mt-auto">
                                     ${getDaysHtml(lDiff)}
                                 </div>
@@ -598,7 +657,7 @@
                 </div>`;
             });
 
-            // --- 2. 原有逻辑：渲染 Github/本地 存储的动态倒数日 ---
+            // --- 动态倒数日列表 (应用了左滑 JS 交互) ---
             let enriched = djsData.countdowns.map(item => {
                 const target = new Date(item.date);
                 target.setHours(0,0,0,0);
@@ -616,12 +675,12 @@
 
             if (enriched.length === 0) {
                 htmlStr += `
-                    <div class="inner-glass rounded-[2rem] p-10 text-center flex flex-col items-center">
+                    <div class="inner-glass rounded-[2rem] p-10 text-center flex flex-col items-center mt-2">
                         <div class="text-4xl mb-3 opacity-60 animate-float">☁️</div>
                         <p class="text-sm text-rose-300 font-bold">暂时还没有记录未来的日子哦，<br>点击右下角添加一个吧！</p>
                     </div>`;
             } else {
-                htmlStr += enriched.map(item => {
+                htmlStr += `<div class="mt-2 space-y-4">` + enriched.map(item => {
                     const dateStr = item.date;
                     let statusHtml = '';
                     let cardClass = 'inner-glass shadow-sm';
@@ -629,7 +688,7 @@
                     
                     if (item.diffDays === 0) {
                         statusHtml = `<span class="bg-rose-400 text-white px-3.5 py-1.5 rounded-full text-xs font-black animate-pulse shadow-md">就在今天!</span>`;
-                        cardClass = 'bg-white border-2 border-rose-200 shadow-md transform scale-[1.02] relative z-10';
+                        cardClass = 'bg-white border-2 border-rose-200 shadow-md relative z-10';
                     } else if (item.diffDays > 0) {
                         statusHtml = `
                             <div class="text-right flex items-baseline gap-1">
@@ -648,14 +707,18 @@
                         iconBg = 'bg-slate-100 text-slate-400';
                     }
 
+                    // 修改这里：去掉了 hover 和 active 伪类，加入了 swipe-front 用于 JS 绑定
                     return `
-                    <div class="relative overflow-hidden rounded-[1.5rem] group cursor-pointer touch-pan-y">
-                        <div class="absolute inset-0 bg-red-400 flex justify-end items-center pr-6">
-                            <button onclick="deleteEvent('${item.id}')" class="text-white hover:scale-110 active:scale-95 transition-transform p-2">
-                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <div class="relative overflow-hidden rounded-[1.5rem] touch-pan-y">
+                        <!-- 底层的红色删除按钮区 -->
+                        <div class="absolute inset-0 bg-red-400 flex justify-end items-center pr-5 rounded-[1.5rem]">
+                            <button onclick="deleteEvent('${item.id}')" class="text-white hover:scale-110 active:scale-95 transition-transform p-2 flex flex-col items-center gap-1">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                <span class="text-[10px] font-bold">删除</span>
                             </button>
                         </div>
-                        <div class="p-4 border transition-transform duration-300 ease-out flex items-center justify-between ${cardClass} relative z-10 group-hover:-translate-x-16 active:-translate-x-20">
+                        <!-- 表层可滑动卡片 -->
+                        <div class="swipe-front p-4 transition-transform duration-300 ease-out flex items-center justify-between ${cardClass} rounded-[1.5rem] relative z-10">
                             <div class="flex items-center gap-4">
                                 <div class="w-14 h-14 ${iconBg} rounded-[1.2rem] flex items-center justify-center text-3xl">
                                     ${item.icon}
@@ -670,7 +733,7 @@
                             </div>
                         </div>
                     </div>`;
-                }).join('');
+                }).join('') + `</div>`;
             }
             
             listContainer.innerHTML = htmlStr;
