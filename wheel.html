@@ -322,7 +322,11 @@
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const PARTNER_FILE = `data/${partnerIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
+        
+        // 盲盒机与道具商城关联文件
         const SCWP_FILE = 'data/scwp.json';
+        const MH_FILE = 'data/mh.json';
+        const MHJL_MY_FILE = `data/${myIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`;
         
         // 每日抽奖限制文件路径
         const LIMIT_FILE = `data/${myIdentity === '哼哼' ? 'hdzp' : 'qdzp'}.json`;
@@ -331,13 +335,13 @@
         let myData = { points: 0, inventory: {}, pendingUses: [], sha: null };
         let partnerData = { points: 0, inventory: {}, pendingUses: [], sha: null };
         let myLimitData = { timestamps: [], sha: null };
-        let mallItems = [];
+        let grandPrizePool = []; // 包含盲盒高级碎片与商城道具的混合池
 
         function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
-        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
+        // 修复：使用 .replace(/\s/g, '') 去除可能存在的换行符，防止 atob 报错
+        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str.replace(/\s/g, '')))); }
 
         // --- Wheel Configuration (11 slices) ---
-        // 移除了所有扣分和偷取积分的项目，现在全部都是正向奖励！
         const wheelSlices = [
             { id: 1, name: "微小确幸", icon: "🍬", type: 'self', val: 6, color: '#fef3c7', textColor: '#92400e' },
             { id: 2, name: "欧气爆棚", icon: "✨", type: 'self', val: 10, color: '#fee2e2', textColor: '#991b1b' },
@@ -442,7 +446,7 @@
                 return;
             }
             
-            // Allow bypassing limits in preview if points aren't synced yet (For UX demo)
+            // Allow bypassing limits in preview if points aren't synced yet
             if (myData.points < 1 && GITHUB_TOKEN) {
                 showToast("🪙 积分不够啦，快去赚点积分再来！");
                 return;
@@ -460,10 +464,26 @@
             
             let droppedItem = null;
             if (prize.type === 'item') {
-                if (mallItems && mallItems.length > 0) {
-                    droppedItem = mallItems[Math.floor(Math.random() * mallItems.length)];
+                if (grandPrizePool && grandPrizePool.length > 0) {
+                    const picked = grandPrizePool[Math.floor(Math.random() * grandPrizePool.length)];
+                    if (picked.poolType === 'fragment') {
+                        // 随机抽取该物品的碎片编号
+                        const pieceNo = Math.floor(Math.random() * picked.piecesCount) + 1;
+                        droppedItem = {
+                            ...picked,
+                            pieceNo: pieceNo,
+                            icon: "🧩",
+                            displayName: `${picked.name} 碎片 No.${pieceNo}`
+                        };
+                    } else {
+                        // 普通商城道具
+                        droppedItem = {
+                            ...picked,
+                            displayName: picked.name
+                        };
+                    }
                 } else {
-                    droppedItem = { name: "10积分(补偿)", icon: "🪙", desc: "网络原因道具迷路了" };
+                    droppedItem = { poolType: 'fallback', name: "10积分(补偿)", displayName: "10积分(补偿)", icon: "🪙" };
                 }
             }
 
@@ -528,44 +548,50 @@
             myLimitData.sha = limitUpdate.sha;
             updateLimitUI();
 
-            // 2. 更新积分/道具
-            let finalSelfPoints = myData.points - 1;
-            let finalPartnerPoints = partnerData.points;
-            let finalInventory = { ...myData.inventory };
             let recordText = '';
 
-            if (prize.type === 'self') {
-                finalSelfPoints += prize.val;
-                recordText = `${prize.name}`;
-            } 
-            else if (prize.type === 'partner') {
-                finalPartnerPoints += prize.val;
-                recordText = `${prize.name}`;
-            } 
-            else if (prize.type === 'steal') {
-                finalSelfPoints += prize.val;
-                finalPartnerPoints -= prize.val;
-                recordText = `${prize.name}`;
-            }
+            if (prize.type === 'self') recordText = `${prize.name}`;
+            else if (prize.type === 'partner') recordText = `${prize.name}`;
+            else if (prize.type === 'steal') recordText = `${prize.name}`;
             else if (prize.type === 'item') {
-                if (droppedItem.name === "10积分(补偿)") {
-                    finalSelfPoints += 10;
-                } else {
-                    finalInventory[droppedItem.id] = (finalInventory[droppedItem.id] || 0) + 1;
-                }
-                recordText = `隐藏大奖 - ${droppedItem.name}`;
+                recordText = droppedItem.poolType === 'fragment' ? `隐藏大奖 - ${droppedItem.name} 碎片` : `隐藏大奖 - ${droppedItem.name}`;
             }
 
+            // 2. 如果掉落的是盲盒碎片，则写入到盲盒背包数据中 (MHJL_MY_FILE)
+            if (prize.type === 'item' && droppedItem.poolType === 'fragment') {
+                const freshMhjlRes = await fetchFile(MHJL_MY_FILE);
+                if (freshMhjlRes.error) return false;
+
+                let mhjlData = freshMhjlRes.data || {};
+                mhjlData.inventory = mhjlData.inventory || {};
+                mhjlData.fragments = mhjlData.fragments || {};
+                mhjlData.pendingUses = mhjlData.pendingUses || [];
+                mhjlData.drawTimestamps = mhjlData.drawTimestamps || [];
+                mhjlData.premiumDrawTimestamps = mhjlData.premiumDrawTimestamps || [];
+
+                if (!mhjlData.fragments[droppedItem.name]) {
+                    mhjlData.fragments[droppedItem.name] = { total: parseInt(droppedItem.piecesCount), pieces: [] };
+                }
+                mhjlData.fragments[droppedItem.name].pieces.push(droppedItem.pieceNo);
+
+                const mhjlUpdate = await updateFile(MHJL_MY_FILE, mhjlData, freshMhjlRes.sha, `Wheel spin dropped fragment: ${droppedItem.name} No.${droppedItem.pieceNo}`);
+                if (!mhjlUpdate.success) return false;
+            }
+
+            // 3. 更新积分与商城道具仓库 (MY_FILE)
             const freshMyRes = await fetchFile(MY_FILE);
             if (freshMyRes.error) return false;
             
-            let latestSelfPoints = (freshMyRes.data?.points || 0) - 1;
+            let latestSelfPoints = (freshMyRes.data?.points || 0) - 1; // 扣除1积分
             if (prize.type === 'self' || prize.type === 'steal') latestSelfPoints += prize.val;
-            if (prize.type === 'item' && droppedItem.name === "10积分(补偿)") latestSelfPoints += 10;
             
             let latestInventory = freshMyRes.data?.inventory || {};
-            if (prize.type === 'item' && droppedItem.name !== "10积分(补偿)") {
-                latestInventory[droppedItem.id] = (latestInventory[droppedItem.id] || 0) + 1;
+            if (prize.type === 'item') {
+                if (droppedItem.poolType === 'fallback') {
+                    latestSelfPoints += 10;
+                } else if (droppedItem.poolType === 'mall') {
+                    latestInventory[droppedItem.id] = (latestInventory[droppedItem.id] || 0) + 1;
+                }
             }
 
             const selfUpdate = await updateFile(MY_FILE, { 
@@ -624,12 +650,14 @@
                     headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
                 });
                 if (response.status === 404) return { data: null, sha: null };
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
                 
                 const result = await response.json();
                 const contentStr = b64_to_utf8(result.content);
-                return { data: JSON.parse(contentStr), sha: result.sha };
+                // 增强容错：如果文件为空返回空对象，防止 JSON.parse 崩溃
+                return { data: JSON.parse(contentStr || '{}'), sha: result.sha };
             } catch (error) {
+                console.error(`Fetch or Parse failed for ${filePath}:`, error);
                 return { error: true };
             }
         }
@@ -657,16 +685,21 @@
         }
 
         async function refreshData() {
-            if (!GITHUB_TOKEN) return; // Skip fetch if not authenticated
+            if (!GITHUB_TOKEN) return; 
             
             document.getElementById('myPoints').innerText = '...';
 
-            const [myRes, partnerRes, scwpRes, limitRes] = await Promise.all([
-                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE), fetchFile(LIMIT_FILE)
+            const [myRes, partnerRes, scwpRes, limitRes, mhRes] = await Promise.all([
+                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE), fetchFile(LIMIT_FILE), fetchFile(MH_FILE)
             ]);
 
+            // 混合商城的普通道具与盲盒的高级碎片，形成大奖池
+            grandPrizePool = [];
             if (scwpRes.data && Array.isArray(scwpRes.data)) {
-                mallItems = scwpRes.data;
+                scwpRes.data.forEach(item => grandPrizePool.push({ ...item, poolType: 'mall' }));
+            }
+            if (mhRes.data && mhRes.data.premiumPool && Array.isArray(mhRes.data.premiumPool)) {
+                mhRes.data.premiumPool.forEach(item => grandPrizePool.push({ ...item, poolType: 'fragment' }));
             }
 
             if (myRes.data && !myRes.error) {
@@ -696,7 +729,13 @@
             if (prize.type === 'self') badges.push({ text: `我 ${prize.val > 0 ? '+'+prize.val : prize.val}`, color: prize.val > 0 ? 'text-rose-500' : 'text-gray-500' });
             if (prize.type === 'partner') badges.push({ text: `TA +${prize.val}`, color: 'text-green-500' });
             if (prize.type === 'steal') badges.push({ text: `我 +${prize.val}, TA -${prize.val}`, color: 'text-purple-500' });
-            if (prize.type === 'item') badges.push({ text: '获得道具', color: 'text-amber-500' });
+            if (prize.type === 'item') {
+                if (droppedItem && droppedItem.poolType === 'fragment') {
+                    badges.push({ text: '获得碎片', color: 'text-orange-500' });
+                } else {
+                    badges.push({ text: '获得道具', color: 'text-amber-500' });
+                }
+            }
 
             history.unshift({
                 id: Date.now(),
@@ -749,11 +788,17 @@
 
             if (prize.type === 'item' && droppedItem) {
                 iconEl.innerText = droppedItem.icon;
-                nameEl.innerText = `获得: ${droppedItem.name}`;
+                nameEl.innerText = `获得: ${droppedItem.displayName}`;
                 
                 const badge = document.createElement('span');
                 badge.className = "text-sm font-bold text-amber-600 bg-amber-50 border border-amber-100 px-3 py-1 rounded-full";
-                badge.innerText = "道具已存入仓库";
+                
+                if (droppedItem.poolType === 'fragment') {
+                    badge.innerText = "碎片已存入盲盒背包";
+                } else {
+                    badge.innerText = "道具已存入仓库";
+                }
+
                 containerEl.appendChild(badge);
             } else {
                 iconEl.innerText = prize.icon;
@@ -818,7 +863,7 @@
         window.onload = function() {
             initWheel(); 
             refreshData(); 
-            renderHistory(); // Ensure local history is loaded immediately
+            renderHistory(); 
         };
     </script>
 </body>
