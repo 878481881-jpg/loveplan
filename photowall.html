@@ -75,7 +75,7 @@
 
                 <!-- 瀑布流容器 -->
                 <div id="photoGrid" class="flex-1 overflow-y-auto custom-scrollbar pr-1 columns-2 gap-4 space-y-4 pb-4">
-                    <!-- JS动态渲染 -->
+                    <!-- JS动态渲染照片/视频 -->
                 </div>
             </div>
         </div>
@@ -86,25 +86,13 @@
                 
                 <!-- 媒体选择区 -->
                 <div id="uploadArea" class="w-full h-40 border-2 border-dashed border-rose-300 rounded-xl bg-rose-50 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors mb-4 relative overflow-hidden" onclick="document.getElementById('mediaInput').click()">
-                    
-                    <!-- 默认占位符 -->
-                    <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none z-10">
+                    <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none">
                         <span class="text-4xl mb-2">📥</span>
                         <span class="text-sm font-bold text-rose-400">点击选择图片或视频</span>
                     </div>
-
-                    <!-- 视频压缩中UI遮罩 -->
-                    <div id="compressingUI" class="hidden absolute inset-0 bg-rose-50/95 z-40 flex flex-col items-center justify-center backdrop-blur-sm cursor-wait">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-rose-500 mb-2"></div>
-                        <span class="text-xs font-bold text-rose-600">正在开启降质压缩...</span>
-                        <span class="text-[10px] text-rose-400 mt-1 scale-90">需要后台播放一遍，请勿离开</span>
-                        <span id="compressProgress" class="text-sm font-mono mt-1 text-rose-600 font-bold">0%</span>
-                    </div>
-
-                    <img id="imagePreview" class="hidden absolute inset-0 w-full h-full object-cover z-20">
-                    <video id="videoPreview" class="hidden absolute inset-0 w-full h-full object-cover z-20 bg-black" controls></video>
-                    
-                    <button id="clearMediaBtn" onclick="clearMedia(event)" class="hidden absolute top-2 right-2 bg-white/90 text-rose-500 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-bold z-30 hover:bg-rose-500 hover:text-white transition-colors backdrop-blur-sm">×</button>
+                    <img id="imagePreview" class="hidden absolute inset-0 w-full h-full object-cover z-10">
+                    <video id="videoPreview" class="hidden absolute inset-0 w-full h-full object-cover z-10" controls></video>
+                    <button id="clearMediaBtn" onclick="clearMedia(event)" class="hidden absolute top-2 right-2 bg-white/80 text-rose-500 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-bold z-20 hover:bg-rose-500 hover:text-white transition-colors">×</button>
                 </div>
                 <input type="file" id="mediaInput" accept="image/*,video/*" class="hidden" onchange="handleMediaSelect(event)">
 
@@ -118,8 +106,8 @@
                     <div class="flex items-center justify-between border-b border-rose-100 pb-2">
                         <span class="text-sm font-bold text-gray-600">画面主角</span>
                         <select id="formSubject" class="text-sm bg-rose-50 border border-rose-200 text-rose-500 rounded-lg px-3 py-1 focus:outline-none focus:border-rose-400">
-                            <option value="我们">我们 👩‍❤️‍👨</option>
-                            <option value="亲亲">亲亲 👧</option>
+                            <option value="我们">我们 🧑‍🤝‍🧑</option>
+                            <option value="亲亲">亲亲 👦</option>
                             <option value="哼哼">哼哼 👦</option>
                         </select>
                     </div>
@@ -133,7 +121,7 @@
                     </div>
                 </div>
 
-                <!-- 网络上传进度条 UI -->
+                <!-- 进度条 UI -->
                 <div id="progressContainer" class="hidden w-full mt-4">
                     <div class="flex justify-between text-xs text-rose-500 mb-1 font-bold">
                         <span>🚀 正在上传至时光机...</span>
@@ -219,140 +207,25 @@
             renderPhotos();
         }
 
-        // ======================= 视频压缩核心逻辑 =======================
-        async function compressLocalVideo(file) {
-            return new Promise((resolve, reject) => {
-                const video = document.createElement('video');
-                video.src = URL.createObjectURL(file);
-                video.playsInline = true;
-                video.muted = true; // 必须静音才能确保后台无痕播放
-                
-                video.onloadedmetadata = async () => {
-                    // 强制降档到 480p 左右控制体积
-                    const MAX_WIDTH = 640; 
-                    let w = video.videoWidth;
-                    let h = video.videoHeight;
-                    if (w > MAX_WIDTH) {
-                        h = Math.floor(h * (MAX_WIDTH / w));
-                        w = MAX_WIDTH;
-                    }
-
-                    const canvas = document.createElement('canvas');
-                    canvas.width = w;
-                    canvas.height = h;
-                    const ctx = canvas.getContext('2d');
-
-                    let stream;
-                    try {
-                        stream = canvas.captureStream(24); // 降频到 24 FPS
-                    } catch (e) {
-                        return reject(new Error("当前浏览器不支持视频流捕获"));
-                    }
-
-                    // 合并音频 (利用 Web Audio API 抓取原本静音的视频声音)
-                    try {
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        if (audioCtx.state === 'suspended') await audioCtx.resume();
-                        const source = audioCtx.createMediaElementSource(video);
-                        const dest = audioCtx.createMediaStreamDestination();
-                        source.connect(dest);
-                        const audioTracks = dest.stream.getAudioTracks();
-                        if (audioTracks.length > 0) {
-                            stream.addTrack(audioTracks[0]);
-                        }
-                    } catch (e) {
-                        console.warn("音频抓取失败，视频可能无声", e);
-                    }
-
-                    let options = { mimeType: 'video/webm;codecs=vp8,opus' };
-                    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-                        options = { mimeType: 'video/webm' }; 
-                    }
-                    // 控制比特率约为 800 kbps，通常能把5分钟视频压进 30MB
-                    options.videoBitsPerSecond = 800000; 
-
-                    let recorder;
-                    try {
-                        recorder = new MediaRecorder(stream, options);
-                    } catch (e) {
-                        return reject(new Error("浏览器不支持 MediaRecorder API"));
-                    }
-
-                    const chunks = [];
-                    recorder.ondataavailable = e => {
-                        if (e.data.size > 0) chunks.push(e.data);
-                    };
-
-                    recorder.onstop = () => {
-                        const blob = new Blob(chunks, { type: recorder.mimeType || 'video/webm' });
-                        const compressedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + "_compressed.webm", { type: blob.type });
-                        URL.revokeObjectURL(video.src);
-                        resolve(compressedFile);
-                    };
-
-                    video.play().then(() => {
-                        recorder.start();
-                        const progressEl = document.getElementById('compressProgress');
-                        
-                        function drawFrame() {
-                            if (video.paused || video.ended) {
-                                if (recorder.state === 'recording') recorder.stop();
-                                return;
-                            }
-                            ctx.drawImage(video, 0, 0, w, h);
-                            if (video.duration) {
-                                const percent = Math.floor((video.currentTime / video.duration) * 100);
-                                progressEl.innerText = percent + '%';
-                            }
-                            requestAnimationFrame(drawFrame);
-                        }
-                        drawFrame();
-                    }).catch(err => reject(new Error("后台视频播放失败，请尝试刷新重试")));
-                };
-
-                video.onerror = () => reject(new Error("视频文件读取失败"));
-            });
-        }
-        // ===============================================================
-
-        async function handleMediaSelect(event) {
-            let file = event.target.files[0];
+        function handleMediaSelect(event) {
+            const file = event.target.files[0];
             if (!file) return;
             
-            // 判断类型
-            currentMediaType = file.type.startsWith('video/') ? 'video' : 'image';
-
-            // 容量限制与压缩检测
-            const MAX_SIZE = 30 * 1024 * 1024;
-            if (file.size > MAX_SIZE) {
-                if (currentMediaType === 'image') {
-                    showToast("图片超过30MB了，请换一张小的哦~");
-                    event.target.value = ''; return;
-                } else {
-                    // 启动视频压缩
-                    showToast("视频过大，启动前端压缩引擎 🚀");
-                    document.getElementById('compressingUI').classList.remove('hidden');
-                    try {
-                        file = await compressLocalVideo(file);
-                        if (file.size > MAX_SIZE) {
-                            showToast("压不下来了🥺 压缩后依然超过30M，请剪辑更短的视频");
-                            document.getElementById('compressingUI').classList.add('hidden');
-                            event.target.value = ''; return;
-                        }
-                        showToast("本地压缩完成！🎉");
-                    } catch (e) {
-                        showToast("压缩失败：" + e.message);
-                        document.getElementById('compressingUI').classList.add('hidden');
-                        event.target.value = ''; return;
-                    }
-                    document.getElementById('compressingUI').classList.add('hidden');
-                }
+            if (file.size > 30 * 1024 * 1024) {
+                showToast("文件不能超过30MB哦~");
+                event.target.value = ''; return;
             }
 
-            // 读取并在 UI 上渲染
+            if (file.type.startsWith('video/')) {
+                currentMediaType = 'video';
+            } else {
+                currentMediaType = 'image';
+            }
+
             const reader = new FileReader();
             reader.onload = function(e) {
                 const dataUrl = e.target.result;
+                
                 document.getElementById('uploadPlaceholder').classList.add('hidden');
                 document.getElementById('clearMediaBtn').classList.remove('hidden');
                 
@@ -370,7 +243,7 @@
                 }
 
                 currentMediaBase64 = dataUrl.split(',')[1];
-                currentMediaExt = file.name.split('.').pop() || (currentMediaType === 'video' ? 'webm' : 'jpg'); // 压缩后通常是 webm
+                currentMediaExt = file.name.split('.').pop() || (currentMediaType === 'video' ? 'mp4' : 'jpg');
             }
             reader.readAsDataURL(file);
         }
@@ -409,6 +282,61 @@
             img.classList.remove('scale-100');
             img.classList.add('scale-95');
             setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // --- 视频下载并播放逻辑 ---
+        function downloadAndPlayVideo(url, id) {
+            const btn = document.getElementById(`video_btn_${id}`);
+            const progressContainer = document.getElementById(`video_progress_container_${id}`);
+            const progressBar = document.getElementById(`video_progress_bar_${id}`);
+            const progressText = document.getElementById(`video_progress_text_${id}`);
+            const videoEl = document.getElementById(`video_${id}`);
+            const overlay = document.getElementById(`video_overlay_${id}`);
+
+            btn.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+            progressContainer.classList.add('flex');
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = function(event) {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.floor((event.loaded / event.total) * 100);
+                    progressBar.style.width = percentComplete + '%';
+                    progressText.innerText = `正在缓冲... ${percentComplete}%`;
+                } else {
+                    progressText.innerText = '正在缓冲...';
+                }
+            };
+
+            xhr.onload = function() {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    const blob = xhr.response;
+                    const objectUrl = URL.createObjectURL(blob);
+                    
+                    overlay.classList.add('hidden');
+                    
+                    videoEl.src = objectUrl;
+                    videoEl.controls = true;
+                    videoEl.play();
+                } else {
+                    showToast("加载失败，请检查网络");
+                    btn.classList.remove('hidden');
+                    progressContainer.classList.add('hidden');
+                    progressContainer.classList.remove('flex');
+                }
+            };
+
+            xhr.onerror = function() {
+                showToast("视频加载异常，请稍后重试");
+                btn.classList.remove('hidden');
+                progressContainer.classList.add('hidden');
+                progressContainer.classList.remove('flex');
+            };
+
+            xhr.send();
         }
 
         async function fetchPhotosData() {
@@ -475,9 +403,15 @@
                     }
                 };
 
-                xhr.onerror = function() { reject(new Error('Network error')); };
+                xhr.onerror = function() {
+                    reject(new Error('Network error'));
+                };
 
-                const body = JSON.stringify({ message: `Upload media ${filename}`, content: base64Data });
+                const body = JSON.stringify({
+                    message: `Upload media ${filename}`,
+                    content: base64Data
+                });
+
                 xhr.send(body);
             });
         }
@@ -514,6 +448,7 @@
 
             try {
                 const uploadedMediaUrl = await uploadMediaToGithubWithProgress(currentMediaBase64, currentMediaExt, 'photowall');
+                
                 if (!uploadedMediaUrl) throw new Error("Url is null");
 
                 btn.innerText = "正在同步数据...";
@@ -548,7 +483,7 @@
                 }
             } catch (error) {
                 console.error(error);
-                showToast("文件上传失败，请检查网络");
+                showToast("文件上传失败，请检查网络或文件大小");
             } finally {
                 btn.innerHTML = "发布动态 🚀"; 
                 btn.disabled = false;
@@ -588,9 +523,23 @@
                 
                 let mediaHtml = '';
                 if (item.type === 'video') {
+                    // 新增：带缓冲下载层的视频结构
                     mediaHtml = `
-                        <div class="overflow-hidden rounded-lg bg-black">
-                            <video src="${item.url}" controls preload="metadata" class="w-full object-contain max-h-64"></video>
+                        <div class="relative overflow-hidden rounded-lg bg-black/90 aspect-auto min-h-[120px]">
+                            <video id="video_${item.id}" preload="none" class="w-full object-contain max-h-64" playsinline></video>
+                            
+                            <div id="video_overlay_${item.id}" class="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-10 backdrop-blur-[2px]">
+                                <button id="video_btn_${item.id}" onclick="downloadAndPlayVideo('${item.url}', '${item.id}')" class="bg-white/90 text-rose-500 rounded-full w-12 h-12 flex items-center justify-center shadow-lg hover:scale-110 transition-transform">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                </button>
+                                
+                                <div id="video_progress_container_${item.id}" class="hidden w-3/4 mt-3 flex-col items-center">
+                                    <span id="video_progress_text_${item.id}" class="text-white text-xs font-bold mb-1 drop-shadow-md">0%</span>
+                                    <div class="w-full bg-white/30 rounded-full h-1.5 overflow-hidden">
+                                        <div id="video_progress_bar_${item.id}" class="bg-rose-400 h-1.5 rounded-full transition-all duration-200 w-0"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -613,7 +562,7 @@
                         <div class="mt-1 px-1 text-[11px] text-gray-500 flex items-center gap-1">
                             来自: ${uploaderIcon} ${item.uploader}
                         </div>
-                        ${currentCategory === '全部' ? `<div class="absolute top-3 left-3 bg-white/90 text-rose-500 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">${item.subject}</div>` : ''}
+                        ${currentCategory === '全部' ? `<div class="absolute top-3 left-3 bg-white/90 text-rose-500 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm z-20">${item.subject}</div>` : ''}
                     </div>
                 `;
             }).join('');
