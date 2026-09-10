@@ -13,7 +13,8 @@
             background-color: #fdf2f8; 
             background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
             background-size: 20px 20px; 
-            overflow-x: hidden; 
+            /* 关键修改：禁止整体页面滚动 */
+            overflow: hidden; 
         }
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
@@ -21,27 +22,26 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
         
-        .custom-scrollbar::-webkit-scrollbar { width: 0px; } /* 隐藏原生滚动条，更纯粹 */
-        
-        /* 瀑布流核心控制 */
-        .masonry-grid { column-count: 2; column-gap: 12px; }
-        .photo-card { break-inside: avoid; margin-bottom: 12px; }
+        /* 隐藏内部区域的原生滚动条，保持画框纯净感 */
+        .custom-scrollbar::-webkit-scrollbar { height: 0px; width: 0px; }
     </style>
 </head>
 
-<body class="min-h-screen flex flex-col items-center pb-10">
-    <!-- 吸顶区域 -->
-    <div class="sticky top-0 z-40 w-full max-w-md bg-[#fdf2f8]/90 backdrop-blur-md pt-6 pb-2 px-4 shadow-sm border-b border-rose-100/50">
-        <header class="text-center mb-4 w-full flex justify-between items-center px-2">
-            <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 transition-transform hover:scale-110">
+<!-- 关键修改：全屏高度限制 flex-col -->
+<body class="h-[100dvh] w-screen flex flex-col items-center">
+    
+    <!-- 顶部固定区域 -->
+    <div class="z-40 w-full max-w-md bg-[#fdf2f8]/95 backdrop-blur-md pt-5 pb-3 px-4 shadow-sm border-b border-rose-100/50 shrink-0">
+        <header class="text-center mb-4 w-full flex justify-between items-center px-1">
+            <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 transition-transform hover:scale-110 flex-shrink-0">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </a>
-            <div>
+            <div class="flex-1 flex justify-center">
                 <h1 class="text-xl font-bold text-rose-500 flex items-center justify-center gap-2 drop-shadow-sm">
                    <span>📸</span> 我们的照片墙 <span>✨</span>
                 </h1>
             </div>
-            <div class="w-9 h-9"></div>
+            <div class="w-9 h-9 flex-shrink-0"></div>
         </header>
 
         <!-- 顶层主选项卡 -->
@@ -51,33 +51,40 @@
         </div>
     </div>
 
-    <main class="w-full max-w-md flex flex-col items-center px-4 mt-4">
+    <!-- 关键修改：弹性占满剩余空间，限制溢出 -->
+    <main class="w-full max-w-md flex flex-col flex-1 px-4 mt-3 mb-4 overflow-hidden relative">
+        
         <!-- 视图 1：照片墙 -->
-        <div id="wallView" class="w-full flex flex-col items-center transition-opacity duration-300">
-            <!-- 墙内子选项卡 -->
-            <div class="flex justify-between items-center mb-4 w-full bg-white/80 p-2 rounded-xl shadow-sm border border-rose-100">
+        <div id="wallView" class="w-full h-full flex flex-col transition-opacity duration-300">
+            
+            <!-- 墙内子选项卡 (不参与滚动) -->
+            <div class="flex justify-between items-center mb-3 w-full bg-white/90 p-2 rounded-xl shadow-sm border border-rose-100 backdrop-blur-sm shrink-0">
                 <div class="flex space-x-1 overflow-x-auto custom-scrollbar" id="categoryTabs">
                     <button onclick="switchCategory('全部')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md bg-rose-100 text-rose-600 shadow-sm transition-all whitespace-nowrap" data-cat="全部">全部</button>
                     <button onclick="switchCategory('我们')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:bg-rose-50 transition-all whitespace-nowrap" data-cat="我们">我们</button>
                     <button onclick="switchCategory('亲亲')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:bg-rose-50 transition-all whitespace-nowrap" data-cat="亲亲">亲亲</button>
                     <button onclick="switchCategory('哼哼')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:bg-rose-50 transition-all whitespace-nowrap" data-cat="哼哼">哼哼</button>
+                    <button onclick="switchCategory('其他')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:bg-rose-50 transition-all whitespace-nowrap" data-cat="其他">其他</button>
                 </div>
                 
-                <select id="sortSelect" onchange="renderPhotos()" class="ml-2 text-xs bg-white border border-rose-200 text-rose-500 rounded-lg px-2 py-1.5 focus:outline-none focus:border-rose-400 shadow-sm shrink-0">
+                <select id="sortSelect" onchange="renderPhotos()" class="ml-2 text-xs bg-rose-50 border border-rose-100 text-rose-500 rounded-lg px-2 py-1.5 focus:outline-none focus:border-rose-300 shadow-sm shrink-0 font-medium">
                     <option value="time">最新发布</option>
                     <option value="level">最高等级</option>
                 </select>
             </div>
 
-            <!-- 瀑布流容器 (页面级自然滚动) -->
-            <div id="photoGrid" class="w-full masonry-grid">
-                <!-- JS动态渲染 -->
+            <!-- 关键修改：照片画框内部自适应高度并允许内部滚动 -->
+            <div class="w-full flex-1 bg-white/60 p-2.5 rounded-2xl shadow-sm border border-rose-100/60 backdrop-blur-md overflow-y-auto custom-scrollbar">
+                <!-- 瀑布流双列容器 -->
+                <div id="photoGrid" class="w-full pb-6">
+                    <!-- JS动态渲染双列瀑布流 -->
+                </div>
             </div>
         </div>
 
-        <!-- 视图 2：发布照片 -->
-        <div id="uploadView" class="w-full flex flex-col items-center hidden transition-opacity duration-300">
-            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border-2 border-rose-100">
+        <!-- 视图 2：发布照片 (独立滚动，防止小屏幕显示不全) -->
+        <div id="uploadView" class="w-full h-full flex flex-col hidden transition-opacity duration-300 overflow-y-auto custom-scrollbar pb-6">
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border-2 border-rose-100 shrink-0">
                 
                 <div id="uploadArea" class="w-full h-48 border-2 border-dashed border-rose-300 rounded-xl bg-rose-50 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors mb-5 relative overflow-hidden" onclick="document.getElementById('imageInput').click()">
                     <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none">
@@ -96,11 +103,12 @@
                     </div>
                     
                     <div class="flex items-center justify-between border-b border-rose-100 pb-3">
-                        <span class="text-sm font-bold text-gray-600">照片主角</span>
+                        <span class="text-sm font-bold text-gray-600">照片分类</span>
                         <select id="formSubject" class="text-sm bg-rose-50 border border-rose-200 text-rose-500 rounded-lg px-3 py-1 focus:outline-none focus:border-rose-400 font-medium">
-                            <option value="我们">我们 👨‍❤️‍👨</option>
+                            <option value="我们">我们 👦👦</option>
                             <option value="亲亲">亲亲 👦</option>
                             <option value="哼哼">哼哼 👦</option>
+                            <option value="其他">其他 🌟</option>
                         </select>
                     </div>
 
@@ -128,10 +136,10 @@
                     发布照片 🚀
                 </button>
             </div>
-        </div>
-        
-        <div class="mt-8 text-center">
-            <span class="text-gray-400 text-xs bg-white/50 px-3 py-1 rounded-full">当前身份: <span id="currentIdentityLabel" class="text-rose-400 font-bold">-</span></span>
+            
+            <div class="mt-6 mb-2 text-center shrink-0">
+                <span class="text-gray-400 text-xs bg-white/50 px-3 py-1 rounded-full shadow-sm">当前身份: <span id="currentIdentityLabel" class="text-rose-400 font-bold">-</span></span>
+            </div>
         </div>
     </main>
 
@@ -178,9 +186,6 @@
             const uploadView = document.getElementById('uploadView');
             const btnWall = document.getElementById('tabWallBtn');
             const btnUpload = document.getElementById('tabUploadBtn');
-
-            // 切换到顶部
-            window.scrollTo({ top: 0, behavior: 'smooth' });
 
             if (tab === 'wall') {
                 wallView.classList.remove('hidden'); uploadView.classList.add('hidden');
@@ -481,7 +486,7 @@
             const sortMode = document.getElementById('sortSelect').value;
             
             if (!photosData.photos || photosData.photos.length === 0) {
-                container.innerHTML = `<div class="col-span-2 text-center text-sm text-gray-400 mt-10">还没有照片哦，快去发布吧~ 📸</div>`;
+                container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10">还没有照片哦，快去发布吧~ 📸</div>`;
                 return;
             }
 
@@ -497,41 +502,53 @@
             }
 
             if (displayList.length === 0) {
-                container.innerHTML = `<div class="col-span-2 text-center text-sm text-gray-400 mt-10">这个分类下还没有照片哦~ 🍃</div>`;
+                container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10">这个分类下还没有照片哦~ 🍃</div>`;
                 return;
             }
 
-            container.innerHTML = displayList.map(item => {
+            // Flex 双列布局拆分
+            let leftColHtml = '';
+            let rightColHtml = '';
+
+            displayList.forEach((item, index) => {
                 const dateStr = new Date(item.time).toLocaleDateString();
                 const displayThumb = item.thumbUrl || item.url;
                 
-                return `
-                    <div class="photo-card bg-white rounded-xl shadow-sm border border-rose-100 animate-fade-in hover:shadow-md transition-shadow relative overflow-hidden group">
-                        
-                        <!-- 全幅无边距图片展示区 -->
-                        <div class="cursor-zoom-in relative bg-rose-50 w-full" onclick="openImageViewer('${displayThumb}', '${item.url}')">
-                            <img src="${displayThumb}" loading="lazy" class="w-full object-cover transform group-hover:scale-105 transition-transform duration-500 min-h-[100px]">
-                            <!-- 半透明渐变遮罩，为了底部信息文字的可读性 -->
-                            <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
+                const cardHtml = `
+                    <div class="bg-white rounded-lg shadow-sm border border-rose-100/50 animate-fade-in hover:shadow-md transition-shadow relative overflow-hidden group w-full mb-2.5">
+                        <div class="cursor-zoom-in relative w-full h-full block" onclick="openImageViewer('${displayThumb}', '${item.url}')">
+                            <img src="${displayThumb}" loading="lazy" class="w-full h-auto block object-cover transform group-hover:scale-105 transition-transform duration-500">
+                            <div class="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
                         </div>
                         
-                        <!-- 覆盖在图片底部的零留白信息区 -->
                         <div class="absolute bottom-0 left-0 right-0 p-2 text-white flex flex-col justify-end pointer-events-none">
                             <div class="flex items-center justify-between drop-shadow-md">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="text-[14px]">👦</span>
-                                    <span class="text-xs font-bold truncate max-w-[80px]">${item.uploader}</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="text-[13px]">👦</span>
+                                    <span class="text-[11px] font-bold truncate max-w-[70px]">${item.uploader}</span>
                                 </div>
-                                <span class="text-[10px] bg-white/20 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/30 shadow-sm font-bold">Lv.${item.level}</span>
+                                <span class="text-[9px] bg-white/20 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/30 shadow-sm font-bold">Lv.${item.level}</span>
                             </div>
                         </div>
                         
-                        <!-- 分类及时间徽章悬浮 -->
-                        ${currentCategory === '全部' ? `<div class="absolute top-2 left-2 bg-white/90 backdrop-blur-md text-rose-500 text-[10px] font-bold px-2 py-1 rounded-full shadow-sm z-20 pointer-events-none">${item.subject}</div>` : ''}
-                        <div class="absolute top-2 right-2 bg-black/40 backdrop-blur-md text-white/90 text-[9px] font-mono px-1.5 py-0.5 rounded shadow-sm z-20 pointer-events-none">${dateStr}</div>
+                        ${currentCategory === '全部' ? `<div class="absolute top-1.5 left-1.5 bg-white/90 backdrop-blur-md text-rose-500 text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm z-20 pointer-events-none">${item.subject}</div>` : ''}
+                        <div class="absolute top-1.5 right-1.5 bg-black/40 backdrop-blur-md text-white/90 text-[9px] font-mono px-1.5 py-0.5 rounded shadow-sm z-20 pointer-events-none">${dateStr}</div>
                     </div>
                 `;
-            }).join('');
+
+                if (index % 2 === 0) {
+                    leftColHtml += cardHtml;
+                } else {
+                    rightColHtml += cardHtml;
+                }
+            });
+
+            container.innerHTML = `
+                <div class="flex gap-2.5 items-start w-full">
+                    <div class="flex flex-col w-1/2">${leftColHtml}</div>
+                    <div class="flex flex-col w-1/2">${rightColHtml}</div>
+                </div>
+            `;
         }
 
         function showToast(msg) { 
