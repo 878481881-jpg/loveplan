@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我们的照片墙 🖼️</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #fdf2f8; 
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            overflow-x: hidden; 
+        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
+
+        .photo-card { break-inside: avoid; margin-bottom: 1rem; }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center py-6 px-4">
+    <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
+        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 transition-transform hover:scale-110">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <div>
+            <h1 class="text-2xl font-bold text-rose-500 flex items-center justify-center gap-2">
+               <span>📸</span> 我们的照片墙 <span>✨</span>
+            </h1>
+        </div>
+        <div class="w-9 h-9"></div>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center">
+        <!-- 顶层主选项卡 -->
+        <div class="flex space-x-4 mb-4 w-full justify-center bg-white p-1 rounded-full shadow-sm border border-rose-100">
+            <button id="tabWallBtn" onclick="switchMainTab('wall')" class="flex-1 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm">照片墙</button>
+            <button id="tabUploadBtn" onclick="switchMainTab('upload')" class="flex-1 py-2 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50">发布照片</button>
+        </div>
+
+        <!-- 视图 1：照片墙 -->
+        <div id="wallView" class="w-full flex flex-col items-center transition-opacity duration-300">
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[65vh] min-h-[450px]">
+                
+                <!-- 墙内子选项卡 (对象分类) -->
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex bg-rose-50 rounded-lg p-1 space-x-1" id="categoryTabs">
+                        <button onclick="switchCategory('我们')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md bg-white text-rose-500 shadow-sm transition-all" data-cat="我们">我们</button>
+                        <button onclick="switchCategory('亲亲')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-rose-400 transition-all" data-cat="亲亲">亲亲</button>
+                        <button onclick="switchCategory('哼哼')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-rose-400 transition-all" data-cat="哼哼">哼哼</button>
+                    </div>
+                    
+                    <!-- 排序方式 -->
+                    <select id="sortSelect" onchange="renderPhotos()" class="text-xs bg-white border border-rose-200 text-rose-500 rounded-lg px-2 py-1.5 focus:outline-none focus:border-rose-400 shadow-sm">
+                        <option value="time">按发布顺序</option>
+                        <option value="level">按照片等级</option>
+                    </select>
+                </div>
+
+                <!-- 瀑布流容器 -->
+                <div id="photoGrid" class="flex-1 overflow-y-auto custom-scrollbar pr-1 columns-2 gap-4 space-y-4 pb-4">
+                    <!-- JS动态渲染照片 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 视图 2：发布照片 -->
+        <div id="uploadView" class="w-full flex flex-col items-center hidden transition-opacity duration-300">
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border-2 border-rose-100">
+                
+                <!-- 图片选择区 -->
+                <div id="uploadArea" class="w-full h-40 border-2 border-dashed border-rose-300 rounded-xl bg-rose-50 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors mb-4 relative overflow-hidden" onclick="document.getElementById('imageInput').click()">
+                    <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none">
+                        <span class="text-4xl mb-2">📥</span>
+                        <span class="text-sm font-bold text-rose-400">点击选择照片</span>
+                    </div>
+                    <img id="imagePreview" class="hidden absolute inset-0 w-full h-full object-cover z-10">
+                    <button id="clearImgBtn" onclick="clearImage(event)" class="hidden absolute top-2 right-2 bg-white/80 text-rose-500 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-bold z-20 hover:bg-rose-500 hover:text-white transition-colors">×</button>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+
+                <!-- 信息表单 -->
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between border-b border-rose-100 pb-2">
+                        <span class="text-sm font-bold text-gray-600">发布人</span>
+                        <span id="uploaderName" class="text-sm text-rose-500 font-bold bg-rose-50 px-3 py-1 rounded-full"></span>
+                    </div>
+                    
+                    <div class="flex items-center justify-between border-b border-rose-100 pb-2">
+                        <span class="text-sm font-bold text-gray-600">照片对象</span>
+                        <select id="formSubject" class="text-sm bg-rose-50 border border-rose-200 text-rose-500 rounded-lg px-3 py-1 focus:outline-none focus:border-rose-400">
+                            <option value="我们">我们 👩‍❤️‍👨</option>
+                            <option value="亲亲">亲亲 👧</option>
+                            <option value="哼哼">哼哼 👦</option>
+                        </select>
+                    </div>
+
+                    <div class="flex items-center justify-between border-b border-rose-100 pb-2">
+                        <span class="text-sm font-bold text-gray-600">照片等级 (0-100)</span>
+                        <div class="flex items-center gap-2">
+                            <input type="range" id="formLevelRange" min="1" max="100" value="100" class="w-24 accent-rose-400" oninput="document.getElementById('formLevelNum').value = this.value">
+                            <input type="number" id="formLevelNum" min="1" max="100" value="100" class="text-sm w-12 text-center bg-rose-50 border border-rose-200 text-rose-500 rounded-lg py-1 focus:outline-none focus:border-rose-400" oninput="document.getElementById('formLevelRange').value = this.value">
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="submitPhoto()" id="submitBtn" class="mt-6 w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition-all flex justify-center items-center gap-2">
+                    发布照片 🚀
+                </button>
+            </div>
+        </div>
+        
+        <div class="mt-6 text-center">
+            <span class="text-gray-400 text-xs">当前身份: <span id="currentIdentityLabel" class="text-rose-400 font-bold">-</span></span>
+        </div>
+    </main>
+
+    <!-- 图片大图查看器 (继承日记UI) -->
+    <div id="imageViewerModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-2 transition-opacity opacity-0" onclick="closeImageViewer()">
+        <button class="absolute top-4 right-4 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/30 rounded-full w-10 h-10 flex items-center justify-center" onclick="closeImageViewer()">&times;</button>
+        <img id="fullSizeImage" src="" class="max-w-full max-h-full object-contain rounded-md transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+    </div>
+
+    <!-- 提示框 -->
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-50 whitespace-nowrap"></div>
+
+    <script>
+        // 初始化全局变量与鉴权
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const myIdentity = localStorage.getItem('loveGacha_myIdentity') || '游客';
+        document.getElementById('currentIdentityLabel').innerText = myIdentity;
+        document.getElementById('uploaderName').innerText = myIdentity;
+        
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_PHOTOS = 'data/Photos.json'; // 照片墙统一数据存储
+        
+        let photosData = { photos: [] };
+        let photosSha = null;
+        let pollInterval = null;
+
+        // UI 状态
+        let currentCategory = '我们';
+        let currentImageBase64 = null;
+        let currentImageExt = 'jpg';
+
+        window.onload = async function() {
+            if (!GITHUB_TOKEN) { showToast("未检测到Token，仅支持预览"); }
+            await fetchPhotosData();
+            renderPhotos();
+            startPolling();
+        };
+
+        // --- UI 切换逻辑 ---
+        function switchMainTab(tab) {
+            const wallView = document.getElementById('wallView');
+            const uploadView = document.getElementById('uploadView');
+            const btnWall = document.getElementById('tabWallBtn');
+            const btnUpload = document.getElementById('tabUploadBtn');
+
+            if (tab === 'wall') {
+                wallView.classList.remove('hidden'); uploadView.classList.add('hidden');
+                btnWall.className = "flex-1 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
+                btnUpload.className = "flex-1 py-2 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50";
+                renderPhotos();
+            } else {
+                wallView.classList.add('hidden'); uploadView.classList.remove('hidden');
+                btnUpload.className = "flex-1 py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
+                btnWall.className = "flex-1 py-2 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50";
+            }
+        }
+
+        function switchCategory(category) {
+            currentCategory = category;
+            document.querySelectorAll('.cat-btn').forEach(btn => {
+                if (btn.dataset.cat === category) {
+                    btn.className = "cat-btn px-3 py-1 text-xs font-bold rounded-md bg-white text-rose-500 shadow-sm transition-all";
+                } else {
+                    btn.className = "cat-btn px-3 py-1 text-xs font-bold rounded-md text-gray-500 hover:text-rose-400 transition-all";
+                }
+            });
+            renderPhotos();
+        }
+
+        // --- 图片处理逻辑 ---
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                showToast("图片太大了，请选择5MB以下的图片哦~");
+                event.target.value = ''; return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const imgEl = document.getElementById('imagePreview');
+                imgEl.src = dataUrl;
+                imgEl.classList.remove('hidden');
+                document.getElementById('uploadPlaceholder').classList.add('hidden');
+                document.getElementById('clearImgBtn').classList.remove('hidden');
+                currentImageBase64 = dataUrl.split(',')[1];
+                currentImageExt = file.name.split('.').pop() || 'jpg';
+            }
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage(event) {
+            event.stopPropagation(); // 阻止触发外层点击重选图片
+            currentImageBase64 = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreview').src = '';
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('clearImgBtn').classList.add('hidden');
+            document.getElementById('uploadPlaceholder').classList.remove('hidden');
+        }
+
+        function openImageViewer(url) {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            img.src = url;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                img.classList.remove('scale-95');
+                img.classList.add('scale-100');
+            });
+        }
+
+        function closeImageViewer() {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            modal.classList.add('opacity-0');
+            img.classList.remove('scale-100');
+            img.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // --- Github API 通讯逻辑 ---
+        async function fetchPhotosData() {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_PHOTOS}?t=${timestamp}`, {
+                    method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (response.status === 404) {
+                    photosData = { photos: [] };
+                    return true;
+                }
+                if (!response.ok) return false;
+                
+                const result = await response.json();
+                const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                photosData = JSON.parse(contentStr || '{"photos":[]}');
+                photosSha = result.sha;
+                return true;
+            } catch (error) { return false; }
+        }
+
+        async function updateFile(filePath, newData, sha) {
+            try {
+                const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))); 
+                const body = { message: `Update photos data`, content: encodedContent };
+                if (sha) body.sha = sha;
+
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                if (!response.ok) return { success: false, sha: sha };
+                const result = await response.json();
+                return { success: true, sha: result.content.sha };
+            } catch (error) { return { success: false, sha: sha }; }
+        }
+
+        async function uploadMediaToGithub(base64Data, extension, folderName) {
+            const timestamp = Date.now();
+            const filename = `photo_${timestamp}.${extension}`;
+            const path = `${folderName}/${filename}`; 
+            
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Upload photo ${filename}`,
+                        content: base64Data
+                    })
+                });
+                if (!response.ok) return null;
+                const result = await response.json();
+                return result.content.download_url;
+            } catch (error) {
+                console.error("Media upload failed:", error);
+                return null;
+            }
+        }
+
+        function startPolling() { 
+            if (pollInterval) clearInterval(pollInterval); 
+            pollInterval = setInterval(async () => { 
+                if(await fetchPhotosData() && document.getElementById('wallView').classList.contains('hidden') === false) {
+                    renderPhotos(); 
+                }
+            }, 150000); 
+        }
+
+        // --- 发布照片 ---
+        async function submitPhoto() {
+            if (!currentImageBase64) {
+                showToast("请先选择一张照片哦！"); return;
+            }
+            if (!GITHUB_TOKEN) {
+                showToast("未配置Token，无法上传！"); return;
+            }
+
+            const btn = document.getElementById('submitBtn');
+            const subject = document.getElementById('formSubject').value;
+            const level = parseInt(document.getElementById('formLevelNum').value, 10);
+            
+            btn.innerText = "正在上传照片 🖼️..."; 
+            btn.disabled = true;
+
+            const uploadedImageUrl = await uploadMediaToGithub(currentImageBase64, currentImageExt, 'photowall');
+            
+            if (!uploadedImageUrl) {
+                showToast("照片上传失败，请检查网络");
+                btn.innerHTML = "发布照片 🚀"; btn.disabled = false;
+                return;
+            }
+
+            btn.innerText = "正在更新数据...";
+            
+            const newPhoto = {
+                id: Date.now(),
+                url: uploadedImageUrl,
+                uploader: myIdentity,
+                subject: subject,
+                level: isNaN(level) ? 100 : level,
+                time: Date.now()
+            };
+
+            if (!photosData.photos) photosData.photos = [];
+            photosData.photos.unshift(newPhoto);
+
+            const upRes = await updateFile(FILE_PHOTOS, photosData, photosSha);
+            
+            if (upRes.success) {
+                photosSha = upRes.sha;
+                showToast("照片发布成功！🎉");
+                clearImage({stopPropagation: () => {}}); // 重置图片域
+                document.getElementById('formLevelNum').value = 100;
+                document.getElementById('formLevelRange').value = 100;
+                switchMainTab('wall'); // 自动跳回照片墙并渲染
+            } else {
+                showToast("数据保存失败，请稍后重试");
+                photosData.photos.shift(); // 恢复数据
+            }
+            
+            btn.innerHTML = "发布照片 🚀"; btn.disabled = false;
+        }
+
+        // --- 渲染照片墙 ---
+        function renderPhotos() {
+            const container = document.getElementById('photoGrid');
+            const sortMode = document.getElementById('sortSelect').value;
+            
+            if (!photosData.photos || photosData.photos.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center text-sm text-gray-400 mt-10">还没有照片哦，快去发布吧~ 📸</div>`;
+                return;
+            }
+
+            // 1. 过滤对象
+            let displayList = photosData.photos.filter(p => p.subject === currentCategory);
+
+            // 2. 排序
+            if (sortMode === 'time') {
+                displayList.sort((a, b) => b.time - a.time);
+            } else if (sortMode === 'level') {
+                displayList.sort((a, b) => b.level - a.level);
+            }
+
+            if (displayList.length === 0) {
+                container.innerHTML = `<div class="col-span-2 text-center text-sm text-gray-400 mt-10">这个分类下还没有照片哦~ 🍃</div>`;
+                return;
+            }
+
+            // 3. 渲染瀑布流卡片 (使用 Tailwind columns，只需生成直列 div 即可)
+            container.innerHTML = displayList.map(photo => {
+                const dateStr = new Date(photo.time).toLocaleDateString();
+                const uploaderIcon = photo.uploader === '哼哼' ? '👦' : '👧';
+                
+                return `
+                    <div class="photo-card bg-white p-2 rounded-xl shadow-sm border border-rose-100 animate-fade-in hover:shadow-md transition-shadow relative group">
+                        <div class="overflow-hidden rounded-lg cursor-zoom-in" onclick="openImageViewer('${photo.url}')">
+                            <img src="${photo.url}" loading="lazy" class="w-full object-cover transform group-hover:scale-105 transition-transform duration-300">
+                        </div>
+                        <div class="mt-2 flex items-center justify-between px-1">
+                            <span class="text-[10px] text-gray-400 font-mono">${dateStr}</span>
+                            <div class="flex items-center gap-1">
+                                <span class="text-xs font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded shadow-sm">Lv.${photo.level}</span>
+                            </div>
+                        </div>
+                        <div class="mt-1 px-1 text-[11px] text-gray-500 flex items-center gap-1">
+                            来自: ${uploaderIcon} ${photo.uploader}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showToast(msg) { 
+            const toast = document.getElementById('toast'); 
+            toast.innerText = msg; 
+            toast.classList.remove('hidden'); 
+            toast.classList.add('toast-animate'); 
+            setTimeout(() => { 
+                toast.classList.add('hidden'); 
+                toast.classList.remove('toast-animate'); 
+            }, 3000); 
+        }
+    </script>
+</body>
+</html>
