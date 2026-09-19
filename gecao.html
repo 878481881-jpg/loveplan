@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>赛博宠物无双 🐾</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #0f172a; 
+            background-image: radial-gradient(#1e293b 1px, transparent 1px); 
+            background-size: 30px 30px;
+            overflow: hidden; 
+            touch-action: none; 
+            color: #f8fafc;
+        }
+
+        #gameCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 20;
+            pointer-events: none; 
+        }
+
+        .interactive {
+            pointer-events: auto;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
+        
+        @keyframes float { 
+            0% { transform: translateY(0px); } 
+            50% { transform: translateY(-10px); } 
+            100% { transform: translateY(0px); } 
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+
+        .progress-bar { transition: width 0.2s linear; }
+
+        #joystickZone {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            z-index: 30;
+            touch-action: none;
+        }
+        #joystickBase {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            display: none;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2) inset;
+        }
+        #joystickStick {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(6, 182, 212, 0.6);
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(6, 182, 212, 0.8);
+        }
+
+        .cyber-panel {
+            background: rgba(30, 41, 59, 0.85);
+            backdrop-filter: blur(8px);
+            border: 2px solid rgba(6, 182, 212, 0.3);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body class="transition-none">
+
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="joystickZone" class="interactive lg:hidden"></div>
+    <div id="joystickBase" class="pointer-events-none z-[35]"><div id="joystickStick"></div></div>
+
+    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-rose-600/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(244,63,94,0.5)] text-sm font-bold hidden z-[100] tracking-widest border border-rose-400"></div>
+
+    <div class="ui-layer flex flex-col justify-between p-4">
+        <div id="hud" class="hidden flex-col gap-2 transition-opacity relative z-40">
+            <div id="bossUI" class="hidden w-full max-w-md mx-auto mb-4 animate-pulse">
+                <div class="text-center text-red-500 font-black tracking-widest drop-shadow-md text-lg mb-1">🔴 核心病毒入侵 🔴</div>
+                <div class="w-full bg-slate-900 rounded-full h-4 border-2 border-red-900 overflow-hidden shadow-[0_0_20px_rgba(220,38,38,0.8)]">
+                    <div id="bossHpBar" class="bg-gradient-to-r from-red-700 to-red-400 h-full w-full transition-all duration-200"></div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-center w-full max-w-md mx-auto">
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+                    <span class="text-xl">⏱️</span>
+                    <span id="timeDisplay" class="font-black text-cyan-400 font-mono tracking-wider">00:00</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+                    <span class="text-xl">👾</span>
+                    <span id="killCountDisplay" class="font-black text-rose-400 font-mono">0</span>
+                </div>
+            </div>
+
+            <!-- 控制面板：倍速与暂停 -->
+            <div class="flex justify-between items-center w-full max-w-md mx-auto mt-2 pointer-events-auto">
+                <button id="speedBtn" onclick="cycleGameSpeed()" class="bg-slate-800/90 px-4 py-1.5 rounded-full border border-cyan-700 text-cyan-400 font-bold text-xs shadow-[0_0_10px_rgba(34,211,238,0.2)] active:scale-95 transition-transform flex items-center gap-1">
+                    ▶️ 1X 倍速
+                </button>
+                <button id="pauseBtn" onclick="togglePause()" class="bg-slate-800/90 px-4 py-1.5 rounded-full border border-yellow-700 text-yellow-400 font-bold text-xs shadow-[0_0_10px_rgba(250,204,21,0.2)] active:scale-95 transition-transform flex items-center gap-1">
+                    ⏸️ 暂停
+                </button>
+            </div>
+
+            <div class="w-full max-w-md mx-auto mt-2 relative">
+                <div class="flex justify-between text-xs font-bold text-cyan-300 absolute -top-4 w-full px-1 z-10 drop-shadow-md">
+                    <span>Lv.<span id="levelDisplay">1</span></span>
+                    <span id="expText">0 / 100</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-3 border border-slate-600 overflow-hidden shadow-inner">
+                    <div id="expBar" class="bg-gradient-to-r from-cyan-600 to-cyan-300 h-full rounded-full progress-bar shadow-[0_0_10px_rgba(34,211,238,0.5)]" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <div class="w-full max-w-md mx-auto mt-5 relative">
+                <div class="flex justify-between text-xs font-bold text-rose-300 absolute -top-4 w-full px-1 z-10 drop-shadow-md">
+                    <span>HP</span>
+                    <span id="hpText">100 / 100</span>
+                </div>
+                <div class="w-full bg-slate-800 rounded-full h-2 border border-slate-600 overflow-hidden">
+                    <div id="hpBar" class="bg-gradient-to-r from-rose-600 to-rose-400 h-full rounded-full progress-bar shadow-[0_0_10px_rgba(244,63,94,0.5)]" style="width: 100%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="menuOverlay" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm interactive animate-fade-in">
+        
+        <!-- Start Screen -->
+        <div id="startScreen" class="cyber-panel rounded-3xl p-8 max-w-sm w-full text-center relative overflow-hidden border-t-4 border-t-cyan-400">
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-cyan-500 rounded-full mix-blend-multiply opacity-20 blur-2xl"></div>
+            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-rose-500 rounded-full mix-blend-multiply opacity-20 blur-2xl"></div>
+            
+            <h1 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-500 mb-2 drop-shadow-md tracking-widest animate-float">
+                赛博宠物无双
+            </h1>
+            <p class="text-slate-400 text-sm mb-8 font-medium">清理虚拟空间的恶意程序</p>
+
+            <div class="mb-6 flex justify-center">
+                <div class="w-24 h-24 rounded-full border-4 border-cyan-400/50 flex items-center justify-center bg-slate-800 shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+                    <svg viewBox="0 0 100 100" class="w-16 h-16 drop-shadow-lg">
+                        <polygon points="20,40 50,40 60,60 50,80 30,80 20,60" fill="rgba(6,182,212,0.2)" stroke="#22d3ee" stroke-width="3" stroke-linejoin="round"/>
+                        <polygon points="10,20 30,10 40,30 20,40" fill="rgba(6,182,212,0.2)" stroke="#22d3ee" stroke-width="3" stroke-linejoin="round"/>
+                        <polygon points="70,40 60,30 80,10 90,20" fill="rgba(6,182,212,0.2)" stroke="#22d3ee" stroke-width="3" stroke-linejoin="round"/>
+                        <polygon points="25,45 55,45 60,55 50,65 30,65" fill="#0f172a" stroke="#22d3ee" stroke-width="2"/>
+                        <circle cx="35" cy="55" r="4" fill="#fff" filter="drop-shadow(0 0 2px #fff)"/>
+                        <circle cx="50" cy="55" r="4" fill="#fff" filter="drop-shadow(0 0 2px #fff)"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="text-xs text-slate-400 mb-6 bg-slate-800/50 p-3 rounded-xl border border-slate-700">
+                <p>💻 PC: WASD / 方向键移动</p>
+                <p>📱 移动端: 屏幕下半部分滑动摇杆</p>
+                <p class="mt-1 text-cyan-300">自动攻击，无极成长！</p>
+            </div>
+
+            <button id="startBtn" onclick="startGame()" disabled class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                系统连接中...
+            </button>
+        </div>
+
+        <!-- Level Up Screen -->
+        <div id="levelUpScreen" class="hidden cyber-panel rounded-3xl p-6 max-w-md w-full flex-col gap-4 border-rose-400/50 shadow-[0_0_30px_rgba(244,63,94,0.3)] border-t-4 border-t-rose-500 relative z-[60]">
+            <h2 class="text-2xl font-black text-rose-400 text-center tracking-widest uppercase animate-pulse">系统突破</h2>
+            <p class="text-center text-slate-300 text-sm">检测到可用数据，请选择强化模块：</p>
+            <div id="upgradeOptions" class="flex flex-col gap-3 mt-2 overflow-y-auto max-h-[60vh]">
+                <!-- Options dynamically injected -->
+            </div>
+        </div>
+
+        <!-- Game Over Screen -->
+        <div id="gameOverScreen" class="hidden cyber-panel rounded-3xl p-8 max-w-sm w-full text-center relative">
+            <h2 class="text-3xl font-black text-red-500 mb-2 tracking-widest drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">核心过载</h2>
+            <p class="text-slate-400 mb-6">连接断开...</p>
+            
+            <div class="bg-slate-800 p-4 rounded-xl mb-6 border border-slate-700 space-y-2">
+                <div class="flex justify-between"><span class="text-slate-400">生存时间:</span> <span id="finalTime" class="text-cyan-400 font-bold font-mono">00:00</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">清理程序:</span> <span id="finalKills" class="text-rose-400 font-bold font-mono">0</span></div>
+                <div class="flex justify-between"><span class="text-slate-400">最终等级:</span> <span id="finalLevel" class="text-yellow-400 font-bold font-mono">Lv.1</span></div>
+            </div>
+
+            <button onclick="resetGame()" class="w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(225,29,72,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95">
+                系统重启 (RESTART)
+            </button>
+        </div>
+        
+        <!-- 暂停界面 -->
+        <div id="pauseScreen" class="hidden cyber-panel rounded-3xl p-8 max-w-sm w-full text-center relative border-t-4 border-t-yellow-400 shadow-[0_0_30px_rgba(250,204,21,0.3)]">
+            <h2 class="text-3xl font-black text-yellow-400 mb-6 tracking-widest drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]">游戏已暂停</h2>
+            <button onclick="togglePause()" class="w-full py-4 bg-gradient-to-r from-yellow-600 to-amber-600 hover:from-yellow-500 hover:to-amber-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(245,158,11,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95">
+                ▶ 继续游戏 (RESUME)
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        
+        let GAME_WIDTH = window.innerWidth;
+        let GAME_HEIGHT = window.innerHeight;
+        
+        const GameState = { MENU: 0, PLAYING: 1, LEVEL_UP: 2, GAME_OVER: 3, PAUSED: 4 };
+        let currentState = GameState.MENU;
+
+        let lastTime = 0;
+        let gameTime = 0;
+        let animationFrameId;
+        
+        let gameSpeedMultiplier = 1; // [数据调整] 游戏全局运行倍速 (默认1)
+        
+        let nextBossTime = 60;
+        let bossEntity = null;
+
+        let player;
+        let enemies = [];
+        let projectiles = [];
+        let expGems = [];
+        let particles = [];
+        let floatingTexts = [];
+        
+        let killCount = 0;
+        let enemySpawnTimer = 0;
+        let enemySpawnRate = 1000; 
+        let difficultyMultiplier = 1.0; 
+
+        const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+        let joystickVector = { x: 0, y: 0 };
+        let isUsingJoystick = false;
+
+        function resizeCanvas() {
+            GAME_WIDTH = window.innerWidth;
+            GAME_HEIGHT = window.innerHeight;
+            canvas.width = GAME_WIDTH;
+            canvas.height = GAME_HEIGHT;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // [数据调整] 在此修改各个技能的数值。
+        // baseDmg: 基础伤害, cd: 冷却时间(秒), amount: 数量, area: 范围倍率, speed: 速度倍率, val: 被动增益值
+        const WEAPONS = {
+            AURA: { id: 'AURA', name: '电磁力场', icon: '🌀', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '在脚底生成紫色力场，持续灼烧周围敌人。', baseDmg: 10, area: 1, tick: 0.5 },
+                    { desc: '力场范围扩大，伤害提升。', baseDmg: 15, area: 1.5, tick: 0.5 },
+                    { desc: '力场伤害触发频率翻倍。', baseDmg: 15, area: 1.5, tick: 0.25 },
+                    { desc: '力场伤害大幅提升。', baseDmg: 25, area: 1.5, tick: 0.25 },
+                    { desc: '力场范围与伤害再次飙升。', baseDmg: 40, area: 2.0, tick: 0.25 }
+                ]
+            },
+            LASER: { id: 'LASER', name: '数据激光', icon: '⚡', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '向最近的敌人发射穿透激光。', baseDmg: 20, cd: 1.5, amount: 1, area: 1 },
+                    { desc: '激光伤害提升 50%。', baseDmg: 30, cd: 1.5, amount: 1, area: 1 },
+                    { desc: '额外发射 1 道追踪激光。', baseDmg: 30, cd: 1.5, amount: 2, area: 1 },
+                    { desc: '冷却时间缩短 30%。', baseDmg: 30, cd: 1.05, amount: 2, area: 1 },
+                    { desc: '激光变得更宽，伤害大幅提升。', baseDmg: 50, cd: 1.05, amount: 2, area: 1.5 }
+                ]
+            },
+            BARK: { id: 'BARK', name: '声波震荡', icon: '🔊', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '以自身为中心爆发能量声波。', baseDmg: 15, cd: 2.0, amount: 1, area: 1 },
+                    { desc: '声波扩散范围提升 30%。', baseDmg: 15, cd: 2.0, amount: 1, area: 1.3 },
+                    { desc: '声波基础伤害提升 50%。', baseDmg: 22.5, cd: 2.0, amount: 1, area: 1.3 },
+                    { desc: '冷却时间缩短 25%。', baseDmg: 22.5, cd: 1.5, amount: 1, area: 1.3 },
+                    { desc: '触发两次连续声波（连击）。', baseDmg: 22.5, cd: 1.5, amount: 2, area: 1.5 }
+                ]
+            },
+            FRISBEE: { id: 'FRISBEE', name: '全息飞盘', icon: '🥏', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '发射围绕自身旋转的切割飞盘。', baseDmg: 10, cd: 0, amount: 1, speed: 3, area: 1 }, 
+                    { desc: '飞盘伤害提升 40%。', baseDmg: 14, cd: 0, amount: 1, speed: 3, area: 1 },
+                    { desc: '增加 1 个旋转飞盘。', baseDmg: 14, cd: 0, amount: 2, speed: 3, area: 1 },
+                    { desc: '飞盘旋转速度提升 50%。', baseDmg: 14, cd: 0, amount: 2, speed: 4.5, area: 1 },
+                    { desc: '增加至 3 个飞盘，环绕范围扩大。', baseDmg: 20, cd: 0, amount: 3, speed: 5, area: 1.3 }
+                ]
+            },
+            MISSILE: { id: 'MISSILE', name: '追踪飞弹', icon: '🚀', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '发射 2 枚自动追踪敌人的爆破飞弹。', baseDmg: 25, cd: 2.5, amount: 2, area: 1 },
+                    { desc: '飞弹爆炸范围与伤害提升。', baseDmg: 35, cd: 2.5, amount: 2, area: 1.5 },
+                    { desc: '飞弹发射数量 +1。', baseDmg: 35, cd: 2.5, amount: 3, area: 1.5 },
+                    { desc: '冷却时间缩短。', baseDmg: 35, cd: 1.8, amount: 3, area: 1.5 },
+                    { desc: '飞弹数量 +2，发动毁灭性打击。', baseDmg: 50, cd: 1.8, amount: 5, area: 1.8 }
+                ]
+            },
+            MINE: { id: 'MINE', name: '数据地雷', icon: '💣', type: 'active', maxLevel: 5,
+                levels: [
+                    { desc: '在身后定期放置高爆地雷。', baseDmg: 40, cd: 2.0, amount: 1, area: 1 },
+                    { desc: '地雷爆炸范围提升。', baseDmg: 40, cd: 2.0, amount: 1, area: 1.5 },
+                    { desc: '地雷伤害提升 50%。', baseDmg: 60, cd: 2.0, amount: 1, area: 1.5 },
+                    { desc: '每次放置 2 颗地雷。', baseDmg: 60, cd: 2.0, amount: 2, area: 1.5 },
+                    { desc: '地雷放置频率翻倍。', baseDmg: 60, cd: 1.0, amount: 2, area: 1.5 }
+                ]
+            },
+            MAGNET: { id: 'MAGNET', name: '引力模块', icon: '🧲', type: 'passive', maxLevel: 5,
+                levels: [
+                    { desc: '拾取范围 +50%。', val: 1.5 }, { desc: '拾取范围 +100%。', val: 2.0 }, { desc: '拾取范围 +150%。', val: 2.5 }, { desc: '拾取范围 +200%。', val: 3.0 }, { desc: '拾取范围 +300%。', val: 4.0 }
+                ]
+            },
+            SPEED: { id: 'SPEED', name: '超频运动', icon: '💨', type: 'passive', maxLevel: 5,
+                levels: [
+                    { desc: '移动速度 +15%。', val: 1.15 }, { desc: '移动速度 +30%。', val: 1.30 }, { desc: '移动速度 +45%。', val: 1.45 }, { desc: '移动速度 +60%。', val: 1.60 }, { desc: '移动速度 +80%。', val: 1.80 }
+                ]
+            },
+            REGEN: { id: 'REGEN', name: '纳米修复', icon: '❤️‍🩹', type: 'passive', maxLevel: 5,
+                levels: [
+                    { desc: '每秒回复 1 点生命。', val: 1 }, { desc: '每秒回复 2 点生命。', val: 2 }, { desc: '每秒回复 4 点生命。', val: 4 }, { desc: '每秒回复 6 点生命。', val: 6 }, { desc: '每秒回复 10 点生命。', val: 10 }
+                ]
+            },
+            MAX_HP: { id: 'MAX_HP', name: '结构强化', icon: '🛡️', type: 'passive', maxLevel: 5,
+                levels: [
+                    { desc: '最大生命值 +20%。', val: 1.2 }, { desc: '最大生命值 +40%。', val: 1.4 }, { desc: '最大生命值 +60%。', val: 1.6 }, { desc: '最大生命值 +80%。', val: 1.8 }, { desc: '最大生命值 +100%。', val: 2.0 }
+                ]
+            }
+        };
+
+        window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+        window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+        const joystickZone = document.getElementById('joystickZone');
+        const joystickBase = document.getElementById('joystickBase');
+        const joystickStick = document.getElementById('joystickStick');
+        let touchId = null;
+        let jBaseX = 0, jBaseY = 0;
+        const maxStickDist = 50;
+
+        joystickZone.addEventListener('touchstart', e => {
+            if (currentState !== GameState.PLAYING) return;
+            e.preventDefault();
+            if (touchId !== null) return; 
+            
+            const touch = e.changedTouches[0];
+            touchId = touch.identifier;
+            isUsingJoystick = true;
+
+            jBaseX = touch.clientX; jBaseY = touch.clientY;
+            joystickBase.style.left = jBaseX + 'px';
+            joystickBase.style.top = jBaseY + 'px';
+            joystickBase.style.display = 'block';
+            joystickStick.style.transform = `translate(-50%, -50%)`;
+            updateJoystickVector(touch.clientX, touch.clientY);
+        }, {passive: false});
+
+        joystickZone.addEventListener('touchmove', e => {
+            if (currentState !== GameState.PLAYING || touchId === null) return;
+            e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === touchId) {
+                    updateJoystickVector(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+                    break;
+                }
+            }
+        }, {passive: false});
+
+        const handleTouchEnd = (e) => {
+            if (touchId === null) return;
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                if (e.changedTouches[i].identifier === touchId) {
+                    touchId = null; isUsingJoystick = false;
+                    joystickVector = { x: 0, y: 0 };
+                    joystickBase.style.display = 'none';
+                    joystickStick.style.transform = `translate(-50%, -50%)`;
+                    break;
+                }
+            }
+        };
+        joystickZone.addEventListener('touchend', handleTouchEnd);
+        joystickZone.addEventListener('touchcancel', handleTouchEnd);
+
+        function updateJoystickVector(tx, ty) {
+            let dx = tx - jBaseX; let dy = ty - jBaseY;
+            let dist = Math.hypot(dx, dy);
+            if (dist > maxStickDist) { dx = (dx / dist) * maxStickDist; dy = (dy / dist) * maxStickDist; }
+            joystickStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            
+            let norm = Math.hypot(dx, dy);
+            if (norm > 0) { joystickVector.x = dx / maxStickDist; joystickVector.y = dy / maxStickDist; } 
+            else { joystickVector = { x: 0, y: 0 }; }
+        }
+
+        let externalPetLevel = 1; 
+        let globalPetData = null;
+        
+        async function fetchPetData() {
+            const startBtn = document.getElementById('startBtn');
+            const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+            const OWNER_REPO = '878481881-jpg/loveplan'; 
+            const FILE_PET = 'data/cw.json'; 
+            
+            if (!GITHUB_TOKEN) {
+                if (startBtn) { startBtn.innerText = "系统连接完毕 (START)"; startBtn.disabled = false; }
+                return;
+            }
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_PET}?t=${new Date().getTime()}`, {
+                    method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (response.ok) {
+                    const result = await response.json();
+                    const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                    globalPetData = JSON.parse(contentStr);
+                    if (globalPetData && globalPetData.level) {
+                        externalPetLevel = globalPetData.level;
+                    }
+                }
+            } catch (e) { console.error(e); }
+            if (startBtn) { startBtn.innerText = "系统连接完毕 (START)"; startBtn.disabled = false; }
+        }
+        fetchPetData();
+
+        function lerp(start, end, t) { return start + (end - start) * t; }
+        function lerpArray(arr1, arr2, t) { return arr1.map((val, i) => lerp(val, arr2[i], t)); }
+
+        const basePoses = [
+            { level: 1, head: [80,70, 120,70, 130,90, 120,110, 110,120, 90,120, 80,110, 70,90], earL: [85,70, 55,40, 45,65, 75,85], earR: [115,70, 145,40, 155,65, 125,85], visor: [75,85, 125,85, 130,95, 115,105, 85,105, 70,95], core: [90,95, 110,95, 115,115, 100,120, 85,115], body: [85,115, 115,115, 130,170, 70,170], pawL: [80,170, 95,170, 95,185, 80,185], pawR: [105,170, 120,170, 120,185, 105,185], tail: [125,160, 150,135, 155,145, 130,170], eyeSize: 4.5, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
+            { level: 20, head: [78,65, 122,65, 135,88, 122,115, 110,125, 90,125, 78,115, 65,88], earL: [82,65, 45,25, 35,55, 70,85], earR: [118,65, 155,25, 165,55, 130,85], visor: [70,82, 130,82, 135,95, 118,108, 82,108, 65,95], core: [88,95, 112,95, 118,115, 100,125, 82,115], body: [82,120, 118,120, 135,180, 65,180], pawL: [75,180, 95,180, 95,195, 75,195], pawR: [105,180, 125,180, 125,195, 105,195], tail: [130,165, 160,135, 165,145, 135,175], eyeSize: 0, wingScale: 0, fangLength: 0, armorOpacity: 0, crownScale: 0 },
+            { level: 60, head: [75,60, 125,60, 140,85, 125,120, 112,130, 88,130, 75,120, 60,85], earL: [80,60, 35,15, 25,45, 65,85], earR: [120,60, 165,15, 175,45, 135,85], visor: [65,80, 135,80, 142,95, 120,110, 80,110, 58,95], core: [85,95, 115,95, 122,120, 100,130, 78,120], body: [80,125, 120,125, 140,195, 60,195], pawL: [70,195, 95,195, 95,210, 70,210], pawR: [105,195, 130,195, 130,210, 105,210], tail: [135,175, 170,140, 175,155, 140,190], eyeSize: 0, wingScale: 0.8, fangLength: 0.8, armorOpacity: 0.8, crownScale: 0 },
+            { level: 100, head: [70,55, 130,55, 145,82, 128,125, 115,135, 85,135, 72,125, 55,82], earL: [75,55, 25,5, 15,35, 60,82], earR: [125,55, 175,5, 185,35, 140,82], visor: [55,75, 145,75, 150,92, 125,112, 75,112, 50,92], core: [82,92, 118,92, 125,125, 100,135, 75,125], body: [75,130, 125,130, 150,210, 50,210], pawL: [65,210, 95,210, 95,225, 65,225], pawR: [105,210, 135,210, 135,225, 105,225], tail: [140,185, 185,145, 190,160, 145,200], eyeSize: 0, wingScale: 1.2, fangLength: 1.2, armorOpacity: 1, crownScale: 1 },
+            { level: 150, head: [65,50, 135,50, 155,80, 132,130, 118,142, 82,142, 68,130, 45,80], earL: [70,50, 15,-5, 5,25, 55,80], earR: [130,50, 185,-5, 195,25, 145,80], visor: [45,70, 155,70, 160,90, 130,115, 70,115, 40,90], core: [78,90, 122,90, 130,132, 100,142, 70,132], body: [70,135, 130,135, 160,225, 40,225], pawL: [60,225, 95,225, 95,245, 60,245], pawR: [105,225, 140,225, 140,245, 105,245], tail: [150,195, 200,150, 210,165, 155,215], eyeSize: 0, wingScale: 2.0, fangLength: 2.0, armorOpacity: 1, crownScale: 2.5 },
+            { level: 200, head: [60,45, 140,45, 165,75, 135,135, 120,150, 80,150, 65,135, 35,75], earL: [65,45, 0,-15, -10,15, 50,75], earR: [135,45, 200,-15, 210,15, 150,75], visor: [35,65, 165,65, 175,88, 135,120, 65,120, 25,88], core: [75,88, 125,88, 135,135, 100,150, 65,135], body: [65,140, 135,140, 175,245, 25,245], pawL: [50,245, 95,245, 95,265, 50,265], pawR: [105,245, 150,245, 150,265, 105,265], tail: [160,205, 220,155, 230,175, 165,230], eyeSize: 0, wingScale: 3.5, fangLength: 3.2, armorOpacity: 1, crownScale: 5 }
+        ];
+
+        function getInterpolatedPet(level) {
+            let t = 0; let p1, p2;
+            if (level < 20) { p1 = basePoses[0]; p2 = basePoses[1]; t = (level - 1) / 19; } 
+            else if (level < 60) { p1 = basePoses[1]; p2 = basePoses[2]; t = (level - 20) / 40; } 
+            else if (level < 100) { p1 = basePoses[2]; p2 = basePoses[3]; t = (level - 60) / 40; }
+            else if (level < 150) { p1 = basePoses[3]; p2 = basePoses[4]; t = (level - 100) / 50; }
+            else if (level <= 200) { p1 = basePoses[4]; p2 = basePoses[5]; t = (level - 150) / 50; }
+            else { p1 = basePoses[5]; p2 = basePoses[5]; t = 1; }
+            t = t * t * (3 - 2 * t);
+            return { 
+                head: lerpArray(p1.head, p2.head, t).join(','), earL: lerpArray(p1.earL, p2.earL, t).join(','), 
+                earR: lerpArray(p1.earR, p2.earR, t).join(','), visor: lerpArray(p1.visor, p2.visor, t).join(','), 
+                core: lerpArray(p1.core, p2.core, t).join(','), body: lerpArray(p1.body, p2.body, t).join(','), 
+                pawL: lerpArray(p1.pawL, p2.pawL, t).join(','), pawR: lerpArray(p1.pawR, p2.pawR, t).join(','), 
+                tail: lerpArray(p1.tail, p2.tail, t).join(','), eyeSize: lerp(p1.eyeSize, p2.eyeSize, t), 
+                wingScale: lerp(p1.wingScale, p2.wingScale, t), fangLength: lerp(p1.fangLength, p2.fangLength, t), 
+                armorOpacity: lerp(p1.armorOpacity, p2.armorOpacity, t), crownScale: Math.max(0, lerp(p1.crownScale, p2.crownScale, t)) 
+            };
+        }
+
+        function getPetSVG(level, isNightTime, equipped = []) {
+            const baseHue = (190 + level * 5) % 360;
+            let cMain = `hsla(${baseHue}, 80%, 50%, 0.15)`; let cStroke = `hsl(${baseHue}, 100%, 60%)`; 
+            let cVisor = `hsl(${(baseHue + 330) % 360}, 100%, 70%)`; let cGlow = `hsla(${baseHue}, 100%, 60%, 0.6)`;
+            if (level >= 200) { cMain = `hsla(45, 100%, 90%, 0.25)`; cStroke = `#ffffff`; cVisor = `#fde047`; cGlow = `hsla(45, 100%, 70%, 1)`; } 
+            else if (level >= 150) { cMain = `hsla(280, 100%, 40%, 0.25)`; cStroke = `#f43f5e`; cVisor = `#c084fc`; cGlow = `hsla(340, 100%, 60%, 0.9)`; } 
+            else if (level >= 100) { cMain = `hsla(190, 100%, 40%, 0.2)`; cStroke = `#2dd4bf`; cVisor = `#60a5fa`; cGlow = `hsla(200, 100%, 60%, 0.8)`; }
+
+            const props = getInterpolatedPet(level); 
+            let innerSVG = `<defs><linearGradient id="laserGradL" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="var(--c-stroke)" stop-opacity="1" /><stop offset="100%" stop-color="var(--c-stroke)" stop-opacity="0" /></linearGradient><linearGradient id="laserGradR" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="var(--c-stroke)" stop-opacity="1" /><stop offset="100%" stop-color="var(--c-stroke)" stop-opacity="0" /></linearGradient><linearGradient id="mechGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0f172a" /><stop offset="100%" stop-color="#1e293b" /></linearGradient></defs>`;
+            
+            if (props.wingScale > 0.01) { 
+                const wingRootY = 120;
+                innerSVG += `<g opacity="${isNightTime ? 0.3 : 0.7}" stroke="var(--c-visor)" stroke-width="2" fill="none" stroke-linejoin="round"><polygon points="100,${wingRootY} ${100 - 50*props.wingScale},${wingRootY - 50*props.wingScale} ${100 - 80*props.wingScale},${wingRootY - 15*props.wingScale}"/><polygon points="100,${wingRootY} ${100 + 50*props.wingScale},${wingRootY - 50*props.wingScale} ${100 + 80*props.wingScale},${wingRootY - 15*props.wingScale}"/><polygon points="100,${wingRootY} ${100 - 60*props.wingScale},${wingRootY + 10*props.wingScale} ${100 - 75*props.wingScale},${wingRootY + 35*props.wingScale}"/><polygon points="100,${wingRootY} ${100 + 60*props.wingScale},${wingRootY + 10*props.wingScale} ${100 + 75*props.wingScale},${wingRootY + 35*props.wingScale}"/></g>`;
+            }
+            innerSVG += `<g><polygon points="${props.tail}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" /></g>`;
+
+            let bodyPts = props.body.split(',');
+            let bTopL_x = parseFloat(bodyPts[0]), bTopL_y = parseFloat(bodyPts[1]); let bTopR_x = parseFloat(bodyPts[2]), bTopR_y = parseFloat(bodyPts[3]);
+            let bBotR_x = parseFloat(bodyPts[4]), bBotR_y = parseFloat(bodyPts[5]); let bBotL_x = parseFloat(bodyPts[6]), bBotL_y = parseFloat(bodyPts[7]);
+            let thighR = (bBotR_x - 100) * 0.65; let thighY = bBotL_y - thighR * 0.8;
+            
+            innerSVG += `<circle cx="${bBotL_x + thighR*0.5}" cy="${thighY}" r="${thighR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" />`;
+            innerSVG += `<path d="M ${bBotL_x - 10} ${bBotL_y + 10} Q ${bBotL_x + thighR*0.5} ${bBotL_y + 20} ${bBotL_x + thighR} ${bBotL_y}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            innerSVG += `<circle cx="${bBotR_x - thighR*0.5}" cy="${thighY}" r="${thighR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" />`;
+            innerSVG += `<path d="M ${bBotR_x + 10} ${bBotR_y + 10} Q ${bBotR_x - thighR*0.5} ${bBotR_y + 20} ${bBotR_x - thighR} ${bBotR_y}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+
+            innerSVG += `<path d="M ${bTopL_x} ${bTopL_y} Q 100 ${bTopL_y + 20} ${bTopR_x} ${bTopR_y} L ${bBotR_x - thighR*0.8} ${bBotR_y} L ${bBotL_x + thighR*0.8} ${bBotL_y} Z" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" opacity="0.95" />`;
+            if (props.armorOpacity > 0.01) { 
+                let chestY = bTopL_y + 15; let armorW = (bTopR_x - bTopL_x) * 0.9;
+                innerSVG += `<polygon points="${100 - armorW/2},${chestY} 100,${chestY+25} ${100 + armorW/2},${chestY} 100,${chestY-5}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="1.5" opacity="${props.armorOpacity}" stroke-linejoin="round" />`; 
+            }
+
+            innerSVG += `<polygon points="${props.pawL}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            innerSVG += `<polygon points="${props.pawR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+
+            let pL = props.pawL.split(','); let pR = props.pawR.split(',');
+            innerSVG += `<path d="M ${bTopL_x + (100 - bTopL_x)*0.3} ${bTopL_y + 15} L ${pL[0]} ${pL[1]} L ${pL[2]} ${pL[3]} L 95 ${bTopL_y + 25} Z" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>`;
+            innerSVG += `<path d="M ${bTopR_x - (bTopR_x - 100)*0.3} ${bTopR_y + 15} L ${pR[2]} ${pR[3]} L ${pR[0]} ${pR[1]} L 105 ${bTopR_y + 25} Z" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>`;
+
+            innerSVG += `<polygon points="${props.earL}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            innerSVG += `<polygon points="${props.earR}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            innerSVG += `<polygon points="${props.head}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round" />`;
+            
+            if (props.fangLength > 0.01) { 
+                let jawY = parseFloat(props.head.split(',')[11]) - 5; 
+                innerSVG += `<polygon points="85,${jawY} 80,${jawY + 12 * props.fangLength} 95,${jawY}" fill="var(--c-stroke)" stroke-linejoin="round" />`;
+                innerSVG += `<polygon points="115,${jawY} 120,${jawY + 12 * props.fangLength} 105,${jawY}" fill="var(--c-stroke)" stroke-linejoin="round" />`; 
+            }
+            
+            let corePts = props.core.split(',');
+            innerSVG += `<g><polygon points="${props.core}" fill="var(--c-visor)" opacity="${isNightTime ? 0.4 : 0.9}" stroke-linejoin="round" /><polygon points="${props.core}" fill="#ffffff" opacity="${isNightTime ? 0.3 : 0.8}" stroke="var(--c-visor)" stroke-width="1.5" stroke-linejoin="round" /></g>`;
+            
+            let noseBotY = parseFloat(corePts[7]); let tipY = noseBotY - (noseBotY - parseFloat(corePts[1])) * 0.3;
+            innerSVG += `<polygon points="93,${tipY} 107,${tipY} 100,${noseBotY}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="1.5" stroke-linejoin="round"/>`;
+            innerSVG += `<path d="M 100 ${noseBotY} L 100 ${noseBotY + 5} M 88 ${noseBotY + 2} Q 94 ${noseBotY + 10} 100 ${noseBotY + 5} Q 106 ${noseBotY + 10} 112 ${noseBotY + 2}" fill="none" stroke="var(--c-stroke)" stroke-width="2" stroke-linecap="round" />`;
+
+            let vPts = props.visor.split(','); let eyeCy = (parseFloat(vPts[1]) + parseFloat(vPts[5])) / 2;
+            innerSVG += `<g><polygon points="${props.visor}" fill="#0f172a" stroke="var(--c-stroke)" stroke-width="2" stroke-linejoin="round" /><polygon points="${props.visor}" fill="var(--c-visor)" opacity="${isNightTime ? 0.3 : 0.7}" stroke-linejoin="round" />${(props.eyeSize > 0.1 && !isNightTime) ? `<circle cx="85" cy="${eyeCy}" r="${props.eyeSize}" fill="#fff" opacity="0.9" /><circle cx="115" cy="${eyeCy}" r="${props.eyeSize}" fill="#fff" opacity="0.9" />` : ''}</g>`;
+            
+            let headTopY = parseFloat(props.head.split(',')[1]);
+            if (props.crownScale > 0) { 
+                let s = props.crownScale; let crownY = headTopY + 5;
+                innerSVG += `<g transform="translate(100, ${crownY})"><polygon points="-15,0 -${25 * s},-${35 * s} -${10 * s},-${10 * s}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round"/><polygon points="-${20 * s},-${20 * s} -${35 * s},-${55 * s} -${25 * s},-${15 * s}" fill="var(--c-visor)" opacity="0.9"/><polygon points="15,0 ${25 * s},-${35 * s} ${10 * s},-${10 * s}" fill="var(--c-main)" stroke="var(--c-stroke)" stroke-width="2.5" stroke-linejoin="round"/><polygon points="${20 * s},-${20 * s} ${35 * s},-${55 * s} ${25 * s},-${15 * s}" fill="var(--c-visor)" opacity="0.9"/></g>`;
+            }
+
+            let collarY = bTopL_y - 5; let collarBot = collarY + 15; let cWidth = bTopR_x - bTopL_x + 10;
+            if (equipped.includes('cwsbxq')) innerSVG += `<g><path d="M ${100 - cWidth/2} ${collarY} Q 100 ${collarBot+5} ${100 + cWidth/2} ${collarY}" fill="none" stroke="#7c3aed" stroke-width="6" stroke-linecap="round"/><circle cx="100" cy="${collarBot-2}" r="6" fill="#10b981" stroke="#047857" stroke-width="1.5" /><circle cx="100" cy="${collarBot-2}" r="3" fill="#fff" /></g>`;
+            if (equipped.includes('cwsbgl')) innerSVG += `<g><path d="M 100 ${collarBot-2} Q 130 180 180 250" fill="none" stroke="#059669" stroke-width="4" stroke-linecap="round" /></g>`;
+            if (equipped.includes('cwsbyj')) innerSVG += `<g><polygon points="${props.visor}" fill="#831843" fill-opacity="0.8" stroke="#ec4899" stroke-width="3" stroke-linejoin="round" /></g>`;
+
+            return { innerSVG, cMain, cStroke, cVisor, cGlow };
+        }
+
+        class Player {
+            constructor() {
+                this.x = GAME_WIDTH / 2;
+                this.y = GAME_HEIGHT / 2;
+                this.radius = 20; 
+                this.baseSpeed = 180; // [数据调整] 宠物基础移动速度
+                
+                this.importedLevel = externalPetLevel;
+                const statBonus = (this.importedLevel - 1) * 0.01; // [数据调整] 导入的外部等级提供的额外属性加成比例
+                
+                this.baseMaxHp = 100 * (1 + statBonus); // [数据调整] 初始基础血量
+                this.maxHp = this.baseMaxHp;
+                this.hp = this.maxHp;
+                this.baseDmgMult = 1 + statBonus; // [数据调整] 全局伤害基数倍率
+                
+                this.level = 1;
+                this.exp = 0;
+                this.expToNext = 50; // [数据调整] 初期升到2级需要的经验值
+                
+                this.pickupRadius = 100; // [数据调整] 基础拾取金币/经验范围
+                this.facing = 1; 
+                this.isMoving = false;
+
+                this.regenTimer = 1.0; 
+                this.auraTimer = 0;
+
+                this.skills = { LASER: { level: 1, cooldownTimer: 0 } };
+                
+                this.hitTimer = 0;
+
+                this.petCanvas = document.createElement('canvas');
+                this.petCanvas.width = 175;
+                this.petCanvas.height = 225;
+                this.imageLoaded = false;
+                
+                const petImage = new Image();
+                petImage.onload = () => {
+                    const oCtx = this.petCanvas.getContext('2d');
+                    oCtx.drawImage(petImage, 0, 0, 175, 225);
+                    this.imageLoaded = true;
+                };
+                
+                const equipped = globalPetData && globalPetData.equipped ? globalPetData.equipped : [];
+                const { innerSVG, cMain, cStroke, cVisor } = getPetSVG(this.importedLevel, false, equipped);
+                const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-50 -50 300 400" width="350" height="450"><style>:root { --c-main: ${cMain}; --c-stroke: ${cStroke}; --c-visor: ${cVisor}; }</style>${innerSVG}</svg>`;
+                petImage.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            }
+
+            get speed() { 
+                const mult = this.skills['SPEED'] ? WEAPONS['SPEED'].levels[this.skills['SPEED'].level - 1].val : 1.0;
+                return this.baseSpeed * mult; 
+            }
+            get magnetRadius() { 
+                const mult = this.skills['MAGNET'] ? WEAPONS['MAGNET'].levels[this.skills['MAGNET'].level - 1].val : 1.0;
+                return this.pickupRadius * mult; 
+            }
+
+            update(dt) {
+                let dx = 0, dy = 0;
+                if (isUsingJoystick) { dx = joystickVector.x; dy = joystickVector.y; } 
+                else {
+                    if (keys.w || keys.ArrowUp) dy -= 1;
+                    if (keys.s || keys.ArrowDown) dy += 1;
+                    if (keys.a || keys.ArrowLeft) dx -= 1;
+                    if (keys.d || keys.ArrowRight) dx += 1;
+                }
+
+                const len = Math.hypot(dx, dy);
+                this.isMoving = len > 0;
+                if (this.isMoving) {
+                    dx /= len; dy /= len;
+                    if (dx > 0) this.facing = 1;
+                    else if (dx < 0) this.facing = -1;
+                }
+
+                this.x += dx * this.speed * dt;
+                this.y += dy * this.speed * dt;
+                
+                if (this.hitTimer > 0) this.hitTimer -= dt;
+
+                if (this.skills['REGEN']) {
+                    this.regenTimer -= dt;
+                    if (this.regenTimer <= 0) {
+                        this.regenTimer = 1.0;
+                        const healAmount = WEAPONS['REGEN'].levels[this.skills['REGEN'].level - 1].val;
+                        if (this.hp < this.maxHp) {
+                            this.hp = Math.min(this.maxHp, this.hp + healAmount);
+                            updateHUD();
+                            floatingTexts.push(new FloatingText(this.x, this.y - 30, `+${healAmount}`, '#22c55e'));
+                        }
+                    }
+                }
+
+                if (this.skills['AURA']) {
+                    const auraStats = WEAPONS['AURA'].levels[this.skills['AURA'].level - 1];
+                    this.auraTimer -= dt;
+                    if (this.auraTimer <= 0) {
+                        this.auraTimer = auraStats.tick;
+                        const radius = 100 * auraStats.area;
+                        const dmg = auraStats.baseDmg * this.baseDmgMult;
+                        
+                        enemies.forEach(e => {
+                            if (Math.hypot(e.x - this.x, e.y - this.y) < radius + e.radius) {
+                                e.takeDamage(dmg);
+                            }
+                        });
+                        createParticles(this.x, this.y, '#a855f7', 3, 3);
+                    }
+                }
+
+                this.handleWeapons(dt);
+            }
+
+            handleWeapons(dt) {
+                for (const [key, skillData] of Object.entries(this.skills)) {
+                    const template = WEAPONS[key];
+                    if (template.type === 'passive' || key === 'AURA') continue; 
+                    
+                    const stats = template.levels[skillData.level - 1];
+
+                    if (key === 'FRISBEE') {
+                        const maxFrisbees = stats.amount;
+                        const currentFrisbees = projectiles.filter(p => p instanceof Frisbee);
+                        if (currentFrisbees.length < maxFrisbees) {
+                            projectiles.push(new Frisbee(this, currentFrisbees.length));
+                        } else if (currentFrisbees.length > maxFrisbees) {
+                            currentFrisbees[currentFrisbees.length - 1].active = false;
+                        }
+                        continue;
+                    }
+
+                    skillData.cooldownTimer -= dt;
+                    if (skillData.cooldownTimer <= 0) {
+                        this.fireWeapon(key, stats);
+                        skillData.cooldownTimer = stats.cd;
+                    }
+                }
+            }
+
+            fireWeapon(type, stats) {
+                const dmg = stats.baseDmg * this.baseDmgMult;
+                const area = stats.area || 1;
+                const amount = stats.amount || 1;
+                
+                if (type === 'LASER') {
+                    let targets = [...enemies].sort((a,b) => Math.hypot(this.x-a.x, this.y-a.y) - Math.hypot(this.x-b.x, this.y-b.y)).slice(0, amount);
+                    targets.forEach(t => {
+                        if (Math.hypot(this.x-t.x, this.y-t.y) < 500 * area) {
+                            projectiles.push(new LaserProjectile(this.x, this.y, t.x, t.y, dmg, area));
+                        }
+                    });
+                    if(targets.length > 0) createParticles(this.x, this.y, '#22d3ee', 5, 2);
+                } 
+                else if (type === 'BARK') {
+                    projectiles.push(new SonicBark(this.x, this.y, 100 * area, dmg, amount));
+                }
+                else if (type === 'MISSILE') {
+                    for(let i = 0; i < amount; i++) projectiles.push(new MissileProjectile(this.x, this.y, dmg, area));
+                }
+                else if (type === 'MINE') {
+                    for(let i = 0; i < amount; i++) {
+                        const offsetX = (Math.random() - 0.5) * 60;
+                        const offsetY = (Math.random() - 0.5) * 60;
+                        projectiles.push(new MineEntity(this.x + offsetX, this.y + offsetY, dmg, area));
+                    }
+                }
+            }
+
+            takeDamage(amount) {
+                if (this.hitTimer > 0) return; 
+                this.hp -= amount;
+                this.hitTimer = 0.5; 
+                updateHUD();
+                
+                document.getElementById('gameCanvas').style.transform = `translate(${(Math.random()-0.5)*10}px, ${(Math.random()-0.5)*10}px)`;
+                setTimeout(() => document.getElementById('gameCanvas').style.transform = 'none', 100);
+
+                if (this.hp <= 0) triggerGameOver();
+            }
+
+            gainExp(amount) {
+                this.exp += amount;
+                if (this.exp >= this.expToNext) {
+                    this.exp -= this.expToNext;
+                    this.level++;
+                    // 加大升级所需要的经验跨度，使升级曲线稍微变得更加平缓/真实
+                    this.expToNext = Math.floor(this.expToNext * 1.1 + 20); 
+                    triggerLevelUp();
+                }
+                updateHUD();
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+
+                if (this.skills['AURA']) {
+                    const auraStats = WEAPONS['AURA'].levels[this.skills['AURA'].level - 1];
+                    const radius = 100 * auraStats.area;
+                    ctx.save();
+                    ctx.rotate(gameTime * 2); 
+                    
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius, 0, Math.PI*2);
+                    ctx.fillStyle = 'rgba(168, 85, 247, 0.15)'; 
+                    ctx.fill();
+                    
+                    ctx.setLineDash([15, 10, 5, 10]);
+                    ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(0, 0, radius * 0.8, 0, Math.PI*2);
+                    ctx.setLineDash([5, 15]);
+                    ctx.strokeStyle = 'rgba(216, 180, 254, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                ctx.shadowBlur = 0;
+                if (this.pickupRadius !== this.magnetRadius) {
+                    ctx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.magnetRadius, 0, Math.PI*2);
+                    ctx.stroke();
+                }
+
+                ctx.save();
+                let bobY = 0;
+                let rot = 0;
+                if (this.isMoving) {
+                    bobY = -Math.abs(Math.sin(gameTime * 15)) * 8; 
+                    rot = Math.sin(gameTime * 10) * 0.08; 
+                }
+                ctx.translate(0, bobY);
+                ctx.rotate(rot);
+                ctx.scale(this.facing, 1);
+                
+                if (this.hitTimer > 0 && Math.floor(this.hitTimer * 10) % 2 === 0) ctx.globalAlpha = 0.5;
+
+                if (this.imageLoaded) {
+                    const w = this.radius * 4;
+                    const h = this.radius * 4 * (225/175);
+                    ctx.drawImage(this.petCanvas, -w * 0.45, -h * 0.6, w, h);
+                } else {
+                    ctx.fillStyle = 'rgba(6, 182, 212, 0.2)';
+                    ctx.strokeStyle = '#22d3ee';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+                    ctx.fill(); ctx.stroke();
+                }
+                ctx.restore(); 
+                ctx.restore(); 
+            }
+        }
+
+        class Enemy {
+            constructor(x, y, typeLevel) {
+                this.x = x; this.y = y;
+                this.radius = 12 + typeLevel * 2;
+                this.baseSpeed = 60 + Math.random() * 40; // [数据调整] 普通怪物的基础移动速度随机范围
+                
+                let hpScale = difficultyMultiplier;
+                if (player && player.level >= 15) {
+                    // [数据调整] 10级后怪物血量的阶跃加成：基础立刻变3倍，每升一级再+0.8倍
+                    hpScale *= 2 + (player.level - 10) * 0.8;
+                }
+                this.maxHp = Math.floor(20 * typeLevel * hpScale); // [数据调整] 怪物基础生命值计算公式
+                
+                this.hp = this.maxHp;
+                this.damage = 10 + typeLevel * 3; // [数据调整] 怪物碰撞造成的单次伤害
+                this.color = typeLevel === 1 ? '#ef4444' : (typeLevel === 2 ? '#d946ef' : '#f59e0b');
+                
+                // [数据调整] 怪物死亡掉落的经验量公式
+                this.expValue = Math.floor(10 * typeLevel * Math.pow(difficultyMultiplier, 0.6)); 
+            }
+
+            update(dt) {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.hypot(dx, dy);
+                
+                if (dist > 0) {
+                    this.x += (dx / dist) * this.baseSpeed * dt;
+                    this.y += (dy / dist) * this.baseSpeed * dt;
+                }
+
+                if (dist < this.radius + player.radius) {
+                    player.takeDamage(this.damage);
+                    this.x -= (dx / dist) * 10; this.y -= (dy / dist) * 10;
+                }
+            }
+
+            takeDamage(amount) {
+                this.hp -= amount;
+                createParticles(this.x, this.y, this.color, 3, 2);
+                floatingTexts.push(new FloatingText(this.x, this.y - 15, Math.floor(amount).toString(), '#fff'));
+
+                if (this.hp <= 0) {
+                    killCount++;
+                    updateHUD();
+                    expGems.push(new ExpGem(this.x, this.y, this.expValue));
+                    createParticles(this.x, this.y, this.color, 10, 4);
+                }
+            }
+            
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 2;
+                
+                const points = 5 + Math.floor(this.radius % 3);
+                ctx.beginPath();
+                for (let i = 0; i < points; i++) {
+                    const angle = (i / points) * Math.PI * 2 + (gameTime * 2); 
+                    const r = (i % 2 === 0) ? this.radius : this.radius * 0.6; 
+                    ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+                }
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Boss extends Enemy {
+            constructor(x, y, diff) {
+                super(x, y, 1);
+                this.radius = 50; 
+                this.baseSpeed = 70; // [数据调整] BOSS 的移动速度
+                
+                let hpScale = diff;
+                if (player && player.level >= 10) {
+                    // [数据调整] 10级后 BOSS 血量的阶跃加成
+                    hpScale *= 3 + (player.level - 10) * 0.8;
+                }
+                this.maxHp = Math.floor(6000 * hpScale); // [数据调整] BOSS 基础血量
+                
+                this.hp = this.maxHp;
+                this.damage = 40 + (diff * 10); // [数据调整] BOSS 碰撞伤害
+                this.color = '#dc2626'; 
+                
+                // [数据调整] BOSS 死亡掉落的海量经验
+                this.expValue = Math.floor(400 * Math.pow(diff, 0.8)); 
+                this.isBoss = true;
+            }
+            takeDamage(amount) {
+                super.takeDamage(amount);
+                if (this.hp <= 0) {
+                    document.getElementById('bossUI').classList.add('hidden');
+                    bossEntity = null;
+                    createParticles(this.x, this.y, '#f59e0b', 100, 8);
+                    showToast("🎉 核心病毒已消除！");
+                } else {
+                    const pct = Math.max(0, (this.hp / this.maxHp) * 100);
+                    document.getElementById('bossHpBar').style.width = `${pct}%`;
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const scale = 1.3 + Math.sin(gameTime * 5) * 0.1;
+                ctx.scale(scale, scale);
+                
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeStyle = this.color;
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                for (let i = 0; i < 16; i++) {
+                    const angle = (i / 16) * Math.PI * 2 + (gameTime * 3);
+                    const r = (i % 2 === 0) ? this.radius : this.radius * 0.4;
+                    ctx.lineTo(Math.cos(angle) * r, Math.sin(angle) * r);
+                }
+                ctx.closePath();
+                ctx.fill(); ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI*2);
+                ctx.fillStyle = '#ef4444';
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class ExpGem {
+            constructor(x, y, value) {
+                this.x = x; this.y = y; this.value = value;
+                this.radius = 6; this.collected = false; this.speed = 0;
+            }
+            update(dt) {
+                const dx = player.x - this.x;
+                const dy = player.y - this.y;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist < player.magnetRadius || this.collected) {
+                    this.collected = true;
+                    this.speed += 800 * dt; 
+                    this.x += (dx / dist) * this.speed * dt;
+                    this.y += (dy / dist) * this.speed * dt;
+
+                    if (dist < player.radius) {
+                        player.gainExp(this.value);
+                        this.hp = -1; 
+                    }
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const hue = (gameTime * 200) % 360;
+                ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
+                ctx.rotate(gameTime * 3);
+                ctx.fillRect(-this.radius, -this.radius, this.radius*2, this.radius*2);
+                ctx.restore();
+            }
+        }
+
+        class LaserProjectile {
+            constructor(x, y, tx, ty, damage, areaMult = 1.0) {
+                this.x = x; this.y = y;
+                const dx = tx - x; const dy = ty - y;
+                const dist = Math.hypot(dx, dy);
+                this.vx = (dx / dist); this.vy = (dy / dist);
+                this.length = 400 * areaMult; 
+                this.damage = damage;
+                this.width = 6 * areaMult; 
+                this.lifeTime = 0.2; 
+                this.active = true;
+                this.checkHit();
+            }
+            checkHit() {
+                const p1x = this.x, p1y = this.y;
+                const p2x = this.x + this.vx * this.length;
+                const p2y = this.y + this.vy * this.length;
+                
+                enemies.forEach(e => {
+                    const num = Math.abs((p2y - p1y)*e.x - (p2x - p1x)*e.y + p2x*p1y - p2y*p1x);
+                    const den = this.length;
+                    const distToLine = num / den;
+                    
+                    if (distToLine < e.radius + this.width) {
+                        const dot = (e.x - p1x)*this.vx + (e.y - p1y)*this.vy;
+                        if (dot > 0 && dot < this.length) e.takeDamage(this.damage);
+                    }
+                });
+            }
+            update(dt) { this.lifeTime -= dt; if (this.lifeTime <= 0) this.active = false; }
+            draw(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y);
+                ctx.lineTo(this.x + this.vx * this.length, this.y + this.vy * this.length);
+                ctx.strokeStyle = `rgba(34, 211, 238, ${this.lifeTime / 0.2})`; 
+                ctx.lineWidth = this.width;
+                ctx.lineCap = 'round';
+                ctx.stroke();
+                ctx.strokeStyle = `rgba(255, 255, 255, ${this.lifeTime / 0.2})`;
+                ctx.lineWidth = this.width * 0.4;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class SonicBark {
+            constructor(x, y, maxRadius, damage, pulses = 1) {
+                this.x = x; this.y = y;
+                this.maxRadius = maxRadius;
+                this.radius = 10;
+                this.damage = damage;
+                this.maxLife = 0.3; this.lifeTime = this.maxLife;
+                this.pulses = pulses; this.active = true;
+                this.hitList = new Set();
+                this.colorPrefix = '244, 63, 94'; 
+            }
+            update(dt) {
+                this.lifeTime -= dt;
+                const progress = 1 - (this.lifeTime / this.maxLife);
+                this.radius = this.maxRadius * Math.pow(Math.max(0, progress), 0.5); 
+                
+                enemies.forEach(e => {
+                    if (!this.hitList.has(e)) {
+                        const dist = Math.hypot(e.x - this.x, e.y - this.y);
+                        if (dist < this.radius + e.radius && dist > this.radius - 20) {
+                            e.takeDamage(this.damage); this.hitList.add(e);
+                        }
+                    }
+                });
+                if (this.lifeTime <= 0) {
+                    this.pulses--;
+                    if (this.pulses > 0) { this.lifeTime = this.maxLife; this.hitList.clear(); } 
+                    else { this.active = false; }
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+                ctx.strokeStyle = `rgba(${this.colorPrefix}, ${Math.max(0, this.lifeTime / this.maxLife)})`;
+                ctx.lineWidth = 6;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class Frisbee {
+            constructor(owner, index) {
+                this.owner = owner; this.index = index;
+                this.angle = index * Math.PI; 
+                this.orbitRadius = 80; this.radius = 15;
+                this.speed = 3; this.damage = 10;
+                this.active = true; this.x = 0; this.y = 0;
+            }
+            update(dt) {
+                const skill = this.owner.skills['FRISBEE'];
+                if (!skill) { this.active = false; return; }
+                const stats = WEAPONS['FRISBEE'].levels[skill.level - 1];
+                
+                this.damage = stats.baseDmg * this.owner.baseDmgMult;
+                this.orbitRadius = 80 * (stats.area || 1);
+                this.radius = 15 * (stats.area || 1);
+                this.speed = stats.speed || 3;
+
+                this.angle += this.speed * dt;
+                
+                const currentFrisbees = projectiles.filter(p => p instanceof Frisbee);
+                const trueIndex = currentFrisbees.indexOf(this);
+                if (trueIndex !== -1) {
+                    const offset = (Math.PI * 2 / currentFrisbees.length) * trueIndex;
+                    this.x = this.owner.x + Math.cos(this.angle + offset) * this.orbitRadius;
+                    this.y = this.owner.y + Math.sin(this.angle + offset) * this.orbitRadius;
+                }
+
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.radius + e.radius) {
+                        if(Math.random() < 0.1) e.takeDamage(this.damage); 
+                    }
+                });
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle * -4);
+                
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+                ctx.fillStyle = 'rgba(167, 139, 250, 0.4)'; ctx.fill();
+                ctx.strokeStyle = '#a855f7'; ctx.lineWidth = 2; ctx.stroke();
+                
+                ctx.beginPath(); ctx.moveTo(-this.radius, 0); ctx.lineTo(this.radius, 0); ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(0, -this.radius); ctx.lineTo(0, this.radius); ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        class MissileProjectile {
+            constructor(x, y, damage, areaMult = 1.0) {
+                this.x = x; this.y = y;
+                this.vx = (Math.random() - 0.5) * 200; 
+                this.vy = -100 - Math.random() * 100;
+                this.speed = 300; this.damage = damage;
+                this.radius = 6; this.explosionRadius = 60 * areaMult;
+                this.active = true; this.lifeTime = 5.0; 
+                this.target = this.findTarget();
+                this.angle = Math.atan2(this.vy, this.vx);
+            }
+            findTarget() {
+                let closest = null; let minDist = Infinity;
+                for (const e of enemies) {
+                    const dist = Math.hypot(this.x - e.x, this.y - e.y);
+                    if (dist < minDist) { minDist = dist; closest = e; }
+                }
+                return closest;
+            }
+            update(dt) {
+                this.lifeTime -= dt;
+                if (this.lifeTime <= 0) { this.explode(); return; }
+                
+                if (!this.target || this.target.hp <= 0) this.target = this.findTarget();
+                
+                if (this.target) {
+                    const dx = this.target.x - this.x; const dy = this.target.y - this.y;
+                    const desiredAngle = Math.atan2(dy, dx);
+                    
+                    let diff = desiredAngle - this.angle;
+                    while (diff < -Math.PI) diff += Math.PI * 2;
+                    while (diff > Math.PI) diff -= Math.PI * 2;
+                    this.angle += Math.sign(diff) * Math.min(Math.abs(diff), 4.0 * dt);
+                }
+                
+                this.vx = Math.cos(this.angle) * this.speed;
+                this.vy = Math.sin(this.angle) * this.speed;
+                this.x += this.vx * dt; this.y += this.vy * dt;
+                
+                if (Math.random() < 0.3) createParticles(this.x, this.y, '#f59e0b', 1, 2);
+                
+                for (const e of enemies) {
+                    if (Math.hypot(this.x - e.x, this.y - e.y) < e.radius + this.radius) { this.explode(); break; }
+                }
+            }
+            explode() {
+                this.active = false;
+                createParticles(this.x, this.y, '#ef4444', 15, 4);
+                let hitAny = false;
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.explosionRadius + e.radius) {
+                        e.takeDamage(this.damage); hitAny = true;
+                    }
+                });
+                if (hitAny) {
+                    const bark = new SonicBark(this.x, this.y, this.explosionRadius, 0, 1);
+                    bark.colorPrefix = '245, 158, 11'; 
+                    projectiles.push(bark);
+                }
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y); ctx.rotate(this.angle);
+                ctx.fillStyle = '#f59e0b'; ctx.fillRect(-8, -4, 16, 8);
+                ctx.fillStyle = '#ef4444'; ctx.fillRect(8, -3, 4, 6); 
+                ctx.restore();
+            }
+        }
+
+        class MineEntity {
+            constructor(x, y, damage, areaMult = 1.0) {
+                this.x = x; this.y = y;
+                this.damage = damage; this.explosionRadius = 80 * areaMult;
+                this.active = true; this.lifeTime = 10.0; 
+                this.armTimer = 0.5; this.radius = 8;
+            }
+            update(dt) {
+                this.lifeTime -= dt;
+                if (this.lifeTime <= 0) { this.explode(); return; }
+                if (this.armTimer > 0) { this.armTimer -= dt; return; }
+                
+                for (const e of enemies) {
+                    if (Math.hypot(this.x - e.x, this.y - e.y) < e.radius + this.radius + 15) { this.explode(); break; }
+                }
+            }
+            explode() {
+                this.active = false;
+                createParticles(this.x, this.y, '#22d3ee', 20, 5);
+                enemies.forEach(e => {
+                    if (Math.hypot(e.x - this.x, e.y - this.y) < this.explosionRadius + e.radius) { e.takeDamage(this.damage); }
+                });
+                const bark = new SonicBark(this.x, this.y, this.explosionRadius, 0, 1);
+                bark.colorPrefix = '34, 211, 238'; 
+                projectiles.push(bark);
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                if (this.armTimer > 0) ctx.globalAlpha = 0.5;
+                
+                ctx.beginPath(); ctx.arc(0, 0, this.radius, 0, Math.PI*2);
+                ctx.fillStyle = '#0f172a'; ctx.fill();
+                ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 2; ctx.stroke();
+                
+                if (Math.floor(gameTime * 5) % 2 === 0 && this.armTimer <= 0) {
+                    ctx.beginPath(); ctx.arc(0, 0, 3, 0, Math.PI*2);
+                    ctx.fillStyle = '#ef4444'; ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, size, speedX, speedY, life) {
+                this.x = x; this.y = y; this.color = color; this.size = size;
+                this.vx = speedX; this.vy = speedY; this.life = life; this.maxLife = life;
+            }
+            update(dt) { this.x += this.vx * dt; this.y += this.vy * dt; this.life -= dt; }
+            draw(ctx) {
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.size, this.size);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class FloatingText {
+            constructor(x, y, text, color) {
+                this.x = x; this.y = y; this.text = text; this.color = color;
+                this.life = 0.8; this.maxLife = 0.8; this.vy = -30;
+                this.x += (Math.random() - 0.5) * 20;
+            }
+            update(dt) { this.y += this.vy * dt; this.life -= dt; }
+            draw(ctx) {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.fillStyle = this.color;
+                ctx.font = `bold ${this.text.includes('+') ? '20px' : '16px'} "Noto Sans SC"`;
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 2;
+                ctx.strokeText(this.text, this.x, this.y);
+                ctx.fillText(this.text, this.x, this.y);
+                ctx.restore();
+            }
+        }
+
+        function createParticles(x, y, color, count, size) {
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle( x, y, color, Math.random() * size + 1, (Math.random() - 0.5) * 150, (Math.random() - 0.5) * 150, 0.2 + Math.random() * 0.4 ));
+            }
+        }
+
+        function initGame() {
+            player = new Player();
+            enemies = []; projectiles = []; expGems = []; particles = []; floatingTexts = [];
+            killCount = 0; gameTime = 0; difficultyMultiplier = 1.0;
+            enemySpawnRate = 1200; enemySpawnTimer = 0;
+            nextBossTime = 60; bossEntity = null;
+            document.getElementById('bossUI').classList.add('hidden');
+            updateHUD();
+        }
+
+        function startGame() {
+            document.getElementById('menuOverlay').classList.add('hidden');
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            document.getElementById('hud').classList.add('flex');
+            initGame(); currentState = GameState.PLAYING;
+            lastTime = performance.now();
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function triggerGameOver() {
+            currentState = GameState.GAME_OVER;
+            document.getElementById('hud').classList.add('hidden');
+            document.getElementById('hud').classList.remove('flex');
+            document.getElementById('menuOverlay').classList.remove('hidden');
+            document.getElementById('gameOverScreen').classList.remove('hidden');
+            
+            const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
+            const s = Math.floor(gameTime % 60).toString().padStart(2, '0');
+            document.getElementById('finalTime').innerText = `${m}:${s}`;
+            document.getElementById('finalKills').innerText = killCount;
+            document.getElementById('finalLevel').innerText = `Lv.${player.level}`;
+        }
+
+        function resetGame() {
+            document.getElementById('gameOverScreen').classList.add('hidden');
+            startGame();
+        }
+
+        // ================== 倍速与暂停功能 ==================
+        function cycleGameSpeed() {
+            if (currentState !== GameState.PLAYING && currentState !== GameState.PAUSED) return;
+            gameSpeedMultiplier += 1;
+            if (gameSpeedMultiplier > 5) gameSpeedMultiplier = 1;
+            document.getElementById('speedBtn').innerHTML = `▶️ ${gameSpeedMultiplier}X 倍速`;
+        }
+
+        function togglePause() {
+            const menuOverlay = document.getElementById('menuOverlay');
+            const pauseScreen = document.getElementById('pauseScreen');
+            
+            if (currentState === GameState.PLAYING) {
+                currentState = GameState.PAUSED;
+                menuOverlay.classList.remove('hidden');
+                pauseScreen.classList.remove('hidden');
+                pauseScreen.classList.add('flex', 'flex-col', 'items-center', 'justify-center');
+            } else if (currentState === GameState.PAUSED) {
+                currentState = GameState.PLAYING;
+                menuOverlay.classList.add('hidden');
+                pauseScreen.classList.add('hidden');
+                pauseScreen.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
+                lastTime = performance.now(); // 极其重要：重置记录的时间，避免切回游戏后出现巨额运算导致瞬间暴毙
+                requestAnimationFrame(gameLoop);
+            }
+        }
+        // ====================================================
+
+        function showToast(msg) {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.classList.remove('hidden'); t.classList.add('animate-fade-in');
+            setTimeout(() => { t.classList.add('hidden'); t.classList.remove('animate-fade-in'); }, 3500);
+        }
+
+        function spawnEnemy() {
+            const angle = Math.random() * Math.PI * 2;
+            const spawnDist = Math.max(GAME_WIDTH, GAME_HEIGHT) / 2 + 100; 
+            const x = player.x + Math.cos(angle) * spawnDist;
+            const y = player.y + Math.sin(angle) * spawnDist;
+
+            let type = 1;
+            if (difficultyMultiplier > 1.5 && Math.random() < 0.3) type = 2;
+            if (difficultyMultiplier > 2.5 && Math.random() < 0.1) type = 3;
+
+            enemies.push(new Enemy(x, y, type));
+        }
+
+        function spawnBoss() {
+            const angle = Math.random() * Math.PI * 2;
+            const spawnDist = Math.max(GAME_WIDTH, GAME_HEIGHT) / 2 + 150;
+            bossEntity = new Boss(player.x + Math.cos(angle) * spawnDist, player.y + Math.sin(angle) * spawnDist, difficultyMultiplier);
+            enemies.push(bossEntity);
+            
+            const ui = document.getElementById('bossUI');
+            ui.classList.remove('hidden');
+            document.getElementById('bossHpBar').style.width = '100%';
+            showToast("⚠️ 极度危险：核心病毒已入侵！");
+        }
+
+        function updateHUD() {
+            const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
+            const s = Math.floor(gameTime % 60).toString().padStart(2, '0');
+            document.getElementById('timeDisplay').innerText = `${m}:${s}`;
+            document.getElementById('killCountDisplay').innerText = killCount;
+            document.getElementById('levelDisplay').innerText = player.level;
+            document.getElementById('expText').innerText = `${player.exp} / ${player.expToNext}`;
+            document.getElementById('expBar').style.width = `${Math.min(100, (player.exp / player.expToNext) * 100)}%`;
+            document.getElementById('hpText').innerText = `${Math.floor(player.hp)} / ${Math.floor(player.maxHp)}`;
+
+            const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
+            const hpBarEl = document.getElementById('hpBar');
+            hpBarEl.style.width = `${hpPct}%`;
+            
+            if (hpPct < 30) {
+                hpBarEl.classList.replace('from-rose-600', 'from-red-600');
+                hpBarEl.classList.replace('to-rose-400', 'to-red-500');
+                hpBarEl.style.boxShadow = '0 0 15px rgba(220,38,38,0.8)';
+            } else {
+                hpBarEl.classList.replace('from-red-600', 'from-rose-600');
+                hpBarEl.classList.replace('to-red-500', 'to-rose-400');
+                hpBarEl.style.boxShadow = '0 0 10px rgba(244,63,94,0.5)';
+            }
+        }
+
+        function triggerLevelUp() {
+            currentState = GameState.LEVEL_UP;
+            isUsingJoystick = false; joystickVector = {x:0, y:0}; joystickBase.style.display = 'none';
+
+            document.getElementById('menuOverlay').classList.remove('hidden');
+            const levelScreen = document.getElementById('levelUpScreen');
+            levelScreen.classList.remove('hidden'); levelScreen.classList.add('flex');
+            
+            const container = document.getElementById('upgradeOptions');
+            container.innerHTML = '';
+
+            const validOptions = Object.keys(WEAPONS);
+            const options = validOptions.sort(() => 0.5 - Math.random()).slice(0, 3);
+
+            if (options.length === 0) { player.hp = player.maxHp; applyUpgrade(null); return; }
+
+            options.forEach(key => {
+                const weapon = WEAPONS[key];
+                const currentLvl = player.skills[key] ? player.skills[key].level : 0;
+                let nextLvl = currentLvl + 1;
+                
+                if (nextLvl > weapon.levels.length) {
+                    let prev = weapon.levels[weapon.levels.length - 1];
+                    let next = { ...prev };
+                    let desc = "【无极强化】";
+                    if (weapon.type === 'active' || key === 'AURA') {
+                         next.baseDmg = Math.floor(prev.baseDmg * 1.15) + 2;
+                         if (next.cd) next.cd = Math.max(0.1, prev.cd * 0.95);
+                         if (next.area) next.area = prev.area * 1.05;
+                         if (next.speed) next.speed = prev.speed * 1.1;
+                         if (next.tick) next.tick = Math.max(0.05, prev.tick * 0.9);
+                         desc += `伤害+15% 范围+5% ${next.cd ? '冷却-5%' : ''}`;
+                    } else {
+                         if (key === 'MAGNET') { next.val += 0.5; desc += "拾取范围+50%"; }
+                         else if (key === 'SPEED') { next.val += 0.1; desc += "移动速度+10%"; }
+                         else if (key === 'REGEN') { next.val += 3; desc += "生命回复+3/秒"; }
+                         else if (key === 'MAX_HP') { next.val += 0.3; desc += "最大生命+30%"; }
+                    }
+                    next.desc = desc;
+                    weapon.levels.push(next);
+                }
+
+                const statsInfo = weapon.levels[nextLvl - 1];
+                let title = currentLvl === 0 ? `获取: ${weapon.name}` : `升级: ${weapon.name} (Lv.${nextLvl}${nextLvl > (weapon.maxLevel || 5) ? ' MAX+' : ''})`;
+
+                let oldDesc = currentLvl > 0 ? weapon.levels[currentLvl - 1].desc : "";
+                let newDesc = statsInfo.desc;
+                
+                let descHTML = currentLvl === 0 
+                    ? `<p class="text-xs text-cyan-300 mt-2 leading-relaxed">${newDesc}</p>` 
+                    : `<p class="text-xs text-slate-500 mt-1 line-through decoration-rose-500/80">${oldDesc}</p>
+                       <p class="text-xs text-cyan-300 mt-1 font-bold leading-relaxed">➡️ ${newDesc}</p>`;
+
+                const btn = document.createElement('button');
+                btn.className = "flex items-start gap-4 p-3 bg-slate-800/80 hover:bg-slate-700 border border-slate-600 rounded-xl transition-all text-left group";
+                btn.onclick = () => applyUpgrade(key);
+                
+                btn.innerHTML = `
+                    <div class="text-3xl bg-slate-900 p-2 rounded-lg border border-slate-700 group-hover:border-cyan-400 group-hover:shadow-[0_0_10px_rgba(34,211,238,0.5)] transition-all flex items-center justify-center">${weapon.icon}</div>
+                    <div class="flex-1">
+                        <h3 class="font-bold text-cyan-300 text-lg">${title}</h3>
+                        ${descHTML}
+                    </div>
+                `;
+                container.appendChild(btn);
+            });
+        }
+
+        function applyUpgrade(key) {
+            if (key) {
+                if (!player.skills[key]) {
+                    player.skills[key] = { level: 1, cooldownTimer: WEAPONS[key].levels[0].cd || 0 };
+                } else {
+                    player.skills[key].level++;
+                }
+
+                if (key === 'MAX_HP') {
+                    const oldMax = player.maxHp;
+                    const mult = WEAPONS['MAX_HP'].levels[player.skills['MAX_HP'].level - 1].val;
+                    player.maxHp = player.baseMaxHp * mult;
+                    const hpDiff = player.maxHp - oldMax;
+                    player.hp += hpDiff; 
+                    updateHUD();
+                    floatingTexts.push(new FloatingText(player.x, player.y - 30, `+${Math.floor(hpDiff)}`, '#22c55e'));
+                }
+            }
+
+            document.getElementById('levelUpScreen').classList.add('hidden');
+            document.getElementById('levelUpScreen').classList.remove('flex');
+            document.getElementById('menuOverlay').classList.add('hidden');
+            
+            currentState = GameState.PLAYING;
+            lastTime = performance.now(); 
+        }
+
+        function gameLoop(timestamp) {
+            if (currentState !== GameState.PLAYING) {
+                // 如果是处于暂停状态，停止申请下一帧，减少性能损耗
+                if (currentState !== GameState.PAUSED) {
+                    animationFrameId = requestAnimationFrame(gameLoop);
+                }
+                return;
+            }
+
+            const realDt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
+            if (realDt > 0.1) return requestAnimationFrame(gameLoop); // 防切屏卡顿
+            
+            // 应用全局倍速
+            const dt = realDt * gameSpeedMultiplier;
+            gameTime += dt;
+            
+            // [数据调整] 难度随时间推移的膨胀系数（分母越小难度攀升越快）
+            difficultyMultiplier = 1 + (gameTime / 50);
+            
+            // [数据调整] 正常期的产怪间隔(毫秒)及单次产怪数量
+            let baseRate = Math.max(80, 800 - (gameTime * 5));
+            let baseCount = Math.floor(3 + (difficultyMultiplier * 1.5));
+
+            if (player.level < 5) {
+                // [数据调整] 保护期（5级前）的产怪间隔与数量
+                baseRate = 1500 - (player.level * 200); 
+                baseCount = 1 + Math.floor(player.level / 2); 
+            }
+
+            enemySpawnRate = baseRate;
+            enemySpawnTimer += dt * 1000;
+            
+            if (enemySpawnTimer > enemySpawnRate) {
+                enemySpawnTimer = 0;
+                for(let i=0; i<baseCount; i++) spawnEnemy();
+            }
+
+            if (gameTime >= nextBossTime) {
+                spawnBoss();
+                nextBossTime += 60; 
+            }
+
+            player.update(dt);
+            
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                projectiles[i].update(dt);
+                if (!projectiles[i].active) projectiles.splice(i, 1);
+            }
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                enemies[i].update(dt);
+                if (enemies[i].hp <= 0) enemies.splice(i, 1);
+            }
+            for (let i = expGems.length - 1; i >= 0; i--) {
+                expGems[i].update(dt);
+                if (expGems[i].hp === -1) expGems.splice(i, 1); 
+            }
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update(dt);
+                if (particles[i].life <= 0) particles.splice(i, 1);
+            }
+            for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                floatingTexts[i].update(dt);
+                if (floatingTexts[i].life <= 0) floatingTexts.splice(i, 1);
+            }
+
+            if (Math.floor(gameTime) > Math.floor(gameTime - dt)) updateHUD();
+
+            document.body.style.backgroundPosition = `${-player.x}px ${-player.y}px`;
+            
+            ctx.clearRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+            ctx.save();
+            const cameraOffsetX = (GAME_WIDTH / 2) - player.x;
+            const cameraOffsetY = (GAME_HEIGHT / 2) - player.y;
+            ctx.translate(cameraOffsetX, cameraOffsetY);
+
+            expGems.forEach(gem => gem.draw(ctx));
+            projectiles.filter(p => p instanceof Frisbee).forEach(p => p.draw(ctx));
+            enemies.forEach(enemy => enemy.draw(ctx));
+            
+            player.draw(ctx);
+            
+            projectiles.filter(p => !(p instanceof Frisbee)).forEach(p => p.draw(ctx));
+            particles.forEach(p => p.draw(ctx));
+            floatingTexts.forEach(t => t.draw(ctx));
+
+            ctx.restore(); 
+
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+    </script>
+</body>
+</html>
