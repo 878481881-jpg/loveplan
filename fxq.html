@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>云端飞行棋 ✈️☁️</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+            background-color: #e0f2fe; /* sky-100 */
+            background-image: 
+                radial-gradient(#bae6fd 2px, transparent 2px),
+                radial-gradient(#bae6fd 2px, transparent 2px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        /* ☁️ Cloud Animations */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-10px) translateX(5px); }
+        }
+        .cloud { animation: float 6s ease-in-out infinite; }
+        .cloud-delayed { animation: float 7s ease-in-out 2s infinite; }
+
+        /* 🎲 Dice Animation */
+        @keyframes rollDice {
+            0% { transform: rotate(0deg) scale(1); }
+            25% { transform: rotate(90deg) scale(1.2); }
+            50% { transform: rotate(180deg) scale(0.8); }
+            75% { transform: rotate(270deg) scale(1.1); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+        .dice-rolling { animation: rollDice 0.5s ease-out; }
+
+        /* ✈️ Plane Animations */
+        @keyframes flyBounce {
+            0%, 100% { transform: scale(1) translateY(0); }
+            50% { transform: scale(1.15) translateY(-5px); }
+        }
+        .plane-active { 
+            animation: flyBounce 1s infinite; 
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+        .plane-transition { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+        /* Board Grid setup */
+        #board-container {
+            position: relative;
+            width: 100%;
+            max-width: 400px;
+            aspect-ratio: 1 / 1;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05), inset 0 0 0 2px #fff;
+            padding: 10px;
+            margin: 0 auto;
+        }
+        
+        #board-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: repeat(12, 1fr);
+            width: 100%;
+            height: 100%;
+            gap: 2px;
+            position: relative;
+        }
+
+        .board-cell {
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.08);
+        }
+
+        /* Colors for track */
+        .cell-color-0 { background-color: #fca5a5; } /* Red */
+        .cell-color-1 { background-color: #fde047; } /* Yellow */
+        .cell-color-2 { background-color: #93c5fd; } /* Blue */
+        .cell-color-3 { background-color: #86efac; } /* Green */
+        .cell-home-red { background-color: #fee2e2; border: 1px dashed #fca5a5; }
+        .cell-home-blue { background-color: #e0f2fe; border: 1px dashed #93c5fd; }
+        .cell-win { background: radial-gradient(circle, #fbbf24 0%, #f59e0b 100%); box-shadow: 0 0 10px #fbbf24; }
+        .cell-empty { background-color: transparent; box-shadow: none; }
+
+        /* 修复棋子过大问题：使用精确像素和正确的定位大小 */
+        .plane {
+            position: absolute;
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            cursor: pointer;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.2), inset 0 -2px 0 rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .plane-red { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; border: 2px solid #fff; }
+        .plane-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: 2px solid #fff; }
+        
+        /* Base areas outside grid */
+        .base-area {
+            position: absolute;
+            width: 25%;
+            height: 25%;
+            background: rgba(255,255,255,0.9);
+            border-radius: 16px;
+            padding: 5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 4px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border: 2px solid white;
+        }
+        .base-red { top: 0; left: 0; border-color: #fca5a5; }
+        .base-blue { bottom: 0; right: 0; border-color: #93c5fd; }
+
+        .base-spot {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* Toast */
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
+
+    <!-- Decorative Clouds -->
+    <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
+    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
+    <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
+
+    <!-- 全局加载遮罩 -->
+    <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-bounce mb-4">✈️</div>
+        <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span>
+            连接塔台中...
+        </div>
+    </div>
+
+    <!-- 提示弹窗 Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-sky-400/50"></div>
+
+    <!-- 游戏结束/消息弹窗 Modal -->
+    <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
+            <div id="msgIcon" class="text-6xl mb-4 animate-bounce">🏆</div>
+            <h3 class="text-2xl font-bold text-sky-600 mb-2" id="msgTitle">游戏结束</h3>
+            <p class="text-gray-600 mb-6 font-medium" id="msgDesc">恭喜玩家获胜！</p>
+            <div class="flex gap-3">
+                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 active:scale-95 transition-all">关闭</button>
+                <button id="modalActionBtn" onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 text-white font-bold shadow-md hover:opacity-95 active:scale-95 transition-all">再来一局</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
+        <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
+            <span class="text-3xl">✈️</span>
+            <div>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋</h1>
+                <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Aero Chess Battle</p>
+            </div>
+        </div>
+        <div class="flex flex-col items-end">
+            <div class="bg-white/90 px-3 py-1.5 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
+            </div>
+            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            </span>
+        </div>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
+        
+        <!-- 大厅视图 -->
+        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
+            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-sky-100 shadow-xl flex flex-col items-center text-center">
+                <div class="w-24 h-24 bg-gradient-to-br from-sky-100 to-blue-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">
+                    🌍
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">准备起飞</h2>
+                <p class="text-sm text-gray-500 mb-6 px-2">创建房间邀请对手，或输入航班号加入对战。</p>
+                
+                <div class="w-full space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
+                        <span>✨</span> 创建对战房间 (红方)
+                    </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 w-full">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位航班号" class="w-full px-4 py-4 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 uppercase transition-all shadow-inner">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
+                            加入对战 (蓝方)
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 规则说明 -->
+            <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
+                <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制规则</h3>
+                <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
+                    <li>掷出 <b class="text-red-500">6</b> 点可起飞一架飞机，并奖励连掷。</li>
+                    <li>停在同色格子，可直接<b class="text-orange-500">跳跃</b>至下一同色格。</li>
+                    <li>终点冲刺若点数超出，需<b class="text-indigo-500">折返倒退</b>。</li>
+                    <li>4架飞机全部到达中心终点即获胜。</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 游戏视图 -->
+        <div id="gameView" class="w-full flex flex-col gap-4 hidden">
+            
+            <!-- 状态栏 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border-2 border-sky-100 shadow-sm flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">航班号</span>
+                    <span id="displayRoomCode" class="text-xl font-black text-sky-600 tracking-wider">----</span>
+                </div>
+                
+                <div class="flex items-center gap-4 bg-gray-50 px-4 py-1.5 rounded-full border border-gray-100">
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] text-red-400 font-bold">红方</span>
+                        <span id="p1NameDisplay" class="text-xs font-black text-red-600">等待</span>
+                    </div>
+                    <div class="text-gray-300 font-black italic text-sm">VS</div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-[9px] text-blue-400 font-bold">蓝方</span>
+                        <span id="p2NameDisplay" class="text-xs font-black text-blue-600">等待</span>
+                    </div>
+                </div>
+                
+                <button onclick="exitRoom()" class="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors border border-red-100 shadow-sm active:scale-90">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
+            </div>
+
+            <!-- 行动提示Banner -->
+            <div id="turnBanner" class="w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2 transition-all duration-300">
+                <span id="turnBannerIcon" class="text-lg">⏳</span>
+                <span id="turnBannerText">等待对手加入...</span>
+            </div>
+
+            <!-- 棋盘区 -->
+            <div id="board-container">
+                <!-- 遮罩，非己方回合不可操作 -->
+                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/5 rounded-2xl hidden cursor-not-allowed"></div>
+                
+                <div id="board-grid">
+                    <!-- JS动态生成 12x12 网格的背景色块 -->
+                </div>
+
+                <!-- 基地 (使用绝对定位放在棋盘内部角落) -->
+                <div class="base-area base-red" id="base-p1">
+                    <div class="base-spot" id="spot-p1-0"></div>
+                    <div class="base-spot" id="spot-p1-1"></div>
+                    <div class="base-spot" id="spot-p1-2"></div>
+                    <div class="base-spot" id="spot-p1-3"></div>
+                </div>
+                <div class="base-area base-blue" id="base-p2">
+                    <div class="base-spot" id="spot-p2-0"></div>
+                    <div class="base-spot" id="spot-p2-1"></div>
+                    <div class="base-spot" id="spot-p2-2"></div>
+                    <div class="base-spot" id="spot-p2-3"></div>
+                </div>
+
+                <!-- 飞机容器，JS动态生成飞机 div 并通过 left/top 移动 -->
+                <div id="planes-layer" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+
+            <!-- 控制台区 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-white shadow-lg flex gap-4">
+                <!-- 骰子区 -->
+                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 p-3 rounded-xl border border-gray-100 w-28">
+                    <div id="diceVisual" class="text-5xl mb-2 drop-shadow-md transition-transform">🎲</div>
+                    <button id="btnRollDice" onclick="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-sm">
+                        掷骰子
+                    </button>
+                </div>
+
+                <!-- 日志区 -->
+                <div class="flex-1 flex flex-col bg-sky-50/50 rounded-xl border border-sky-100 p-2 overflow-hidden relative">
+                    <div class="text-[10px] font-bold text-sky-600/70 mb-1 px-1 border-b border-sky-200/50 pb-1 flex justify-between">
+                        <span>📡 塔台通讯日志</span>
+                    </div>
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-xs font-medium text-gray-600">
+                        <div class="text-center text-gray-400 py-4 opacity-50">等待通讯...</div>
+                    </div>
+                    <!-- Gradient mask for smooth scrolling look -->
+                    <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'aeroplane-chess-app';
+        
+        let firebaseConfig = {
+            apiKey: "AIzaSyCrTNZeBIBSLJjmNXKTwXk9fSm4tsrpzdc",
+            authDomain: "love-ce90d.firebaseapp.com",
+            projectId: "love-ce90d",
+        };
+
+        if (typeof __firebase_config !== 'undefined') {
+            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
+        }
+
+        let app, auth, db;
+        let currentUser = null;
+        let hasFirebase = false;
+
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+            hasFirebase = true;
+        } catch(e) {
+            console.error("Firebase init failed", e);
+        }
+
+        let myIdentity = localStorage.getItem('loveGacha_myIdentity');
+        if (!myIdentity) {
+            myIdentity = "玩家" + Math.floor(Math.random()*1000); 
+        }
+        
+        const myName = myIdentity; 
+        document.getElementById('currentRoleDisplay').innerText = myName;
+
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+        let gameState = null; 
+        let myPlayerId = null; // 'p1' or 'p2'
+
+        const GRID_SIZE = 12;
+        
+        // 1. 生成外圈36格环形轨道坐标
+        const trackCoords = [];
+        for(let x=1; x<=10; x++) trackCoords.push({x, y: 1}); 
+        for(let y=2; y<=10; y++) trackCoords.push({x: 10, y});
+        for(let x=9; x>=1; x--) trackCoords.push({x, y: 10});
+        for(let y=9; y>=2; y--) trackCoords.push({x: 1, y});
+
+        // 2. 终点回家路径
+        const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5} ]; // 100, 101, 102, 103
+        const p2HomeCoords = [ {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7}, {x: 6, y: 6} ]; // 200, 201, 202, 203
+
+        function getCellColor(index) {
+            return index % 4; 
+        }
+
+        function initBoardGrid() {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+
+            const cellMap = {};
+            trackCoords.forEach((c, idx) => {
+                cellMap[`${c.x},${c.y}`] = `cell-color-${getCellColor(idx)}`;
+            });
+            p1HomeCoords.forEach((c, i) => {
+                cellMap[`${c.x},${c.y}`] = i === 3 ? 'cell-win' : 'cell-home-red';
+            });
+            p2HomeCoords.forEach((c, i) => {
+                cellMap[`${c.x},${c.y}`] = i === 3 ? 'cell-win' : 'cell-home-blue';
+            });
+
+            for(let y=0; y<GRID_SIZE; y++) {
+                for(let x=0; x<GRID_SIZE; x++) {
+                    const div = document.createElement('div');
+                    const key = `${x},${y}`;
+                    div.className = `board-cell ${cellMap[key] || 'cell-empty'}`;
+                    
+                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] font-black text-red-700/60">起飞</span>';
+                    if(x === 10 && y === 10) div.innerHTML = '<span class="text-[8px] font-black text-blue-700/60">起飞</span>';
+                    
+                    grid.appendChild(div);
+                }
+            }
+            initPlanesDOM();
+        }
+
+        function initPlanesDOM() {
+            const layer = document.getElementById('planes-layer');
+            layer.innerHTML = '';
+            
+            const createPlane = (player, i) => {
+                const el = document.createElement('div');
+                el.id = `plane-${player}-${i}`;
+                el.className = `plane plane-transition pointer-events-auto ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
+                el.innerText = '✈️';
+                el.onclick = () => handlePieceClick(player, i);
+                layer.appendChild(el);
+            };
+
+            for(let i=0; i<4; i++) {
+                createPlane('p1', i);
+                createPlane('p2', i);
+            }
+        }
+
+        function getCoordPercent(gridVal) {
+            return (gridVal + 0.5) * (100 / GRID_SIZE);
+        }
+
+        async function initAuth() {
+            if (!hasFirebase) {
+                showToast("未检测到网络配置");
+                hideLoading();
+                return;
+            }
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                switchToLobby();
+            } catch (err) {
+                console.error("Auth Error:", err);
+                showToast("登录失败");
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function hideLoading() {
+            const el = document.getElementById('globalLoading');
+            el.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => el.classList.add('hidden'), 500);
+        }
+
+        function switchToLobby() {
+            document.getElementById('lobbyView').classList.remove('hidden');
+            document.getElementById('gameView').classList.add('hidden');
+            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            currentRoomId = null;
+            myPlayerId = null;
+        }
+
+        window.createRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            
+            const initialData = {
+                status: 'waiting', 
+                p1: { name: myName, pieces: [-1, -1, -1, -1] },
+                p2: { name: null, pieces: [-1, -1, -1, -1] },
+                turn: 'p1', 
+                diceValue: null,
+                hasRolled: false,
+                logs: [`${myName} 创建了航班，等待对手...`],
+                winner: null
+            };
+
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
+                await setDoc(roomRef, initialData);
+                myPlayerId = 'p1';
+                listenToRoom(code);
+                showToast(`航班号 ${code} 创建成功`);
+            } catch (e) {
+                console.error(e);
+                showToast("创建房间失败");
+            }
+        };
+
+        window.joinRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
+
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
+                const snap = await getDoc(roomRef);
+                if (!snap.exists()) return showToast("航班不存在");
+                
+                const data = snap.data();
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
+                    return showToast("对战已开始或人员已满");
+                }
+
+                if (data.status === 'waiting' && data.p1.name !== myName) {
+                    await updateDoc(roomRef, {
+                        'p2.name': myName,
+                        status: 'playing',
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
+                    });
+                    myPlayerId = 'p2';
+                } else if (data.p1.name === myName) {
+                    myPlayerId = 'p1';
+                } else if (data.p2.name === myName) {
+                    myPlayerId = 'p2';
+                }
+
+                listenToRoom(code);
+            } catch (e) {
+                console.error(e);
+                showToast("加入房间失败");
+            }
+        };
+
+        window.exitRoom = function() {
+            switchToLobby();
+        };
+
+        function listenToRoom(code) {
+            currentRoomId = code;
+            document.getElementById('lobbyView').classList.add('hidden');
+            document.getElementById('gameView').classList.remove('hidden');
+            initBoardGrid();
+
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
+            if (unsubscribeRoom) unsubscribeRoom();
+            
+            unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    gameState = docSnap.data();
+                    renderGameState();
+                } else {
+                    showToast("房间已解散");
+                    switchToLobby();
+                }
+            }, (err) => {
+                console.error(err);
+                showToast("同步断开");
+            });
+        }
+
+        const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+
+        function renderGameState() {
+            if (!gameState) return;
+
+            document.getElementById('displayRoomCode').innerText = currentRoomId;
+            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
+
+            const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
+            
+            const banner = document.getElementById('turnBanner');
+            const bIcon = document.getElementById('turnBannerIcon');
+            const bText = document.getElementById('turnBannerText');
+            const overlay = document.getElementById('boardOverlay');
+            const btnRoll = document.getElementById('btnRollDice');
+            const diceVis = document.getElementById('diceVisual');
+
+            if (gameState.status === 'waiting') {
+                banner.className = "w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2";
+                bIcon.innerText = '⏳';
+                bText.innerText = '等待对手加入...';
+                overlay.classList.remove('hidden');
+                btnRoll.disabled = true;
+            } else if (gameState.status === 'playing') {
+                if (isMyTurn) {
+                    banner.className = `w-full py-2.5 px-4 rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
+                    bIcon.innerText = gameState.hasRolled ? '✈️' : '🎲';
+                    bText.innerText = gameState.hasRolled ? '请点击起飞或移动飞机' : '轮到你了，请掷骰子！';
+                    overlay.classList.add('hidden');
+                    btnRoll.disabled = gameState.hasRolled;
+                } else {
+                    banner.className = "w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2";
+                    bIcon.innerText = '👀';
+                    const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    bText.innerText = `等待 ${activeName} 行动...`;
+                    overlay.classList.remove('hidden');
+                    btnRoll.disabled = true;
+                }
+            }
+
+            diceVis.innerText = gameState.diceValue ? diceIcons[gameState.diceValue] : '🎲';
+            if (gameState.diceValue === 6) diceVis.classList.add('text-red-500', 'animate-pulse');
+            else diceVis.classList.remove('text-red-500', 'animate-pulse');
+
+            const logBox = document.getElementById('eventLogs');
+            logBox.innerHTML = '';
+            const logsToRender = gameState.logs.slice().reverse().slice(0, 10);
+            logsToRender.forEach(log => {
+                const div = document.createElement('div');
+                div.className = "border-b border-sky-100/50 pb-1 w-full text-left";
+                let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
+                if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
+                div.innerHTML = html;
+                logBox.appendChild(div);
+            });
+
+            if (gameState.winner) {
+                overlay.classList.remove('hidden');
+                document.getElementById('msgModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
+                const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
+                document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
+                document.getElementById('msgDesc').innerText = '4架飞机全部抵达终点！🏆';
+            }
+
+            updatePlanesPosition();
+        }
+
+        function updatePlanesPosition() {
+            const renderPlayerPlanes = (player, pieces) => {
+                pieces.forEach((pos, i) => {
+                    const planeEl = document.getElementById(`plane-${player}-${i}`);
+                    if (!planeEl) return;
+                    
+                    planeEl.classList.remove('plane-active');
+
+                    if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
+                        const canMove = (pos === -1 && gameState.diceValue === 6) || (pos !== -1 && pos !== 999);
+                        if (canMove) planeEl.classList.add('plane-active');
+                    }
+
+                    if (pos === 999) {
+                        planeEl.style.display = 'none';
+                        return;
+                    } else {
+                        planeEl.style.display = 'flex';
+                    }
+
+                    let targetX_pct, targetY_pct;
+
+                    if (pos === -1) {
+                        const spot = document.getElementById(`spot-${player}-${i}`);
+                        const containerRect = document.getElementById('board-container').getBoundingClientRect();
+                        if (spot && containerRect.width > 0) {
+                            const spotRect = spot.getBoundingClientRect();
+                            targetX_pct = ((spotRect.left + spotRect.width/2 - containerRect.left) / containerRect.width) * 100;
+                            targetY_pct = ((spotRect.top + spotRect.height/2 - containerRect.top) / containerRect.height) * 100;
+                        }
+                    } else {
+                        let gridCoord = {x:0, y:0};
+                        if (pos >= 0 && pos <= 35) {
+                            gridCoord = trackCoords[pos];
+                        } else if (pos >= 100 && pos <= 103) {
+                            gridCoord = p1HomeCoords[pos - 100];
+                        } else if (pos >= 200 && pos <= 203) {
+                            gridCoord = p2HomeCoords[pos - 200];
+                        }
+                        
+                        targetX_pct = getCoordPercent(gridCoord.x);
+                        targetY_pct = getCoordPercent(gridCoord.y);
+
+                        let countOnSpot = 0;
+                        let myIndexOnSpot = 0;
+                        
+                        const allPieces = [...gameState.p1.pieces.map(p=>({p, pId:'p1'})), ...gameState.p2.pieces.map(p=>({p, pId:'p2'}))];
+                        allPieces.forEach((item, globalIdx) => {
+                            if (item.p === pos && pos !== -1 && pos !== 999) {
+                                if (item.pId === player && globalIdx % 4 === i) myIndexOnSpot = countOnSpot;
+                                countOnSpot++;
+                            }
+                        });
+
+                        if (countOnSpot > 1) {
+                            const offset = 3; 
+                            if (myIndexOnSpot === 0) { targetX_pct -= offset; targetY_pct -= offset; }
+                            if (myIndexOnSpot === 1) { targetX_pct += offset; targetY_pct += offset; }
+                            if (myIndexOnSpot === 2) { targetX_pct -= offset; targetY_pct += offset; }
+                            if (myIndexOnSpot === 3) { targetX_pct += offset; targetY_pct -= offset; }
+                        }
+                    }
+
+                    if (targetX_pct !== undefined && targetY_pct !== undefined) {
+                        planeEl.style.left = `calc(${targetX_pct}% - 13px)`;
+                        planeEl.style.top = `calc(${targetY_pct}% - 13px)`;
+                    }
+                });
+            };
+
+            renderPlayerPlanes('p1', gameState.p1.pieces);
+            renderPlayerPlanes('p2', gameState.p2.pieces);
+        }
+
+        window.handleRollDice = async function() {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
+            
+            const diceVis = document.getElementById('diceVisual');
+            diceVis.classList.remove('dice-rolling');
+            void diceVis.offsetWidth;
+            diceVis.classList.add('dice-rolling');
+
+            const roll = Math.floor(Math.random() * 6) + 1;
+            
+            const pieces = gameState[myPlayerId].pieces;
+            let canMoveAny = false;
+            pieces.forEach(p => {
+                if (p === -1 && roll === 6) canMoveAny = true;
+                if (p !== -1 && p !== 999) canMoveAny = true;
+            });
+
+            let nextState = {
+                diceValue: roll,
+                hasRolled: true,
+            };
+            
+            const logs = [...gameState.logs];
+            logs.push(`${myName} 掷出了 ${roll} 点。`);
+
+            if (!canMoveAny) {
+                logs.push(`⚠️ 没有可移动的飞机，回合结束。`);
+                nextState.hasRolled = false;
+                nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
+            }
+
+            nextState.logs = logs;
+
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+            await updateDoc(roomRef, nextState);
+        };
+
+        window.handlePieceClick = async function(player, pieceIndex) {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
+
+            const currentPos = gameState[myPlayerId].pieces[pieceIndex];
+            const dice = gameState.diceValue;
+            
+            if (currentPos === -1 && dice !== 6) return;
+            if (currentPos === 999) return;
+
+            const logs = [...gameState.logs];
+            let newPos = currentPos;
+
+            if (currentPos === -1 && dice === 6) {
+                newPos = myPlayerId === 'p1' ? 0 : 18; 
+                logs.push(`✈️ ${myName} 的飞机驶出机库！`);
+            } else {
+                newPos = calculateDestination(myPlayerId, currentPos, dice);
+            }
+
+            // 检查同色格子跳跃
+            if (newPos >= 0 && newPos <= 35) {
+                const colorCode = getCellColor(newPos);
+                const myColorCode = myPlayerId === 'p1' ? 0 : 2;
+                
+                if (colorCode === myColorCode) {
+                    const path = generateLogicalPath(myPlayerId);
+                    const currPathIndex = path.indexOf(newPos);
+                    const jumpPathIndex = currPathIndex + 4;
+                    if (jumpPathIndex < 36) { 
+                        newPos = path[jumpPathIndex];
+                        logs.push(`💨 触发同色跳跃！`);
+                    }
+                }
+            }
+
+            const myPieces = [...gameState[myPlayerId].pieces];
+            myPieces[pieceIndex] = newPos;
+            let stateUpdate = {
+                [`${myPlayerId}.pieces`]: myPieces
+            };
+
+            // 碰撞检测（击落敌机）
+            if (newPos >= 0 && newPos <= 35) {
+                const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+                const oppPieces = [...gameState[oppId].pieces];
+                let collisionOccurred = false;
+
+                for(let i=0; i<4; i++) {
+                    if (oppPieces[i] === newPos) {
+                        oppPieces[i] = -1;
+                        collisionOccurred = true;
+                    }
+                }
+                if (collisionOccurred) {
+                    stateUpdate[`${oppId}.pieces`] = oppPieces;
+                    const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    logs.push(`💥 ${myName} 击落了 ${oppName} 的飞机！`);
+                }
+            }
+
+            const allFinished = myPieces.every(p => p === 999);
+            if (allFinished) {
+                stateUpdate.winner = myPlayerId;
+                stateUpdate.status = 'finished';
+                logs.push(`🏆 恭喜 ${myName} 所有飞机到达终点，获得胜利！`);
+            }
+
+            stateUpdate.hasRolled = false;
+            if (dice === 6 && !allFinished) {
+                stateUpdate.turn = myPlayerId;
+                logs.push(`🎲 掷出6点，获得额外回合！`);
+            } else if (!allFinished) {
+                stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
+            }
+
+            if(newPos === 999) logs.push(`🎉 一架飞机成功抵达终点！`);
+            
+            stateUpdate.logs = logs;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+            await updateDoc(roomRef, stateUpdate);
+        };
+
+        function generateLogicalPath(player) {
+            let path = [];
+            if (player === 'p1') {
+                for(let i=0; i<=35; i++) path.push(i);
+                path.push(100, 101, 102, 103, 999);
+            } else {
+                for(let i=18; i<=35; i++) path.push(i);
+                for(let i=0; i<=17; i++) path.push(i);
+                path.push(200, 201, 202, 203, 999);
+            }
+            return path;
+        }
+
+        // 修复：严格实现飞行棋超出点数后倒退弹回规则
+        function calculateDestination(player, currentPos, steps) {
+            const path = generateLogicalPath(player);
+            const currIdx = path.indexOf(currentPos);
+            if (currIdx === -1) return currentPos;
+
+            let targetIdx = currIdx + steps;
+            
+            if (targetIdx >= path.length) {
+                const overshoot = targetIdx - (path.length - 1);
+                targetIdx = (path.length - 1) - overshoot;
+            }
+            
+            return path[targetIdx];
+        }
+
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-animate');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-animate');
+            }, 3000);
+        };
+
+        window.closeMsgModal = function() {
+            document.getElementById('msgModalContent').classList.add('scale-95');
+            setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200);
+        };
+
+        window.resetGame = async function() {
+            if (!currentRoomId || !gameState) return;
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+            const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
+
+            await updateDoc(roomRef, {
+                status: 'playing',
+                'p1.pieces': [-1, -1, -1, -1],
+                'p2.pieces': [-1, -1, -1, -1],
+                turn: nextTurn,
+                diceValue: null,
+                hasRolled: false,
+                winner: null,
+                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
+            });
+            closeMsgModal();
+        };
+
+        window.addEventListener('resize', () => {
+            if (gameState && gameState.status !== 'waiting') {
+                setTimeout(updatePlanesPosition, 100); 
+            }
+        });
+
+        window.addEventListener('load', async () => {
+            await initAuth();
+        });
+    </script>
+</body>
+</html>
