@@ -37,9 +37,7 @@
             pointer-events: none; 
         }
 
-        .interactive {
-            pointer-events: auto;
-        }
+        .interactive { pointer-events: auto; }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .animate-fade-in { animation: fadeIn 0.3s ease-in-out forwards; }
@@ -91,6 +89,11 @@
             border: 2px solid rgba(6, 182, 212, 0.3);
             box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
+
+        /* 自定义滚动条 */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(30, 41, 59, 0.5); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(6, 182, 212, 0.5); border-radius: 4px; }
     </style>
 </head>
 <body class="transition-none">
@@ -100,7 +103,7 @@
     <div id="joystickZone" class="interactive lg:hidden"></div>
     <div id="joystickBase" class="pointer-events-none z-[35]"><div id="joystickStick"></div></div>
 
-    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-rose-600/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(244,63,94,0.5)] text-sm font-bold hidden z-[100] tracking-widest border border-rose-400"></div>
+    <div id="toast" class="fixed top-24 left-1/2 transform -translate-x-1/2 bg-rose-600/90 backdrop-blur text-white px-6 py-3 rounded-full shadow-[0_0_20px_rgba(244,63,94,0.5)] text-sm font-bold hidden z-[100] tracking-widest border border-rose-400 transition-all"></div>
 
     <div class="ui-layer flex flex-col justify-between p-4">
         <div id="hud" class="hidden flex-col gap-2 transition-opacity relative z-40">
@@ -122,12 +125,15 @@
                 </div>
             </div>
 
-            <!-- 控制面板：倍速与暂停 -->
-            <div class="flex justify-between items-center w-full max-w-md mx-auto mt-2 pointer-events-auto">
-                <button id="speedBtn" onclick="cycleGameSpeed()" class="bg-slate-800/90 px-4 py-1.5 rounded-full border border-cyan-700 text-cyan-400 font-bold text-xs shadow-[0_0_10px_rgba(34,211,238,0.2)] active:scale-95 transition-transform flex items-center gap-1">
+            <!-- 控制面板：自动战斗、倍速与暂停 -->
+            <div class="flex justify-between items-center w-full max-w-md mx-auto mt-2 pointer-events-auto gap-2">
+                <button id="autoBtn" onclick="toggleAutoBattle()" class="flex-1 bg-slate-800/90 px-3 py-1.5 rounded-full border border-green-700 text-green-400 font-bold text-xs shadow-[0_0_10px_rgba(34,197,94,0.2)] active:scale-95 transition-all flex items-center justify-center gap-1">
+                    🤖 自动: 关
+                </button>
+                <button id="speedBtn" onclick="cycleGameSpeed()" class="flex-1 bg-slate-800/90 px-3 py-1.5 rounded-full border border-cyan-700 text-cyan-400 font-bold text-xs shadow-[0_0_10px_rgba(34,211,238,0.2)] active:scale-95 transition-transform flex items-center justify-center gap-1">
                     ▶️ 1X 倍速
                 </button>
-                <button id="pauseBtn" onclick="togglePause()" class="bg-slate-800/90 px-4 py-1.5 rounded-full border border-yellow-700 text-yellow-400 font-bold text-xs shadow-[0_0_10px_rgba(250,204,21,0.2)] active:scale-95 transition-transform flex items-center gap-1">
+                <button id="pauseBtn" onclick="togglePause()" class="flex-1 bg-slate-800/90 px-3 py-1.5 rounded-full border border-yellow-700 text-yellow-400 font-bold text-xs shadow-[0_0_10px_rgba(250,204,21,0.2)] active:scale-95 transition-transform flex items-center justify-center gap-1">
                     ⏸️ 暂停
                 </button>
             </div>
@@ -185,9 +191,44 @@
                 <p class="mt-1 text-cyan-300">自动攻击，无极成长！</p>
             </div>
 
-            <button id="startBtn" onclick="startGame()" disabled class="w-full py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                系统连接中...
-            </button>
+            <div class="flex gap-2 w-full">
+                <button id="leaderBtn" onclick="showLeaderboard()" disabled class="w-1/3 py-4 bg-slate-800 hover:bg-slate-700 text-fuchsia-400 font-black rounded-xl shadow-[0_0_15px_rgba(217,70,239,0.3)] border border-fuchsia-500/50 transform hover:-translate-y-1 transition-all tracking-widest active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    榜单
+                </button>
+                <button id="startBtn" onclick="startGame()" disabled class="w-2/3 py-4 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(6,182,212,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                    系统连接中...
+                </button>
+            </div>
+        </div>
+
+        <!-- Leaderboard Screen -->
+        <div id="leaderboardScreen" class="hidden cyber-panel rounded-3xl p-6 max-w-sm w-full flex-col gap-4 border-t-4 border-t-fuchsia-500 shadow-[0_0_30px_rgba(217,70,239,0.3)] relative z-[60] max-h-[85vh]">
+            <h2 class="text-2xl font-black text-fuchsia-400 text-center tracking-widest uppercase">战绩系统</h2>
+            <button onclick="closeLeaderboard()" class="absolute top-4 right-4 text-slate-400 hover:text-white text-xl">✕</button>
+
+            <div class="flex gap-3 w-full">
+                <div class="flex-1 bg-slate-800/80 p-3 rounded-xl border border-rose-500/50 shadow-[0_0_10px_rgba(244,63,94,0.2)] text-center">
+                    <div class="text-xs text-rose-400 font-bold mb-2">亲亲 最高记录</div>
+                    <div id="qHighest" class="text-sm text-slate-300 font-mono flex flex-col gap-1">
+                        <span>--:--</span>
+                        <span class="text-xs text-slate-400">击杀: -</span>
+                    </div>
+                </div>
+                <div class="flex-1 bg-slate-800/80 p-3 rounded-xl border border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)] text-center">
+                    <div class="text-xs text-blue-400 font-bold mb-2">哼哼 最高记录</div>
+                    <div id="hHighest" class="text-sm text-slate-300 font-mono flex flex-col gap-1">
+                        <span>--:--</span>
+                        <span class="text-xs text-slate-400">击杀: -</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-2 w-full flex flex-col min-h-0">
+                <h3 class="text-sm font-bold text-cyan-300 mb-2 pl-2 border-l-2 border-cyan-400">我的战斗记录</h3>
+                <div id="myHistoryList" class="flex-1 overflow-y-auto space-y-2 pr-1 custom-scrollbar" style="max-height: 40vh;">
+                    <!-- 动态插入记录 -->
+                </div>
+            </div>
         </div>
 
         <!-- Level Up Screen -->
@@ -210,7 +251,7 @@
                 <div class="flex justify-between"><span class="text-slate-400">最终等级:</span> <span id="finalLevel" class="text-yellow-400 font-bold font-mono">Lv.1</span></div>
             </div>
 
-            <button onclick="resetGame()" class="w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(225,29,72,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95">
+            <button id="restartBtn" onclick="resetGame()" class="w-full py-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-black rounded-xl shadow-[0_0_15px_rgba(225,29,72,0.5)] transform hover:-translate-y-1 transition-all text-lg tracking-widest active:scale-95 disabled:opacity-50">
                 系统重启 (RESTART)
             </button>
         </div>
@@ -238,26 +279,39 @@
         let gameTime = 0;
         let animationFrameId;
         
-        let gameSpeedMultiplier = 1; // [数据调整] 游戏全局运行倍速 (默认1)
+        let gameSpeedMultiplier = 1; 
+        let isAutoBattle = false;
         
-        let nextBossTime = 60;
+        let nextBossTime = 60; // BOSS初次刷新的时间
         let bossEntity = null;
 
         let player;
         let enemies = [];
         let projectiles = [];
         let expGems = [];
+        let loots = []; 
         let particles = [];
         let floatingTexts = [];
         
         let killCount = 0;
         let enemySpawnTimer = 0;
-        let enemySpawnRate = 1000; 
+        let enemySpawnRate = 1000;
         let difficultyMultiplier = 1.0; 
 
         const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
         let joystickVector = { x: 0, y: 0 };
         let isUsingJoystick = false;
+
+        // --- 全局 GitHub 接口与战绩系统数据 ---
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const myIdentity = localStorage.getItem('loveGacha_myIdentity');
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_H_GECAO = 'data/hgecao.json';
+        const FILE_Q_GECAO = 'data/qgecao.json';
+
+        let dataH = {}, shaH = null;
+        let dataQ = {}, shaQ = null;
+        // -------------------------------------
 
         function resizeCanvas() {
             GAME_WIDTH = window.innerWidth;
@@ -268,81 +322,112 @@
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
 
-        // [数据调整] 在此修改各个技能的数值。
-        // baseDmg: 基础伤害, cd: 冷却时间(秒), amount: 数量, area: 范围倍率, speed: 速度倍率, val: 被动增益值
         const WEAPONS = {
             AURA: { id: 'AURA', name: '电磁力场', icon: '🌀', type: 'active', maxLevel: 5,
                 levels: [
-                    { desc: '在脚底生成紫色力场，持续灼烧周围敌人。', baseDmg: 10, area: 1, tick: 0.5 },
-                    { desc: '力场范围扩大，伤害提升。', baseDmg: 15, area: 1.5, tick: 0.5 },
-                    { desc: '力场伤害触发频率翻倍。', baseDmg: 15, area: 1.5, tick: 0.25 },
-                    { desc: '力场伤害大幅提升。', baseDmg: 25, area: 1.5, tick: 0.25 },
-                    { desc: '力场范围与伤害再次飙升。', baseDmg: 40, area: 2.0, tick: 0.25 }
+                    { desc: '解锁电磁力场', baseDmg: 10, area: 1, tick: 0.5 },
+                    { desc: '伤害+50% 范围+50%', baseDmg: 15, area: 1.5, tick: 0.5 },
+                    { desc: '触发频率+100%', baseDmg: 15, area: 1.5, tick: 0.25 },
+                    { desc: '伤害+66%', baseDmg: 25, area: 1.5, tick: 0.25 },
+                    { desc: '伤害+60% 范围+33%', baseDmg: 40, area: 2.0, tick: 0.25 }
                 ]
             },
-            LASER: { id: 'LASER', name: '数据激光', icon: '⚡', type: 'active', maxLevel: 5,
+            LASER: { id: 'LASER', name: '数据激光', icon: '⚡', type: 'active', maxLevel: 9,
                 levels: [
-                    { desc: '向最近的敌人发射穿透激光。', baseDmg: 20, cd: 1.5, amount: 1, area: 1 },
-                    { desc: '激光伤害提升 50%。', baseDmg: 30, cd: 1.5, amount: 1, area: 1 },
-                    { desc: '额外发射 1 道追踪激光。', baseDmg: 30, cd: 1.5, amount: 2, area: 1 },
-                    { desc: '冷却时间缩短 30%。', baseDmg: 30, cd: 1.05, amount: 2, area: 1 },
-                    { desc: '激光变得更宽，伤害大幅提升。', baseDmg: 50, cd: 1.05, amount: 2, area: 1.5 }
+                    { desc: '解锁穿透激光', baseDmg: 50, cd: 1.5, amount: 1, area: 1 },
+                    { desc: '伤害+50%', baseDmg: 75, cd: 1.5, amount: 1, area: 1 },
+                    { desc: '数量+1', baseDmg: 75, cd: 1.5, amount: 2, area: 1 },
+                    { desc: '冷却-30%', baseDmg: 75, cd: 1.05, amount: 2, area: 1 },
+                    { desc: '范围+50%', baseDmg: 75, cd: 1.05, amount: 2, area: 1.5 },
+                    { desc: '伤害+33% 冷却-25% 数量+1', baseDmg: 100, cd: 0.8, amount: 3, area: 1.8 },
+                    { desc: '伤害+20% 冷却-12% 数量+1', baseDmg: 120, cd: 0.7, amount: 4, area: 2 },
+                    { desc: '伤害+25% 冷却-14% 数量+1', baseDmg: 150, cd: 0.6, amount: 5, area: 2.5 },
+                    { desc: '伤害+33% 冷却-16% 数量+1', baseDmg: 200, cd: 0.5, amount: 6, area: 3 }
                 ]
             },
-            BARK: { id: 'BARK', name: '声波震荡', icon: '🔊', type: 'active', maxLevel: 5,
+            BARK: { id: 'BARK', name: '声波震荡', icon: '🔊', type: 'active', maxLevel: 9,
                 levels: [
-                    { desc: '以自身为中心爆发能量声波。', baseDmg: 15, cd: 2.0, amount: 1, area: 1 },
-                    { desc: '声波扩散范围提升 30%。', baseDmg: 15, cd: 2.0, amount: 1, area: 1.3 },
-                    { desc: '声波基础伤害提升 50%。', baseDmg: 22.5, cd: 2.0, amount: 1, area: 1.3 },
-                    { desc: '冷却时间缩短 25%。', baseDmg: 22.5, cd: 1.5, amount: 1, area: 1.3 },
-                    { desc: '触发两次连续声波（连击）。', baseDmg: 22.5, cd: 1.5, amount: 2, area: 1.5 }
+                    { desc: '解锁声波震荡', baseDmg: 20, cd: 2.0, amount: 1, area: 1 },
+                    { desc: '范围+30%', baseDmg: 20, cd: 2.0, amount: 1, area: 1.3 },
+                    { desc: '伤害+50%', baseDmg: 30, cd: 2.0, amount: 1, area: 1.3 },
+                    { desc: '冷却-25%', baseDmg: 30, cd: 1.5, amount: 1, area: 1.3 },
+                    { desc: '连击+1 范围+15%', baseDmg: 30, cd: 1.5, amount: 2, area: 1.5 },
+                    { desc: '伤害+66% 冷却-33% 连击+1', baseDmg: 50, cd: 1, amount: 3, area: 1.8 },
+                    { desc: '伤害+40% 冷却-20% 连击+1', baseDmg: 70, cd: 0.8, amount: 4, area: 2 },
+                    { desc: '伤害+14% 冷却-25% 连击+1', baseDmg: 80, cd: 0.6, amount: 5, area: 2.5 },
+                    { desc: '伤害+25% 冷却-16% 连击+1', baseDmg: 100, cd: 0.5, amount: 6, area: 3 }
                 ]
             },
-            FRISBEE: { id: 'FRISBEE', name: '全息飞盘', icon: '🥏', type: 'active', maxLevel: 5,
+            FRISBEE: { id: 'FRISBEE', name: '全息飞盘', icon: '🥏', type: 'active', maxLevel: 9,
                 levels: [
-                    { desc: '发射围绕自身旋转的切割飞盘。', baseDmg: 10, cd: 0, amount: 1, speed: 3, area: 1 }, 
-                    { desc: '飞盘伤害提升 40%。', baseDmg: 14, cd: 0, amount: 1, speed: 3, area: 1 },
-                    { desc: '增加 1 个旋转飞盘。', baseDmg: 14, cd: 0, amount: 2, speed: 3, area: 1 },
-                    { desc: '飞盘旋转速度提升 50%。', baseDmg: 14, cd: 0, amount: 2, speed: 4.5, area: 1 },
-                    { desc: '增加至 3 个飞盘，环绕范围扩大。', baseDmg: 20, cd: 0, amount: 3, speed: 5, area: 1.3 }
+                    { desc: '解锁旋转飞盘', baseDmg: 40, cd: 0, amount: 1, speed: 3, area: 1 }, 
+                    { desc: '伤害+50%', baseDmg: 60, cd: 0, amount: 1, speed: 3, area: 1 },
+                    { desc: '数量+1', baseDmg: 60, cd: 0, amount: 2, speed: 3, area: 1 },
+                    { desc: '速度+50%', baseDmg: 60, cd: 0, amount: 2, speed: 4.5, area: 1 },
+                    { desc: '数量+1 范围+30%', baseDmg: 60, cd: 0, amount: 3, speed: 5, area: 1.3 },
+                    { desc: '伤害+33% 数量+1 速度+10%', baseDmg: 80, cd: 0, amount: 4, speed: 5.5, area: 1.5 },
+                    { desc: '伤害+25% 数量+1 范围+20%', baseDmg: 100, cd: 0, amount: 5, speed: 6, area: 1.8 },
+                    { desc: '伤害+20% 数量+1 速度+8%', baseDmg: 120, cd: 0, amount: 6, speed: 6.5, area: 2 },
+                    { desc: '伤害+25% 数量+1 范围+50%', baseDmg: 150, cd: 0, amount: 7, speed: 7, area: 3 }
                 ]
             },
-            MISSILE: { id: 'MISSILE', name: '追踪飞弹', icon: '🚀', type: 'active', maxLevel: 5,
+            MISSILE: { id: 'MISSILE', name: '追踪飞弹', icon: '🚀', type: 'active', maxLevel: 9,
                 levels: [
-                    { desc: '发射 2 枚自动追踪敌人的爆破飞弹。', baseDmg: 25, cd: 2.5, amount: 2, area: 1 },
-                    { desc: '飞弹爆炸范围与伤害提升。', baseDmg: 35, cd: 2.5, amount: 2, area: 1.5 },
-                    { desc: '飞弹发射数量 +1。', baseDmg: 35, cd: 2.5, amount: 3, area: 1.5 },
-                    { desc: '冷却时间缩短。', baseDmg: 35, cd: 1.8, amount: 3, area: 1.5 },
-                    { desc: '飞弹数量 +2，发动毁灭性打击。', baseDmg: 50, cd: 1.8, amount: 5, area: 1.8 }
+                    { desc: '解锁追踪飞弹', baseDmg: 50, cd: 2.5, amount: 2, area: 1 },
+                    { desc: '伤害+40% 范围+50%', baseDmg: 70, cd: 2.5, amount: 2, area: 1.5 },
+                    { desc: '数量+1', baseDmg: 70, cd: 2.5, amount: 3, area: 1.5 },
+                    { desc: '冷却-28%', baseDmg: 70, cd: 1.8, amount: 3, area: 1.5 },
+                    { desc: '数量+2 范围+20%', baseDmg: 70, cd: 1.8, amount: 5, area: 1.8 },
+                    { desc: '伤害+42% 冷却-16% 数量+1', baseDmg: 100, cd: 1.5, amount: 6, area: 2 },
+                    { desc: '伤害+20% 冷却-20% 数量+1', baseDmg: 120, cd: 1.2, amount: 7, area: 2.5 },
+                    { desc: '伤害+25% 冷却-16% 数量+1', baseDmg: 150, cd: 1.0, amount: 8, area: 3 },
+                    { desc: '伤害+33% 冷却-20% 数量+1', baseDmg: 200, cd: 0.8, amount: 9, area: 3.5 }
                 ]
             },
-            MINE: { id: 'MINE', name: '数据地雷', icon: '💣', type: 'active', maxLevel: 5,
+            MINE: { id: 'MINE', name: '数据地雷', icon: '💣', type: 'active', maxLevel: 9,
                 levels: [
-                    { desc: '在身后定期放置高爆地雷。', baseDmg: 40, cd: 2.0, amount: 1, area: 1 },
-                    { desc: '地雷爆炸范围提升。', baseDmg: 40, cd: 2.0, amount: 1, area: 1.5 },
-                    { desc: '地雷伤害提升 50%。', baseDmg: 60, cd: 2.0, amount: 1, area: 1.5 },
-                    { desc: '每次放置 2 颗地雷。', baseDmg: 60, cd: 2.0, amount: 2, area: 1.5 },
-                    { desc: '地雷放置频率翻倍。', baseDmg: 60, cd: 1.0, amount: 2, area: 1.5 }
+                    { desc: '解锁高爆地雷', baseDmg: 100, cd: 2.0, amount: 1, area: 1 },
+                    { desc: '范围+50%', baseDmg: 100, cd: 2.0, amount: 1, area: 1.5 },
+                    { desc: '伤害+50%', baseDmg: 150, cd: 2.0, amount: 1, area: 1.5 },
+                    { desc: '数量+1', baseDmg: 150, cd: 2.0, amount: 2, area: 1.5 },
+                    { desc: '冷却-50%', baseDmg: 150, cd: 1.0, amount: 2, area: 1.5 },
+                    { desc: '伤害+33% 冷却-20% 数量+1', baseDmg: 200, cd: 0.8, amount: 3, area: 1.8 },
+                    { desc: '伤害+25% 冷却-12% 数量+1', baseDmg: 250, cd: 0.7, amount: 4, area: 2 },
+                    { desc: '伤害+20% 冷却-14% 数量+1', baseDmg: 300, cd: 0.6, amount: 5, area: 2.5 },
+                    { desc: '伤害+33% 冷却-16% 数量+1', baseDmg: 400, cd: 0.5, amount: 6, area: 3 }
+                ]
+            },
+            DART: { id: 'DART', name: '回旋飞镖', icon: '🪃', type: 'active', maxLevel: 9,
+                levels: [
+                    { desc: '解锁回旋飞镖', baseDmg: 30, cd: 2.5, amount: 1, area: 1 },
+                    { desc: '伤害+50%', baseDmg: 45, cd: 2.5, amount: 1, area: 1 },
+                    { desc: '数量+1', baseDmg: 45, cd: 2.5, amount: 2, area: 1 },
+                    { desc: '冷却-20%', baseDmg: 45, cd: 2.0, amount: 2, area: 1 },
+                    { desc: '范围+50%', baseDmg: 45, cd: 2.0, amount: 2, area: 1.5 },
+                    { desc: '伤害+33% 冷却-10% 数量+1', baseDmg: 60, cd: 1.8, amount: 3, area: 1.5 },
+                    { desc: '伤害+33% 冷却-16% 数量+1', baseDmg: 80, cd: 1.5, amount: 4, area: 1.8 },
+                    { desc: '伤害+25% 冷却-20% 数量+1', baseDmg: 100, cd: 1.2, amount: 5, area: 2.0 },
+                    { desc: '伤害+30% 冷却-16% 数量+1', baseDmg: 130, cd: 1.0, amount: 6, area: 2.5 }
                 ]
             },
             MAGNET: { id: 'MAGNET', name: '引力模块', icon: '🧲', type: 'passive', maxLevel: 5,
                 levels: [
-                    { desc: '拾取范围 +50%。', val: 1.5 }, { desc: '拾取范围 +100%。', val: 2.0 }, { desc: '拾取范围 +150%。', val: 2.5 }, { desc: '拾取范围 +200%。', val: 3.0 }, { desc: '拾取范围 +300%。', val: 4.0 }
+                    { desc: '拾取范围+50%', val: 1.5 }, { desc: '拾取范围+100%', val: 2.0 }, { desc: '拾取范围+150%', val: 2.5 }, { desc: '拾取范围+200%', val: 3.0 }, { desc: '拾取范围+300%', val: 4.0 }
                 ]
             },
             SPEED: { id: 'SPEED', name: '超频运动', icon: '💨', type: 'passive', maxLevel: 5,
                 levels: [
-                    { desc: '移动速度 +15%。', val: 1.15 }, { desc: '移动速度 +30%。', val: 1.30 }, { desc: '移动速度 +45%。', val: 1.45 }, { desc: '移动速度 +60%。', val: 1.60 }, { desc: '移动速度 +80%。', val: 1.80 }
+                    { desc: '移动速度+15%', val: 1.15 }, { desc: '移动速度+30%', val: 1.30 }, { desc: '移动速度+45%', val: 1.45 }, { desc: '移动速度+60%', val: 1.60 }, { desc: '移动速度+80%', val: 1.80 }
                 ]
             },
             REGEN: { id: 'REGEN', name: '纳米修复', icon: '❤️‍🩹', type: 'passive', maxLevel: 5,
                 levels: [
-                    { desc: '每秒回复 1 点生命。', val: 1 }, { desc: '每秒回复 2 点生命。', val: 2 }, { desc: '每秒回复 4 点生命。', val: 4 }, { desc: '每秒回复 6 点生命。', val: 6 }, { desc: '每秒回复 10 点生命。', val: 10 }
+                    { desc: '每秒回复 1 点生命', val: 1 }, { desc: '每秒回复 2 点生命', val: 2 }, { desc: '每秒回复 4 点生命', val: 4 }, { desc: '每秒回复 6 点生命', val: 6 }, { desc: '每秒回复 10 点生命', val: 10 }
                 ]
             },
             MAX_HP: { id: 'MAX_HP', name: '结构强化', icon: '🛡️', type: 'passive', maxLevel: 5,
                 levels: [
-                    { desc: '最大生命值 +20%。', val: 1.2 }, { desc: '最大生命值 +40%。', val: 1.4 }, { desc: '最大生命值 +60%。', val: 1.6 }, { desc: '最大生命值 +80%。', val: 1.8 }, { desc: '最大生命值 +100%。', val: 2.0 }
+                    { desc: '最大生命值+20%', val: 1.2 }, { desc: '最大生命值+40%', val: 1.4 }, { desc: '最大生命值+60%', val: 1.6 }, { desc: '最大生命值+80%', val: 1.8 }, { desc: '最大生命值+100%', val: 2.0 }
                 ]
             }
         };
@@ -415,15 +500,7 @@
         let globalPetData = null;
         
         async function fetchPetData() {
-            const startBtn = document.getElementById('startBtn');
-            const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
-            const OWNER_REPO = '878481881-jpg/loveplan'; 
             const FILE_PET = 'data/cw.json'; 
-            
-            if (!GITHUB_TOKEN) {
-                if (startBtn) { startBtn.innerText = "系统连接完毕 (START)"; startBtn.disabled = false; }
-                return;
-            }
             try {
                 const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_PET}?t=${new Date().getTime()}`, {
                     method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
@@ -437,9 +514,154 @@
                     }
                 }
             } catch (e) { console.error(e); }
-            if (startBtn) { startBtn.innerText = "系统连接完毕 (START)"; startBtn.disabled = false; }
         }
-        fetchPetData();
+
+        // ================== GitHub 数据读取与写入核心逻辑 ==================
+        async function fetchFile(filePath) {
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
+                    method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (response.status === 401 || response.status === 403) return { authError: true };
+                if (response.status === 404) return { data: {}, sha: null }; 
+                if (!response.ok) return { error: true };
+                
+                const result = await response.json();
+                const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                return { data: JSON.parse(contentStr || '{}'), sha: result.sha };
+            } catch (error) { return { error: true }; }
+        }
+
+        async function updateFile(filePath, newData, sha) {
+            try {
+                const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2)))); 
+                const body = { message: `Update game record`, content: encodedContent };
+                if (sha) body.sha = sha;
+
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                });
+                if (response.status === 401 || response.status === 403) return { authError: true };
+                if (!response.ok) return { success: false, sha: sha };
+                
+                const result = await response.json();
+                return { success: true, sha: result.content.sha };
+            } catch (error) { return { success: false, sha: sha }; }
+        }
+
+        async function fetchLeaderboardData() {
+            if (!GITHUB_TOKEN) return;
+            const [resH, resQ] = await Promise.all([
+                fetchFile(FILE_H_GECAO),
+                fetchFile(FILE_Q_GECAO)
+            ]);
+
+            if (!resH.error && !resH.authError) { dataH = resH.data; shaH = resH.sha; }
+            if (!resQ.error && !resQ.authError) { dataQ = resQ.data; shaQ = resQ.sha; }
+            
+            renderLeaderboard();
+        }
+
+        function renderLeaderboard() {
+            const qElem = document.getElementById('qHighest');
+            const hElem = document.getElementById('hHighest');
+            const listElem = document.getElementById('myHistoryList');
+
+            if (dataQ && dataQ.highest) {
+                qElem.innerHTML = `<span class="text-white font-bold text-lg">${dataQ.highest.timeStr}</span><span class="text-xs text-rose-300">击杀: ${dataQ.highest.kills} | Lv.${dataQ.highest.level}</span>`;
+            } else {
+                qElem.innerHTML = `<span class="text-slate-500 mt-2">暂无记录</span>`;
+            }
+
+            if (dataH && dataH.highest) {
+                hElem.innerHTML = `<span class="text-white font-bold text-lg">${dataH.highest.timeStr}</span><span class="text-xs text-blue-300">击杀: ${dataH.highest.kills} | Lv.${dataH.highest.level}</span>`;
+            } else {
+                hElem.innerHTML = `<span class="text-slate-500 mt-2">暂无记录</span>`;
+            }
+
+            listElem.innerHTML = '';
+            const myData = myIdentity === '哼哼' ? dataH : dataQ;
+            if (myData && myData.history && myData.history.length > 0) {
+                myData.history.forEach(item => {
+                    listElem.innerHTML += `
+                        <div class="bg-slate-800/80 p-3 rounded-lg border border-slate-700 flex justify-between items-center hover:border-cyan-500/50 transition-colors">
+                            <div class="flex flex-col">
+                                <span class="text-[10px] text-slate-400 mb-0.5">${item.date}</span>
+                                <span class="text-sm font-bold text-cyan-300">⏱️ ${item.timeStr}</span>
+                            </div>
+                            <div class="flex flex-col items-end">
+                                <span class="text-sm font-bold text-rose-400">👾 ${item.kills}</span>
+                                <span class="text-[10px] text-yellow-400 font-bold">Lv.${item.level}</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            } else {
+                listElem.innerHTML = `<div class="text-center text-xs text-slate-500 py-6">暂无战斗记录</div>`;
+            }
+        }
+
+        async function saveGameRecord(timeStr, timeSec, kills, level) {
+            if (!GITHUB_TOKEN || !myIdentity) return;
+            const myPath = myIdentity === '哼哼' ? FILE_H_GECAO : FILE_Q_GECAO;
+            const myData = myIdentity === '哼哼' ? dataH : dataQ;
+            let mySha = myIdentity === '哼哼' ? shaH : shaQ;
+
+            const now = new Date();
+            const dateStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+            const record = { timeStr, timeSec, kills, level, date: dateStr };
+
+            if (!myData.history) myData.history = [];
+            myData.history.unshift(record);
+            if (myData.history.length > 50) myData.history.pop(); 
+
+            if (!myData.highest || timeSec > myData.highest.timeSec || (timeSec === myData.highest.timeSec && kills > myData.highest.kills)) {
+                myData.highest = record;
+            }
+
+            const res = await updateFile(myPath, myData, mySha);
+            if (res.success) {
+                if (myIdentity === '哼哼') shaH = res.sha; else shaQ = res.sha;
+            }
+            renderLeaderboard(); 
+        }
+
+        async function initNetworking() {
+            const startBtn = document.getElementById('startBtn');
+            const leaderBtn = document.getElementById('leaderBtn');
+
+            if (!GITHUB_TOKEN) {
+                if (startBtn) { startBtn.innerText = "游客模式 (START)"; startBtn.disabled = false; }
+                return;
+            }
+
+            await Promise.all([
+                fetchPetData(),
+                fetchLeaderboardData()
+            ]);
+
+            if (startBtn) { startBtn.innerText = "系统连接完毕 (START)"; startBtn.disabled = false; }
+            if (leaderBtn) { leaderBtn.disabled = false; }
+        }
+        
+        // 界面逻辑
+        function showLeaderboard() {
+            document.getElementById('startScreen').classList.add('hidden');
+            document.getElementById('leaderboardScreen').classList.remove('hidden');
+            document.getElementById('leaderboardScreen').classList.add('flex');
+            renderLeaderboard();
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboardScreen').classList.add('hidden');
+            document.getElementById('leaderboardScreen').classList.remove('flex');
+            document.getElementById('startScreen').classList.remove('hidden');
+        }
+
+        initNetworking(); // 启动网络初始化
+        // ===================================================================
 
         function lerp(start, end, t) { return start + (end - start) * t; }
         function lerpArray(arr1, arr2, t) { return arr1.map((val, i) => lerp(val, arr2[i], t)); }
@@ -552,22 +774,29 @@
                 this.x = GAME_WIDTH / 2;
                 this.y = GAME_HEIGHT / 2;
                 this.radius = 20; 
-                this.baseSpeed = 180; // [数据调整] 宠物基础移动速度
+                
+                this.baseSpeed = 180; 
                 
                 this.importedLevel = externalPetLevel;
-                const statBonus = (this.importedLevel - 1) * 0.01; // [数据调整] 导入的外部等级提供的额外属性加成比例
+                const statBonus = (this.importedLevel - 1) * 0.01; 
                 
-                this.baseMaxHp = 100 * (1 + statBonus); // [数据调整] 初始基础血量
+                this.baseMaxHp = 100 * (1 + statBonus);
                 this.maxHp = this.baseMaxHp;
                 this.hp = this.maxHp;
-                this.baseDmgMult = 1 + statBonus; // [数据调整] 全局伤害基数倍率
+                this.shield = 0; 
+                this.maxShield = 0;
+                
+                this.baseDmgMult = 1 + statBonus;
                 
                 this.level = 1;
                 this.exp = 0;
-                this.expToNext = 50; // [数据调整] 初期升到2级需要的经验值
+                this.expToNext = 50; 
                 
-                this.pickupRadius = 100; // [数据调整] 基础拾取金币/经验范围
+                this.pickupRadius = 100; 
+                
                 this.facing = 1; 
+                this.lastDx = 1; 
+                this.lastDy = 0;
                 this.isMoving = false;
 
                 this.regenTimer = 1.0; 
@@ -606,18 +835,74 @@
 
             update(dt) {
                 let dx = 0, dy = 0;
-                if (isUsingJoystick) { dx = joystickVector.x; dy = joystickVector.y; } 
-                else {
-                    if (keys.w || keys.ArrowUp) dy -= 1;
-                    if (keys.s || keys.ArrowDown) dy += 1;
-                    if (keys.a || keys.ArrowLeft) dx -= 1;
-                    if (keys.d || keys.ArrowRight) dx += 1;
+                
+                if (isAutoBattle) {
+                    let targetX = null, targetY = null;
+                    if (loots.length > 0) {
+                        targetX = loots[0].x; targetY = loots[0].y;
+                    } else {
+                        let nearestGem = null; let minDist = Infinity;
+                        expGems.forEach(g => {
+                            if (!g.collected) {
+                                let d = Math.hypot(g.x - this.x, g.y - this.y);
+                                if (d < minDist) { minDist = d; nearestGem = g; }
+                            }
+                        });
+                        if (nearestGem) {
+                            targetX = nearestGem.x; targetY = nearestGem.y;
+                        } else if (enemies.length > 0) {
+                            let nearestE = null; let minDistE = Infinity;
+                            enemies.forEach(e => {
+                                let d = Math.hypot(e.x - this.x, e.y - this.y);
+                                if (d < minDistE) { minDistE = d; nearestE = e; }
+                            });
+                            if (nearestE) { 
+                                targetX = nearestE.x; targetY = nearestE.y;
+                            }
+                        }
+                    }
+
+                    let baseDx = 0, baseDy = 0;
+                    if (targetX !== null && targetY !== null) {
+                        let tx = targetX - this.x; let ty = targetY - this.y;
+                        let tLen = Math.hypot(tx, ty);
+                        if (tLen > 0) { baseDx = tx / tLen; baseDy = ty / tLen; }
+                    }
+                    
+                    let repX = 0, repY = 0;
+                    const dangerZone = 90;
+                    enemies.forEach(e => {
+                        let edx = this.x - e.x;
+                        let edy = this.y - e.y;
+                        let dist = Math.hypot(edx, edy);
+                        let safeDist = this.radius + e.radius + dangerZone;
+                        if (dist < safeDist && dist > 0) {
+                            let force = Math.pow((safeDist - dist) / safeDist, 2); 
+                            repX += (edx / dist) * force;
+                            repY += (edy / dist) * force;
+                        }
+                    });
+
+                    dx = baseDx + repX * 2.5;
+                    dy = baseDy + repY * 2.5;
+                    
+                    let finalLen = Math.hypot(dx, dy);
+                    if (finalLen > 0) { dx /= finalLen; dy /= finalLen; }
+                } else {
+                    if (isUsingJoystick) { dx = joystickVector.x; dy = joystickVector.y; } 
+                    else {
+                        if (keys.w || keys.ArrowUp) dy -= 1;
+                        if (keys.s || keys.ArrowDown) dy += 1;
+                        if (keys.a || keys.ArrowLeft) dx -= 1;
+                        if (keys.d || keys.ArrowRight) dx += 1;
+                    }
                 }
 
                 const len = Math.hypot(dx, dy);
                 this.isMoving = len > 0;
                 if (this.isMoving) {
                     dx /= len; dy /= len;
+                    this.lastDx = dx; this.lastDy = dy;
                     if (dx > 0) this.facing = 1;
                     else if (dx < 0) this.facing = -1;
                 }
@@ -713,11 +998,34 @@
                         projectiles.push(new MineEntity(this.x + offsetX, this.y + offsetY, dmg, area));
                     }
                 }
+                else if (type === 'DART') {
+                    let baseAngle = Math.atan2(this.lastDy, this.lastDx);
+                    for(let i = 0; i < amount; i++) {
+                        let angleOffset = (i - (amount-1)/2) * 0.3; // 扇形散开
+                        let a = baseAngle + angleOffset;
+                        let dirX = Math.cos(a); let dirY = Math.sin(a);
+                        projectiles.push(new DartProjectile(this.x, this.y, dirX, dirY, dmg, area));
+                    }
+                }
             }
 
             takeDamage(amount) {
                 if (this.hitTimer > 0) return; 
-                this.hp -= amount;
+                
+                if (this.shield > 0) {
+                    if (this.shield >= amount) {
+                        this.shield -= amount;
+                        amount = 0;
+                    } else {
+                        amount -= this.shield;
+                        this.shield = 0;
+                    }
+                }
+                
+                if (amount > 0) {
+                    this.hp -= amount;
+                }
+                
                 this.hitTimer = 0.5; 
                 updateHUD();
                 
@@ -732,8 +1040,7 @@
                 if (this.exp >= this.expToNext) {
                     this.exp -= this.expToNext;
                     this.level++;
-                    // 加大升级所需要的经验跨度，使升级曲线稍微变得更加平缓/真实
-                    this.expToNext = Math.floor(this.expToNext * 1.1 + 20); 
+                    this.expToNext = Math.floor(this.expToNext * 1.01 + 20); 
                     triggerLevelUp();
                 }
                 updateHUD();
@@ -766,6 +1073,16 @@
                     ctx.lineWidth = 2;
                     ctx.stroke();
                     ctx.restore();
+                }
+                
+                if (this.shield > 0) {
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius + 15, 0, Math.PI*2);
+                    ctx.strokeStyle = `rgba(56, 189, 248, 0.6)`;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    ctx.fillStyle = `rgba(56, 189, 248, 0.1)`;
+                    ctx.fill();
                 }
                 
                 ctx.shadowBlur = 0;
@@ -810,20 +1127,19 @@
             constructor(x, y, typeLevel) {
                 this.x = x; this.y = y;
                 this.radius = 12 + typeLevel * 2;
-                this.baseSpeed = 60 + Math.random() * 40; // [数据调整] 普通怪物的基础移动速度随机范围
+                this.baseSpeed = 60 + Math.random() * 40;
                 
                 let hpScale = difficultyMultiplier;
                 if (player && player.level >= 15) {
-                    // [数据调整] 10级后怪物血量的阶跃加成：基础立刻变3倍，每升一级再+0.8倍
                     hpScale *= 1.5 + (player.level - 10) * 0.5;
                 }
-                this.maxHp = Math.floor(20 * typeLevel * hpScale); // [数据调整] 怪物基础生命值计算公式
                 
+                this.maxHp = Math.floor(10 * typeLevel * hpScale);
                 this.hp = this.maxHp;
-                this.damage = 10 + typeLevel * 3; // [数据调整] 怪物碰撞造成的单次伤害
+                
+                this.damage = 10 + typeLevel * 3;
                 this.color = typeLevel === 1 ? '#ef4444' : (typeLevel === 2 ? '#d946ef' : '#f59e0b');
                 
-                // [数据调整] 怪物死亡掉落的经验量公式
                 this.expValue = Math.floor(10 * typeLevel * Math.pow(difficultyMultiplier, 0.6)); 
             }
 
@@ -880,20 +1196,19 @@
             constructor(x, y, diff) {
                 super(x, y, 1);
                 this.radius = 50; 
-                this.baseSpeed = 70; // [数据调整] BOSS 的移动速度
+                this.baseSpeed = 70; 
                 
                 let hpScale = diff;
                 if (player && player.level >= 10) {
-                    // [数据调整] 10级后 BOSS 血量的阶跃加成
                     hpScale *= 3 + (player.level - 10) * 0.8;
                 }
-                this.maxHp = Math.floor(3000 * hpScale); // [数据调整] BOSS 基础血量
                 
+                this.maxHp = Math.floor(1000 * hpScale); 
                 this.hp = this.maxHp;
-                this.damage = 40 + (diff * 10); // [数据调整] BOSS 碰撞伤害
+                
+                this.damage = 40 + (diff * 10); 
                 this.color = '#dc2626'; 
                 
-                // [数据调整] BOSS 死亡掉落的海量经验
                 this.expValue = Math.floor(400 * Math.pow(diff, 0.8)); 
                 this.isBoss = true;
             }
@@ -903,7 +1218,8 @@
                     document.getElementById('bossUI').classList.add('hidden');
                     bossEntity = null;
                     createParticles(this.x, this.y, '#f59e0b', 100, 8);
-                    showToast("🎉 核心病毒已消除！");
+                    loots.push(new BossLoot(this.x, this.y)); 
+                    showToast("🎉 核心病毒已消除，掉落了高级道具！");
                 } else {
                     const pct = Math.max(0, (this.hp / this.maxHp) * 100);
                     document.getElementById('bossHpBar').style.width = `${pct}%`;
@@ -931,6 +1247,72 @@
                 ctx.arc(0, 0, this.radius * 0.3, 0, Math.PI*2);
                 ctx.fillStyle = '#ef4444';
                 ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        class BossLoot {
+            constructor(x, y) {
+                this.x = x; this.y = y;
+                this.radius = 25;
+                this.active = true;
+                this.floatY = 0;
+            }
+            update(dt) {
+                this.floatY = Math.sin(gameTime * 4) * 10;
+                let dist = Math.hypot(player.x - this.x, player.y - this.y);
+                if (dist < player.pickupRadius + this.radius) {
+                    this.collect();
+                }
+            }
+            collect() {
+                this.active = false;
+                let effect = Math.floor(Math.random() * 3);
+                
+                if (effect === 0) {
+                    expGems.forEach(gem => gem.collected = true);
+                    showToast("🎁 获得BOSS道具：吸收全部经验！");
+                } else if (effect === 1) {
+                    player.shield = player.maxHp * 0.5;
+                    player.maxShield = player.maxHp * 0.5;
+                    showToast("🛡️ 获得BOSS道具：50%生命护盾！");
+                } else {
+                    let heal = player.maxHp * 0.3;
+                    player.hp = Math.min(player.maxHp, player.hp + heal);
+                    showToast(`💚 获得BOSS道具：回复 ${Math.floor(heal)} HP！`);
+                    floatingTexts.push(new FloatingText(player.x, player.y - 30, `+${Math.floor(heal)}`, '#22c55e'));
+                }
+                
+                updateHUD();
+                createParticles(this.x, this.y, '#fbbf24', 30, 6);
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y + this.floatY);
+                
+                ctx.shadowColor = '#fbbf24';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = '#f59e0b';
+                
+                ctx.beginPath();
+                ctx.moveTo(0, -18);
+                ctx.lineTo(18, 0);
+                ctx.lineTo(0, 18);
+                ctx.lineTo(-18, 0);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = "#fff";
+                ctx.font = '16px "Noto Sans SC"';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText("🎁", 0, 0);
+                
                 ctx.restore();
             }
         }
@@ -964,6 +1346,74 @@
                 ctx.fillStyle = `hsl(${hue}, 100%, 70%)`;
                 ctx.rotate(gameTime * 3);
                 ctx.fillRect(-this.radius, -this.radius, this.radius*2, this.radius*2);
+                ctx.restore();
+            }
+        }
+
+        class DartProjectile {
+            constructor(x, y, dirX, dirY, damage, areaMult = 1.0) {
+                this.x = x; this.y = y;
+                this.vx = dirX; this.vy = dirY;
+                this.speed = 400;
+                this.damage = damage;
+                this.radius = 20 * areaMult;
+                this.active = true;
+                this.state = 'forward'; 
+                this.maxDist = 350 * areaMult;
+                this.distTraveled = 0;
+                this.angle = 0;
+                this.hitEnemies = new Set();
+            }
+            update(dt) {
+                this.angle += 15 * dt; 
+                
+                if (this.state === 'forward') {
+                    this.x += this.vx * this.speed * dt;
+                    this.y += this.vy * this.speed * dt;
+                    this.distTraveled += this.speed * dt;
+                    if (this.distTraveled >= this.maxDist) {
+                        this.state = 'returning';
+                        this.hitEnemies.clear(); 
+                    }
+                } else {
+                    let dx = player.x - this.x;
+                    let dy = player.y - this.y;
+                    let dist = Math.hypot(dx, dy);
+                    if (dist < player.radius + this.radius) {
+                        this.active = false;
+                        return;
+                    }
+                    this.x += (dx / dist) * this.speed * 1.5 * dt; 
+                    this.y += (dy / dist) * this.speed * 1.5 * dt;
+                }
+
+                enemies.forEach(e => {
+                    if (!this.hitEnemies.has(e)) {
+                        if (Math.hypot(e.x - this.x, e.y - this.y) < this.radius + e.radius) {
+                            e.takeDamage(this.damage);
+                            this.hitEnemies.add(e);
+                        }
+                    }
+                });
+            }
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.moveTo(15, 0);
+                ctx.lineTo(-15, -15);
+                ctx.lineTo(-5, 0);
+                ctx.lineTo(-15, 15);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.strokeStyle = '#93c5fd';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
                 ctx.restore();
             }
         }
@@ -1258,7 +1708,7 @@
 
         function initGame() {
             player = new Player();
-            enemies = []; projectiles = []; expGems = []; particles = []; floatingTexts = [];
+            enemies = []; projectiles = []; expGems = []; loots = []; particles = []; floatingTexts = [];
             killCount = 0; gameTime = 0; difficultyMultiplier = 1.0;
             enemySpawnRate = 1200; enemySpawnTimer = 0;
             nextBossTime = 60; bossEntity = null;
@@ -1277,7 +1727,7 @@
             animationFrameId = requestAnimationFrame(gameLoop);
         }
 
-        function triggerGameOver() {
+        async function triggerGameOver() {
             currentState = GameState.GAME_OVER;
             document.getElementById('hud').classList.add('hidden');
             document.getElementById('hud').classList.remove('flex');
@@ -1286,9 +1736,28 @@
             
             const m = Math.floor(gameTime / 60).toString().padStart(2, '0');
             const s = Math.floor(gameTime % 60).toString().padStart(2, '0');
-            document.getElementById('finalTime').innerText = `${m}:${s}`;
+            const timeStr = `${m}:${s}`;
+            
+            document.getElementById('finalTime').innerText = timeStr;
             document.getElementById('finalKills').innerText = killCount;
             document.getElementById('finalLevel').innerText = `Lv.${player.level}`;
+
+            const restartBtn = document.getElementById('restartBtn');
+            
+            // 自动上传战绩
+            if (GITHUB_TOKEN && myIdentity) {
+                restartBtn.innerText = "数据上传中...";
+                restartBtn.disabled = true;
+                
+                try {
+                    await saveGameRecord(timeStr, Math.floor(gameTime), killCount, player.level);
+                } catch (e) { console.error("战绩保存失败", e); }
+                
+                restartBtn.innerText = "系统重启 (RESTART)";
+                restartBtn.disabled = false;
+            } else {
+                restartBtn.disabled = false;
+            }
         }
 
         function resetGame() {
@@ -1296,7 +1765,7 @@
             startGame();
         }
 
-        // ================== 倍速与暂停功能 ==================
+        // ================== 倍速、暂停与自动战斗 ==================
         function cycleGameSpeed() {
             if (currentState !== GameState.PLAYING && currentState !== GameState.PAUSED) return;
             gameSpeedMultiplier += 1;
@@ -1318,8 +1787,22 @@
                 menuOverlay.classList.add('hidden');
                 pauseScreen.classList.add('hidden');
                 pauseScreen.classList.remove('flex', 'flex-col', 'items-center', 'justify-center');
-                lastTime = performance.now(); // 极其重要：重置记录的时间，避免切回游戏后出现巨额运算导致瞬间暴毙
+                lastTime = performance.now(); 
                 requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function toggleAutoBattle() {
+            isAutoBattle = !isAutoBattle;
+            const btn = document.getElementById('autoBtn');
+            if (isAutoBattle) {
+                btn.innerHTML = '🤖 自动: 开';
+                btn.classList.add('bg-green-700/80', 'text-white');
+                btn.classList.remove('bg-slate-800/90', 'text-green-400');
+            } else {
+                btn.innerHTML = '🤖 自动: 关';
+                btn.classList.remove('bg-green-700/80', 'text-white');
+                btn.classList.add('bg-slate-800/90', 'text-green-400');
             }
         }
         // ====================================================
@@ -1364,7 +1847,9 @@
             document.getElementById('levelDisplay').innerText = player.level;
             document.getElementById('expText').innerText = `${player.exp} / ${player.expToNext}`;
             document.getElementById('expBar').style.width = `${Math.min(100, (player.exp / player.expToNext) * 100)}%`;
-            document.getElementById('hpText').innerText = `${Math.floor(player.hp)} / ${Math.floor(player.maxHp)}`;
+            
+            let shieldText = player.shield > 0 ? ` (+${Math.floor(player.shield)}🛡️)` : '';
+            document.getElementById('hpText').innerText = `${Math.floor(player.hp)} / ${Math.floor(player.maxHp)}${shieldText}`;
 
             const hpPct = Math.max(0, (player.hp / player.maxHp) * 100);
             const hpBarEl = document.getElementById('hpBar');
@@ -1405,21 +1890,66 @@
                 if (nextLvl > weapon.levels.length) {
                     let prev = weapon.levels[weapon.levels.length - 1];
                     let next = { ...prev };
-                    let desc = "【无极强化】";
+                    
+                    let descTags = ["【突破】"];
+                    
                     if (weapon.type === 'active' || key === 'AURA') {
-                         next.baseDmg = Math.floor(prev.baseDmg * 1.15) + 2;
-                         if (next.cd) next.cd = Math.max(0.1, prev.cd * 0.95);
-                         if (next.area) next.area = prev.area * 1.05;
-                         if (next.speed) next.speed = prev.speed * 1.1;
-                         if (next.tick) next.tick = Math.max(0.05, prev.tick * 0.9);
-                         desc += `伤害+15% 范围+5% ${next.cd ? '冷却-5%' : ''}`;
+                         const dmgMult   = 1.20; 
+                         const cdMult    = 0.95; 
+                         const minCd     = 0.2;  
+                         const areaMult  = 1.1; 
+                         const speedMult = 1.1; 
+                         const tickMult  = 0.90; 
+                         const minTick   = 0.1; 
+                         const amountPerLevels = 3; 
+                         
+                         next.baseDmg = Math.floor(prev.baseDmg * dmgMult) + 1;
+                         descTags.push("伤害+20%");
+
+                         if (next.cd) {
+                             next.cd = Math.max(minCd, prev.cd * cdMult);
+                             descTags.push("冷却-5%");
+                         }
+                         if (next.area) {
+                             next.area = prev.area * areaMult;
+                             descTags.push("范围+10%");
+                         }
+                         if (next.speed) {
+                             next.speed = prev.speed * speedMult;
+                             descTags.push("速度+10%");
+                         }
+                         if (next.tick) {
+                             next.tick = Math.max(minTick, prev.tick * tickMult);
+                             descTags.push("频率+10%");
+                         }
+                         
+                         if (next.amount && amountPerLevels > 0) {
+                             const overMaxLvl = nextLvl - weapon.maxLevel;
+                             if (overMaxLvl % amountPerLevels === 0) {
+                                 next.amount = prev.amount + 1;
+                                 descTags.push("数量+1");
+                             }
+                         }
                     } else {
-                         if (key === 'MAGNET') { next.val += 0.5; desc += "拾取范围+50%"; }
-                         else if (key === 'SPEED') { next.val += 0.1; desc += "移动速度+10%"; }
-                         else if (key === 'REGEN') { next.val += 3; desc += "生命回复+3/秒"; }
-                         else if (key === 'MAX_HP') { next.val += 0.3; desc += "最大生命+30%"; }
+                         if (key === 'MAGNET') { 
+                             next.val += 0.3;  
+                             descTags.push("拾取范围+30%"); 
+                         }
+                         else if (key === 'SPEED') { 
+                             next.val += 0.05; 
+                             descTags.push("移动速度+5%"); 
+                         }
+                         else if (key === 'REGEN') { 
+                             next.val += 3;    
+                             descTags.push("生命回复+3/秒"); 
+                         }
+                         else if (key === 'MAX_HP') { 
+                             next.val += 0.2;  
+                             descTags.push("最大生命+20%"); 
+                         }
                     }
-                    next.desc = desc;
+                    
+                    next.desc = descTags.join(" ");
                     weapon.levels.push(next);
                 }
 
@@ -1447,6 +1977,15 @@
                 `;
                 container.appendChild(btn);
             });
+
+            if (isAutoBattle) {
+                setTimeout(() => {
+                    if (currentState === GameState.LEVEL_UP && options.length > 0) {
+                        const randomOption = options[Math.floor(Math.random() * options.length)];
+                        applyUpgrade(randomOption);
+                    }
+                }, 800);
+            }
         }
 
         function applyUpgrade(key) {
@@ -1478,7 +2017,6 @@
 
         function gameLoop(timestamp) {
             if (currentState !== GameState.PLAYING) {
-                // 如果是处于暂停状态，停止申请下一帧，减少性能损耗
                 if (currentState !== GameState.PAUSED) {
                     animationFrameId = requestAnimationFrame(gameLoop);
                 }
@@ -1487,21 +2025,17 @@
 
             const realDt = (timestamp - lastTime) / 1000;
             lastTime = timestamp;
-            if (realDt > 0.1) return requestAnimationFrame(gameLoop); // 防切屏卡顿
+            if (realDt > 0.1) return requestAnimationFrame(gameLoop); 
             
-            // 应用全局倍速
             const dt = realDt * gameSpeedMultiplier;
             gameTime += dt;
             
-            // [数据调整] 难度随时间推移的膨胀系数（分母越小难度攀升越快）
             difficultyMultiplier = 1 + (gameTime / 50);
             
-            // [数据调整] 正常期的产怪间隔(毫秒)及单次产怪数量
             let baseRate = Math.max(300, 1000 - (gameTime * 1));
             let baseCount = Math.floor(2 + (difficultyMultiplier * 0.6));
 
             if (player.level < 5) {
-                // [数据调整] 保护期（5级前）的产怪间隔与数量
                 baseRate = 1500 - (player.level * 200); 
                 baseCount = 1 + Math.floor(player.level / 2); 
             }
@@ -1533,6 +2067,10 @@
                 expGems[i].update(dt);
                 if (expGems[i].hp === -1) expGems.splice(i, 1); 
             }
+            for (let i = loots.length - 1; i >= 0; i--) {
+                loots[i].update(dt);
+                if (!loots[i].active) loots.splice(i, 1);
+            }
             for (let i = particles.length - 1; i >= 0; i--) {
                 particles[i].update(dt);
                 if (particles[i].life <= 0) particles.splice(i, 1);
@@ -1552,6 +2090,7 @@
             const cameraOffsetY = (GAME_HEIGHT / 2) - player.y;
             ctx.translate(cameraOffsetX, cameraOffsetY);
 
+            loots.forEach(loot => loot.draw(ctx));
             expGems.forEach(gem => gem.draw(ctx));
             projectiles.filter(p => p instanceof Frisbee).forEach(p => p.draw(ctx));
             enemies.forEach(enemy => enemy.draw(ctx));
