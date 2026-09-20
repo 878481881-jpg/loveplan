@@ -246,7 +246,8 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion 
+            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion,
+            initializeFirestore, persistentLocalCache, persistentMultipleTabManager 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'heartbeat-treasure';
@@ -271,9 +272,25 @@
         if (firebaseConfig && firebaseConfig.apiKey) {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
-            db = getFirestore(app);
+            // 启用带有 Tab 支持的离线持久化缓存，极大降低断网和延迟带来的影响，实现乐观 UI 更新
+            db = initializeFirestore(app, {
+                localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+            });
             hasFirebase = true;
         }
+
+        // 监听系统级网络波动状态，及时给用户反馈
+        window.addEventListener('online', () => {
+            showToast("🌐 网络已恢复！");
+            const syncEl = document.getElementById('syncStatus');
+            if(syncEl) syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 实时同步中';
+        });
+
+        window.addEventListener('offline', () => {
+            showToast("📶 网络已断开，进入离线等待模式...");
+            const syncEl = document.getElementById('syncStatus');
+            if(syncEl) syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-400"></span> 网络已断开';
+        });
 
         // 读取身份与 GitHub Token
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
@@ -286,8 +303,8 @@
         const myRole = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myRole + (myRole === '哼哼' ? '🐰' : '🐱');
 
-<comment-tag id="1">        const OWNER_REPO = '878481881-jpg/loveplan'; 
-        const FILE_TOD = 'data/cbt.json'; </comment-tag id="1" text="由于现在改为直接读取同服务器/相对路径的 JSON 文件，不再需要 Github 仓库名常量。可以删除 `OWNER_REPO`，只保留 `const FILE_TOD = 'data/cbt.json';` 即可。" type="suggestion">
+        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const FILE_TOD = 'data/cbt.json'; 
 
         // 默认题库 (Fallback)
         let TOD_BANK = [
@@ -303,12 +320,20 @@
             "大冒险：唱一首甜甜的情歌的一段。"
         ];
 
-<comment-tag id="2">        async function fetchTODFromGithub() {
+        async function fetchTODFromGithub() {
+            // 加入 5秒超时控制器，防止弱网下长时间卡死加载界面
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+
             try {
                 const timestamp = new Date().getTime();
                 const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_TOD}?t=${timestamp}`, {
-                    method: 'GET', headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                    method: 'GET', 
+                    headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` },
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+
                 if (response.ok) {
                     const result = await response.json();
                     const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
@@ -324,47 +349,14 @@
                     }
                 }
             } catch (error) {
-                console.error("Failed to fetch TOD from github, using default bank", error);
-            }
-        }</comment-tag id="2" text="建议将此函数替换为直接请求静态文件的方法。这样不仅更稳定快速，还免去了繁琐的 Base64 解码。
-
-您可以将其修改为如下代码：
-async function fetchTODData() {
-    try {
-        const timestamp = new Date().getTime();
-        const response = await fetch(`${FILE_TOD}?t=${timestamp}`);
-        if (response.ok) {
-            const data = await response.json();
-            if (Array.isArray(data) && data.length > 0) {
-                TOD_BANK = data.map(item => {
-                    if (typeof item === 'string') return item;
-                    if (item.content) return item.content;
-                    if (item.question) return item.question;
-                    return '神秘任务';
-                });
+                console.error("Fetch TOD from github failed or timed out, using default bank", error);
             }
         }
-    } catch (error) {
-        console.error('加载本地题库失败，将使用默认题库', error);
-    }
-}" type="suggestion">
 
         // 游戏状态结构
         let currentRoomId = null;
         let unsubscribeRoom = null;
         let gameState = null; 
-        /*
-        gameState: {
-            status: 'waiting' | 'hiding' | 'seeking' | 'finished',
-            hider: '哼哼',
-            seeker: '亲亲', (can be null initially)
-            treasureIndex: 5, (0-15)
-            treasureContent: '一个大大的拥抱', // Added this
-            dugCells: [ { index: 0, content: '真心话...' } ],
-            currentTurn: 'hider' | 'seeker', // seeker digs, hider confirms
-            logs: [ { text: 'xxx', time: 123 } ]
-        }
-        */
 
         // UI 元素
         const lobbyView = document.getElementById('lobbyView');
@@ -493,17 +485,32 @@ async function fetchTODData() {
             
             if (unsubscribeRoom) unsubscribeRoom();
             
-            unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+            // 加入 includeMetadataChanges 以精准感知数据状态
+            unsubscribeRoom = onSnapshot(roomRef, { includeMetadataChanges: true }, (docSnap) => {
                 if (docSnap.exists()) {
                     gameState = docSnap.data();
                     renderGameState();
+
+                    // 细化更新 UI 的同步指示器
+                    const syncEl = document.getElementById('syncStatus');
+                    if (syncEl) {
+                        if (docSnap.metadata.hasPendingWrites) {
+                            syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> 数据发送中...';
+                        } else if (docSnap.metadata.fromCache && navigator.onLine) {
+                            syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> 连接恢复中...';
+                        } else if (!navigator.onLine) {
+                            syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-400"></span> 离线模式';
+                        } else {
+                            syncEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 实时同步中';
+                        }
+                    }
                 } else {
                     showToast("房间已解散");
                     switchToLobby();
                 }
             }, (err) => {
                 console.error(err);
-                document.getElementById('syncStatus').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> 同步断开';
+                document.getElementById('syncStatus').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> 同步出错';
             });
         }
 
@@ -690,6 +697,7 @@ async function fetchTODData() {
                 const finalTreasureContent = tInput || "神秘大奖"; // Default if empty
 
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'treasureRooms', currentRoomId);
+                // 乐观更新机制：有了离线持久化后，这里的写入会立即在本地生效，并在后台重试同步，不会受断网影响
                 await updateDoc(roomRef, {
                     treasureIndex: selectedActionIndex,
                     treasureContent: finalTreasureContent,
@@ -765,7 +773,7 @@ async function fetchTODData() {
 
         // Initialize
         window.addEventListener('load', async () => {
-<comment-tag id="3">            await fetchTODFromGithub();</comment-tag id="3" text="记得将此处初始化的函数名更新为您修改后的新方法名称，例如：`await fetchTODData();`。" type="suggestion">
+            await fetchTODFromGithub();
             await initAuth();
         });
     </script>
