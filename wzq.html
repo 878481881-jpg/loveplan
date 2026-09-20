@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>心动五子棋 🌸</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Tone.js 用于生成音效 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #fdf2f8;
+            background-image: radial-gradient(#fbcfe8 1.2px, transparent 1.2px);
+            background-size: 20px 20px;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        /* 木质棋盘阴影效果 */
+        .board-shadow {
+            box-shadow: 
+                0 10px 15px -3px rgba(225, 29, 72, 0.1), 
+                0 4px 6px -2px rgba(225, 29, 72, 0.05),
+                inset 0 0 20px rgba(251, 207, 232, 0.5);
+        }
+        canvas { touch-action: none; } /* 阻止在画布上滑动屏幕 */
+        
+        /* 自定义滚动条 */
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6">
+
+    <!-- 全局加载遮罩 -->
+    <div id="globalLoading" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-bounce mb-4">🌸</div>
+        <div class="text-rose-500 font-bold text-lg flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-rose-400 animate-ping"></span>
+            正在连接心动棋室...
+        </div>
+    </div>
+
+    <header class="w-full max-w-lg flex justify-between items-center mb-6 animate-float px-2">
+        <button onclick="location.reload()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <div class="flex items-center gap-2">
+            <span class="text-3xl">🌸</span>
+            <div>
+                <h1 class="text-xl sm:text-2xl font-bold text-rose-500 flex items-center gap-1">
+                    心动五子棋 💖
+                </h1>
+                <p class="text-[11px] text-rose-400 font-medium text-center">黑白交错的浪漫对决</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs">
+            <span id="playerRoleDisplay" class="font-bold text-rose-500 shadow-xs">游客</span>
+        </div>
+    </header>
+
+    <main class="w-full max-w-lg flex flex-col items-center gap-4 relative">
+        
+        <!-- 房间大厅 UI -->
+        <div id="lobbyUI" class="w-full flex flex-col gap-4 transition-all duration-500">
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-rose-100 shadow-sm flex flex-col items-center text-center">
+                <div class="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner">
+                    🏠
+                </div>
+                <h2 class="text-lg font-black text-rose-600 mb-2">欢迎来到心动棋室</h2>
+                <p class="text-xs text-rose-400 mb-6">创建一个专属房间，或者输入TA的房间号加入对局吧！</p>
+
+                <div class="w-full space-y-3">
+                    <button onclick="createRoom()" class="w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold rounded-2xl shadow hover:opacity-95 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                        <span>✨ 创建专属房间</span>
+                    </button>
+                    
+                    <div class="flex items-center gap-2 text-rose-200 py-2">
+                        <div class="h-px bg-rose-100 flex-1"></div>
+                        <span class="text-xs font-medium">或者</span>
+                        <div class="h-px bg-rose-100 flex-1"></div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <input id="roomCodeInput" type="number" placeholder="输入4位房间号" 
+                               class="flex-1 px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-center tracking-[0.5em] font-bold text-gray-700 placeholder-rose-300">
+                        <button onclick="joinRoom()" class="px-6 py-3 bg-white border border-rose-200 text-rose-500 font-bold rounded-2xl shadow-sm hover:bg-rose-50 active:scale-95 transition-transform">
+                            加入
+                        </button>
+                    </div>
+
+                    <!-- 历史战斗按钮 -->
+                    <button onclick="showHistory()" class="w-full py-3 mt-2 bg-white text-rose-500 font-bold rounded-2xl shadow-sm border border-rose-200 hover:bg-rose-50 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                        <span>📜 历史战斗记录</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏对局 UI -->
+        <div id="gameUI" class="w-full flex flex-col gap-3 hidden opacity-0 transition-opacity duration-500">
+            <!-- 状态看板 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border border-rose-100 shadow-sm flex items-center justify-between">
+                <div class="flex flex-col">
+                    <span class="text-[10px] text-gray-400 font-medium">房间号</span>
+                    <span id="roomCodeDisplay" class="text-lg font-black text-rose-500 tracking-wider">0000</span>
+                </div>
+
+                <div class="flex-1 text-center px-2">
+                    <div id="gameStatusText" class="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-bold inline-block border border-rose-100 animate-pulse">
+                        等待TA加入...
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-end">
+                    <button onclick="leaveRoom()" class="px-3 py-1.5 bg-gray-100 text-gray-600 font-bold text-[10px] rounded-lg shadow-sm hover:bg-gray-200 transition-colors">
+                        退出房间
+                    </button>
+                </div>
+            </div>
+
+            <!-- 玩家对阵信息 -->
+            <div class="flex justify-between items-center px-2">
+                <div id="playerBlackInfo" class="flex items-center gap-2 opacity-50 transition-opacity">
+                    <div class="w-8 h-8 rounded-full bg-gray-800 shadow-md border-2 border-white flex items-center justify-center text-xs">⚫</div>
+                    <div class="text-sm font-bold text-gray-700" id="playerBlackName">等待中</div>
+                </div>
+                <div class="text-xl font-black text-rose-300 italic">VS</div>
+                <div id="playerWhiteInfo" class="flex items-center gap-2 flex-row-reverse opacity-50 transition-opacity">
+                    <div class="w-8 h-8 rounded-full bg-white shadow-md border-2 border-gray-200 flex items-center justify-center text-xs">⚪</div>
+                    <div class="text-sm font-bold text-gray-700" id="playerWhiteName">等待中</div>
+                </div>
+            </div>
+
+            <!-- 棋盘区域 -->
+            <div class="w-full aspect-square bg-[#fae1d2] rounded-xl relative overflow-hidden border-4 border-[#e6b399] board-shadow">
+                <!-- 棋盘背景网格由 Canvas 绘制 -->
+                <canvas id="boardCanvas" class="w-full h-full block cursor-pointer"></canvas>
+
+                <!-- 胜利庆祝遮罩 -->
+                <div id="celebrationOverlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm hidden flex flex-col items-center justify-center animate-fade-in z-20">
+                    <div class="text-6xl animate-bounce">🏆</div>
+                    <div class="text-2xl font-black text-rose-600 mt-4" id="winAnnouncement">黑子胜！</div>
+                    <button onclick="requestRestart()" class="mt-6 px-6 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-full shadow-md hover:opacity-95 active:scale-95 transition-transform">
+                        再来一局
+                    </button>
+                </div>
+            </div>
+            
+            <div class="text-center text-[10px] text-gray-400 mt-1">
+                点击棋盘交叉点落子，率先连成5子获胜
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 弹窗 Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-medium hidden z-50 whitespace-nowrap"></div>
+
+    <!-- 历史战斗弹窗 -->
+    <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] hidden flex flex-col items-center justify-center p-4 transition-opacity opacity-0 duration-300">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-black text-rose-600">历史战斗记录</h3>
+                <button onclick="closeHistory()" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
+                <!-- 列表项插入处 -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, addDoc, getDocs 
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 全局变量配置
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gomoku-love-app';
+        let firebaseConfig = {
+            apiKey: "AIzaSyCrTNZeBIBSLJjmNXKTwXk9fSm4tsrpzdc",
+            authDomain: "love-ce90d.firebaseapp.com",
+            projectId: "love-ce90d",
+            storageBucket: "love-ce90d.firebasestorage.app",
+            messagingSenderId: "494248275277",
+            appId: "1:494248275277:web:179bd2755ff64a4a2b5b04",
+            measurementId: "G-LSK28Z112V"
+        };
+
+        if (typeof __firebase_config !== 'undefined') {
+            try { Object.assign(firebaseConfig, JSON.parse(__firebase_config)); } catch (e) { console.error(e); }
+        }
+
+        let app, auth, db;
+        let currentUser = null;
+        let hasFirebase = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== "mock-api-key";
+
+        if (hasFirebase) {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        }
+
+        let myName = localStorage.getItem('loveGacha_myIdentity') || `玩家_${Math.floor(Math.random()*1000)}`;
+        document.getElementById('playerRoleDisplay').innerText = myName;
+
+        let currentRoomCode = null;
+        let unsubscribe = null; 
+        let myColor = null; 
+        let gameState = {
+            status: 'waiting', 
+            turn: 'black',
+            players: { black: null, white: null },
+            board: [], 
+            winner: null
+        };
+        
+        let lastBoardLength = 0;
+        let currentThreats = new Set();
+        let localMatchStatus = 'waiting'; // 用于跟踪本地对局状态以防止重复记录
+
+        // --- 音效配置 (Tone.js) ---
+        let placeSound = null;
+        let audioInitialized = false;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+            try {
+                await Tone.start(); // Tone.js 需等待用户第一次交互才能启动音频上下文
+                // 创建一个膜合成器，可以发出类似敲击木板的清脆声音
+                placeSound = new Tone.MembraneSynth({
+                    pitchDecay: 0.02,
+                    octaves: 3,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 }
+                }).toDestination();
+                placeSound.volume.value = -6; 
+                audioInitialized = true;
+            } catch (e) {
+                console.warn("音效初始化失败:", e);
+            }
+        }
+
+        // 监听任意点击来初始化音频引擎
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('touchstart', initAudio, { once: true });
+
+        function playDropSound() {
+            if (audioInitialized && placeSound) {
+                if (Tone.context.state !== 'running') {
+                    Tone.context.resume();
+                }
+                // 触发一个短促的低音，模拟落子声
+                placeSound.triggerAttackRelease("E2", "16n");
+            }
+        }
+
+        // --- 棋盘 Canvas 设置 ---
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 15;
+        let cellSize = 0;
+        let margin = 0;
+
+        function resizeCanvas() {
+            if (!canvas.parentElement) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.scale(2, 2);
+            
+            cellSize = rect.width / GRID_SIZE;
+            margin = cellSize / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        // 使用 requestAnimationFrame 进行连续渲染，以支持棋子闪烁动画
+        function animateLoop() {
+            if (!document.getElementById('gameUI').classList.contains('hidden')) {
+                drawBoard();
+            }
+            requestAnimationFrame(animateLoop);
+        }
+
+        function drawBoard() {
+            if(!canvas.parentElement) return;
+            const w = canvas.parentElement.getBoundingClientRect().width;
+            
+            ctx.clearRect(0, 0, w, w);
+
+            // 绘制网格线
+            ctx.beginPath();
+            ctx.strokeStyle = '#c48f73';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < GRID_SIZE; i++) {
+                ctx.moveTo(margin, margin + i * cellSize);
+                ctx.lineTo(w - margin, margin + i * cellSize);
+                ctx.moveTo(margin + i * cellSize, margin);
+                ctx.lineTo(margin + i * cellSize, w - margin);
+            }
+            ctx.stroke();
+
+            // 绘制天元和星位
+            const starPoints = [
+                {x: 3, y: 3}, {x: 11, y: 3}, 
+                {x: 7, y: 7}, 
+                {x: 3, y: 11}, {x: 11, y: 11}
+            ];
+            ctx.fillStyle = '#c48f73';
+            starPoints.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(margin + p.x * cellSize, margin + p.y * cellSize, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 绘制落下的棋子
+            if (gameState.board && gameState.board.length > 0) {
+                gameState.board.forEach((move, index) => {
+                    const isLast = index === gameState.board.length - 1;
+                    const isThreat = currentThreats.has(`${move.x},${move.y}`);
+                    drawPiece(move.x, move.y, move.color, isLast, isThreat);
+                });
+            }
+        }
+
+        function drawPiece(x, y, color, isLast = false, isThreat = false) {
+            const px = margin + x * cellSize;
+            const py = margin + y * cellSize;
+            const radius = cellSize * 0.42;
+
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+            
+            // 棋子本体渐变
+            if (color === 'black') {
+                const gradient = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
+                gradient.addColorStop(0, '#555');
+                gradient.addColorStop(1, '#111');
+                ctx.fillStyle = gradient;
+            } else {
+                const gradient = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
+                gradient.addColorStop(0, '#fff');
+                gradient.addColorStop(1, '#ddd');
+                ctx.fillStyle = gradient;
+                ctx.lineWidth = 0.5;
+                ctx.strokeStyle = '#ccc';
+                ctx.stroke();
+            }
+            ctx.shadowColor = 'rgba(0,0,0,0.3)';
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fill();
+
+            ctx.shadowColor = 'transparent';
+
+            // 威胁（连3、连4）的呼吸闪烁特效
+            if (isThreat && gameState.status === 'playing') {
+                const time = Date.now();
+                // 周期性的透明度变化
+                const pulseAlpha = 0.2 + (Math.sin(time / 200) + 1) / 2 * 0.6; // 0.2 到 0.8
+                
+                // 覆盖一层发光色 (玫瑰红，匹配心动主题)
+                ctx.beginPath();
+                ctx.arc(px, py, radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha})`; 
+                ctx.fill();
+                
+                // 外圈光晕
+                ctx.beginPath();
+                ctx.arc(px, py, radius * 1.35, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha * 0.4})`;
+                ctx.fill();
+            }
+
+            // 最后落子的小红点
+            if (isLast) {
+                ctx.beginPath();
+                ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = '#e11d48'; 
+                ctx.fill();
+            }
+        }
+
+        // --- 寻找威胁棋子（满3或满4且有空间获胜的线） ---
+        function calculateThreats(board) {
+            const threatSet = new Set();
+            if(!board || board.length === 0) return threatSet;
+
+            const getColor = (x, y) => {
+                const p = board.find(m => m.x === x && m.y === y);
+                return p ? p.color : null;
+            };
+
+            const dirs = [ [1, 0], [0, 1], [1, 1], [1, -1] ];
+
+            board.forEach(piece => {
+                dirs.forEach(dir => {
+                    let count = 1;
+                    let line = [{x: piece.x, y: piece.y}];
+
+                    // 向正方向探索
+                    let stepF = 1;
+                    while (true) {
+                        const nx = piece.x + dir[0] * stepF;
+                        const ny = piece.y + dir[1] * stepF;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
+                            count++;
+                            line.push({x: nx, y: ny});
+                            stepF++;
+                        } else { break; }
+                    }
+                    
+                    // 计算正方向可用的空位
+                    let fEmpty = 0;
+                    let checkF = stepF;
+                    while (checkF < stepF + 5) {
+                        const nx = piece.x + dir[0] * checkF;
+                        const ny = piece.y + dir[1] * checkF;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
+                            fEmpty++; checkF++;
+                        } else { break; }
+                    }
+
+                    // 向反方向探索
+                    let stepB = 1;
+                    while (true) {
+                        const nx = piece.x - dir[0] * stepB;
+                        const ny = piece.y - dir[1] * stepB;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
+                            count++;
+                            line.push({x: nx, y: ny});
+                            stepB++;
+                        } else { break; }
+                    }
+                    
+                    // 计算反方向可用的空位
+                    let bEmpty = 0;
+                    let checkB = stepB;
+                    while (checkB < stepB + 5) {
+                        const nx = piece.x - dir[0] * checkB;
+                        const ny = piece.y - dir[1] * checkB;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
+                            bEmpty++; checkB++;
+                        } else { break; }
+                    }
+
+                    // 判断是否为有效威胁
+                    let isValidThreat = false;
+                    if (count === 4 && (fEmpty > 0 || bEmpty > 0)) {
+                        // 4子：只要有一端有空位，下一步就能赢，属于高危
+                        isValidThreat = true; 
+                    } else if (count === 3 && fEmpty > 0 && bEmpty > 0 && (count + fEmpty + bEmpty >= 5)) {
+                        // 3子：必须是“活三”（两边都没有紧贴着被堵住），且所在方向的总空余空间足够连成5子
+                        isValidThreat = true;
+                    }
+
+                    if (isValidThreat) {
+                        line.forEach(p => threatSet.add(`${p.x},${p.y}`));
+                    }
+                });
+            });
+            return threatSet;
+        }
+
+        // 统一处理新状态（播放声音、计算威胁等）
+        function applyNewState(newState) {
+            if (newState.board && newState.board.length > lastBoardLength) {
+                playDropSound(); // 检测到步数增加，播放音效
+            }
+            
+            // 如果状态刚刚变为获胜，触发记录
+            if (newState.status === 'won' && localMatchStatus !== 'won') {
+                recordMatchResult(newState);
+            }
+            localMatchStatus = newState.status;
+
+            gameState = newState;
+            lastBoardLength = gameState.board ? gameState.board.length : 0;
+            currentThreats = calculateThreats(gameState.board);
+            updateGameUI();
+        }
+
+        // 处理点击落子
+        // 隐藏全局 Loading
+        function hideGlobalLoading() {
+            const loadingOverlay = document.getElementById('globalLoading');
+            if(loadingOverlay) {
+                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+            }
+        }
+
+        // --- 记录与查看历史战斗 (wzq.json 逻辑) ---
+        async function recordMatchResult(state) {
+            if (!myColor) return; // 观战者不记录
+            
+            const isWin = state.winner === myName;
+            const opponent = myColor === 'black' ? state.players.white : state.players.black;
+            
+            const record = {
+                roomCode: currentRoomCode || '单机',
+                date: Date.now(),
+                opponent: opponent || '未知玩家',
+                result: isWin ? 'win' : 'loss',
+                myColor: myColor
+            };
+
+            // 如果没有云端连接，则存入 localStorage 模拟 JSON 存储
+            if (!hasFirebase || !currentUser) {
+                let history = JSON.parse(localStorage.getItem('wzq_history') || '[]');
+                history.push(record);
+                localStorage.setItem('wzq_history', JSON.stringify(history));
+                return;
+            }
+
+            try {
+                // 存入个人名下的历史战斗记录集合 (满足安全路径要求)
+                const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
+                await addDoc(historyRef, record);
+            } catch (e) {
+                console.error("记录战斗失败", e);
+            }
+        }
+
+        window.showHistory = async function() {
+            const modal = document.getElementById('historyModal');
+            const list = document.getElementById('historyList');
+            const modalContent = modal.querySelector('div');
+            
+            modal.classList.remove('hidden');
+            // 触发回流以应用动画
+            void modal.offsetWidth;
+            modal.classList.remove('opacity-0');
+            modalContent.classList.remove('scale-95');
+            
+            list.innerHTML = '<div class="text-center text-sm text-gray-400 py-4 flex justify-center items-center gap-2"><span class="animate-spin text-rose-400 text-lg">🌸</span> 获取记录中...</div>';
+
+            let records = [];
+            if (!hasFirebase || !currentUser) {
+                records = JSON.parse(localStorage.getItem('wzq_history') || '[]');
+            } else {
+                try {
+                    const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
+                    // 获取所有记录，在前端排序（遵循不使用复合查询的要求）
+                    const snap = await getDocs(historyRef);
+                    snap.forEach(doc => records.push(doc.data()));
+                } catch (e) {
+                    console.error("读取历史失败", e);
+                    showToast("获取记录失败");
+                }
+            }
+
+            // 按照时间降序排列
+            records.sort((a, b) => b.date - a.date);
+
+            if (records.length === 0) {
+                list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8">暂无战斗记录哦，快去开启第一局吧！</div>';
+                return;
+            }
+
+            list.innerHTML = records.map(r => {
+                const dateStr = new Date(r.date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const isWin = r.result === 'win';
+                const resultColor = isWin ? 'text-rose-500' : 'text-gray-500';
+                const bgColor = isWin ? 'bg-rose-50' : 'bg-gray-50';
+                const icon = isWin ? '🏆' : '💔';
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 ${bgColor}">
+                        <div class="flex items-center gap-3">
+                            <div class="text-2xl">${icon}</div>
+                            <div class="flex flex-col">
+                                <span class="text-sm font-bold text-gray-700">VS ${r.opponent}</span>
+                                <span class="text-[10px] text-gray-400">${dateStr} · 房间 ${r.roomCode}</span>
+                            </div>
+                        </div>
+                        <div class="font-black ${resultColor}">${isWin ? '胜利' : '战败'}</div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.closeHistory = function() {
+            const modal = document.getElementById('historyModal');
+            const modalContent = modal.querySelector('div');
+            
+            modal.classList.add('opacity-0');
+            modalContent.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        };
+
+        window.createRoom = async function() {
+            if (!hasFirebase) return mockJoin("1234", 'black');
+            initAudio(); // Interaction hook
+            
+            showToast("正在创建房间...");
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
+            
+            try {
+                const newRoomData = {
+                    status: 'waiting', turn: 'black',
+                    players: { black: myName, white: null },
+                    board: [], winner: null, createdAt: Date.now()
+                };
+                await setDoc(roomRef, newRoomData);
+                joinRoomSuccess(code, 'black', newRoomData);
+            } catch (e) {
+                showToast("创建房间失败！");
+            }
+        };
+
+        window.joinRoom = async function() {
+            initAudio(); // Interaction hook
+            const codeInput = document.getElementById('roomCodeInput').value.trim();
+            if (!/^\d{4}$/.test(codeInput)) {
+                showToast("请输入正确的4位数字房间号！");
+                return;
+            }
+
+            if (!hasFirebase) return mockJoin(codeInput, 'white');
+
+            showToast("正在查找房间...");
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', codeInput);
+            
+            try {
+                const snap = await getDoc(roomRef);
+                if (!snap.exists()) { showToast("房间不存在哦！"); return; }
+                
+                let data = snap.data();
+                let assignedColor = null;
+
+                if (data.players.black === myName) assignedColor = 'black';
+                else if (data.players.white === myName) assignedColor = 'white';
+                else if (!data.players.black) {
+                    assignedColor = 'black';
+                    await updateDoc(roomRef, { 'players.black': myName });
+                }
+                else if (!data.players.white) {
+                    assignedColor = 'white';
+                    await updateDoc(roomRef, { 'players.white': myName, status: 'playing' });
+                } else {
+                    showToast("房间已满，作为旁观者加入");
+                }
+
+                joinRoomSuccess(codeInput, assignedColor, data);
+            } catch (e) {
+                showToast("加入房间失败！");
+            }
+        };
+
+        function mockJoin(code, color) {
+            joinRoomSuccess(code, color, {
+                status: color === 'black' ? 'waiting' : 'playing', turn: 'black',
+                players: { black: color==='black'?myName:'电脑', white: color==='white'?myName:null },
+                board: [], winner: null
+            });
+            if(color === 'black') {
+                setTimeout(() => {
+                    applyNewState({
+                        ...gameState,
+                        players: { ...gameState.players, white: "模拟玩家" },
+                        status: "playing"
+                    });
+                    showToast("模拟玩家已加入！");
+                }, 2000);
+            }
+        }
+
+        function joinRoomSuccess(code, color, initialData) {
+            currentRoomCode = code;
+            myColor = color;
+            applyNewState(initialData);
+            
+            document.getElementById('lobbyUI').classList.add('hidden', 'opacity-0');
+            const gameUI = document.getElementById('gameUI');
+            gameUI.classList.remove('hidden');
+            setTimeout(() => {
+                gameUI.classList.remove('opacity-0');
+                resizeCanvas(); 
+            }, 50);
+
+            document.getElementById('roomCodeDisplay').innerText = code;
+            
+            if (hasFirebase) {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
+                unsubscribe = onSnapshot(roomRef, (snap) => {
+                    if (snap.exists()) {
+                        applyNewState(snap.data());
+                    } else {
+                        showToast("房间已解散");
+                        leaveRoom();
+                    }
+                });
+            }
+        }
+
+        function updateGameUI() {
+            document.getElementById('playerBlackName').innerText = gameState.players.black || '等待中...';
+            document.getElementById('playerWhiteName').innerText = gameState.players.white || '等待中...';
+
+            const pBlackInfo = document.getElementById('playerBlackInfo');
+            const pWhiteInfo = document.getElementById('playerWhiteInfo');
+            const statusText = document.getElementById('gameStatusText');
+
+            if (gameState.status === 'waiting') {
+                statusText.innerText = "等待另一位玩家加入...";
+                statusText.className = "px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold inline-block border border-gray-200 animate-pulse";
+                pBlackInfo.classList.add('opacity-50');
+                pWhiteInfo.classList.add('opacity-50');
+                document.getElementById('celebrationOverlay').classList.add('hidden');
+            } else if (gameState.status === 'playing') {
+                pBlackInfo.classList.remove('opacity-50');
+                pWhiteInfo.classList.remove('opacity-50');
+                
+                if (gameState.turn === myColor) {
+                    statusText.innerText = "轮到你落子啦！";
+                    statusText.className = "px-3 py-1 bg-rose-500 text-white rounded-full text-xs font-bold inline-block shadow-md animate-bounce";
+                } else {
+                    statusText.innerText = "对方思考中...";
+                    statusText.className = "px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-xs font-bold inline-block border border-rose-200";
+                }
+
+                if (gameState.turn === 'black') {
+                    pBlackInfo.classList.add('scale-110', 'transition-transform');
+                    pWhiteInfo.classList.remove('scale-110');
+                } else {
+                    pWhiteInfo.classList.add('scale-110', 'transition-transform');
+                    pBlackInfo.classList.remove('scale-110');
+                }
+                document.getElementById('celebrationOverlay').classList.add('hidden');
+            } else if (gameState.status === 'won') {
+                statusText.innerText = "游戏结束";
+                statusText.className = "px-3 py-1 bg-gray-800 text-white rounded-full text-xs font-bold inline-block shadow-md";
+                
+                const overlay = document.getElementById('celebrationOverlay');
+                const winMsg = document.getElementById('winAnnouncement');
+                winMsg.innerText = gameState.winner === myName ? "🎉 你赢啦！" : `😢 ${gameState.winner} 获胜！`;
+                overlay.classList.remove('hidden');
+            }
+        }
+
+        window.requestRestart = async function() {
+            if (!hasFirebase) {
+                applyNewState({
+                    ...gameState,
+                    board: [], status: 'playing', turn: 'black', winner: null
+                });
+                return;
+            }
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
+                await updateDoc(roomRef, {
+                    board: [], status: 'playing', turn: 'black', winner: null
+                });
+            } catch (e) {
+                showToast("重置失败");
+            }
+        };
+
+        window.leaveRoom = function() {
+            if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+            currentRoomCode = null;
+            myColor = null;
+            
+            const gameUI = document.getElementById('gameUI');
+            const lobbyUI = document.getElementById('lobbyUI');
+            
+            gameUI.classList.add('opacity-0');
+            setTimeout(() => {
+                gameUI.classList.add('hidden');
+                lobbyUI.classList.remove('hidden');
+                setTimeout(() => lobbyUI.classList.remove('opacity-0'), 50);
+            }, 500);
+        };
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-animate');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-animate');
+            }, 3000);
+        }
+
+        window.addEventListener('load', () => {
+            initAuth();
+            requestAnimationFrame(animateLoop); // 启动动画循环
+        });
+    </script>
+</body>
+</html>
