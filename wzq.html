@@ -504,6 +504,119 @@
         }
 
         // 处理点击落子
+        canvas.addEventListener('click', async (e) => {
+            if (gameState.status !== 'playing') return;
+            if (gameState.turn !== myColor) {
+                showToast("还没轮到你哦！");
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            // 转换到网格坐标 (四舍五入到最近的交叉点)
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+
+            const gridX = Math.round((clickX - margin) / cellSize);
+            const gridY = Math.round((clickY - margin) / cellSize);
+
+            // 边界检查
+            if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
+
+            // 检查是否已有子
+            if (gameState.board.some(m => m.x === gridX && m.y === gridY)) return;
+
+            // 执行落子
+            const newMove = { x: gridX, y: gridY, color: myColor };
+            const newBoard = [...gameState.board, newMove];
+            
+            // 本地先绘制，提供即时反馈
+            gameState.board = newBoard;
+            drawBoard();
+
+            // 检查胜负
+            const isWin = checkWin(newMove, newBoard);
+            
+            const updates = {
+                board: newBoard,
+                turn: myColor === 'black' ? 'white' : 'black'
+            };
+
+            if (isWin) {
+                updates.status = 'won';
+                updates.winner = myName;
+            }
+
+            // 同步到云端
+            if (hasFirebase && currentRoomCode) {
+                try {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
+                    await updateDoc(roomRef, updates);
+                } catch (err) {
+                    console.error("落子同步失败", err);
+                    showToast("网络错误，落子失败");
+                }
+            } else {
+                // 无云端时的单机自我博弈测试逻辑
+                myColor = updates.turn; 
+                applyNewState({ ...gameState, ...updates });
+            }
+        });
+
+        // 五子棋胜负判定算法 (检查8个方向)
+        function checkWin(move, currentBoard) {
+            const dirs = [
+                [[1, 0], [-1, 0]],  // 水平
+                [[0, 1], [0, -1]],  // 垂直
+                [[1, 1], [-1, -1]], // 主对角线
+                [[1, -1], [-1, 1]]  // 副对角线
+            ];
+
+            // 快速查找函数
+            const hasPiece = (x, y) => currentBoard.some(m => m.x === x && m.y === y && m.color === move.color);
+
+            for (const dirPair of dirs) {
+                let count = 1; // 当前落子算1个
+                for (const dir of dirPair) {
+                    let step = 1;
+                    while (true) {
+                        const nx = move.x + dir[0] * step;
+                        const ny = move.y + dir[1] * step;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && hasPiece(nx, ny)) {
+                            count++;
+                            step++;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if (count >= 5) return true;
+            }
+            return false;
+        }
+
+        // 初始化 Firebase 登录
+        async function initAuth() {
+            if (!hasFirebase) {
+                hideGlobalLoading();
+                showToast("单机演示模式 (未连接云端)");
+                return;
+            }
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                currentUser = auth.currentUser;
+                // 初始化完成并登录成功后，隐藏遮罩层
+                hideGlobalLoading();
+            } catch (err) {
+                console.error("登录失败:", err);
+                hideGlobalLoading();
+                showToast("连接服务器失败，请重试");
+            }
+        }
+
         // 隐藏全局 Loading
         function hideGlobalLoading() {
             const loadingOverlay = document.getElementById('globalLoading');
