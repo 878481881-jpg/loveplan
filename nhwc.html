@@ -35,6 +35,15 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6">
 
+    <!-- 全局加载遮罩 -->
+    <div id="globalLoading" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-bounce mb-4">💖</div>
+        <div class="text-rose-500 font-bold text-lg flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-rose-400 animate-ping"></span>
+            正在连接心动频道...
+        </div>
+    </div>
+
     <header class="w-full max-w-lg flex justify-between items-center mb-3 animate-float px-2">
         <div class="flex items-center gap-2">
             <span class="text-3xl">🎨</span>
@@ -75,7 +84,7 @@
             <!-- 回合/换画按钮 -->
             <div class="flex flex-col items-end gap-1">
                 <button id="newRoundBtn" onclick="requestNewRound()" class="px-3 py-1.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold text-xs rounded-full shadow hover:opacity-95 transition-transform active:scale-95 flex items-center gap-1">
-                    <span>🎲</span> 换题/换人
+                    <span>🎲</span> 换题
                 </button>
                 <span id="roundCounter" class="text-[10px] text-gray-400">第 1 轮</span>
             </div>
@@ -561,25 +570,34 @@
                 updates.winner = myRole;
                 updates.messages.push({
                     sender: '系统',
-                    text: `🎊 恭喜！${myRole} 破解了心动暗号！点击“换题/换人”开启下一轮！`,
+                    text: `🎊 恭喜！${myRole} 破解了心动暗号！即将互换身份开启下一题...`,
                     time: Date.now()
                 });
             }
 
             currentGameState.messages = updates.messages;
+            let justWon = false;
             if (updates.completed) {
                 currentGameState.completed = true;
                 currentGameState.winner = myRole;
+                justWon = true;
             }
             renderGameUI();
             renderMessages();
 
             await syncGameStateToCloud(updates);
+
+            // 如果本条猜测直接触发了胜利，则3秒后自动轮换到下一题，并互换画画身份
+            if (justWon) {
+                setTimeout(() => {
+                    triggerNextRound(true);
+                }, 3000);
+            }
         };
 
-        window.requestNewRound = async function() {
-            // 轮换画画者
-            const nextDrawer = currentGameState.drawer === '哼哼' ? '亲亲' : '哼哼';
+        window.triggerNextRound = async function(swapDrawer = false) {
+            // 如果 swapDrawer 为真，互换角色；否则保持原画师
+            const nextDrawer = swapDrawer ? (currentGameState.drawer === '哼哼' ? '亲亲' : '哼哼') : currentGameState.drawer;
             // 随机抽取新词汇
             const pool = WORD_BANK.filter(w => w.word !== currentGameState.word);
             const nextWordObj = pool[Math.floor(Math.random() * pool.length)] || WORD_BANK[0];
@@ -596,7 +614,7 @@
                 strokes: [],
                 messages: [
                     ...(currentGameState.messages || []).slice(-15),
-                    { sender: '系统', text: `第 ${(currentGameState.round || 1) + 1} 轮开始！由 ${nextDrawer} 接棒画画 🎨`, time: Date.now() }
+                    { sender: '系统', text: swapDrawer ? `🎊 答对啦！第 ${(currentGameState.round || 1) + 1} 轮开始，由 ${nextDrawer} 接棒画画 🎨` : `第 ${(currentGameState.round || 1) + 1} 轮开始！更换了新题目 🎨`, time: Date.now() }
                 ]
             };
 
@@ -606,7 +624,16 @@
             renderMessages();
 
             await syncGameStateToCloud(nextData);
-            showToast(`新一轮开始！由 ${nextDrawer} 画画`);
+            showToast(swapDrawer ? `恭喜答对！轮到 ${nextDrawer} 画画啦` : `已为您换题！`);
+        };
+
+        window.requestNewRound = function() {
+            if (currentGameState.drawer !== myRole) {
+                showToast("只有当前主画人可以换题哦！");
+                return;
+            }
+            // 仅换题，不换人
+            triggerNextRound(false);
         };
 
         window.requestHintAction = async function() {
@@ -711,7 +738,14 @@
             resizeCanvas();
             // 先拉取云端题库，再初始化游戏数据
             await fetchWordsFromGithub();
-            initAuthAndData();
+            await initAuthAndData();
+            
+            // 数据初始化完成后隐藏全局加载遮罩
+            const loadingOverlay = document.getElementById('globalLoading');
+            if(loadingOverlay) {
+                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+            }
         });
     </script>
 </body>
