@@ -39,7 +39,7 @@
                 0 4px 6px -2px rgba(225, 29, 72, 0.05),
                 inset 0 0 20px rgba(251, 207, 232, 0.5);
         }
-        canvas { touch-action: none; } /* 阻止在画布上滑动屏幕 */
+        canvas { touch-action: none; } /* 阻止在画布上滑动屏幕，减少落子延迟 */
         
         /* 自定义滚动条 */
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
@@ -71,7 +71,9 @@
                 <p class="text-[11px] text-rose-400 font-medium text-center">黑白交错的浪漫对决</p>
             </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs">
+        <!-- 增加了网络状态指示灯 -->
+        <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs" title="网络状态">
+            <span id="networkIndicator" class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse transition-colors duration-300"></span>
             <span id="playerRoleDisplay" class="font-bold text-rose-500 shadow-xs">游客</span>
         </div>
     </header>
@@ -238,7 +240,51 @@
         
         let lastBoardLength = 0;
         let currentThreats = new Set();
-        let localMatchStatus = 'waiting'; // 用于跟踪本地对局状态以防止重复记录
+        let localMatchStatus = 'waiting'; 
+
+        // 网络状态指示器管理
+        function updateNetworkStatus(isOnline) {
+            const indicator = document.getElementById('networkIndicator');
+            if (isOnline) {
+                indicator.className = "w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse transition-colors duration-300";
+            } else {
+                indicator.className = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-colors duration-300";
+            }
+        }
+
+        // 监听浏览器网络事件以防断联死机
+        window.addEventListener('offline', () => {
+            updateNetworkStatus(false);
+            showToast("网络好像断开了...");
+        });
+
+        window.addEventListener('online', () => {
+            updateNetworkStatus(true);
+            showToast("网络已恢复 📡");
+            // 恢复网络时主动拉取一次最新状态
+            forceSyncRoomState();
+        });
+
+        // 监听应用回到前台（解决手机切后台导致 WebSocket 冻结的问题）
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible" && navigator.onLine) {
+                forceSyncRoomState();
+            }
+        });
+
+        async function forceSyncRoomState() {
+            if (currentRoomCode && hasFirebase) {
+                try {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
+                    const snap = await getDoc(roomRef);
+                    if (snap.exists()) {
+                        applyNewState(snap.data());
+                    }
+                } catch (e) {
+                    console.warn("前台同步失败", e);
+                }
+            }
+        }
 
         // --- 音效配置 (Tone.js) ---
         let placeSound = null;
@@ -247,8 +293,7 @@
         async function initAudio() {
             if (audioInitialized) return;
             try {
-                await Tone.start(); // Tone.js 需等待用户第一次交互才能启动音频上下文
-                // 创建一个膜合成器，可以发出类似敲击木板的清脆声音
+                await Tone.start(); 
                 placeSound = new Tone.MembraneSynth({
                     pitchDecay: 0.02,
                     octaves: 3,
@@ -262,16 +307,12 @@
             }
         }
 
-        // 监听任意点击来初始化音频引擎
         window.addEventListener('click', initAudio, { once: true });
         window.addEventListener('touchstart', initAudio, { once: true });
 
         function playDropSound() {
             if (audioInitialized && placeSound) {
-                if (Tone.context.state !== 'running') {
-                    Tone.context.resume();
-                }
-                // 触发一个短促的低音，模拟落子声
+                if (Tone.context.state !== 'running') Tone.context.resume();
                 placeSound.triggerAttackRelease("E2", "16n");
             }
         }
@@ -295,7 +336,6 @@
         }
         window.addEventListener('resize', resizeCanvas);
 
-        // 使用 requestAnimationFrame 进行连续渲染，以支持棋子闪烁动画
         function animateLoop() {
             if (!document.getElementById('gameUI').classList.contains('hidden')) {
                 drawBoard();
@@ -309,7 +349,6 @@
             
             ctx.clearRect(0, 0, w, w);
 
-            // 绘制网格线
             ctx.beginPath();
             ctx.strokeStyle = '#c48f73';
             ctx.lineWidth = 1;
@@ -322,7 +361,6 @@
             }
             ctx.stroke();
 
-            // 绘制天元和星位
             const starPoints = [
                 {x: 3, y: 3}, {x: 11, y: 3}, 
                 {x: 7, y: 7}, 
@@ -335,7 +373,6 @@
                 ctx.fill();
             });
 
-            // 绘制落下的棋子
             if (gameState.board && gameState.board.length > 0) {
                 gameState.board.forEach((move, index) => {
                     const isLast = index === gameState.board.length - 1;
@@ -353,7 +390,6 @@
             ctx.beginPath();
             ctx.arc(px, py, radius, 0, Math.PI * 2);
             
-            // 棋子本体渐变
             if (color === 'black') {
                 const gradient = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
                 gradient.addColorStop(0, '#555');
@@ -373,29 +409,21 @@
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
             ctx.fill();
-
             ctx.shadowColor = 'transparent';
 
-            // 威胁（连3、连4）的呼吸闪烁特效
             if (isThreat && gameState.status === 'playing') {
                 const time = Date.now();
-                // 周期性的透明度变化
-                const pulseAlpha = 0.2 + (Math.sin(time / 200) + 1) / 2 * 0.6; // 0.2 到 0.8
-                
-                // 覆盖一层发光色 (玫瑰红，匹配心动主题)
+                const pulseAlpha = 0.2 + (Math.sin(time / 200) + 1) / 2 * 0.6; 
                 ctx.beginPath();
                 ctx.arc(px, py, radius, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha})`; 
                 ctx.fill();
-                
-                // 外圈光晕
                 ctx.beginPath();
                 ctx.arc(px, py, radius * 1.35, 0, Math.PI * 2);
                 ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha * 0.4})`;
                 ctx.fill();
             }
 
-            // 最后落子的小红点
             if (isLast) {
                 ctx.beginPath();
                 ctx.arc(px, py, 2.5, 0, Math.PI * 2);
@@ -404,7 +432,6 @@
             }
         }
 
-        // --- 寻找威胁棋子（满3或满4且有空间获胜的线） ---
         function calculateThreats(board) {
             const threatSet = new Set();
             if(!board || board.length === 0) return threatSet;
@@ -421,19 +448,15 @@
                     let count = 1;
                     let line = [{x: piece.x, y: piece.y}];
 
-                    // 向正方向探索
                     let stepF = 1;
                     while (true) {
                         const nx = piece.x + dir[0] * stepF;
                         const ny = piece.y + dir[1] * stepF;
                         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
-                            count++;
-                            line.push({x: nx, y: ny});
-                            stepF++;
+                            count++; line.push({x: nx, y: ny}); stepF++;
                         } else { break; }
                     }
                     
-                    // 计算正方向可用的空位
                     let fEmpty = 0;
                     let checkF = stepF;
                     while (checkF < stepF + 5) {
@@ -444,19 +467,15 @@
                         } else { break; }
                     }
 
-                    // 向反方向探索
                     let stepB = 1;
                     while (true) {
                         const nx = piece.x - dir[0] * stepB;
                         const ny = piece.y - dir[1] * stepB;
                         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
-                            count++;
-                            line.push({x: nx, y: ny});
-                            stepB++;
+                            count++; line.push({x: nx, y: ny}); stepB++;
                         } else { break; }
                     }
                     
-                    // 计算反方向可用的空位
                     let bEmpty = 0;
                     let checkB = stepB;
                     while (checkB < stepB + 5) {
@@ -467,13 +486,10 @@
                         } else { break; }
                     }
 
-                    // 判断是否为有效威胁
                     let isValidThreat = false;
                     if (count === 4 && (fEmpty > 0 || bEmpty > 0)) {
-                        // 4子：只要有一端有空位，下一步就能赢，属于高危
                         isValidThreat = true; 
                     } else if (count === 3 && fEmpty > 0 && bEmpty > 0 && (count + fEmpty + bEmpty >= 5)) {
-                        // 3子：必须是“活三”（两边都没有紧贴着被堵住），且所在方向的总空余空间足够连成5子
                         isValidThreat = true;
                     }
 
@@ -485,13 +501,16 @@
             return threatSet;
         }
 
-        // 统一处理新状态（播放声音、计算威胁等）
         function applyNewState(newState) {
+            // 防抖：如果本地通过乐观更新已经比服务器步数多，且尚未被服务器确认，则忽略旧的快照
+            if (newState.board && gameState.board && newState.board.length < gameState.board.length && newState.status === gameState.status && newState.board.length !== 0) {
+                return; 
+            }
+
             if (newState.board && newState.board.length > lastBoardLength) {
-                playDropSound(); // 检测到步数增加，播放音效
+                playDropSound(); 
             }
             
-            // 如果状态刚刚变为获胜，触发记录
             if (newState.status === 'won' && localMatchStatus !== 'won') {
                 recordMatchResult(newState);
             }
@@ -503,7 +522,7 @@
             updateGameUI();
         }
 
-        // 处理点击落子
+        // 处理点击落子 (低延迟乐观UI机制)
         canvas.addEventListener('click', async (e) => {
             if (gameState.status !== 'playing') return;
             if (gameState.turn !== myColor) {
@@ -512,28 +531,21 @@
             }
 
             const rect = canvas.getBoundingClientRect();
-            // 转换到网格坐标 (四舍五入到最近的交叉点)
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
 
             const gridX = Math.round((clickX - margin) / cellSize);
             const gridY = Math.round((clickY - margin) / cellSize);
 
-            // 边界检查
             if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
-
-            // 检查是否已有子
             if (gameState.board.some(m => m.x === gridX && m.y === gridY)) return;
 
-            // 执行落子
+            // 1. 缓存旧状态以便网络失败时回滚
+            const previousState = JSON.parse(JSON.stringify(gameState));
+
+            // 2. 乐观更新：瞬间在本地执行落子计算，0延迟反馈
             const newMove = { x: gridX, y: gridY, color: myColor };
             const newBoard = [...gameState.board, newMove];
-            
-            // 本地先绘制，提供即时反馈
-            gameState.board = newBoard;
-            drawBoard();
-
-            // 检查胜负
             const isWin = checkWin(newMove, newBoard);
             
             const updates = {
@@ -546,47 +558,39 @@
                 updates.winner = myName;
             }
 
-            // 同步到云端
+            // 本地立刻渲染新状态
+            applyNewState({ ...gameState, ...updates });
+
+            // 3. 异步同步到云端
             if (hasFirebase && currentRoomCode) {
                 try {
                     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
                     await updateDoc(roomRef, updates);
                 } catch (err) {
                     console.error("落子同步失败", err);
-                    showToast("网络错误，落子失败");
+                    showToast("网络不稳定，落子未成功");
+                    // 4. 网络异常，回滚本地状态
+                    applyNewState(previousState);
                 }
             } else {
-                // 无云端时的单机自我博弈测试逻辑
                 myColor = updates.turn; 
-                applyNewState({ ...gameState, ...updates });
             }
         });
 
-        // 五子棋胜负判定算法 (检查8个方向)
         function checkWin(move, currentBoard) {
-            const dirs = [
-                [[1, 0], [-1, 0]],  // 水平
-                [[0, 1], [0, -1]],  // 垂直
-                [[1, 1], [-1, -1]], // 主对角线
-                [[1, -1], [-1, 1]]  // 副对角线
-            ];
-
-            // 快速查找函数
+            const dirs = [ [[1, 0], [-1, 0]], [[0, 1], [0, -1]], [[1, 1], [-1, -1]], [[1, -1], [-1, 1]] ];
             const hasPiece = (x, y) => currentBoard.some(m => m.x === x && m.y === y && m.color === move.color);
 
             for (const dirPair of dirs) {
-                let count = 1; // 当前落子算1个
+                let count = 1; 
                 for (const dir of dirPair) {
                     let step = 1;
                     while (true) {
                         const nx = move.x + dir[0] * step;
                         const ny = move.y + dir[1] * step;
                         if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && hasPiece(nx, ny)) {
-                            count++;
-                            step++;
-                        } else {
-                            break;
-                        }
+                            count++; step++;
+                        } else { break; }
                     }
                 }
                 if (count >= 5) return true;
@@ -594,7 +598,6 @@
             return false;
         }
 
-        // 初始化 Firebase 登录
         async function initAuth() {
             if (!hasFirebase) {
                 hideGlobalLoading();
@@ -608,7 +611,6 @@
                     await signInAnonymously(auth);
                 }
                 currentUser = auth.currentUser;
-                // 初始化完成并登录成功后，隐藏遮罩层
                 hideGlobalLoading();
             } catch (err) {
                 console.error("登录失败:", err);
@@ -617,7 +619,6 @@
             }
         }
 
-        // 隐藏全局 Loading
         function hideGlobalLoading() {
             const loadingOverlay = document.getElementById('globalLoading');
             if(loadingOverlay) {
@@ -626,36 +627,26 @@
             }
         }
 
-        // --- 记录与查看历史战斗 (wzq.json 逻辑) ---
         async function recordMatchResult(state) {
-            if (!myColor) return; // 观战者不记录
-            
+            if (!myColor) return; 
             const isWin = state.winner === myName;
             const opponent = myColor === 'black' ? state.players.white : state.players.black;
-            
             const record = {
                 roomCode: currentRoomCode || '单机',
-                date: Date.now(),
-                opponent: opponent || '未知玩家',
-                result: isWin ? 'win' : 'loss',
-                myColor: myColor
+                date: Date.now(), opponent: opponent || '未知玩家',
+                result: isWin ? 'win' : 'loss', myColor: myColor
             };
 
-            // 如果没有云端连接，则存入 localStorage 模拟 JSON 存储
             if (!hasFirebase || !currentUser) {
                 let history = JSON.parse(localStorage.getItem('wzq_history') || '[]');
                 history.push(record);
                 localStorage.setItem('wzq_history', JSON.stringify(history));
                 return;
             }
-
             try {
-                // 存入个人名下的历史战斗记录集合 (满足安全路径要求)
                 const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
                 await addDoc(historyRef, record);
-            } catch (e) {
-                console.error("记录战斗失败", e);
-            }
+            } catch (e) { console.error("记录战斗失败", e); }
         }
 
         window.showHistory = async function() {
@@ -664,7 +655,6 @@
             const modalContent = modal.querySelector('div');
             
             modal.classList.remove('hidden');
-            // 触发回流以应用动画
             void modal.offsetWidth;
             modal.classList.remove('opacity-0');
             modalContent.classList.remove('scale-95');
@@ -677,16 +667,13 @@
             } else {
                 try {
                     const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
-                    // 获取所有记录，在前端排序（遵循不使用复合查询的要求）
                     const snap = await getDocs(historyRef);
                     snap.forEach(doc => records.push(doc.data()));
                 } catch (e) {
-                    console.error("读取历史失败", e);
                     showToast("获取记录失败");
                 }
             }
 
-            // 按照时间降序排列
             records.sort((a, b) => b.date - a.date);
 
             if (records.length === 0) {
@@ -718,18 +705,14 @@
         window.closeHistory = function() {
             const modal = document.getElementById('historyModal');
             const modalContent = modal.querySelector('div');
-            
             modal.classList.add('opacity-0');
             modalContent.classList.add('scale-95');
-            
-            setTimeout(() => {
-                modal.classList.add('hidden');
-            }, 300);
+            setTimeout(() => modal.classList.add('hidden'), 300);
         };
 
         window.createRoom = async function() {
             if (!hasFirebase) return mockJoin("1234", 'black');
-            initAudio(); // Interaction hook
+            initAudio(); 
             
             showToast("正在创建房间...");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -749,11 +732,10 @@
         };
 
         window.joinRoom = async function() {
-            initAudio(); // Interaction hook
+            initAudio(); 
             const codeInput = document.getElementById('roomCodeInput').value.trim();
             if (!/^\d{4}$/.test(codeInput)) {
-                showToast("请输入正确的4位数字房间号！");
-                return;
+                showToast("请输入正确的4位数字房间号！"); return;
             }
 
             if (!hasFirebase) return mockJoin(codeInput, 'white');
@@ -805,6 +787,35 @@
             }
         }
 
+        // 强健的房间监听逻辑，包含掉线重连
+        function subscribeToRoom(code) {
+            if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
+            
+            // includeMetadataChanges 允许我们监听到从本地缓存返回的数据，以此判断是否掉线
+            unsubscribe = onSnapshot(roomRef, { includeMetadataChanges: true }, (snap) => {
+                if (snap.exists()) {
+                    // 如果来自缓存且 navigator 判定离线，说明断联了
+                    if (snap.metadata.fromCache && !navigator.onLine) {
+                        updateNetworkStatus(false);
+                    } else {
+                        updateNetworkStatus(true);
+                    }
+                    applyNewState(snap.data());
+                } else {
+                    showToast("房间已解散");
+                    leaveRoom();
+                }
+            }, (error) => {
+                console.error("房间监听断开", error);
+                updateNetworkStatus(false);
+                // 发生异常时，静默尝试重新建立连接
+                setTimeout(() => {
+                    if (currentRoomCode === code) subscribeToRoom(code);
+                }, 2000);
+            });
+        }
+
         function joinRoomSuccess(code, color, initialData) {
             currentRoomCode = code;
             myColor = color;
@@ -821,15 +832,7 @@
             document.getElementById('roomCodeDisplay').innerText = code;
             
             if (hasFirebase) {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
-                unsubscribe = onSnapshot(roomRef, (snap) => {
-                    if (snap.exists()) {
-                        applyNewState(snap.data());
-                    } else {
-                        showToast("房间已解散");
-                        leaveRoom();
-                    }
-                });
+                subscribeToRoom(code);
             }
         }
 
@@ -881,19 +884,14 @@
         window.requestRestart = async function() {
             if (!hasFirebase) {
                 applyNewState({
-                    ...gameState,
-                    board: [], status: 'playing', turn: 'black', winner: null
+                    ...gameState, board: [], status: 'playing', turn: 'black', winner: null
                 });
                 return;
             }
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
-                await updateDoc(roomRef, {
-                    board: [], status: 'playing', turn: 'black', winner: null
-                });
-            } catch (e) {
-                showToast("重置失败");
-            }
+                await updateDoc(roomRef, { board: [], status: 'playing', turn: 'black', winner: null });
+            } catch (e) { showToast("重置失败，请检查网络"); }
         };
 
         window.leaveRoom = function() {
@@ -925,7 +923,7 @@
 
         window.addEventListener('load', () => {
             initAuth();
-            requestAnimationFrame(animateLoop); // 启动动画循环
+            requestAnimationFrame(animateLoop); 
         });
     </script>
 </body>
