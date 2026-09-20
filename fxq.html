@@ -66,8 +66,6 @@
         
         #board-grid {
             display: grid;
-            grid-template-columns: repeat(12, 1fr);
-            grid-template-rows: repeat(12, 1fr);
             width: 100%;
             height: 100%;
             gap: 2px;
@@ -239,6 +237,7 @@
                 <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
                     <li>掷出 <b class="text-red-500">6</b> 点可起飞一架飞机，并奖励连掷。</li>
                     <li>停在同色格子，可直接<b class="text-orange-500">跳跃</b>至下一同色格。</li>
+                    <li>新增<b class="text-purple-500">❓盲盒事件</b>：踩中可能触发气流后退、顺风前进、直接坠毁或奖励回合！</li>
                     <li>终点冲刺若点数超出，需<b class="text-indigo-500">折返倒退</b>。</li>
                     <li>4架飞机全部到达中心终点即获胜。</li>
                 </ul>
@@ -376,18 +375,21 @@
         let gameState = null; 
         let myPlayerId = null; // 'p1' or 'p2'
 
-        const GRID_SIZE = 12;
+        const GRID_SIZE = 14;
         
-        // 1. 生成外圈36格环形轨道坐标
+        // 1. 生成外圈44格环形轨道坐标 (扩建为14x14)
         const trackCoords = [];
-        for(let x=1; x<=10; x++) trackCoords.push({x, y: 1}); 
-        for(let y=2; y<=10; y++) trackCoords.push({x: 10, y});
-        for(let x=9; x>=1; x--) trackCoords.push({x, y: 10});
-        for(let y=9; y>=2; y--) trackCoords.push({x: 1, y});
+        for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
+        for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
+        for(let x=11; x>=1; x--) trackCoords.push({x, y: 12});
+        for(let y=11; y>=2; y--) trackCoords.push({x: 1, y});
 
-        // 2. 终点回家路径
-        const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5} ]; // 100, 101, 102, 103
-        const p2HomeCoords = [ {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7}, {x: 6, y: 6} ]; // 200, 201, 202, 203
+        // 2. 终点回家路径 (加长至5步)
+        const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6} ]; // 100~104
+        const p2HomeCoords = [ {x: 11, y: 11}, {x: 10, y: 10}, {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7} ]; // 200~204
+
+        // 3. 随机事件格子 (分散在赛道中)
+        const eventCellIndices = [5, 10, 16, 21, 27, 32, 38, 43];
 
         function getCellColor(index) {
             return index % 4; 
@@ -396,16 +398,20 @@
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
             grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
 
             const cellMap = {};
+            const eventMap = {};
             trackCoords.forEach((c, idx) => {
                 cellMap[`${c.x},${c.y}`] = `cell-color-${getCellColor(idx)}`;
+                if(eventCellIndices.includes(idx)) eventMap[`${c.x},${c.y}`] = true;
             });
             p1HomeCoords.forEach((c, i) => {
-                cellMap[`${c.x},${c.y}`] = i === 3 ? 'cell-win' : 'cell-home-red';
+                cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-red';
             });
             p2HomeCoords.forEach((c, i) => {
-                cellMap[`${c.x},${c.y}`] = i === 3 ? 'cell-win' : 'cell-home-blue';
+                cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue';
             });
 
             for(let y=0; y<GRID_SIZE; y++) {
@@ -414,8 +420,9 @@
                     const key = `${x},${y}`;
                     div.className = `board-cell ${cellMap[key] || 'cell-empty'}`;
                     
-                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] font-black text-red-700/60">起飞</span>';
-                    if(x === 10 && y === 10) div.innerHTML = '<span class="text-[8px] font-black text-blue-700/60">起飞</span>';
+                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-red-700/60">起飞</span>';
+                    else if(x === 12 && y === 12) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-blue-700/60">起飞</span>';
+                    else if (eventMap[key]) div.innerHTML = '<span class="text-xs sm:text-sm animate-pulse drop-shadow-md">❓</span>';
                     
                     grid.appendChild(div);
                 }
@@ -674,11 +681,11 @@
                         }
                     } else {
                         let gridCoord = {x:0, y:0};
-                        if (pos >= 0 && pos <= 35) {
+                        if (pos >= 0 && pos <= 43) {
                             gridCoord = trackCoords[pos];
-                        } else if (pos >= 100 && pos <= 103) {
+                        } else if (pos >= 100 && pos <= 104) {
                             gridCoord = p1HomeCoords[pos - 100];
-                        } else if (pos >= 200 && pos <= 203) {
+                        } else if (pos >= 200 && pos <= 204) {
                             gridCoord = p2HomeCoords[pos - 200];
                         }
                         
@@ -764,16 +771,18 @@
 
             const logs = [...gameState.logs];
             let newPos = currentPos;
+            let extraTurn = false;
 
+            // 1. 出门或移动计算
             if (currentPos === -1 && dice === 6) {
-                newPos = myPlayerId === 'p1' ? 0 : 18; 
+                newPos = myPlayerId === 'p1' ? 0 : 22; 
                 logs.push(`✈️ ${myName} 的飞机驶出机库！`);
             } else {
                 newPos = calculateDestination(myPlayerId, currentPos, dice);
             }
 
-            // 检查同色格子跳跃
-            if (newPos >= 0 && newPos <= 35) {
+            // 2. 检查同色格子跳跃
+            if (newPos >= 0 && newPos <= 43) {
                 const colorCode = getCellColor(newPos);
                 const myColorCode = myPlayerId === 'p1' ? 0 : 2;
                 
@@ -781,9 +790,40 @@
                     const path = generateLogicalPath(myPlayerId);
                     const currPathIndex = path.indexOf(newPos);
                     const jumpPathIndex = currPathIndex + 4;
-                    if (jumpPathIndex < 36) { 
+                    if (jumpPathIndex < 44) { 
                         newPos = path[jumpPathIndex];
                         logs.push(`💨 触发同色跳跃！`);
+                    }
+                }
+            }
+
+            // 3. 检查盲盒随机事件
+            if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
+                const rand = Math.random();
+                if (rand < 0.2) {
+                    logs.push(`🌪️ 触发盲盒：遇到气流，后退3格！`);
+                    newPos = calculateDestination(myPlayerId, newPos, -3);
+                } else if (rand < 0.4) {
+                    logs.push(`🚀 触发盲盒：顺风飞行，前进3格！`);
+                    newPos = calculateDestination(myPlayerId, newPos, 3);
+                } else if (rand < 0.55) {
+                    logs.push(`⚡ 触发盲盒：遭遇雷电，直接坠毁回机场！`);
+                    newPos = -1;
+                } else if (rand < 0.75) {
+                    logs.push(`🎁 触发盲盒：获得塔台补给，奖励一个回合！`);
+                    extraTurn = true;
+                } else {
+                    logs.push(`🌈 触发盲盒：运气爆棚，直达下一同色格！`);
+                    const path = generateLogicalPath(myPlayerId);
+                    const currPathIndex = path.indexOf(newPos);
+                    if (currPathIndex !== -1) {
+                        let nextSameColorIdx = currPathIndex + 1;
+                        while (nextSameColorIdx < 44 && getCellColor(path[nextSameColorIdx]) !== getCellColor(newPos)) {
+                            nextSameColorIdx++;
+                        }
+                        if (nextSameColorIdx < 44) {
+                            newPos = path[nextSameColorIdx];
+                        }
                     }
                 }
             }
@@ -794,8 +834,8 @@
                 [`${myPlayerId}.pieces`]: myPieces
             };
 
-            // 碰撞检测（击落敌机）
-            if (newPos >= 0 && newPos <= 35) {
+            // 4. 碰撞检测（击落敌机）
+            if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                 const oppPieces = [...gameState[oppId].pieces];
                 let collisionOccurred = false;
@@ -821,9 +861,13 @@
             }
 
             stateUpdate.hasRolled = false;
-            if (dice === 6 && !allFinished) {
+            if ((dice === 6 || extraTurn) && !allFinished) {
                 stateUpdate.turn = myPlayerId;
-                logs.push(`🎲 掷出6点，获得额外回合！`);
+                if (extraTurn && dice !== 6) {
+                    logs.push(`🔄 触发补给，获得额外连掷机会！`);
+                } else {
+                    logs.push(`🎲 掷出6点，获得额外回合！`);
+                }
             } else if (!allFinished) {
                 stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
             }
@@ -838,23 +882,25 @@
         function generateLogicalPath(player) {
             let path = [];
             if (player === 'p1') {
-                for(let i=0; i<=35; i++) path.push(i);
-                path.push(100, 101, 102, 103, 999);
+                for(let i=0; i<=43; i++) path.push(i);
+                path.push(100, 101, 102, 103, 104, 999);
             } else {
-                for(let i=18; i<=35; i++) path.push(i);
-                for(let i=0; i<=17; i++) path.push(i);
-                path.push(200, 201, 202, 203, 999);
+                for(let i=22; i<=43; i++) path.push(i);
+                for(let i=0; i<=21; i++) path.push(i);
+                path.push(200, 201, 202, 203, 204, 999);
             }
             return path;
         }
 
-        // 修复：严格实现飞行棋超出点数后倒退弹回规则
+        // 支持后退步数，且严防越界
         function calculateDestination(player, currentPos, steps) {
             const path = generateLogicalPath(player);
             const currIdx = path.indexOf(currentPos);
             if (currIdx === -1) return currentPos;
 
             let targetIdx = currIdx + steps;
+            
+            if (targetIdx < 0) targetIdx = 0; // 防止后退事件越过起点
             
             if (targetIdx >= path.length) {
                 const overshoot = targetIdx - (path.length - 1);
