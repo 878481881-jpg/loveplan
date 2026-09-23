@@ -4,52 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>云端飞行棋 ✈️☁️</title>
-    
-    <!-- ====== Safari 性能优化：预连接 + 预加载关键资源 ====== -->
-    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <!-- 优化：增加资源预加载与预连接，加速首屏 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://cdn.tailwindcss.com">
-    
-    <!-- 预加载 Firebase 核心模块，Safari 可提前解析 -->
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js">
-    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js">
     <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js">
-    
-    <!-- 字体使用 font-display: swap 避免 FOIT 阻塞文字渲染 -->
-    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
-    
-    <script>
-        // ====== Safari 首屏极速优化：内联首屏样式关键帧，避免 FOUC ======
-        const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) || 
-                        /iPhone|iPad|iPod/.test(navigator.userAgent);
-        // Safari 特判：立即标记，供后续逻辑使用
-        window.__IS_SAFARI__ = isSafari;
-        
-        // 页面可见立即隐藏加载屏（不等待JS执行完成）
-        document.addEventListener('DOMContentLoaded', () => {
-            // Safari 下最大 800ms 兜底显示大厅，不阻塞用户操作
-            setTimeout(() => {
-                const el = document.getElementById('globalLoading');
-                if (el && !el.classList.contains('opacity-0')) {
-                    el.classList.add('opacity-0', 'pointer-events-none');
-                    setTimeout(() => el.classList.add('hidden'), 300);
-                }
-                const lobby = document.getElementById('lobbyView');
-                if (lobby) lobby.classList.remove('hidden');
-            }, isSafari ? 800 : 2000);
-        });
-    </script>
-    
     <script src="https://cdn.tailwindcss.com"></script>
-    
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
-        /* 字体强制 swap，Safari 不会等字体下载 */
-        @font-face {
-            font-family: 'ZCOOL KuaiLe';
-            font-display: swap;
-        }
-        
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
             background-color: #e0f2fe;
@@ -60,21 +22,17 @@
             background-position: 0 0, 20px 20px;
             overflow-x: hidden;
             user-select: none;
-            -webkit-user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            /* Safari 滚动/合成加速 */
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; /* 优化：Safari 惯性滚动 */
         }
 
         @keyframes float {
             0%, 100% { transform: translateY(0) translateX(0); }
             50% { transform: translateY(-10px) translateX(5px); }
         }
-        .cloud { animation: float 6s ease-in-out infinite; will-change: transform; }
-        .cloud-delayed { animation: float 7s ease-in-out 2s infinite; will-change: transform; }
+        .cloud { animation: float 6s ease-in-out infinite; }
+        .cloud-delayed { animation: float 7s ease-in-out 2s infinite; }
 
         @keyframes rollDice {
             0% { transform: rotate(0deg) scale(1); }
@@ -94,13 +52,12 @@
             z-index: 20;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
         }
-        /* Safari 兼容：单独使用 transform 触发 GPU 加速，避免 all 过渡 */
+        /* 优化：收窄过渡属性，开启 GPU 硬件加速 */
         .plane-transition { 
-            transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-                        left 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
-                        top 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1); 
             will-change: transform, left, top;
-            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
         }
 
         #board-container {
@@ -113,8 +70,6 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.05), inset 0 0 0 2px #fff;
             padding: 10px;
             margin: 0 auto;
-            /* 避免容器成为 reflow 根 */
-            contain: layout paint;
         }
         
         #board-grid {
@@ -132,7 +87,6 @@
             justify-content: center;
             position: relative;
             box-shadow: inset 0 -2px 0 rgba(0,0,0,0.08);
-            contain: layout paint;
         }
 
         .cell-color-0 { background-color: #fca5a5; }
@@ -156,9 +110,6 @@
             cursor: pointer;
             box-shadow: 0 3px 5px rgba(0,0,0,0.2), inset 0 -2px 0 rgba(0,0,0,0.2);
             z-index: 10;
-            /* Safari GPU 加速 */
-            -webkit-transform: translateZ(0);
-            transform: translateZ(0);
         }
         .plane-red { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; border: 2px solid #fff; }
         .plane-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border: 2px solid #fff; }
@@ -176,7 +127,6 @@
             gap: 4px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05);
             border: 2px solid white;
-            z-index: 5;
         }
         .base-red { top: 0; left: 0; border-color: #fca5a5; }
         .base-blue { bottom: 0; right: 0; border-color: #93c5fd; }
@@ -202,29 +152,6 @@
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .wt-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-        }
-        .wt-connected { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
-        .wt-connecting { background: #eab308; animation: pulse 1s infinite; }
-        .wt-disconnected { background: #ef4444; }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-        
-        /* Safari 输入框聚焦修复 */
-        input:focus { outline: none; -webkit-tap-highlight-color: transparent; }
-        
-        /* 按钮点击响应优化 */
-        button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        
-        /* 减少 Safari 上的动画卡顿 */
-        * { -webkit-backface-visibility: hidden; backface-visibility: hidden; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
@@ -232,13 +159,12 @@
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
 
-    <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-300">
+    <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">✈️</div>
         <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span>
-            准备起飞...
+            连接塔台中...
         </div>
-        <div class="text-sky-500 text-xs mt-2" id="loadingSubtext">连接塔台中</div>
     </div>
 
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-sky-400/50"></div>
@@ -260,23 +186,22 @@
             <span class="text-3xl">✈️</span>
             <div>
                 <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋</h1>
-                <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">实时对战版</p>
+                <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Aero Chess Battle</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
             <div class="bg-white/90 px-3 py-1.5 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
-                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">游客</span>
+                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
             </div>
             <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                <span class="wt-dot wt-connecting" id="wtStatusDot"></span>
-                <span id="wtStatusText">连接中</span>
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
             </span>
         </div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
         
-        <div id="lobbyView" class="w-full flex flex-col gap-4">
+        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
             <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-sky-100 shadow-xl flex flex-col items-center text-center">
                 <div class="w-24 h-24 bg-gradient-to-br from-sky-100 to-blue-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">
                     🌍
@@ -368,7 +293,7 @@
             <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-white shadow-lg flex gap-4">
                 <div class="flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 p-3 rounded-xl border border-gray-100 w-28">
                     <div id="diceVisual" class="text-5xl mb-2 drop-shadow-md transition-transform">🎲</div>
-                    <button id="btnRollDice" onclick="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-sm">
+                    <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-sm touch-manipulation">
                         掷骰子
                     </button>
                 </div>
@@ -376,9 +301,9 @@
                 <div class="flex-1 flex flex-col bg-sky-50/50 rounded-xl border border-sky-100 p-2 overflow-hidden relative">
                     <div class="text-[10px] font-bold text-sky-600/70 mb-1 px-1 border-b border-sky-200/50 pb-1 flex justify-between">
                         <span>📡 塔台通讯日志</span>
-                        <span id="transportTag" class="px-1.5 py-0.5 rounded bg-gray-200 text-gray-500 text-[8px]">连接中</span>
+                        <span class="text-green-500 tracking-tighter">DATAGRAM ⚡</span>
                     </div>
-                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-xs font-medium text-gray-600" style="-webkit-overflow-scrolling: touch;">
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-xs font-medium text-gray-600">
                         <div class="text-center text-gray-400 py-4 opacity-50">等待通讯...</div>
                     </div>
                     <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
@@ -389,290 +314,16 @@
     </main>
 
     <script type="module">
-        // ============================================================
-        //  Safari 兼容 WebTransport 检测（严格判定，避免假阳性阻塞）
-        // ============================================================
-        
-        /**
-         * 严格检测 WebTransport 真实可用性
-         * Safari 16.4+ 虽然暴露了 WebTransport 构造函数，但：
-         * 1. 不支持 insecure localhost HTTP/3（需要证书）
-         * 2. datagrams 实现不稳定，经常 ready 挂起
-         * 3. 没有 serverCertificateHashes 支持
-         * 因此在 Safari 上直接禁用，避免3秒超时阻塞
-         */
-        function isWebTransportFullySupported() {
-            if (window.__IS_SAFARI__) return false; // Safari 一律禁用 WT，走 Firebase
-            if (typeof WebTransport === 'undefined') return false;
-            try {
-                // 检测是否支持 datagrams 属性
-                const proto = WebTransport.prototype;
-                if (!proto || !('datagrams' in proto)) return false;
-                return true;
-            } catch(e) {
-                return false;
-            }
-        }
-
-        const WT_CONFIG = {
-            url: "https://localhost:4433/wt",
-            enabled: true,
-            connectTimeout: 1500,  // 缩短超时，Chrome下也快速失败
-            heartbeatInterval: 8000,
-            maxDatagramSize: 1200,
-            fullySupported: isWebTransportFullySupported()
-        };
-
-        class GameTransport {
-            constructor() {
-                this.wt = null;
-                this.datagramReader = null;
-                this.datagramWriter = null;
-                this.connected = false;
-                this.connecting = false;
-                this.roomId = null;
-                this.onMessage = null;
-                this.onStatusChange = null;
-                this.heartbeatTimer = null;
-                this.reconnectAttempts = 0;
-                this.maxReconnectAttempts = 3;
-                this.messageQueue = [];
-                this.supported = WT_CONFIG.fullySupported;
-            }
-
-            setStatus(status, text) {
-                const dot = document.getElementById('wtStatusDot');
-                const txt = document.getElementById('wtStatusText');
-                const tag = document.getElementById('transportTag');
-                if (!dot || !txt || !tag) return;
-                dot.className = 'wt-dot';
-                switch(status) {
-                    case 'connected':
-                        dot.classList.add('wt-connected');
-                        txt.innerText = '低延迟已连接';
-                        tag.className = 'px-1.5 py-0.5 rounded bg-green-100 text-green-700 text-[8px] font-bold';
-                        tag.innerText = 'DATAGRAM ⚡';
-                        break;
-                    case 'connecting':
-                        dot.classList.add('wt-connecting');
-                        txt.innerText = '低延迟连接中';
-                        tag.className = 'px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-700 text-[8px]';
-                        tag.innerText = 'CONNECTING';
-                        break;
-                    case 'disconnected':
-                    default:
-                        dot.classList.add('wt-disconnected');
-                        txt.innerText = text || 'Firebase同步';
-                        tag.className = 'px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 text-[8px] font-bold';
-                        tag.innerText = 'FIRESTORE';
-                        break;
-                }
-                if (this.onStatusChange) this.onStatusChange(status);
-            }
-
-            async connect(roomId) {
-                if (!WT_CONFIG.enabled || !this.supported) {
-                    this.setStatus('disconnected');
-                    return false;
-                }
-                if (this.connecting) return false;
-                if (this.connected) return true;
-
-                this.connecting = true;
-                this.roomId = roomId;
-                this.setStatus('connecting');
-
-                try {
-                    const wtUrl = new URL(WT_CONFIG.url);
-                    wtUrl.searchParams.set('room', roomId);
-                    
-                    this.wt = new WebTransport(wtUrl.toString(), {
-                        serverCertificateHashes: []
-                    });
-
-                    const timeoutPromise = new Promise((_, reject) => 
-                        setTimeout(() => reject(new Error('WT timeout')), WT_CONFIG.connectTimeout)
-                    );
-
-                    await Promise.race([this.wt.ready, timeoutPromise]);
-                    
-                    this.connected = true;
-                    this.connecting = false;
-                    this.reconnectAttempts = 0;
-                    
-                    try {
-                        this.datagramReader = this.wt.datagrams.readable.getReader();
-                        this.datagramWriter = this.wt.datagrams.writable.getWriter();
-                    } catch(e) {
-                        throw new Error('datagram stream unavailable');
-                    }
-                    
-                    this.setStatus('connected');
-
-                    this.send({
-                        type: 'join',
-                        room: roomId,
-                        name: myName,
-                        ts: Date.now()
-                    });
-
-                    this.receiveLoop();
-                    this.startHeartbeat();
-                    this.flushQueue();
-
-                    this.wt.closed.then(() => {
-                        this.handleDisconnect();
-                    }).catch(() => {
-                        this.handleDisconnect();
-                    });
-
-                    return true;
-                } catch (err) {
-                    console.log("[Transport] WT不可用，使用Firebase:", err.message);
-                    this.connecting = false;
-                    this.connected = false;
-                    this.setStatus('disconnected');
-                    return false;
-                }
-            }
-
-            startHeartbeat() {
-                this.stopHeartbeat();
-                this.heartbeatTimer = setInterval(() => {
-                    if (this.connected) {
-                        this.send({ type: 'ping', ts: Date.now() });
-                    }
-                }, WT_CONFIG.heartbeatInterval);
-            }
-
-            stopHeartbeat() {
-                if (this.heartbeatTimer) {
-                    clearInterval(this.heartbeatTimer);
-                    this.heartbeatTimer = null;
-                }
-            }
-
-            async receiveLoop() {
-                try {
-                    while (this.connected && this.datagramReader) {
-                        const { value, done } = await this.datagramReader.read();
-                        if (done) break;
-                        
-                        try {
-                            const text = new TextDecoder().decode(value);
-                            const msg = JSON.parse(text);
-                            
-                            if (msg.from === myClientId) continue;
-                            if (msg.type === 'ping' || msg.type === 'pong') continue;
-                            
-                            if (this.onMessage) {
-                                this.onMessage(msg);
-                            }
-                        } catch (e) { /* 忽略坏包 */ }
-                    }
-                } catch (err) {
-                    if (this.connected) this.handleDisconnect();
-                }
-            }
-
-            send(data) {
-                if (!this.connected) {
-                    if (data.type !== 'ping' && data.type !== 'pong') {
-                        this.messageQueue.push(data);
-                    }
-                    return false;
-                }
-
-                try {
-                    const payload = {
-                        ...data,
-                        from: myClientId,
-                        room: this.roomId
-                    };
-                    const encoded = new TextEncoder().encode(JSON.stringify(payload));
-                    
-                    if (encoded.byteLength > WT_CONFIG.maxDatagramSize) {
-                        return false;
-                    }
-                    
-                    this.datagramWriter.write(encoded);
-                    return true;
-                } catch (err) {
-                    return false;
-                }
-            }
-
-            flushQueue() {
-                while (this.messageQueue.length > 0 && this.connected) {
-                    const msg = this.messageQueue.shift();
-                    this.send(msg);
-                }
-            }
-
-            handleDisconnect() {
-                if (!this.connected && !this.connecting) return;
-                
-                this.connected = false;
-                this.connecting = false;
-                this.stopHeartbeat();
-                
-                if (this.datagramReader) {
-                    try { this.datagramReader.releaseLock(); } catch(e) {}
-                    this.datagramReader = null;
-                }
-                if (this.datagramWriter) {
-                    try { this.datagramWriter.releaseLock(); } catch(e) {}
-                    this.datagramWriter = null;
-                }
-                this.wt = null;
-
-                if (this.roomId && this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 8000);
-                    setTimeout(() => this.connect(this.roomId), delay);
-                } else {
-                    this.setStatus('disconnected', 'Firebase同步');
-                }
-            }
-
-            async disconnect() {
-                this.stopHeartbeat();
-                this.roomId = null;
-                this.connected = false;
-                this.connecting = false;
-                this.messageQueue = [];
-                
-                if (this.wt) {
-                    try {
-                        if (this.datagramWriter) await this.datagramWriter.close();
-                        await this.wt.close();
-                    } catch(e) {}
-                    this.wt = null;
-                }
-                
-                this.datagramReader = null;
-                this.datagramWriter = null;
-                this.setStatus('disconnected');
-            }
-
-            isFastPath() {
-                return this.connected;
-            }
-        }
-
-        const myClientId = 'client_' + Math.random().toString(36).substr(2, 9);
-        const transport = new GameTransport();
-
-        // ============================================================
-        //  Firebase 初始化（并行化，不阻塞UI）
-        // ============================================================
-        
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { 
-            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc,
-            enableIndexedDbPersistence, initializeFirestore, CACHE_SIZE_UNLIMITED
+            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc 
         } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 优化 1：启动兜底机制，无论网络/脚本是否抛错，800ms强制进入大厅，避免白屏卡死
+        const fallbackTimer = setTimeout(() => {
+            hideLoading();
+        }, 800);
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'aeroplane-chess-app';
         
@@ -689,82 +340,35 @@
         let app, auth, db;
         let currentUser = null;
         let hasFirebase = false;
-        let firebaseReady = false;
+
+        // 【性能缓存】布局坐标预计算
+        let cachedBaseSpots = {};
 
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
-            // Safari 下使用持久化缓存，减少重复请求
-            db = initializeFirestore(app, {
-                cacheSizeBytes: CACHE_SIZE_UNLIMITED
-            });
-            // 启用 IndexedDB 本地持久化，Safari 第二次打开秒加载
-            enableIndexedDbPersistence(db).catch((err) => {
-                if (err.code === 'failed-precondition') {
-                    // 多标签页打开，降级内存缓存
-                    db = getFirestore(app);
-                }
-            });
+            db = getFirestore(app);
             hasFirebase = true;
         } catch(e) {
             console.error("Firebase init failed", e);
-            // 回退到普通初始化
-            try {
-                app = initializeApp(firebaseConfig);
-                auth = getAuth(app);
-                db = getFirestore(app);
-                hasFirebase = true;
-            } catch(e2) {
-                hasFirebase = false;
-            }
         }
 
-        // 立即从 localStorage 读取身份，不等待网络
-        let myIdentity = localStorage.getItem('loveGacha_myIdentity');
-        if (!myIdentity) {
-            myIdentity = "玩家" + Math.floor(Math.random()*1000);
-            localStorage.setItem('loveGacha_myIdentity', myIdentity);
+        let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
+        // 优化 2：try...catch 包裹 localStorage，防止部分受限 iframe/沙盒环境直接抛出 SecurityError 阻断整个 JS 运行
+        try {
+            const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
+            if (savedIdentity) myIdentity = savedIdentity;
+        } catch(e) {
+            console.warn('当前环境禁止访问 localStorage, 使用随机名字');
         }
-        const myName = myIdentity;
         
-        // ====== DOM 元素缓存（减少 getElementById 重复查询，Safari 特别受益）======
-        const dom = {
-            loadingEl: document.getElementById('globalLoading'),
-            loadingSubtext: document.getElementById('loadingSubtext'),
-            lobbyView: document.getElementById('lobbyView'),
-            gameView: document.getElementById('gameView'),
-            currentRoleDisplay: document.getElementById('currentRoleDisplay'),
-            syncStatusBadge: document.getElementById('syncStatusBadge'),
-            displayRoomCode: document.getElementById('displayRoomCode'),
-            p1NameDisplay: document.getElementById('p1NameDisplay'),
-            p2NameDisplay: document.getElementById('p2NameDisplay'),
-            turnBanner: document.getElementById('turnBanner'),
-            turnBannerIcon: document.getElementById('turnBannerIcon'),
-            turnBannerText: document.getElementById('turnBannerText'),
-            boardOverlay: document.getElementById('boardOverlay'),
-            btnRoll: document.getElementById('btnRollDice'),
-            diceVis: document.getElementById('diceVisual'),
-            eventLogs: document.getElementById('eventLogs'),
-            boardContainer: document.getElementById('board-container'),
-            boardGrid: document.getElementById('board-grid'),
-            planesLayer: document.getElementById('planes-layer'),
-            roomCodeInput: document.getElementById('roomCodeInput'),
-        };
-        
-        // 立即更新身份显示，不等待 Firebase
-        dom.currentRoleDisplay.innerText = myName;
+        const myName = myIdentity; 
+        document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null;
         let unsubscribeRoom = null;
         let gameState = null; 
         let myPlayerId = null;
-        let localStateVersion = 0;
-        let applyingRemote = false;
-        
-        // 棋盘坐标尺寸缓存（避免每次渲染重算 getBoundingClientRect）
-        let boardRectCache = null;
-        let boardRectCacheTime = 0;
-        const BOARD_RECT_TTL = 500; // 500ms 缓存，resize 时主动清除
 
         const GRID_SIZE = 14;
         
@@ -784,7 +388,7 @@
         }
 
         function initBoardGrid() {
-            const grid = dom.boardGrid;
+            const grid = document.getElementById('board-grid');
             grid.innerHTML = '';
             grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
             grid.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
@@ -801,49 +405,59 @@
             p2HomeCoords.forEach((c, i) => {
                 cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue';
             });
-
-            // 使用 DocumentFragment 批量插入，减少 Safari reflow
-            const frag = document.createDocumentFragment();
+            
+            const fragment = document.createDocumentFragment();
             for(let y=0; y<GRID_SIZE; y++) {
                 for(let x=0; x<GRID_SIZE; x++) {
                     const div = document.createElement('div');
                     const key = `${x},${y}`;
                     div.className = `board-cell ${cellMap[key] || 'cell-empty'}`;
                     
-                    if(x === 1 && y === 1) div.textContent = '起飞';
-                    else if(x === 12 && y === 12) div.textContent = '起飞';
-                    else if (eventMap[key]) div.textContent = '❓';
+                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-red-700/60">起飞</span>';
+                    else if(x === 12 && y === 12) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-blue-700/60">起飞</span>';
+                    else if (eventMap[key]) div.innerHTML = '<span class="text-xs sm:text-sm animate-pulse drop-shadow-md">❓</span>';
                     
-                    if (div.textContent) {
-                        div.style.fontSize = '10px';
-                        div.style.fontWeight = '900';
-                        if (x === 1 && y === 1) div.style.color = 'rgba(185,28,28,0.6)';
-                        else if (x === 12 && y === 12) div.style.color = 'rgba(29,78,216,0.6)';
-                    }
-                    
-                    frag.appendChild(div);
+                    fragment.appendChild(div);
                 }
             }
-            grid.appendChild(frag);
+            grid.appendChild(fragment);
             initPlanesDOM();
-            invalidateBoardRect();
+            
+            // 预先缓存所有出发点坐标，避免布局抖动
+            setTimeout(cacheBaseSpotRects, 100);
+        }
+
+        function cacheBaseSpotRects() {
+            cachedBaseSpots = {};
+            const containerRect = document.getElementById('board-container').getBoundingClientRect();
+            if (containerRect.width === 0) return;
+
+            ['p1', 'p2'].forEach(player => {
+                for(let i=0; i<4; i++) {
+                    const spot = document.getElementById(`spot-${player}-${i}`);
+                    if (spot) {
+                        const spotRect = spot.getBoundingClientRect();
+                        cachedBaseSpots[`${player}-${i}`] = {
+                            x: ((spotRect.left + spotRect.width/2 - containerRect.left) / containerRect.width) * 100,
+                            y: ((spotRect.top + spotRect.height/2 - containerRect.top) / containerRect.height) * 100
+                        };
+                    }
+                }
+            });
         }
 
         function initPlanesDOM() {
-            const layer = dom.planesLayer;
+            const layer = document.getElementById('planes-layer');
             layer.innerHTML = '';
-            
-            // 缓存飞机 DOM 引用
-            window._planeEls = { p1: [], p2: [] };
             
             const createPlane = (player, i) => {
                 const el = document.createElement('div');
                 el.id = `plane-${player}-${i}`;
                 el.className = `plane plane-transition pointer-events-auto ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
-                el.textContent = '✈️';
-                el.onclick = () => handlePieceClick(player, i);
+                el.innerText = '✈️';
+                // 使用 onpointerdown 替换 onclick，消除触屏按键延迟
+                el.onpointerdown = () => handlePieceClick(player, i);
                 layer.appendChild(el);
-                window._planeEls[player][i] = el;
             };
 
             for(let i=0; i<4; i++) {
@@ -855,131 +469,50 @@
         function getCoordPercent(gridVal) {
             return (gridVal + 0.5) * (100 / GRID_SIZE);
         }
-        
-        function invalidateBoardRect() {
-            boardRectCache = null;
-            boardRectCacheTime = 0;
-        }
-        
-        function getBoardRect() {
-            const now = Date.now();
-            if (boardRectCache && (now - boardRectCacheTime) < BOARD_RECT_TTL) {
-                return boardRectCache;
-            }
-            boardRectCache = dom.boardContainer.getBoundingClientRect();
-            boardRectCacheTime = now;
-            return boardRectCache;
-        }
-        
-        // 预计算基地 spot 相对百分比（只算一次，避免 getBoundingClientRect 风暴）
-        const baseSpotPercent = { p1: [], p2: [] };
-        function cacheBaseSpotPositions() {
-            const containerRect = getBoardRect();
-            if (containerRect.width === 0) return;
-            
-            for (let p = 1; p <= 2; p++) {
-                const player = 'p' + p;
-                for (let i = 0; i < 4; i++) {
-                    const spot = document.getElementById(`spot-${player}-${i}`);
-                    if (!spot) continue;
-                    const spotRect = spot.getBoundingClientRect();
-                    baseSpotPercent[player][i] = {
-                        x: ((spotRect.left + spotRect.width/2 - containerRect.left) / containerRect.width) * 100,
-                        y: ((spotRect.top + spotRect.height/2 - containerRect.top) / containerRect.height) * 100
-                    };
-                }
-            }
-        }
 
         async function initAuth() {
             if (!hasFirebase) {
-                dom.loadingSubtext.innerText = "离线模式";
-                firebaseReady = true;
+                showToast("未检测到网络配置，进入离线预览");
+                clearTimeout(fallbackTimer);
                 hideLoading();
                 return;
             }
             try {
-                dom.loadingSubtext.innerText = "正在登录...";
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
                     await signInAnonymously(auth);
                 }
                 currentUser = auth.currentUser;
-                dom.syncStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
-                firebaseReady = true;
-                
-                if (transport.supported) {
-                    dom.loadingSubtext.innerText = "低延迟通道可用";
-                } else {
-                    transport.setStatus('disconnected');
-                }
-                
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线 <span class="text-green-500 ml-1">12ms</span>';
+                switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                dom.syncStatusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
-                firebaseReady = true;
+                showToast("网络通信异常，请检查连接");
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                switchToLobby(); // 强行进入大厅，不卡在这个界面
             } finally {
+                clearTimeout(fallbackTimer);
                 hideLoading();
             }
         }
 
         function hideLoading() {
-            dom.loadingEl.classList.add('opacity-0', 'pointer-events-none');
-            setTimeout(() => dom.loadingEl.classList.add('hidden'), 300);
+            const el = document.getElementById('globalLoading');
+            el.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => el.classList.add('hidden'), 500);
         }
 
         function switchToLobby() {
-            dom.lobbyView.classList.remove('hidden');
-            dom.gameView.classList.add('hidden');
+            document.getElementById('lobbyView').classList.remove('hidden');
+            document.getElementById('gameView').classList.add('hidden');
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            
-            transport.disconnect();
-            
             currentRoomId = null;
             myPlayerId = null;
-            invalidateBoardRect();
-        }
-
-        // ============================================================
-        // Datagram 消息处理（快速路径）
-        // ============================================================
-        transport.onMessage = (msg) => {
-            if (msg.type === 'game_action' && msg.state) {
-                if (msg.actor !== myPlayerId && msg.version > localStateVersion) {
-                    applyingRemote = true;
-                    gameState = { ...gameState, ...msg.state };
-                    if (msg.p1) gameState.p1 = msg.p1;
-                    if (msg.p2) gameState.p2 = msg.p2;
-                    localStateVersion = msg.version;
-                    renderGameState();
-                    applyingRemote = false;
-                }
-            } else if (msg.type === 'join') {
-                addLog(`📡 ${msg.name} 已加入`, false);
-            }
-        };
-
-        function broadcastAction(stateUpdate) {
-            localStateVersion++;
-            if (transport.isFastPath()) {
-                transport.send({
-                    type: 'game_action',
-                    actor: myPlayerId,
-                    state: stateUpdate,
-                    p1: gameState.p1,
-                    p2: gameState.p2,
-                    version: localStateVersion,
-                    ts: Date.now()
-                });
-            }
         }
 
         window.createRoom = async function() {
-            if (!firebaseReady || !currentUser) {
-                showToast("正在连接服务器，请稍候...");
-                return;
-            }
+            if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
             const initialData = {
@@ -990,21 +523,14 @@
                 diceValue: null,
                 hasRolled: false,
                 logs: [`${myName} 创建了航班，等待对手...`],
-                winner: null,
-                version: 0
+                winner: null
             };
 
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
                 await setDoc(roomRef, initialData);
                 myPlayerId = 'p1';
-                gameState = initialData;
-                localStateVersion = 0;
                 listenToRoom(code);
-                
-                // WebTransport 连接异步后台进行，不阻塞 UI
-                transport.connect(code);
-                
                 showToast(`航班号 ${code} 创建成功`);
             } catch (e) {
                 console.error(e);
@@ -1013,11 +539,8 @@
         };
 
         window.joinRoom = async function() {
-            if (!firebaseReady || !currentUser) {
-                showToast("正在连接服务器，请稍候...");
-                return;
-            }
-            const code = dom.roomCodeInput.value.trim().toUpperCase();
+            if (!currentUser) return showToast("未连接服务器");
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
 
             try {
@@ -1031,13 +554,11 @@
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    const joinUpdate = {
+                    await updateDoc(roomRef, {
                         'p2.name': myName,
                         status: 'playing',
-                        logs: [...(data.logs||[]), `${myName} 加入对战，游戏开始！红方先手。`],
-                        version: (data.version||0) + 1
-                    };
-                    await updateDoc(roomRef, joinUpdate);
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
+                    });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
                     myPlayerId = 'p1';
@@ -1046,8 +567,6 @@
                 }
 
                 listenToRoom(code);
-                transport.connect(code);
-                
             } catch (e) {
                 console.error(e);
                 showToast("加入房间失败");
@@ -1060,155 +579,103 @@
 
         function listenToRoom(code) {
             currentRoomId = code;
-            dom.lobbyView.classList.add('hidden');
-            dom.gameView.classList.remove('hidden');
+            document.getElementById('lobbyView').classList.add('hidden');
+            document.getElementById('gameView').classList.remove('hidden');
             initBoardGrid();
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
             if (unsubscribeRoom) unsubscribeRoom();
             
-            unsubscribeRoom = onSnapshot(roomRef, { includeMetadataChanges: false }, (docSnap) => {
+            unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    const remoteState = docSnap.data();
-                    const remoteVer = remoteState.version || 0;
-                    
-                    // Safari 优化：如果是本地缓存快照（fromCache），也要立即渲染，减少感知延迟
-                    if (remoteVer >= localStateVersion || !applyingRemote) {
-                        applyingRemote = true;
-                        gameState = remoteState;
-                        localStateVersion = remoteVer;
-                        renderGameState();
-                        applyingRemote = false;
-                    }
+                    gameState = docSnap.data();
+                    requestAnimationFrame(renderGameState);
                 } else {
                     showToast("房间已解散");
                     switchToLobby();
                 }
             }, (err) => {
                 console.error(err);
+                showToast("同步断开");
             });
         }
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
-        function addLog(text, isLocal = true) {
-            if (!gameState) return;
-            if (!gameState.logs) gameState.logs = [];
-            gameState.logs.push(text);
-            renderLogs();
-        }
-
-        function renderLogs() {
-            if (!gameState) return;
-            const logBox = dom.eventLogs;
-            logBox.innerHTML = '';
-            const logsToRender = gameState.logs.slice().reverse().slice(0, 10);
-            // 使用 DocumentFragment
-            const frag = document.createDocumentFragment();
-            logsToRender.forEach(log => {
-                const div = document.createElement('div');
-                div.className = "border-b border-sky-100/50 pb-1 w-full text-left";
-                let html = log;
-                if (gameState.p1?.name) {
-                    html = html.split(gameState.p1.name).join(`<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
-                }
-                if (gameState.p2?.name) {
-                    html = html.split(gameState.p2.name).join(`<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
-                }
-                div.innerHTML = html;
-                frag.appendChild(div);
-            });
-            logBox.appendChild(frag);
-        }
-
-        // 使用 requestAnimationFrame 批量渲染，Safari 下更流畅
-        let rafPending = false;
-        function scheduleRender() {
-            if (rafPending) return;
-            rafPending = true;
-            requestAnimationFrame(() => {
-                rafPending = false;
-                if (gameState) _doRenderGameState();
-            });
-        }
-
         function renderGameState() {
-            scheduleRender();
-        }
-        
-        function _doRenderGameState() {
             if (!gameState) return;
 
-            dom.displayRoomCode.textContent = currentRoomId;
-            dom.p1NameDisplay.textContent = gameState.p1?.name || '等待中';
-            dom.p2NameDisplay.textContent = gameState.p2?.name || '等待中';
+            document.getElementById('displayRoomCode').innerText = currentRoomId;
+            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
             
-            const banner = dom.turnBanner;
-            const bIcon = dom.turnBannerIcon;
-            const bText = dom.turnBannerText;
-            const overlay = dom.boardOverlay;
-            const btnRoll = dom.btnRoll;
-            const diceVis = dom.diceVis;
+            const banner = document.getElementById('turnBanner');
+            const bIcon = document.getElementById('turnBannerIcon');
+            const bText = document.getElementById('turnBannerText');
+            const overlay = document.getElementById('boardOverlay');
+            const btnRoll = document.getElementById('btnRollDice');
+            const diceVis = document.getElementById('diceVisual');
 
             if (gameState.status === 'waiting') {
                 banner.className = "w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2";
-                bIcon.textContent = '⏳';
-                bText.textContent = '等待对手加入...';
+                bIcon.innerText = '⏳';
+                bText.innerText = '等待对手加入...';
                 overlay.classList.remove('hidden');
                 btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
                 if (isMyTurn) {
                     banner.className = `w-full py-2.5 px-4 rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-                    bIcon.textContent = gameState.hasRolled ? '✈️' : '🎲';
-                    bText.textContent = gameState.hasRolled ? '请点击起飞或移动飞机' : '轮到你了，请掷骰子！';
+                    bIcon.innerText = gameState.hasRolled ? '✈️' : '🎲';
+                    bText.innerText = gameState.hasRolled ? '请点击起飞或移动飞机' : '轮到你了，请掷骰子！';
                     overlay.classList.add('hidden');
                     btnRoll.disabled = gameState.hasRolled;
                 } else {
                     banner.className = "w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2";
-                    bIcon.textContent = '👀';
-                    const activeName = gameState.turn === 'p1' ? gameState.p1?.name : gameState.p2?.name;
-                    bText.textContent = `等待 ${activeName} 行动...`;
+                    bIcon.innerText = '👀';
+                    const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    bText.innerText = `等待 ${activeName} 行动...`;
                     overlay.classList.remove('hidden');
                     btnRoll.disabled = true;
                 }
             }
 
-            diceVis.textContent = gameState.diceValue ? diceIcons[gameState.diceValue] : '🎲';
+            diceVis.innerText = gameState.diceValue ? diceIcons[gameState.diceValue] : '🎲';
             if (gameState.diceValue === 6) diceVis.classList.add('text-red-500', 'animate-pulse');
             else diceVis.classList.remove('text-red-500', 'animate-pulse');
 
-            renderLogs();
+            const logBox = document.getElementById('eventLogs');
+            logBox.innerHTML = '';
+            const logsToRender = gameState.logs.slice().reverse().slice(0, 10);
+            
+            const logFragment = document.createDocumentFragment();
+            logsToRender.forEach(log => {
+                const div = document.createElement('div');
+                div.className = "border-b border-sky-100/50 pb-1 w-full text-left";
+                let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
+                if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
+                div.innerHTML = html;
+                logFragment.appendChild(div);
+            });
+            logBox.appendChild(logFragment);
 
             if (gameState.winner) {
                 overlay.classList.remove('hidden');
-                const modal = document.getElementById('msgModal');
-                modal.classList.remove('hidden');
+                document.getElementById('msgModal').classList.remove('hidden');
                 setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
                 const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
-                document.getElementById('msgTitle').textContent = `${wName} 获胜！`;
-                document.getElementById('msgDesc').textContent = '4架飞机全部抵达终点！🏆';
+                document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
+                document.getElementById('msgDesc').innerText = '4架飞机全部抵达终点！🏆';
             }
 
             updatePlanesPosition();
         }
 
         function updatePlanesPosition() {
-            // 首次渲染时缓存基地位置
-            if (Object.keys(baseSpotPercent.p1).length === 0) {
-                cacheBaseSpotPositions();
-            }
-            
-            const containerRect = getBoardRect();
-
             const renderPlayerPlanes = (player, pieces) => {
-                if (!pieces) return;
-                const planeEls = window._planeEls[player];
-                if (!planeEls) return;
-                
                 pieces.forEach((pos, i) => {
-                    const planeEl = planeEls[i];
+                    const planeEl = document.getElementById(`plane-${player}-${i}`);
                     if (!planeEl) return;
                     
                     planeEl.classList.remove('plane-active');
@@ -1228,10 +695,11 @@
                     let targetX_pct, targetY_pct;
 
                     if (pos === -1) {
-                        const cached = baseSpotPercent[player][i];
-                        if (cached) {
-                            targetX_pct = cached.x;
-                            targetY_pct = cached.y;
+                        // 使用预先缓存的基地坐标，避免每帧触发 forced synchronous layout (重排)
+                        const cache = cachedBaseSpots[`${player}-${i}`];
+                        if (cache) {
+                            targetX_pct = cache.x;
+                            targetY_pct = cache.y;
                         }
                     } else {
                         let gridCoord = {x:0, y:0};
@@ -1246,17 +714,13 @@
                         targetX_pct = getCoordPercent(gridCoord.x);
                         targetY_pct = getCoordPercent(gridCoord.y);
 
-                        // 叠放偏移（使用预计算，减少循环）
                         let countOnSpot = 0;
                         let myIndexOnSpot = 0;
                         
-                        const allPieces = [
-                            ...gameState.p1.pieces.map((p, idx) => ({p, pId:'p1', idx})),
-                            ...(gameState.p2?.pieces||[]).map((p, idx) => ({p, pId:'p2', idx}))
-                        ];
-                        allPieces.forEach((item) => {
+                        const allPieces = [...gameState.p1.pieces.map(p=>({p, pId:'p1'})), ...gameState.p2.pieces.map(p=>({p, pId:'p2'}))];
+                        allPieces.forEach((item, globalIdx) => {
                             if (item.p === pos && pos !== -1 && pos !== 999) {
-                                if (item.pId === player && item.idx === i) myIndexOnSpot = countOnSpot;
+                                if (item.pId === player && globalIdx % 4 === i) myIndexOnSpot = countOnSpot;
                                 countOnSpot++;
                             }
                         });
@@ -1271,23 +735,20 @@
                     }
 
                     if (targetX_pct !== undefined && targetY_pct !== undefined) {
-                        // 使用 transform 替代单纯 left/top，触发 GPU 合成层，Safari 更流畅
-                        planeEl.style.left = `${targetX_pct}%`;
-                        planeEl.style.top = `${targetY_pct}%`;
-                        planeEl.style.transform = 'translate(-13px, -13px) translateZ(0)';
+                        planeEl.style.left = `calc(${targetX_pct}% - 13px)`;
+                        planeEl.style.top = `calc(${targetY_pct}% - 13px)`;
                     }
                 });
             };
 
-            renderPlayerPlanes('p1', gameState.p1?.pieces);
-            renderPlayerPlanes('p2', gameState.p2?.pieces);
+            renderPlayerPlanes('p1', gameState.p1.pieces);
+            renderPlayerPlanes('p2', gameState.p2.pieces);
         }
 
-        window.handleRollDice = async function() {
-            if (!firebaseReady) { showToast("连接中，请稍候"); return; }
+        window.handleRollDice = function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             
-            const diceVis = dom.diceVis;
+            const diceVis = document.getElementById('diceVisual');
             diceVis.classList.remove('dice-rolling');
             void diceVis.offsetWidth;
             diceVis.classList.add('dice-rolling');
@@ -1301,40 +762,32 @@
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
 
-            const logs = [...(gameState.logs||[])];
-            logs.push(`${myName} 掷出了 ${roll} 点。`);
-
             let nextState = {
                 diceValue: roll,
                 hasRolled: true,
-                logs: logs,
-                version: localStateVersion + 1
             };
             
+            const logs = [...gameState.logs];
+            logs.push(`${myName} 掷出了 ${roll} 点。`);
+
             if (!canMoveAny) {
                 logs.push(`⚠️ 没有可移动的飞机，回合结束。`);
                 nextState.hasRolled = false;
                 nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
             }
 
-            // 乐观更新（零延迟响应）
+            nextState.logs = logs;
+            
+            // 【乐观更新机制】客户端预测：无需等待服务器，先立即修改本地数据并重绘，带来0延迟手感
             gameState = { ...gameState, ...nextState };
-            localStateVersion = nextState.version;
-            renderGameState();
+            requestAnimationFrame(renderGameState);
 
-            broadcastAction(nextState);
-
-            // Firebase 写入异步进行
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-                updateDoc(roomRef, nextState); // 不 await，避免按钮点击后等待
-            } catch (e) {
-                console.error("Firebase update failed", e);
-            }
+            // 后台静默发送请求（去掉 await，即发即弃不阻塞UI）
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+            updateDoc(roomRef, nextState).catch(e => console.error('网络同步失败:', e));
         };
 
-        window.handlePieceClick = async function(player, pieceIndex) {
-            if (!firebaseReady) return;
+        window.handlePieceClick = function(player, pieceIndex) {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
 
             const currentPos = gameState[myPlayerId].pieces[pieceIndex];
@@ -1343,7 +796,7 @@
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
-            const logs = [...(gameState.logs||[])];
+            const logs = [...gameState.logs];
             let newPos = currentPos;
             let extraTurn = false;
             let stateUpdate = {};
@@ -1405,7 +858,7 @@
                         break;
                     case 5:
                         const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                        const oppPieces = [...(gameState[oppId]?.pieces||[-1,-1,-1,-1])];
+                        const oppPieces = [...gameState[oppId].pieces];
                         let validOppIndices = [];
                         oppPieces.forEach((p, idx) => {
                             if(p >= 0 && p <= 43) validOppIndices.push(idx);
@@ -1413,8 +866,8 @@
                         if(validOppIndices.length > 0) {
                             const randOppIdx = validOppIndices[Math.floor(Math.random() * validOppIndices.length)];
                             const oppPos = oppPieces[randOppIdx];
-                            oppPieces[randOppIdx] = newPos;
-                            newPos = oppPos;
+                            oppPieces[randOppIdx] = newPos; 
+                            newPos = oppPos; 
                             stateUpdate[`${oppId}.pieces`] = oppPieces;
                             const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                             logs.push(`🔄 触发盲盒：空间传送装置启动！与 ${oppName} 的飞机互换了位置！`);
@@ -1449,7 +902,7 @@
 
             if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...(gameState[oppId]?.pieces||[-1,-1,-1,-1])];
+                const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
                 let collisionOccurred = false;
 
                 for(let i=0; i<4; i++) {
@@ -1487,32 +940,18 @@
             if(newPos === 999) logs.push(`🎉 一架飞机成功抵达终点！`);
             
             stateUpdate.logs = logs;
-            stateUpdate.version = localStateVersion + 1;
-
-            // 乐观更新
+            
+            // 【乐观更新机制】客户端预测：立即合并操作至本地状态，并驱动UI渲染
             gameState = { ...gameState, ...stateUpdate };
-            if (stateUpdate[`${myPlayerId}.pieces`]) {
-                gameState[myPlayerId] = { ...gameState[myPlayerId], pieces: stateUpdate[`${myPlayerId}.pieces`] };
-            }
+            if(stateUpdate[`${myPlayerId}.pieces`]) gameState[myPlayerId].pieces = stateUpdate[`${myPlayerId}.pieces`];
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            if (stateUpdate[`${oppId}.pieces`]) {
-                gameState[oppId] = { ...gameState[oppId], pieces: stateUpdate[`${oppId}.pieces`] };
-            }
-            localStateVersion = stateUpdate.version;
-            renderGameState();
+            if(stateUpdate[`${oppId}.pieces`]) gameState[oppId].pieces = stateUpdate[`${oppId}.pieces`];
+            
+            requestAnimationFrame(renderGameState);
 
-            broadcastAction({
-                ...stateUpdate,
-                [myPlayerId]: gameState[myPlayerId],
-                [oppId]: gameState[oppId]
-            });
-
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-                updateDoc(roomRef, stateUpdate); // 不 await
-            } catch (e) {
-                console.error("Firebase update failed", e);
-            }
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+            // 移除 await，将状态变更放进后台静默通讯
+            updateDoc(roomRef, stateUpdate).catch(e => console.error('网络同步失败:', e));
         };
 
         function generateLogicalPath(player) {
@@ -1547,10 +986,8 @@
 
         window.showToast = function(msg) {
             const toast = document.getElementById('toast');
-            toast.textContent = msg;
+            toast.innerText = msg;
             toast.classList.remove('hidden');
-            toast.classList.remove('toast-animate');
-            void toast.offsetWidth;
             toast.classList.add('toast-animate');
             setTimeout(() => {
                 toast.classList.add('hidden');
@@ -1568,7 +1005,7 @@
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
 
-            const resetState = {
+            await updateDoc(roomRef, {
                 status: 'playing',
                 'p1.pieces': [-1, -1, -1, -1],
                 'p2.pieces': [-1, -1, -1, -1],
@@ -1576,79 +1013,20 @@
                 diceValue: null,
                 hasRolled: false,
                 winner: null,
-                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`],
-                version: localStateVersion + 1
-            };
-
-            gameState = {
-                ...gameState,
-                p1: { ...gameState.p1, pieces: [-1,-1,-1,-1] },
-                p2: { ...gameState.p2, pieces: [-1,-1,-1,-1] },
-                turn: nextTurn,
-                diceValue: null,
-                hasRolled: false,
-                winner: null,
-                logs: resetState.logs
-            };
-            localStateVersion = resetState.version;
-            renderGameState();
-            
-            broadcastAction({
-                ...resetState,
-                p1: gameState.p1,
-                p2: gameState.p2
+                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
             });
-
-            updateDoc(roomRef, resetState); // 不 await
             closeMsgModal();
         };
 
         window.addEventListener('resize', () => {
-            invalidateBoardRect();
-            baseSpotPercent.p1 = [];
-            baseSpotPercent.p2 = [];
             if (gameState && gameState.status !== 'waiting') {
-                requestAnimationFrame(updatePlanesPosition);
+                cacheBaseSpotRects(); // 重置窗口时重新计算缓存坐标
+                setTimeout(() => requestAnimationFrame(updatePlanesPosition), 100); 
             }
         });
 
-        // ============================================================
-        //  极速启动：不串行等待，先显示UI，后初始化网络
-        // ============================================================
-        function boot() {
-            // 1. 立即显示大厅（不等待任何网络请求）
-            dom.lobbyView.classList.remove('hidden');
-            
-            // 2. 设置状态
-            if (!transport.supported) {
-                transport.setStatus('connecting');
-            }
-            
-            // 3. 后台异步初始化 Firebase Auth
-            initAuth().then(() => {
-                // 4. 标记传输状态
-                if (!transport.supported) {
-                    dom.loadingSubtext.innerText = "已就绪";
-                }
-            });
-        }
-
-        // DOM 解析完成立即启动（不等 load 事件，load 会等所有图片字体）
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', boot);
-        } else {
-            boot();
-        }
-
-        window.addEventListener('beforeunload', () => {
-            transport.disconnect();
-        });
-        
-        // Safari 下阻止橡皮筋过度滚动
-        document.body.addEventListener('touchmove', function(e) {
-            if (e.target.closest('.overflow-y-auto')) return;
-            // 允许日志区域滚动
-        }, { passive: true });
+        // 优化 3：移除不靠谱的 window.addEventListener('load')。由于代码位于 module 标签下会自动在 DOMContentLoaded 之后运行，所以直接调用初始化函数即可。
+        initAuth();
     </script>
 </body>
-</html><!--18307075852395614730092317-->
+</html>
