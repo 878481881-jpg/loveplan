@@ -47,6 +47,9 @@
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
         }
         .plane-transition { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        
+        /* 通讯加载动画 */
+        .sync-pulse { animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
         #board-container {
             position: relative;
@@ -182,7 +185,7 @@
                 身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
             </div>
             <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 连接中
             </span>
         </div>
     </header>
@@ -198,7 +201,7 @@
                 <p class="text-sm text-gray-500 mb-6 px-2">创建房间邀请对手，或输入航班号加入对战。</p>
                 
                 <div class="w-full space-y-4">
-                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
+                    <button id="btnCreateRoom" onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
                         <span>✨</span> 创建对战房间 (红方)
                     </button>
                     
@@ -210,7 +213,7 @@
 
                     <div class="flex flex-col gap-3 w-full">
                         <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位航班号" class="w-full px-4 py-4 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 uppercase transition-all shadow-inner">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
+                        <button id="btnJoinRoom" onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
                             加入对战 (蓝方)
                         </button>
                     </div>
@@ -220,9 +223,9 @@
             <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
                 <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规</h3>
                 <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li>掷出 <b class="text-red-500">1 或 6</b> 点均可起飞一架飞机，掷出6点仍奖励连掷。</li>
+                    <li>掷出 <b class="text-red-500">1 或 6</b> 点均可起飞，掷出6点仍奖励连掷。</li>
                     <li>停在同色格子，可直接<b class="text-orange-500">跳跃</b>至下一同色格。</li>
-                    <li>新增<b class="text-purple-500">❓高能盲盒</b>：格子数量加倍！10种独立事件（包含与敌机空间换位、UFO随机传送、直接坠毁等！）。</li>
+                    <li>包含<b class="text-purple-500">❓高能盲盒</b>：大量随机事件（换位、传送、坠毁等）。</li>
                     <li>终点冲刺若点数超出，需<b class="text-indigo-500">折返倒退</b>。</li>
                 </ul>
             </div>
@@ -258,7 +261,7 @@
             </div>
 
             <div id="board-container">
-                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/5 rounded-2xl hidden cursor-not-allowed"></div>
+                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/5 rounded-2xl hidden cursor-not-allowed transition-opacity duration-300"></div>
                 
                 <div id="board-grid"></div>
 
@@ -323,6 +326,9 @@
         let currentUser = null;
         let hasFirebase = false;
 
+        // 全局操作锁，防止网络延迟时重复点击
+        let isActionSyncing = false; 
+
         try {
             app = initializeApp(firebaseConfig);
             auth = getAuth(app);
@@ -356,12 +362,22 @@
         const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6} ]; 
         const p2HomeCoords = [ {x: 11, y: 11}, {x: 10, y: 10}, {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7} ]; 
 
-        // 【更新】：大幅增加盲盒格子的密度
         const eventCellIndices = [3, 5, 8, 10, 14, 16, 19, 21, 25, 27, 30, 32, 36, 38, 41, 43];
 
-        function getCellColor(index) {
-            return index % 4; 
+        // --- 网络状态监听 ---
+        function updateNetworkStatusUI(isOnline) {
+            const badge = document.getElementById('syncStatusBadge');
+            if (isOnline) {
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+            } else {
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 掉线';
+                showToast("🔴 侦测到网络断开，请检查 VPN/网络");
+            }
         }
+        window.addEventListener('online', () => updateNetworkStatusUI(true));
+        window.addEventListener('offline', () => updateNetworkStatusUI(false));
+
+        function getCellColor(index) { return index % 4; }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -375,12 +391,8 @@
                 cellMap[`${c.x},${c.y}`] = `cell-color-${getCellColor(idx)}`;
                 if(eventCellIndices.includes(idx)) eventMap[`${c.x},${c.y}`] = true;
             });
-            p1HomeCoords.forEach((c, i) => {
-                cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-red';
-            });
-            p2HomeCoords.forEach((c, i) => {
-                cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue';
-            });
+            p1HomeCoords.forEach((c, i) => { cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-red'; });
+            p2HomeCoords.forEach((c, i) => { cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue'; });
 
             for(let y=0; y<GRID_SIZE; y++) {
                 for(let x=0; x<GRID_SIZE; x++) {
@@ -401,7 +413,6 @@
         function initPlanesDOM() {
             const layer = document.getElementById('planes-layer');
             layer.innerHTML = '';
-            
             const createPlane = (player, i) => {
                 const el = document.createElement('div');
                 el.id = `plane-${player}-${i}`;
@@ -410,16 +421,10 @@
                 el.onclick = () => handlePieceClick(player, i);
                 layer.appendChild(el);
             };
-
-            for(let i=0; i<4; i++) {
-                createPlane('p1', i);
-                createPlane('p2', i);
-            }
+            for(let i=0; i<4; i++) { createPlane('p1', i); createPlane('p2', i); }
         }
 
-        function getCoordPercent(gridVal) {
-            return (gridVal + 0.5) * (100 / GRID_SIZE);
-        }
+        function getCoordPercent(gridVal) { return (gridVal + 0.5) * (100 / GRID_SIZE); }
 
         async function initAuth() {
             if (!hasFirebase) {
@@ -434,12 +439,12 @@
                     await signInAnonymously(auth);
                 }
                 currentUser = auth.currentUser;
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                updateNetworkStatusUI(navigator.onLine);
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                showToast("登录失败");
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                showToast("🔴 登录失败，请检查网络或VPN");
+                updateNetworkStatusUI(false);
             } finally {
                 hideLoading();
             }
@@ -457,12 +462,19 @@
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
             currentRoomId = null;
             myPlayerId = null;
+            isActionSyncing = false;
         }
 
         window.createRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
-            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            if (isActionSyncing) return;
+            isActionSyncing = true;
             
+            const btn = document.getElementById('btnCreateRoom');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '📡 创建中...';
+            
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
             const initialData = {
                 status: 'waiting', 
                 p1: { name: myName, pieces: [-1, -1, -1, -1] },
@@ -482,23 +494,41 @@
                 showToast(`航班号 ${code} 创建成功`);
             } catch (e) {
                 console.error(e);
-                showToast("创建房间失败");
+                showToast("🔴 创建房间失败，请重试");
+            } finally {
+                isActionSyncing = false;
+                btn.innerHTML = originalHtml;
             }
         };
 
         window.joinRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
+            if (isActionSyncing) return;
+            
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
+
+            isActionSyncing = true;
+            const btn = document.getElementById('btnJoinRoom');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '📡 加入中...';
 
             try {
                 const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
                 const snap = await getDoc(roomRef);
-                if (!snap.exists()) return showToast("航班不存在");
+                if (!snap.exists()) {
+                    showToast("航班不存在");
+                    isActionSyncing = false;
+                    btn.innerHTML = originalHtml;
+                    return;
+                }
                 
                 const data = snap.data();
                 if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
-                    return showToast("对战已开始或人员已满");
+                    showToast("对战已开始或人员已满");
+                    isActionSyncing = false;
+                    btn.innerHTML = originalHtml;
+                    return;
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
@@ -517,13 +547,14 @@
                 listenToRoom(code);
             } catch (e) {
                 console.error(e);
-                showToast("加入房间失败");
+                showToast("🔴 加入房间失败，可能由于网络延迟");
+            } finally {
+                isActionSyncing = false;
+                btn.innerHTML = originalHtml;
             }
         };
 
-        window.exitRoom = function() {
-            switchToLobby();
-        };
+        window.exitRoom = function() { switchToLobby(); };
 
         function listenToRoom(code) {
             currentRoomId = code;
@@ -534,17 +565,30 @@
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', code);
             if (unsubscribeRoom) unsubscribeRoom();
             
-            unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
+            // 添加数据同步状态指示
+            document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 同步中';
+
+            unsubscribeRoom = onSnapshot(roomRef, { includeMetadataChanges: true }, (docSnap) => {
+                // 如果是从缓存读取且此时有离线标记，说明没有实时拿到最新服务器数据
+                if (docSnap.metadata.fromCache && !navigator.onLine) {
+                    document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-yellow-500"></span> 正在尝试重连';
+                } else {
+                    document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                }
+
                 if (docSnap.exists()) {
                     gameState = docSnap.data();
+                    // 数据到达，强制解除通信锁（防止异常情况下锁死）
+                    isActionSyncing = false;
                     renderGameState();
                 } else {
                     showToast("房间已解散");
                     switchToLobby();
                 }
             }, (err) => {
-                console.error(err);
-                showToast("同步断开");
+                console.error("Firestore sync error:", err);
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 同步异常';
+                showToast("⚠️ 通讯异常，正在尝试恢复");
             });
         }
 
@@ -566,6 +610,9 @@
             const btnRoll = document.getElementById('btnRollDice');
             const diceVis = document.getElementById('diceVisual');
 
+            // 恢复按钮初始状态文本
+            btnRoll.innerText = '掷骰子';
+
             if (gameState.status === 'waiting') {
                 banner.className = "w-full py-2.5 px-4 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner flex items-center justify-center gap-2";
                 bIcon.innerText = '⏳';
@@ -576,7 +623,7 @@
                 if (isMyTurn) {
                     banner.className = `w-full py-2.5 px-4 rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
                     bIcon.innerText = gameState.hasRolled ? '✈️' : '🎲';
-                    bText.innerText = gameState.hasRolled ? '请点击起飞或移动飞机' : '轮到你了，请掷骰子！';
+                    bText.innerText = gameState.hasRolled ? '请点击高亮的飞机进行移动' : '轮到你了，请掷骰子！';
                     overlay.classList.add('hidden');
                     btnRoll.disabled = gameState.hasRolled;
                 } else {
@@ -625,7 +672,6 @@
                     
                     planeEl.classList.remove('plane-active');
 
-                    // 【更新】：这里修改了高亮规则，只要是摇到1或6都能起飞
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
                         const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
                         if (canMove) planeEl.classList.add('plane-active');
@@ -650,13 +696,9 @@
                         }
                     } else {
                         let gridCoord = {x:0, y:0};
-                        if (pos >= 0 && pos <= 43) {
-                            gridCoord = trackCoords[pos];
-                        } else if (pos >= 100 && pos <= 104) {
-                            gridCoord = p1HomeCoords[pos - 100];
-                        } else if (pos >= 200 && pos <= 204) {
-                            gridCoord = p2HomeCoords[pos - 200];
-                        }
+                        if (pos >= 0 && pos <= 43) gridCoord = trackCoords[pos];
+                        else if (pos >= 100 && pos <= 104) gridCoord = p1HomeCoords[pos - 100];
+                        else if (pos >= 200 && pos <= 204) gridCoord = p2HomeCoords[pos - 200];
                         
                         targetX_pct = getCoordPercent(gridCoord.x);
                         targetY_pct = getCoordPercent(gridCoord.y);
@@ -695,6 +737,14 @@
         window.handleRollDice = async function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             
+            // 锁定操作，防止网络延迟时二次点击
+            if (isActionSyncing) return;
+            isActionSyncing = true;
+            
+            const btnRoll = document.getElementById('btnRollDice');
+            btnRoll.innerText = '📡 通讯中...';
+            btnRoll.disabled = true;
+
             const diceVis = document.getElementById('diceVisual');
             diceVis.classList.remove('dice-rolling');
             void diceVis.offsetWidth;
@@ -705,16 +755,11 @@
             const pieces = gameState[myPlayerId].pieces;
             let canMoveAny = false;
             pieces.forEach(p => {
-                // 【更新】：1 也可以起飞了
                 if (p === -1 && (roll === 6 || roll === 1)) canMoveAny = true;
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
 
-            let nextState = {
-                diceValue: roll,
-                hasRolled: true,
-            };
-            
+            let nextState = { diceValue: roll, hasRolled: true };
             const logs = [...gameState.logs];
             logs.push(`${myName} 掷出了 ${roll} 点。`);
 
@@ -723,29 +768,45 @@
                 nextState.hasRolled = false;
                 nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
             }
-
             nextState.logs = logs;
 
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-            await updateDoc(roomRef, nextState);
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+                await updateDoc(roomRef, nextState);
+            } catch (err) {
+                console.error("更新数据失败:", err);
+                showToast("📡 网络延迟或掉线，发送失败请重试");
+                isActionSyncing = false; // 解除锁定让玩家重试
+                renderGameState(); // 恢复 UI 状态
+            }
         };
 
         window.handlePieceClick = async function(player, pieceIndex) {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
 
+            // 防止多次点击
+            if (isActionSyncing) return;
+            
             const currentPos = gameState[myPlayerId].pieces[pieceIndex];
             const dice = gameState.diceValue;
             
-            // 【更新】：限制非1和6且在机场的飞机不可点击
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
+            isActionSyncing = true; // 上锁
+            
+            const bText = document.getElementById('turnBannerText');
+            const bIcon = document.getElementById('turnBannerIcon');
+            bIcon.innerText = '📡';
+            bText.innerText = '正在同步行动...';
+            bText.classList.add('sync-pulse', 'text-sky-500');
+
+            // --- 以下是原本的游戏逻辑运算 ---
             const logs = [...gameState.logs];
             let newPos = currentPos;
             let extraTurn = false;
             let stateUpdate = {};
 
-            // 1. 出门或移动计算 (1和6都能出)
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
                 logs.push(`✈️ ${myName} 的飞机驶出机库！`);
@@ -753,11 +814,9 @@
                 newPos = calculateDestination(myPlayerId, currentPos, dice);
             }
 
-            // 2. 检查同色格子跳跃
             if (newPos >= 0 && newPos <= 43) {
                 const colorCode = getCellColor(newPos);
                 const myColorCode = myPlayerId === 'p1' ? 0 : 2;
-                
                 if (colorCode === myColorCode) {
                     const path = generateLogicalPath(myPlayerId);
                     const currPathIndex = path.indexOf(newPos);
@@ -769,7 +828,6 @@
                 }
             }
 
-            // 3. 【更新】：10种丰富的盲盒事件随机池
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 const randEvent = Math.floor(Math.random() * 10);
                 switch(randEvent) {
@@ -813,11 +871,11 @@
                         if(validOppIndices.length > 0) {
                             const randOppIdx = validOppIndices[Math.floor(Math.random() * validOppIndices.length)];
                             const oppPos = oppPieces[randOppIdx];
-                            oppPieces[randOppIdx] = newPos; // 敌方换到我当前位置
-                            newPos = oppPos; // 我换到敌方位置
+                            oppPieces[randOppIdx] = newPos; 
+                            newPos = oppPos; 
                             stateUpdate[`${oppId}.pieces`] = oppPieces;
                             const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                            logs.push(`🔄 触发盲盒：空间传送装置启动！与 ${oppName} 的飞机互换了位置！`);
+                            logs.push(`🔄 触发盲盒：空间传送启动！与 ${oppName} 互换了位置！`);
                         } else {
                             logs.push(`🔄 触发盲盒：空间传送装置启动，但场上没有敌机可互换，失效了。`);
                         }
@@ -832,7 +890,7 @@
                         break;
                     case 8:
                         const backSteps = Math.floor(Math.random() * 6) + 1;
-                        logs.push(`⛽ 触发盲盒：燃料储备泄漏，紧急迫降后退 ${backSteps} 格！`);
+                        logs.push(`⛽ 触发盲盒：燃料泄漏，紧急迫降后退 ${backSteps} 格！`);
                         newPos = calculateDestination(myPlayerId, newPos, -backSteps);
                         break;
                     case 9:
@@ -847,8 +905,6 @@
             myPieces[pieceIndex] = newPos;
             stateUpdate[`${myPlayerId}.pieces`] = myPieces;
 
-            // 4. 碰撞检测（击落敌机）
-            // 如果上述盲盒修改了敌人位置（例如换位），从 stateUpdate 取最新情况避免误伤自己换位的敌机
             if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                 const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
@@ -875,23 +931,27 @@
             }
 
             stateUpdate.hasRolled = false;
-            // 掷出6点或者触发额外回合均连掷（1点仅作为起飞条件，原版规则不奖励连掷，故依然判断6点）
             if ((dice === 6 || extraTurn) && !allFinished) {
                 stateUpdate.turn = myPlayerId;
-                if (extraTurn && dice !== 6) {
-                    logs.push(`🔄 触发战备补给，获得额外连掷机会！`);
-                } else {
-                    logs.push(`🎲 掷出 6 点，获得额外回合！`);
-                }
+                if (extraTurn && dice !== 6) logs.push(`🔄 触发战备补给，获得额外连掷机会！`);
+                else logs.push(`🎲 掷出 6 点，获得额外回合！`);
             } else if (!allFinished) {
                 stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
             }
 
             if(newPos === 999) logs.push(`🎉 一架飞机成功抵达终点！`);
-            
             stateUpdate.logs = logs;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-            await updateDoc(roomRef, stateUpdate);
+
+            // --- 发送数据请求 ---
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+                await updateDoc(roomRef, stateUpdate);
+            } catch (err) {
+                console.error("更新数据失败:", err);
+                showToast("📡 网络延迟，行动同步失败，请重试");
+                isActionSyncing = false;
+                renderGameState(); // 恢复原本状态让玩家可以再点
+            }
         };
 
         function generateLogicalPath(player) {
@@ -913,14 +973,11 @@
             if (currIdx === -1) return currentPos;
 
             let targetIdx = currIdx + steps;
-            
             if (targetIdx < 0) targetIdx = 0; 
-            
             if (targetIdx >= path.length) {
                 const overshoot = targetIdx - (path.length - 1);
                 targetIdx = (path.length - 1) - overshoot;
             }
-            
             return path[targetIdx];
         }
 
@@ -941,21 +998,34 @@
         };
 
         window.resetGame = async function() {
-            if (!currentRoomId || !gameState) return;
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-            const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
+            if (!currentRoomId || !gameState || isActionSyncing) return;
+            isActionSyncing = true;
+            
+            const btn = document.getElementById('modalActionBtn');
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '📡 重置中...';
 
-            await updateDoc(roomRef, {
-                status: 'playing',
-                'p1.pieces': [-1, -1, -1, -1],
-                'p2.pieces': [-1, -1, -1, -1],
-                turn: nextTurn,
-                diceValue: null,
-                hasRolled: false,
-                winner: null,
-                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
-            });
-            closeMsgModal();
+            try {
+                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
+                const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
+                await updateDoc(roomRef, {
+                    status: 'playing',
+                    'p1.pieces': [-1, -1, -1, -1],
+                    'p2.pieces': [-1, -1, -1, -1],
+                    turn: nextTurn,
+                    diceValue: null,
+                    hasRolled: false,
+                    winner: null,
+                    logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
+                });
+                closeMsgModal();
+            } catch (err) {
+                console.error(err);
+                showToast("🔴 重置失败，请重试");
+            } finally {
+                isActionSyncing = false;
+                btn.innerHTML = originalHtml;
+            }
         };
 
         window.addEventListener('resize', () => {
