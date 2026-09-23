@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️</title>
+    <title>云端飞行棋 ✈️☁️1.1</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
-    <!-- 引入腾讯云开发 CloudBase Web SDK -->
-    <script src="https://unpkg.com/@cloudbase/js-sdk@2.8.2/cloudbase.full.js"></script>
-    
+    <!-- 引入腾讯云开发 Web SDK -->
+    <script src="https://imgcache.qq.com/qcloud/tcbjs/1.10.11/tcb.js"></script>
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
@@ -299,35 +298,23 @@
                     <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <script type="module">
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'aeroplane-chess-app';
-        
-        // 腾讯云开发配置
-        let tcbApp, auth, db;
+    <script>
+        // 初始化腾讯云开发 (TCB)
+        const app = tcb.init({
+            env: 'lovegame-d0g3xo4h8d1addad2' // 替换为您指定的真实环境ID
+        });
+        const auth = app.auth({ persistence: 'local' });
+        const db = app.database();
+
         let currentUser = null;
-        let hasCloudBase = false;
-
-        try {
-            tcbApp = window.cloudbase.init({
-                env: 'lovegame-d0g3xo4h8d1addad2' // 替换为您提供的环境ID
-            });
-            auth = tcbApp.auth({ persistence: "local" });
-            db = tcbApp.database();
-            hasCloudBase = true;
-        } catch(e) {
-            console.error("CloudBase init failed", e);
-        }
-
         let myIdentity = localStorage.getItem('loveGacha_myIdentity');
         if (!myIdentity) {
             myIdentity = "玩家" + Math.floor(Math.random()*1000); 
             localStorage.setItem('loveGacha_myIdentity', myIdentity);
         }
-        
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
@@ -337,6 +324,7 @@
         let myPlayerId = null;
 
         const GRID_SIZE = 14;
+        
         const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
         for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
@@ -411,27 +399,15 @@
         }
 
         async function initAuth() {
-            if (!hasCloudBase) {
-                showToast("未检测到腾讯云开发配置");
-                hideLoading();
-                return;
-            }
             try {
-                // 检查登录状态，未登录则执行匿名登录
-                const loginState = await auth.getLoginState();
-                if (!loginState) {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await auth.customAuthProvider().signIn(__initial_auth_token);
-                    } else {
-                        await auth.anonymousAuthProvider().signIn();
-                    }
-                }
-                currentUser = true;
+                // 腾讯云匿名登录
+                await auth.anonymousAuthProvider().signIn();
+                currentUser = auth.hasLoginState();
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                showToast("登录失败，请检查云环境配置");
+                showToast("登录失败，请检查环境配置及匿名登录开关");
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
             } finally {
                 hideLoading();
@@ -447,7 +423,7 @@
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            if(unsubscribeRoom) { unsubscribeRoom.close(); unsubscribeRoom = null; }
             currentRoomId = null;
             myPlayerId = null;
         }
@@ -457,7 +433,6 @@
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
             const initialData = {
-                _id: code,
                 status: 'waiting', 
                 p1: { name: myName, pieces: [-1, -1, -1, -1] },
                 p2: { name: null, pieces: [-1, -1, -1, -1] },
@@ -469,13 +444,14 @@
             };
 
             try {
+                // 腾讯云写入数据
                 await db.collection('aeroplaneRooms').doc(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
                 showToast(`航班号 ${code} 创建成功`);
             } catch (e) {
                 console.error(e);
-                showToast("创建房间失败");
+                showToast("创建房间失败，请检查数据库集合和权限配置");
             }
         };
 
@@ -485,8 +461,10 @@
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
 
             try {
-                const res = await db.collection('aeroplaneRooms').doc(code).get();
-                if (!res.data || res.data.length === 0) return showToast("航班不存在");
+                const roomRef = db.collection('aeroplaneRooms').doc(code);
+                // 腾讯云读取数据
+                const res = await roomRef.get();
+                if (res.data.length === 0) return showToast("航班不存在");
                 
                 const data = res.data[0];
                 if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
@@ -494,11 +472,11 @@
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    const newLogs = [...data.logs, `${myName} 加入对战，游戏开始！红方先手。`];
-                    await db.collection('aeroplaneRooms').doc(code).update({
+                    // 腾讯云更新数据
+                    await roomRef.update({
                         'p2.name': myName,
                         status: 'playing',
-                        logs: newLogs
+                        logs: db.command.push([`${myName} 加入对战，游戏开始！红方先手。`])
                     });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
@@ -524,28 +502,25 @@
             document.getElementById('gameView').classList.remove('hidden');
             initBoardGrid();
 
-            if (unsubscribeRoom) unsubscribeRoom();
+            const roomRef = db.collection('aeroplaneRooms').doc(code);
+            if (unsubscribeRoom) unsubscribeRoom.close();
             
-            const watcher = db.collection('aeroplaneRooms').doc(code).watch({
+            // 腾讯云实时数据监听
+            unsubscribeRoom = roomRef.watch({
                 onChange: function(snapshot) {
                     if (snapshot.docs && snapshot.docs.length > 0) {
                         gameState = snapshot.docs[0];
                         renderGameState();
-                    } else if (snapshot.type === 'init' && snapshot.docs.length === 0) {
-                        showToast("航班不存在或已解散");
-                        switchToLobby();
-                    } else if (snapshot.type !== 'init') {
+                    } else {
                         showToast("房间已解散");
                         switchToLobby();
                     }
                 },
                 onError: function(err) {
-                    console.error("Watch Error:", err);
+                    console.error(err);
                     showToast("同步断开");
                 }
             });
-            
-            unsubscribeRoom = () => watcher.close();
         }
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
@@ -595,7 +570,7 @@
 
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
-            const logsToRender = gameState.logs.slice().reverse().slice(0, 10);
+            const logsToRender = (gameState.logs || []).slice().reverse().slice(0, 10);
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
                 div.className = "border-b border-sky-100/50 pb-1 w-full text-left";
@@ -713,7 +688,7 @@
                 hasRolled: true,
             };
             
-            const logs = [...gameState.logs];
+            const logs = [...(gameState.logs || [])];
             logs.push(`${myName} 掷出了 ${roll} 点。`);
 
             if (!canMoveAny) {
@@ -736,7 +711,7 @@
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
-            const logs = [...gameState.logs];
+            const logs = [...(gameState.logs || [])];
             let newPos = currentPos;
             let extraTurn = false;
             let stateUpdate = {};
@@ -941,7 +916,7 @@
                 diceValue: null,
                 hasRolled: false,
                 winner: null,
-                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
+                logs: db.command.push([`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`])
             });
             closeMsgModal();
         };
@@ -958,3 +933,5 @@
     </script>
 </body>
 </html>
+```<ElicitationsGroup>
+</ElicitationsGroup>
