@@ -3,73 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️1</title>
+    <title>云端飞行棋 ✈️☁️</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     
-    <!-- 引入原生 Fetch 对接 Bmob REST API，彻底解决 SDK 初始化报错 -->
-    <script>
-        const BMOB_CONFIG = {
-            secretKey: "c9e54oed2cb2961",
-            apiSecurityCode: "952f8e927e2a3072",
-            restUrl: "https://api2.bmobapp.com/1/classes/aeroplaneRooms"
-        };
-
-        const BmobAPI = {
-            async queryRoom(code) {
-                try {
-                    const res = await fetch(`${BMOB_CONFIG.restUrl}?where=${encodeURIComponent(JSON.stringify({roomId: code}))}`, {
-                        method: "GET",
-                        headers: {
-                            "X-Bmob-Application-Id-Key": BMOB_CONFIG.secretKey,
-                            "X-Bmob-REST-API-Key": BMOB_CONFIG.apiSecurityCode,
-                            "Content-Type": "application/json"
-                        }
-                    });
-                    const data = await res.json();
-                    return data.results || [];
-                } catch (e) {
-                    console.error("查询失败", e);
-                    return [];
-                }
-            },
-            async createRoom(roomData) {
-                try {
-                    const res = await fetch(BMOB_CONFIG.restUrl, {
-                        method: "POST",
-                        headers: {
-                            "X-Bmob-Application-Id-Key": BMOB_CONFIG.secretKey,
-                            "X-Bmob-REST-API-Key": BMOB_CONFIG.apiSecurityCode,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(roomData)
-                    });
-                    return await res.json();
-                } catch (e) {
-                    console.error("创建失败", e);
-                    return null;
-                }
-            },
-            async updateRoom(objectId, updateData) {
-                try {
-                    const res = await fetch(`${BMOB_CONFIG.restUrl}/${objectId}`, {
-                        method: "PUT",
-                        headers: {
-                            "X-Bmob-Application-Id-Key": BMOB_CONFIG.secretKey,
-                            "X-Bmob-REST-API-Key": BMOB_CONFIG.apiSecurityCode,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(updateData)
-                    });
-                    return await res.json();
-                } catch (e) {
-                    console.error("更新失败", e);
-                    return null;
-                }
-            }
-        };
-    </script>
-
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
@@ -205,7 +142,11 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
+    
+    <!-- 引入腾讯云开发标准 Web SDK -->
+    <script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.1/cloudbase.full.js"></script>
 </head>
+
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
@@ -364,23 +305,48 @@
         </div>
     </main>
 
-    <script type="text/javascript">
+    <script type="module">
+        // ----------------------------------------------------
+        // Tencent CloudBase (TCB) 初始化配置
+        // ----------------------------------------------------
+        const cloudbaseConfig = {
+            env: "lovegame-d0g3xo4h8d1addad2", // 请替换为你自己的腾讯云环境ID
+            region: "ap-shanghai" // 对应的地域，如 ap-shanghai, ap-guangzhou 等
+        };
+
+        let tcbApp, auth, db;
+        let hasTCB = false;
+
+        try {
+            tcbApp = window.cloudbase.init(cloudbaseConfig);
+            auth = tcbApp.auth({ persistence: 'local' });
+            db = tcbApp.database();
+            hasTCB = true;
+        } catch(e) {
+            console.error("腾讯云环境 CloudBase 初始化失败", e);
+        }
+
+        // ----------------------------------------------------
+        // 基础玩家数据定义
+        // ----------------------------------------------------
         let myIdentity = localStorage.getItem('loveGacha_myIdentity');
         if (!myIdentity) {
             myIdentity = "玩家" + Math.floor(Math.random()*1000); 
             localStorage.setItem('loveGacha_myIdentity', myIdentity);
         }
-        
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null;
-        let currentRoomObjectId = null; 
-        let syncInterval = null; 
+        let unsubscribeRoom = null;
         let gameState = null; 
         let myPlayerId = null;
 
         const GRID_SIZE = 14;
+        
+        // ----------------------------------------------------
+        // 棋盘地图坐标计算
+        // ----------------------------------------------------
         const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
         for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
@@ -392,9 +358,7 @@
 
         const eventCellIndices = [3, 5, 8, 10, 14, 16, 19, 21, 25, 27, 30, 32, 36, 38, 41, 43];
 
-        function getCellColor(index) {
-            return index % 4; 
-        }
+        function getCellColor(index) { return index % 4; }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -454,10 +418,22 @@
             return (gridVal + 0.5) * (100 / GRID_SIZE);
         }
 
-        function initApp() {
-            document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
-            switchToLobby();
-            hideLoading();
+        async function initAuth() {
+            if (!hasTCB) {
+                showToast("未检测到腾讯云开发环境");
+                hideLoading();
+                return;
+            }
+            try {
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                switchToLobby();
+            } catch (err) {
+                console.error("Auth Error:", err);
+                showToast("登录失败");
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+            } finally {
+                hideLoading();
+            }
         }
 
         function hideLoading() {
@@ -469,21 +445,18 @@
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            
-            if (syncInterval) { 
-                clearInterval(syncInterval); 
-                syncInterval = null; 
-            }
+            if(unsubscribeRoom) { unsubscribeRoom.close(); unsubscribeRoom = null; }
             currentRoomId = null;
-            currentRoomObjectId = null;
             myPlayerId = null;
         }
 
+        const collectionName = 'aeroplaneRooms';
+
         window.createRoom = async function() {
+            if (!hasTCB) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
             const initialData = {
-                roomId: code,
                 status: 'waiting', 
                 p1: { name: myName, pieces: [-1, -1, -1, -1] },
                 p2: { name: null, pieces: [-1, -1, -1, -1] },
@@ -495,47 +468,40 @@
             };
 
             try {
-                const res = await BmobAPI.createRoom(initialData);
-                if (res && res.objectId) {
-                    currentRoomObjectId = res.objectId;
-                    myPlayerId = 'p1';
-                    listenToRoom(code);
-                    showToast(`航班号 ${code} 创建成功`);
-                } else {
-                    showToast("创建房间失败，检查网络或凭据");
-                }
+                await db.collection(collectionName).doc(code).set(initialData);
+                myPlayerId = 'p1';
+                listenToRoom(code);
+                showToast(`航班号 ${code} 创建成功`);
             } catch (e) {
                 console.error(e);
-                showToast("创建房间异常");
+                showToast("创建房间失败");
             }
         };
 
         window.joinRoom = async function() {
+            if (!hasTCB) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
 
             try {
-                const res = await BmobAPI.queryRoom(code);
-                if (res.length === 0) return showToast("航班不存在");
+                const res = await db.collection(collectionName).doc(code).get();
+                if (!res.data || res.data.length === 0) return showToast("航班不存在");
                 
-                let data = res[0];
-                currentRoomObjectId = data.objectId;
-
-                if (data.status !== 'waiting' && data.p1.name !== myName && (data.p2 && data.p2.name !== myName)) {
+                const data = res.data[0];
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
                     return showToast("对战已开始或人员已满");
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    let newLogs = [...data.logs, `${myName} 加入对战，游戏开始！红方先手。`];
-                    await BmobAPI.updateRoom(currentRoomObjectId, {
-                        p2: { name: myName, pieces: [-1, -1, -1, -1] },
+                    await db.collection(collectionName).doc(code).update({
+                        'p2.name': myName,
                         status: 'playing',
-                        logs: newLogs
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
                     });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
                     myPlayerId = 'p1';
-                } else if (data.p2 && data.p2.name === myName) {
+                } else if (data.p2.name === myName) {
                     myPlayerId = 'p2';
                 }
 
@@ -556,26 +522,26 @@
             document.getElementById('gameView').classList.remove('hidden');
             initBoardGrid();
 
-            if (syncInterval) clearInterval(syncInterval);
+            if (unsubscribeRoom) {
+                unsubscribeRoom.close();
+                unsubscribeRoom = null;
+            }
             
-            const fetchRoomData = async () => {
-                try {
-                    const res = await BmobAPI.queryRoom(code);
-                    if (res.length > 0) {
-                        gameState = res[0];
-                        currentRoomObjectId = gameState.objectId; 
+            unsubscribeRoom = db.collection(collectionName).doc(code).watch({
+                onChange: (snapshot) => {
+                    if (snapshot.docs && snapshot.docs.length > 0) {
+                        gameState = snapshot.docs[0];
                         renderGameState();
-                    } else {
+                    } else if (snapshot.docChanges && snapshot.docChanges.length > 0) {
                         showToast("房间已解散");
                         switchToLobby();
                     }
-                } catch(err) {
-                    console.error("同步异常", err);
+                },
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
                 }
-            };
-            
-            fetchRoomData(); 
-            syncInterval = setInterval(fetchRoomData, 1500); 
+            });
         }
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
@@ -585,7 +551,7 @@
 
             document.getElementById('displayRoomCode').innerText = currentRoomId;
             document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
-            document.getElementById('p2NameDisplay').innerText = (gameState.p2 && gameState.p2.name) ? gameState.p2.name : '等待中';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
             
@@ -625,15 +591,12 @@
 
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
-            
-            const logsArr = gameState.logs || [];
-            const logsToRender = logsArr.slice().reverse().slice(0, 10);
+            const logsToRender = gameState.logs.slice().reverse().slice(0, 10);
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
                 div.className = "border-b border-sky-100/50 pb-1 w-full text-left";
-                let html = log;
-                if (gameState.p1 && gameState.p1.name) html = html.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
-                if (gameState.p2 && gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
+                let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
+                if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
                 div.innerHTML = html;
                 logBox.appendChild(div);
             });
@@ -651,10 +614,7 @@
         }
 
         function updatePlanesPosition() {
-            if(!gameState || !gameState.p1 || !gameState.p2) return;
-
             const renderPlayerPlanes = (player, pieces) => {
-                if(!pieces) return;
                 pieces.forEach((pos, i) => {
                     const planeEl = document.getElementById(`plane-${player}-${i}`);
                     if (!planeEl) return;
@@ -749,7 +709,7 @@
                 hasRolled: true,
             };
             
-            const logs = [...(gameState.logs || [])];
+            const logs = [...gameState.logs];
             logs.push(`${myName} 掷出了 ${roll} 点。`);
 
             if (!canMoveAny) {
@@ -760,10 +720,7 @@
 
             nextState.logs = logs;
 
-            await BmobAPI.updateRoom(currentRoomObjectId, nextState);
-            
-            Object.assign(gameState, nextState);
-            renderGameState();
+            await db.collection(collectionName).doc(currentRoomId).update(nextState);
         };
 
         window.handlePieceClick = async function(player, pieceIndex) {
@@ -775,7 +732,7 @@
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
-            const logs = [...(gameState.logs || [])];
+            const logs = [...gameState.logs];
             let newPos = currentPos;
             let extraTurn = false;
             let stateUpdate = {};
@@ -847,7 +804,7 @@
                             const oppPos = oppPieces[randOppIdx];
                             oppPieces[randOppIdx] = newPos; 
                             newPos = oppPos; 
-                            stateUpdate[oppId] = { ...gameState[oppId], pieces: oppPieces };
+                            stateUpdate[`${oppId}.pieces`] = oppPieces;
                             const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                             logs.push(`🔄 触发盲盒：空间传送装置启动！与 ${oppName} 的飞机互换了位置！`);
                         } else {
@@ -877,11 +834,11 @@
 
             const myPieces = [...gameState[myPlayerId].pieces];
             myPieces[pieceIndex] = newPos;
-            stateUpdate[myPlayerId] = { ...gameState[myPlayerId], pieces: myPieces };
+            stateUpdate[`${myPlayerId}.pieces`] = myPieces;
 
             if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                const currentOppPieces = stateUpdate[oppId] ? [...stateUpdate[oppId].pieces] : [...gameState[oppId].pieces];
+                const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
                 let collisionOccurred = false;
 
                 for(let i=0; i<4; i++) {
@@ -891,7 +848,7 @@
                     }
                 }
                 if (collisionOccurred) {
-                    stateUpdate[oppId] = { ...gameState[oppId], pieces: currentOppPieces };
+                    stateUpdate[`${oppId}.pieces`] = currentOppPieces;
                     const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                     logs.push(`💥 ${myName} 强势击落了 ${oppName} 的飞机！`);
                 }
@@ -919,11 +876,7 @@
             if(newPos === 999) logs.push(`🎉 一架飞机成功抵达终点！`);
             
             stateUpdate.logs = logs;
-
-            await BmobAPI.updateRoom(currentRoomObjectId, stateUpdate);
-
-            Object.assign(gameState, stateUpdate);
-            renderGameState();
+            await db.collection(collectionName).doc(currentRoomId).update(stateUpdate);
         };
 
         function generateLogicalPath(player) {
@@ -945,12 +898,14 @@
             if (currIdx === -1) return currentPos;
 
             let targetIdx = currIdx + steps;
+            
             if (targetIdx < 0) targetIdx = 0; 
             
             if (targetIdx >= path.length) {
                 const overshoot = targetIdx - (path.length - 1);
                 targetIdx = (path.length - 1) - overshoot;
             }
+            
             return path[targetIdx];
         }
 
@@ -971,21 +926,19 @@
         };
 
         window.resetGame = async function() {
-            if (!currentRoomObjectId || !gameState) return;
+            if (!currentRoomId || !gameState) return;
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
-            
-            let resetData = {
+
+            await db.collection(collectionName).doc(currentRoomId).update({
                 status: 'playing',
-                p1: { ...gameState.p1, pieces: [-1, -1, -1, -1] },
-                p2: { ...gameState.p2, pieces: [-1, -1, -1, -1] },
+                'p1.pieces': [-1, -1, -1, -1],
+                'p2.pieces': [-1, -1, -1, -1],
                 turn: nextTurn,
                 diceValue: null,
                 hasRolled: false,
                 winner: null,
                 logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
-            };
-
-            await BmobAPI.updateRoom(currentRoomObjectId, resetData);
+            });
             closeMsgModal();
         };
 
@@ -995,8 +948,8 @@
             }
         });
 
-        window.addEventListener('load', () => {
-            initApp();
+        window.addEventListener('load', async () => {
+            await initAuth();
         });
     </script>
 </body>
