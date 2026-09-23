@@ -3,12 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️1</title>
+    <title>云端飞行棋 ✈️☁️</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
-    <!-- 引入腾讯云开发 CloudBase Web SDK -->
-    <script src="https://unpkg.com/@cloudbase/js-sdk@2.8.2/cloudbase.full.js"></script>
-    <script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/2.4.2/cloudbase.full.js"></script>
+    
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
@@ -144,7 +142,11 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
+    
+    <!-- 引入腾讯云开发标准 Web SDK -->
+    <script src="https://imgcache.qq.com/qcloud/cloudbase-js-sdk/1.7.1/cloudbase.full.js"></script>
 </head>
+
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
@@ -304,29 +306,43 @@
     </main>
 
     <script type="module">
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'aeroplane-chess-app';
-        const envId = 'lovegame-d0g3xo4h8d1addad2';
-        
-        // 腾讯云开发配置
+        // ----------------------------------------------------
+        // Tencent CloudBase (TCB) 初始化
+        // ----------------------------------------------------
+        const cloudbaseConfig = {
+            // 环境 ID
+            env: "lovegame-d0g3xo4h8d1addad2",
+            // 地域
+            region: "ap-shanghai",
+            // 匿名访问令牌
+            accessKey: "eyJhbGciOiJSUzI1NiIsImtpZCI6IjlkMWRjMzFlLWI0ZDAtNDQ4Yi1hNzZmLWIwY2M2M2Q4MTQ5OCJ9.eyJpc3MiOiJodHRwczovL2xvdmVnYW1lLWQwZzN4bzRoOGQxYWRkYWQyLmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJsb3ZlZ2FtZS1kMGczeG80aDhkMWFkZGFkMiIsImV4cCI6NDA5MzgyOTAxNywiaWF0IjoxNzkwMTQ1ODE3LCJub25jZSI6IklOTUxUelQ0UmVtbXl6R0JmbG01SHciLCJhdF9oYXNoIjoiSU5NTFR6VDRSZW1teXpHQmZsbTVIdyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJsb3ZlZ2FtZS1kMGczeG80aDhkMWFkZGFkMiIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJ1c2VyX3R5cGUiOiIiLCJjbGllbnRfdHlwZSI6ImNsaWVudF91c2VyIiwiaXNfc3lzdGVtX2FkbWluIjpmYWxzZX0.gbNMisoeH5z7jsD94h912lIvdxhNnQqhaQrhfcoD7bGH9vsGGpGVsixIspgv3LjS74PvmrNUPn4VTJl5h4IkBO2H58Y2qEzsXGBkSrqq1MzUttiiN8hdyNpTvr8E-ZUUcPZTwqQhWD6YzR1YMDuCenLTZaZCRcgWQkfhQYvNl9xj1GlvaZciUC-P3wFUHNavVPWVYnEnNC4kCdKS_M8xsykUmMdkGyapmtO_48vrTgY_19uS-RHdqMztyULUuXQrkZ880ghcWcnaXqjAPVBBw2sMgnvTVr7xzzEb5P1HtMXYkwA6ez2X-_thOyZXgc1OF6LNanvPScvpK3eCyKWllw"
+        };
+
         let tcbApp, auth, db;
         let currentUser = null;
-        let hasCloudBase = false;
+        let hasTCB = false;
 
         try {
-             app = window.cloudbase.init({ env: envId });
-             auth = app.auth({ persistence: 'local' });
-             db = app.database();
-             hasFirebase = true;
+            // 初始化腾讯云 CloudBase 全局应用
+            tcbApp = window.cloudbase.init(cloudbaseConfig);
+            
+            // 获取鉴权与数据库实例
+            auth = tcbApp.auth({ persistence: 'local' });
+            db = tcbApp.database();
+            
+            hasTCB = true;
         } catch(e) {
-            console.error("云开发初始化失败", e);
+            console.error("腾讯云环境 CloudBase 初始化失败", e);
         }
 
+        // ----------------------------------------------------
+        // 基础玩家数据定义
+        // ----------------------------------------------------
         let myIdentity = localStorage.getItem('loveGacha_myIdentity');
         if (!myIdentity) {
             myIdentity = "玩家" + Math.floor(Math.random()*1000); 
             localStorage.setItem('loveGacha_myIdentity', myIdentity);
         }
-        
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
@@ -336,6 +352,10 @@
         let myPlayerId = null;
 
         const GRID_SIZE = 14;
+        
+        // ----------------------------------------------------
+        // 棋盘地图坐标计算
+        // ----------------------------------------------------
         const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
         for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
@@ -347,9 +367,7 @@
 
         const eventCellIndices = [3, 5, 8, 10, 14, 16, 19, 21, 25, 27, 30, 32, 36, 38, 41, 43];
 
-        function getCellColor(index) {
-            return index % 4; 
-        }
+        function getCellColor(index) { return index % 4; }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -410,27 +428,24 @@
         }
 
         async function initAuth() {
-            if (!hasCloudBase) {
-                showToast("未检测到腾讯云开发配置");
+            if (!hasTCB) {
+                showToast("未检测到腾讯云开发环境");
                 hideLoading();
                 return;
             }
             try {
-                // 检查登录状态，未登录则执行匿名登录
-                const loginState = await auth.getLoginState();
-                if (!loginState) {
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await auth.customAuthProvider().signIn(__initial_auth_token);
-                    } else {
-                        await auth.anonymousAuthProvider().signIn();
-                    }
-                }
-                currentUser = true;
+                // 腾讯云开发 匿名登录
+                await auth.anonymousAuthProvider().signIn();
+                
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                showToast("登录失败，请检查云环境配置");
+                // 修改这里：把具体的报错信息显示在屏幕上，方便排查
+                let errMsg = err.message || JSON.stringify(err);
+                if (errMsg.includes("unauthorized")) errMsg = "未配置Web安全域名或未开启匿名登录";
+                showToast("登录失败: " + errMsg);
+                
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
             } finally {
                 hideLoading();
@@ -446,17 +461,19 @@
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            if(unsubscribeRoom) { unsubscribeRoom.close(); unsubscribeRoom = null; }
             currentRoomId = null;
             myPlayerId = null;
         }
 
+        // 注意：需在云开发控制台提前创建名为 `aeroplaneRooms` 的集合，并设置权限为“所有用户可读写”
+        const collectionName = 'aeroplaneRooms';
+
         window.createRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
+            if (!hasTCB) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
             const initialData = {
-                _id: code,
                 status: 'waiting', 
                 p1: { name: myName, pieces: [-1, -1, -1, -1] },
                 p2: { name: null, pieces: [-1, -1, -1, -1] },
@@ -468,7 +485,8 @@
             };
 
             try {
-                await db.collection('aeroplaneRooms').doc(code).set(initialData);
+                // 替换 Firebase setDoc 为 CloudBase set
+                await db.collection(collectionName).doc(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
                 showToast(`航班号 ${code} 创建成功`);
@@ -479,12 +497,13 @@
         };
 
         window.joinRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
+            if (!hasTCB) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
 
             try {
-                const res = await db.collection('aeroplaneRooms').doc(code).get();
+                // 替换 Firebase getDoc 为 CloudBase get
+                const res = await db.collection(collectionName).doc(code).get();
                 if (!res.data || res.data.length === 0) return showToast("航班不存在");
                 
                 const data = res.data[0];
@@ -493,11 +512,11 @@
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    const newLogs = [...data.logs, `${myName} 加入对战，游戏开始！红方先手。`];
-                    await db.collection('aeroplaneRooms').doc(code).update({
+                    // 替换 Firebase updateDoc 为 CloudBase update
+                    await db.collection(collectionName).doc(code).update({
                         'p2.name': myName,
                         status: 'playing',
-                        logs: newLogs
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
                     });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
@@ -523,28 +542,28 @@
             document.getElementById('gameView').classList.remove('hidden');
             initBoardGrid();
 
-            if (unsubscribeRoom) unsubscribeRoom();
+            if (unsubscribeRoom) {
+                unsubscribeRoom.close();
+                unsubscribeRoom = null;
+            }
             
-            const watcher = db.collection('aeroplaneRooms').doc(code).watch({
-                onChange: function(snapshot) {
+            // 替换 Firebase onSnapshot 为 CloudBase watch
+            unsubscribeRoom = db.collection(collectionName).doc(code).watch({
+                onChange: (snapshot) => {
                     if (snapshot.docs && snapshot.docs.length > 0) {
                         gameState = snapshot.docs[0];
                         renderGameState();
-                    } else if (snapshot.type === 'init' && snapshot.docs.length === 0) {
-                        showToast("航班不存在或已解散");
-                        switchToLobby();
-                    } else if (snapshot.type !== 'init') {
+                    } else if (snapshot.docChanges && snapshot.docChanges.length > 0) {
+                        // 文档被删除
                         showToast("房间已解散");
                         switchToLobby();
                     }
                 },
-                onError: function(err) {
-                    console.error("Watch Error:", err);
+                onError: (err) => {
+                    console.error(err);
                     showToast("同步断开");
                 }
             });
-            
-            unsubscribeRoom = () => watcher.close();
         }
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
@@ -723,7 +742,7 @@
 
             nextState.logs = logs;
 
-            await db.collection('aeroplaneRooms').doc(currentRoomId).update(nextState);
+            await db.collection(collectionName).doc(currentRoomId).update(nextState);
         };
 
         window.handlePieceClick = async function(player, pieceIndex) {
@@ -740,6 +759,7 @@
             let extraTurn = false;
             let stateUpdate = {};
 
+            // 1. 出门或移动计算
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
                 logs.push(`✈️ ${myName} 的飞机驶出机库！`);
@@ -747,6 +767,7 @@
                 newPos = calculateDestination(myPlayerId, currentPos, dice);
             }
 
+            // 2. 检查同色格子跳跃
             if (newPos >= 0 && newPos <= 43) {
                 const colorCode = getCellColor(newPos);
                 const myColorCode = myPlayerId === 'p1' ? 0 : 2;
@@ -762,6 +783,7 @@
                 }
             }
 
+            // 3. 盲盒事件判断
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 const randEvent = Math.floor(Math.random() * 10);
                 switch(randEvent) {
@@ -839,6 +861,7 @@
             myPieces[pieceIndex] = newPos;
             stateUpdate[`${myPlayerId}.pieces`] = myPieces;
 
+            // 4. 碰撞检测
             if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                 const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
@@ -879,7 +902,7 @@
             if(newPos === 999) logs.push(`🎉 一架飞机成功抵达终点！`);
             
             stateUpdate.logs = logs;
-            await db.collection('aeroplaneRooms').doc(currentRoomId).update(stateUpdate);
+            await db.collection(collectionName).doc(currentRoomId).update(stateUpdate);
         };
 
         function generateLogicalPath(player) {
@@ -932,7 +955,7 @@
             if (!currentRoomId || !gameState) return;
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
 
-            await db.collection('aeroplaneRooms').doc(currentRoomId).update({
+            await db.collection(collectionName).doc(currentRoomId).update({
                 status: 'playing',
                 'p1.pieces': [-1, -1, -1, -1],
                 'p2.pieces': [-1, -1, -1, -1],
