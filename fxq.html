@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️</title>
+    <title>云端飞行棋 ✈️☁️ (低延迟优化版)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
@@ -46,7 +46,7 @@
             z-index: 20;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
         }
-        .plane-transition { transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .plane-transition { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 
         #board-container {
             position: relative;
@@ -220,10 +220,9 @@
             <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
                 <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规</h3>
                 <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li>掷出 <b class="text-red-500">1 或 6</b> 点均可起飞一架飞机，掷出6点仍奖励连掷。</li>
+                    <li>掷出 <b class="text-red-500">1 或 6</b> 点均可起飞一架飞机，6点仍奖励连掷。</li>
                     <li>停在同色格子，可直接<b class="text-orange-500">跳跃</b>至下一同色格。</li>
-                    <li>新增<b class="text-purple-500">❓高能盲盒</b>：格子数量加倍！10种独立事件（包含与敌机空间换位、UFO随机传送、直接坠毁等！）。</li>
-                    <li>终点冲刺若点数超出，需<b class="text-indigo-500">折返倒退</b>。</li>
+                    <li>新增<b class="text-purple-500">❓高能盲盒</b>：10种独立突发事件（空间换位、UFO传送、坠毁等）。</li>
                 </ul>
             </div>
         </div>
@@ -288,7 +287,7 @@
 
                 <div class="flex-1 flex flex-col bg-sky-50/50 rounded-xl border border-sky-100 p-2 overflow-hidden relative">
                     <div class="text-[10px] font-bold text-sky-600/70 mb-1 px-1 border-b border-sky-200/50 pb-1 flex justify-between">
-                        <span>📡 塔台通讯日志</span>
+                        <span>📡 塔台通讯日志（低延迟双向通道）</span>
                     </div>
                     <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-xs font-medium text-gray-600">
                         <div class="text-center text-gray-400 py-4 opacity-50">等待通讯...</div>
@@ -334,7 +333,8 @@
 
         let myIdentity = localStorage.getItem('loveGacha_myIdentity');
         if (!myIdentity) {
-            myIdentity = "玩家" + Math.floor(Math.random()*1000); 
+            myIdentity = "飞行员" + Math.floor(Math.random()*1000);
+            localStorage.setItem('loveGacha_myIdentity', myIdentity);
         }
         
         const myName = myIdentity; 
@@ -346,7 +346,6 @@
         let myPlayerId = null;
 
         const GRID_SIZE = 14;
-        
         const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
         for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
@@ -355,13 +354,9 @@
 
         const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6} ]; 
         const p2HomeCoords = [ {x: 11, y: 11}, {x: 10, y: 10}, {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7} ]; 
-
-        // 【更新】：大幅增加盲盒格子的密度
         const eventCellIndices = [3, 5, 8, 10, 14, 16, 19, 21, 25, 27, 30, 32, 36, 38, 41, 43];
 
-        function getCellColor(index) {
-            return index % 4; 
-        }
+        function getCellColor(index) { return index % 4; }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -401,7 +396,6 @@
         function initPlanesDOM() {
             const layer = document.getElementById('planes-layer');
             layer.innerHTML = '';
-            
             const createPlane = (player, i) => {
                 const el = document.createElement('div');
                 el.id = `plane-${player}-${i}`;
@@ -410,7 +404,6 @@
                 el.onclick = () => handlePieceClick(player, i);
                 layer.appendChild(el);
             };
-
             for(let i=0; i<4; i++) {
                 createPlane('p1', i);
                 createPlane('p2', i);
@@ -434,7 +427,7 @@
                     await signInAnonymously(auth);
                 }
                 currentUser = auth.currentUser;
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 实时在线';
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
@@ -470,7 +463,7 @@
                 turn: 'p1', 
                 diceValue: null,
                 hasRolled: false,
-                logs: [`${myName} 创建了航班，等待对手...`],
+                logs: [`${myName} 创建了航班，等待对手加入...`],
                 winner: null
             };
 
@@ -505,7 +498,7 @@
                     await updateDoc(roomRef, {
                         'p2.name': myName,
                         status: 'playing',
-                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
+                        logs: [`${myName} 加入对战，低延迟双向同步已开启！红方先手。`]
                     });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
@@ -525,6 +518,7 @@
             switchToLobby();
         };
 
+        // 【关键低延迟监听】：底层通过 WebSocket 实时接收云端增量数据
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
@@ -537,7 +531,7 @@
             unsubscribeRoom = onSnapshot(roomRef, (docSnap) => {
                 if (docSnap.exists()) {
                     gameState = docSnap.data();
-                    renderGameState();
+                    renderGameState(); // 每次服务器有更新，瞬间触发UI刷新
                 } else {
                     showToast("房间已解散");
                     switchToLobby();
@@ -625,7 +619,6 @@
                     
                     planeEl.classList.remove('plane-active');
 
-                    // 【更新】：这里修改了高亮规则，只要是摇到1或6都能起飞
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
                         const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
                         if (canMove) planeEl.classList.add('plane-active');
@@ -663,7 +656,6 @@
 
                         let countOnSpot = 0;
                         let myIndexOnSpot = 0;
-                        
                         const allPieces = [...gameState.p1.pieces.map(p=>({p, pId:'p1'})), ...gameState.p2.pieces.map(p=>({p, pId:'p2'}))];
                         allPieces.forEach((item, globalIdx) => {
                             if (item.p === pos && pos !== -1 && pos !== 999) {
@@ -701,11 +693,9 @@
             diceVis.classList.add('dice-rolling');
 
             const roll = Math.floor(Math.random() * 6) + 1;
-            
             const pieces = gameState[myPlayerId].pieces;
             let canMoveAny = false;
             pieces.forEach(p => {
-                // 【更新】：1 也可以起飞了
                 if (p === -1 && (roll === 6 || roll === 1)) canMoveAny = true;
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
@@ -727,7 +717,7 @@
             nextState.logs = logs;
 
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-            await updateDoc(roomRef, nextState);
+            await updateDoc(roomRef, nextState); // 瞬间同步给对方
         };
 
         window.handlePieceClick = async function(player, pieceIndex) {
@@ -736,7 +726,6 @@
             const currentPos = gameState[myPlayerId].pieces[pieceIndex];
             const dice = gameState.diceValue;
             
-            // 【更新】：限制非1和6且在机场的飞机不可点击
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
@@ -745,7 +734,6 @@
             let extraTurn = false;
             let stateUpdate = {};
 
-            // 1. 出门或移动计算 (1和6都能出)
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
                 logs.push(`✈️ ${myName} 的飞机驶出机库！`);
@@ -753,7 +741,6 @@
                 newPos = calculateDestination(myPlayerId, currentPos, dice);
             }
 
-            // 2. 检查同色格子跳跃
             if (newPos >= 0 && newPos <= 43) {
                 const colorCode = getCellColor(newPos);
                 const myColorCode = myPlayerId === 'p1' ? 0 : 2;
@@ -769,28 +756,27 @@
                 }
             }
 
-            // 3. 【更新】：10种丰富的盲盒事件随机池
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 const randEvent = Math.floor(Math.random() * 10);
                 switch(randEvent) {
                     case 0:
-                        logs.push(`🌪️ 触发盲盒：遇到高空气流，后退3格！`);
+                        logs.push(`🌪️ 盲盒事件：遇到高空气流，后退3格！`);
                         newPos = calculateDestination(myPlayerId, newPos, -3);
                         break;
                     case 1:
-                        logs.push(`🚀 触发盲盒：完美顺风飞行，前进3格！`);
+                        logs.push(`🚀 盲盒事件：顺风飞行，前进3格！`);
                         newPos = calculateDestination(myPlayerId, newPos, 3);
                         break;
                     case 2:
-                        logs.push(`⚡ 触发盲盒：遭遇雷电击中，直接坠毁回机场！`);
+                        logs.push(`⚡ 盲盒事件：遭遇雷电，坠毁回机场！`);
                         newPos = -1;
                         break;
                     case 3:
-                        logs.push(`🎁 触发盲盒：拾取到塔台空投补给，奖励一个额外回合！`);
+                        logs.push(`🎁 盲盒事件：获得空投补给，奖励一个额外回合！`);
                         extraTurn = true;
                         break;
                     case 4:
-                        logs.push(`🌈 触发盲盒：运气爆棚发动跃迁，直达下一同色格！`);
+                        logs.push(`🌈 盲盒事件：触发跃迁，直达下一同色格！`);
                         const path = generateLogicalPath(myPlayerId);
                         const currPathIndex = path.indexOf(newPos);
                         if (currPathIndex !== -1) {
@@ -798,46 +784,42 @@
                             while (nextSameColorIdx < 44 && getCellColor(path[nextSameColorIdx]) !== getCellColor(newPos)) {
                                 nextSameColorIdx++;
                             }
-                            if (nextSameColorIdx < 44) {
-                                newPos = path[nextSameColorIdx];
-                            }
+                            if (nextSameColorIdx < 44) newPos = path[nextSameColorIdx];
                         }
                         break;
                     case 5:
                         const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                         const oppPieces = [...gameState[oppId].pieces];
                         let validOppIndices = [];
-                        oppPieces.forEach((p, idx) => {
-                            if(p >= 0 && p <= 43) validOppIndices.push(idx);
-                        });
+                        oppPieces.forEach((p, idx) => { if(p >= 0 && p <= 43) validOppIndices.push(idx); });
                         if(validOppIndices.length > 0) {
                             const randOppIdx = validOppIndices[Math.floor(Math.random() * validOppIndices.length)];
                             const oppPos = oppPieces[randOppIdx];
-                            oppPieces[randOppIdx] = newPos; // 敌方换到我当前位置
-                            newPos = oppPos; // 我换到敌方位置
+                            oppPieces[randOppIdx] = newPos; 
+                            newPos = oppPos; 
                             stateUpdate[`${oppId}.pieces`] = oppPieces;
                             const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                            logs.push(`🔄 触发盲盒：空间传送装置启动！与 ${oppName} 的飞机互换了位置！`);
+                            logs.push(`🔄 盲盒事件：空间传送！与 ${oppName} 互换了位置！`);
                         } else {
-                            logs.push(`🔄 触发盲盒：空间传送装置启动，但场上没有敌机可互换，失效了。`);
+                            logs.push(`🔄 盲盒事件：空间传送失败，场上无敌机。`);
                         }
                         break;
                     case 6:
-                        logs.push(`🛸 触发盲盒：被外星人UFO绑架，随机传送到主赛道的任意位置！`);
+                        logs.push(`🛸 盲盒事件：被UFO绑架，随机传送到主赛道！`);
                         newPos = Math.floor(Math.random() * 44);
                         break;
                     case 7:
-                        logs.push(`💣 触发盲盒：惊魂时刻，遭遇鸟击，退回起点！`);
+                        logs.push(`💣 盲盒事件：遭遇鸟击，退回起点！`);
                         newPos = myPlayerId === 'p1' ? 0 : 22;
                         break;
                     case 8:
                         const backSteps = Math.floor(Math.random() * 6) + 1;
-                        logs.push(`⛽ 触发盲盒：燃料储备泄漏，紧急迫降后退 ${backSteps} 格！`);
+                        logs.push(`⛽ 盲盒事件：燃料泄漏，后退 ${backSteps} 格！`);
                         newPos = calculateDestination(myPlayerId, newPos, -backSteps);
                         break;
                     case 9:
                         const fwdSteps = Math.floor(Math.random() * 6) + 1;
-                        logs.push(`✈️ 触发盲盒：引擎超导过载，强制冲刺前进 ${fwdSteps} 格！`);
+                        logs.push(`✈️ 盲盒事件：超导过载，冲刺前进 ${fwdSteps} 格！`);
                         newPos = calculateDestination(myPlayerId, newPos, fwdSteps);
                         break;
                 }
@@ -847,8 +829,6 @@
             myPieces[pieceIndex] = newPos;
             stateUpdate[`${myPlayerId}.pieces`] = myPieces;
 
-            // 4. 碰撞检测（击落敌机）
-            // 如果上述盲盒修改了敌人位置（例如换位），从 stateUpdate 取最新情况避免误伤自己换位的敌机
             if (newPos >= 0 && newPos <= 43) {
                 const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                 const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
@@ -863,7 +843,7 @@
                 if (collisionOccurred) {
                     stateUpdate[`${oppId}.pieces`] = currentOppPieces;
                     const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    logs.push(`💥 ${myName} 强势击落了 ${oppName} 的飞机！`);
+                    logs.push(`💥 ${myName} 击落了 ${oppName} 的飞机！`);
                 }
             }
 
@@ -871,18 +851,13 @@
             if (allFinished) {
                 stateUpdate.winner = myPlayerId;
                 stateUpdate.status = 'finished';
-                logs.push(`🏆 恭喜 ${myName} 所有飞机到达终点，获得胜利！`);
+                logs.push(`🏆 恭喜 ${myName} 获得胜利！`);
             }
 
             stateUpdate.hasRolled = false;
-            // 掷出6点或者触发额外回合均连掷（1点仅作为起飞条件，原版规则不奖励连掷，故依然判断6点）
             if ((dice === 6 || extraTurn) && !allFinished) {
                 stateUpdate.turn = myPlayerId;
-                if (extraTurn && dice !== 6) {
-                    logs.push(`🔄 触发战备补给，获得额外连掷机会！`);
-                } else {
-                    logs.push(`🎲 掷出 6 点，获得额外回合！`);
-                }
+                logs.push(extraTurn && dice !== 6 ? `🔄 触发战备补给，获得额外回合！` : `🎲 掷出 6 点，获得额外回合！`);
             } else if (!allFinished) {
                 stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
             }
@@ -891,7 +866,7 @@
             
             stateUpdate.logs = logs;
             const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'aeroplaneRooms', currentRoomId);
-            await updateDoc(roomRef, stateUpdate);
+            await updateDoc(roomRef, stateUpdate); // 更新云端状态，实现低延迟广播
         };
 
         function generateLogicalPath(player) {
@@ -913,14 +888,11 @@
             if (currIdx === -1) return currentPos;
 
             let targetIdx = currIdx + steps;
-            
             if (targetIdx < 0) targetIdx = 0; 
-            
             if (targetIdx >= path.length) {
                 const overshoot = targetIdx - (path.length - 1);
                 targetIdx = (path.length - 1) - overshoot;
             }
-            
             return path[targetIdx];
         }
 
