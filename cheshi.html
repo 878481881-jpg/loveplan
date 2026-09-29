@@ -701,11 +701,18 @@
             }
         }
 
-        function submitUpdate(stateUpdate) {
-            gameState = { ...gameState, ...stateUpdate };
-            requestAnimationFrame(renderGameState);
-            getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
-        }
+function submitUpdate(stateUpdate) {
+    // 1. 本地乐观更新，无延迟渲染 UI
+    gameState = { ...gameState, ...stateUpdate };
+    requestAnimationFrame(renderGameState);
+
+    // 2. 准备上传云端的数据，必须剔除 _id 字段
+    const cloudData = { ...stateUpdate };
+    delete cloudData._id; // <--- 关键修复点
+
+    // 3. 后台静默发送请求
+    getRoomRef(currentRoomId).update(cloudData).catch(e => console.error('网络同步失败:', e));
+}
 
         initAuth();
     </script>
