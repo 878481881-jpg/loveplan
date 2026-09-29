@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>心动五子棋 🌸</title>
+    
+    <!-- 引入腾讯云开发 Web SDK -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Tone.js 用于生成音效 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
@@ -72,9 +75,13 @@
             </div>
         </div>
         <!-- 增加了网络状态指示灯 -->
-        <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs" title="网络状态">
-            <span id="networkIndicator" class="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse transition-colors duration-300"></span>
-            <span id="playerRoleDisplay" class="font-bold text-rose-500 shadow-xs">游客</span>
+        <div class="flex flex-col items-end gap-1">
+            <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs" title="网络状态">
+                <span id="playerRoleDisplay" class="font-bold text-rose-500 shadow-xs">加载中</span>
+            </div>
+            <span id="networkIndicator" class="text-[9px] text-gray-400 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            </span>
         </div>
     </header>
 
@@ -101,17 +108,17 @@
                     </div>
 
                     <div class="flex gap-2">
-                        <input id="roomCodeInput" type="number" placeholder="输入4位房间号" 
-                               class="flex-1 px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-center tracking-[0.5em] font-bold text-gray-700 placeholder-rose-300">
+                        <input id="roomCodeInput" type="text" maxlength="4" placeholder="输入4位房间号" 
+                               class="flex-1 px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-center tracking-[0.5em] font-bold text-gray-700 placeholder-rose-300 uppercase">
                         <button onclick="joinRoom()" class="px-6 py-3 bg-white border border-rose-200 text-rose-500 font-bold rounded-2xl shadow-sm hover:bg-rose-50 active:scale-95 transition-transform">
                             加入
                         </button>
                     </div>
 
-                    <!-- 历史战斗按钮 -->
-                    <button onclick="showHistory()" class="w-full py-3 mt-2 bg-white text-rose-500 font-bold rounded-2xl shadow-sm border border-rose-200 hover:bg-rose-50 active:scale-95 transition-transform flex justify-center items-center gap-2">
+                    <!-- 历史战斗按钮暂时隐藏，云开发版待后续单独实现 -->
+                    <!-- <button onclick="showHistory()" class="w-full py-3 mt-2 bg-white text-rose-500 font-bold rounded-2xl shadow-sm border border-rose-200 hover:bg-rose-50 active:scale-95 transition-transform flex justify-center items-center gap-2">
                         <span>📜 历史战斗记录</span>
-                    </button>
+                    </button> -->
                 </div>
             </div>
         </div>
@@ -176,60 +183,49 @@
     <!-- 弹窗 Toast -->
     <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-medium hidden z-50 whitespace-nowrap"></div>
 
-    <!-- 历史战斗弹窗 -->
-    <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] hidden flex flex-col items-center justify-center p-4 transition-opacity opacity-0 duration-300">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-black text-rose-600">历史战斗记录</h3>
-                <button onclick="closeHistory()" class="p-1 text-gray-400 hover:text-gray-600 transition-colors">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div id="historyList" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar">
-                <!-- 列表项插入处 -->
-            </div>
-        </div>
-    </div>
-
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, collection, addDoc, getDocs 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // ==========================================
+        // 配置与初始化 (腾讯云开发 CloudBase)
+        // ==========================================
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 替换为你的云开发环境ID
+        const REGION = "ap-shanghai"; 
+        const ROOM_COLLECTION = "wzqRooms";
 
-        // 全局变量配置
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'gomoku-love-app';
-        let firebaseConfig = {
-            apiKey: "AIzaSyCrTNZeBIBSLJjmNXKTwXk9fSm4tsrpzdc",
-            authDomain: "love-ce90d.firebaseapp.com",
-            projectId: "love-ce90d",
-            storageBucket: "love-ce90d.firebasestorage.app",
-            messagingSenderId: "494248275277",
-            appId: "1:494248275277:web:179bd2755ff64a4a2b5b04",
-            measurementId: "G-LSK28Z112V"
-        };
+        const fallbackTimer = setTimeout(() => hideGlobalLoading(), 800);
 
-        if (typeof __firebase_config !== 'undefined') {
-            try { Object.assign(firebaseConfig, JSON.parse(__firebase_config)); } catch (e) { console.error(e); }
-        }
-
-        let app, auth, db;
+        let app, auth, db, _;
         let currentUser = null;
-        let hasFirebase = !!firebaseConfig.apiKey && firebaseConfig.apiKey !== "mock-api-key";
+        let hasCloudBase = false;
 
-        if (hasFirebase) {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
+        try {
+            app = cloudbase.init({ env: ENV_ID, region: REGION });
+            auth = app.auth;
+            db = app.database();
+            _ = db.command;
+            hasCloudBase = true;
+        } catch(e) {
+            console.error("CloudBase init failed", e);
         }
 
-        let myName = localStorage.getItem('loveGacha_myIdentity') || `玩家_${Math.floor(Math.random()*1000)}`;
+        // ==========================================
+        // 身份验证逻辑
+        // ==========================================
+        let myIdentity = "玩家" + Math.floor(Math.random() * 1000); 
+        try {
+            const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
+            if (savedIdentity) myIdentity = savedIdentity;
+        } catch(e) {
+            console.warn('当前环境禁止访问 localStorage, 使用随机名字');
+        }
+        
+        let myName = myIdentity; 
         document.getElementById('playerRoleDisplay').innerText = myName;
 
         let currentRoomCode = null;
         let unsubscribe = null; 
         let myColor = null; 
+        let pingInterval = null;
+
         let gameState = {
             status: 'waiting', 
             turn: 'black',
@@ -242,30 +238,73 @@
         let currentThreats = new Set();
         let localMatchStatus = 'waiting'; 
 
-        // 网络状态指示器管理
-        function updateNetworkStatus(isOnline) {
-            const indicator = document.getElementById('networkIndicator');
-            if (isOnline) {
-                indicator.className = "w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)] animate-pulse transition-colors duration-300";
-            } else {
-                indicator.className = "w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] transition-colors duration-300";
+        // 工具函数：获取文档引用
+        function getRoomRef(code) {
+            return db.collection(ROOM_COLLECTION).doc(String(code));
+        }
+
+        // 工具函数：处理文档快照
+        function pickDoc(snapshot, code) {
+            if (!snapshot) return null;
+            const docs = snapshot.docs;
+            if (Array.isArray(docs)) return docs.length > 0 ? docs[0] : null;
+            if (docs && typeof docs === 'object') {
+                return docs[code] || (docs._id ? docs : null);
+            }
+            return null;
+        }
+
+        // ==========================================
+        // 网络状态指示器管理与测速
+        // ==========================================
+        function startPingLoop() {
+            if (pingInterval) clearInterval(pingInterval);
+            measurePing();
+            pingInterval = setInterval(measurePing, 4000);
+        }
+
+        async function measurePing() {
+            if (!hasCloudBase) return;
+            const start = Date.now();
+            try {
+                if (currentRoomCode) {
+                    await getRoomRef(currentRoomCode).get();
+                } else {
+                    await db.collection(ROOM_COLLECTION).limit(1).get();
+                }
+                const ping = Date.now() - start;
+                updateNetworkStatus(ping);
+            } catch(e) {
+                updateNetworkStatus(-1);
             }
         }
 
-        // 监听浏览器网络事件以防断联死机
+        function updateNetworkStatus(ping) {
+            const indicator = document.getElementById('networkIndicator');
+            if (ping < 0) {
+                indicator.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                return;
+            }
+            let colorStr = 'bg-green-500 shadow-[0_0_4px_#22c55e]';
+            let textColor = 'text-green-500';
+            
+            if (ping > 200) { colorStr = 'bg-yellow-500 shadow-[0_0_4px_#eab308]'; textColor = 'text-yellow-500'; }
+            if (ping > 500) { colorStr = 'bg-red-500 shadow-[0_0_4px_#ef4444]'; textColor = 'text-red-500'; }
+
+            indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorStr}"></span> 在线 <span class="${textColor} ml-1 font-bold">${ping}ms</span>`;
+        }
+
         window.addEventListener('offline', () => {
-            updateNetworkStatus(false);
+            updateNetworkStatus(-1);
             showToast("网络好像断开了...");
         });
 
         window.addEventListener('online', () => {
-            updateNetworkStatus(true);
+            measurePing();
             showToast("网络已恢复 📡");
-            // 恢复网络时主动拉取一次最新状态
             forceSyncRoomState();
         });
 
-        // 监听应用回到前台（解决手机切后台导致 WebSocket 冻结的问题）
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === "visible" && navigator.onLine) {
                 forceSyncRoomState();
@@ -273,12 +312,12 @@
         });
 
         async function forceSyncRoomState() {
-            if (currentRoomCode && hasFirebase) {
+            if (currentRoomCode && hasCloudBase) {
                 try {
-                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
-                    const snap = await getDoc(roomRef);
-                    if (snap.exists()) {
-                        applyNewState(snap.data());
+                    const res = await getRoomRef(currentRoomCode).get();
+                    const data = res.data && res.data[0];
+                    if (data) {
+                        applyNewState(data);
                     }
                 } catch (e) {
                     console.warn("前台同步失败", e);
@@ -286,7 +325,9 @@
             }
         }
 
-        // --- 音效配置 (Tone.js) ---
+        // ==========================================
+        // 音效配置 (Tone.js)
+        // ==========================================
         let placeSound = null;
         let audioInitialized = false;
 
@@ -317,7 +358,9 @@
             }
         }
 
-        // --- 棋盘 Canvas 设置 ---
+        // ==========================================
+        // 棋盘 Canvas 设置
+        // ==========================================
         const canvas = document.getElementById('boardCanvas');
         const ctx = canvas.getContext('2d');
         const GRID_SIZE = 15;
@@ -511,9 +554,9 @@
                 playDropSound(); 
             }
             
-            if (newState.status === 'won' && localMatchStatus !== 'won') {
-                recordMatchResult(newState);
-            }
+            // if (newState.status === 'won' && localMatchStatus !== 'won') {
+            //     recordMatchResult(newState); // 暂不实现云端战绩记录
+            // }
             localMatchStatus = newState.status;
 
             gameState = newState;
@@ -522,7 +565,9 @@
             updateGameUI();
         }
 
+        // ==========================================
         // 处理点击落子 (低延迟乐观UI机制)
+        // ==========================================
         canvas.addEventListener('click', async (e) => {
             if (gameState.status !== 'playing') return;
             if (gameState.turn !== myColor) {
@@ -562,10 +607,9 @@
             applyNewState({ ...gameState, ...updates });
 
             // 3. 异步同步到云端
-            if (hasFirebase && currentRoomCode) {
+            if (hasCloudBase && currentRoomCode) {
                 try {
-                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
-                    await updateDoc(roomRef, updates);
+                    await getRoomRef(currentRoomCode).update(updates);
                 } catch (err) {
                     console.error("落子同步失败", err);
                     showToast("网络不稳定，落子未成功");
@@ -598,20 +642,21 @@
             return false;
         }
 
+        // ==========================================
+        // 游戏核心逻辑 (创建/加入房间)
+        // ==========================================
         async function initAuth() {
-            if (!hasFirebase) {
+            if (!hasCloudBase) {
                 hideGlobalLoading();
                 showToast("单机演示模式 (未连接云端)");
                 return;
             }
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                currentUser = auth.currentUser;
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
                 hideGlobalLoading();
+                startPingLoop();
             } catch (err) {
                 console.error("登录失败:", err);
                 hideGlobalLoading();
@@ -627,144 +672,72 @@
             }
         }
 
-        async function recordMatchResult(state) {
-            if (!myColor) return; 
-            const isWin = state.winner === myName;
-            const opponent = myColor === 'black' ? state.players.white : state.players.black;
-            const record = {
-                roomCode: currentRoomCode || '单机',
-                date: Date.now(), opponent: opponent || '未知玩家',
-                result: isWin ? 'win' : 'loss', myColor: myColor
-            };
-
-            if (!hasFirebase || !currentUser) {
-                let history = JSON.parse(localStorage.getItem('wzq_history') || '[]');
-                history.push(record);
-                localStorage.setItem('wzq_history', JSON.stringify(history));
-                return;
-            }
-            try {
-                const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
-                await addDoc(historyRef, record);
-            } catch (e) { console.error("记录战斗失败", e); }
-        }
-
-        window.showHistory = async function() {
-            const modal = document.getElementById('historyModal');
-            const list = document.getElementById('historyList');
-            const modalContent = modal.querySelector('div');
-            
-            modal.classList.remove('hidden');
-            void modal.offsetWidth;
-            modal.classList.remove('opacity-0');
-            modalContent.classList.remove('scale-95');
-            
-            list.innerHTML = '<div class="text-center text-sm text-gray-400 py-4 flex justify-center items-center gap-2"><span class="animate-spin text-rose-400 text-lg">🌸</span> 获取记录中...</div>';
-
-            let records = [];
-            if (!hasFirebase || !currentUser) {
-                records = JSON.parse(localStorage.getItem('wzq_history') || '[]');
-            } else {
-                try {
-                    const historyRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'wzq_history');
-                    const snap = await getDocs(historyRef);
-                    snap.forEach(doc => records.push(doc.data()));
-                } catch (e) {
-                    showToast("获取记录失败");
-                }
-            }
-
-            records.sort((a, b) => b.date - a.date);
-
-            if (records.length === 0) {
-                list.innerHTML = '<div class="text-center text-sm text-gray-400 py-8">暂无战斗记录哦，快去开启第一局吧！</div>';
-                return;
-            }
-
-            list.innerHTML = records.map(r => {
-                const dateStr = new Date(r.date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                const isWin = r.result === 'win';
-                const resultColor = isWin ? 'text-rose-500' : 'text-gray-500';
-                const bgColor = isWin ? 'bg-rose-50' : 'bg-gray-50';
-                const icon = isWin ? '🏆' : '💔';
-                return `
-                    <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 ${bgColor}">
-                        <div class="flex items-center gap-3">
-                            <div class="text-2xl">${icon}</div>
-                            <div class="flex flex-col">
-                                <span class="text-sm font-bold text-gray-700">VS ${r.opponent}</span>
-                                <span class="text-[10px] text-gray-400">${dateStr} · 房间 ${r.roomCode}</span>
-                            </div>
-                        </div>
-                        <div class="font-black ${resultColor}">${isWin ? '胜利' : '战败'}</div>
-                    </div>
-                `;
-            }).join('');
-        };
-
-        window.closeHistory = function() {
-            const modal = document.getElementById('historyModal');
-            const modalContent = modal.querySelector('div');
-            modal.classList.add('opacity-0');
-            modalContent.classList.add('scale-95');
-            setTimeout(() => modal.classList.add('hidden'), 300);
-        };
-
         window.createRoom = async function() {
-            if (!hasFirebase) return mockJoin("1234", 'black');
+            if (!hasCloudBase) return mockJoin("1234", 'black');
             initAudio(); 
             
             showToast("正在创建房间...");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
             
             try {
                 const newRoomData = {
-                    status: 'waiting', turn: 'black',
+                    status: 'waiting', 
+                    turn: 'black',
                     players: { black: myName, white: null },
-                    board: [], winner: null, createdAt: Date.now()
+                    board: [], 
+                    winner: null, 
+                    createdAt: Date.now()
                 };
-                await setDoc(roomRef, newRoomData);
+                await getRoomRef(code).set(newRoomData);
                 joinRoomSuccess(code, 'black', newRoomData);
+                showToast(`房间 ${code} 创建成功`);
             } catch (e) {
+                console.error(e);
                 showToast("创建房间失败！");
             }
         };
 
         window.joinRoom = async function() {
             initAudio(); 
-            const codeInput = document.getElementById('roomCodeInput').value.trim();
-            if (!/^\d{4}$/.test(codeInput)) {
+            const codeInput = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!codeInput || codeInput.length !== 4) {
                 showToast("请输入正确的4位数字房间号！"); return;
             }
 
-            if (!hasFirebase) return mockJoin(codeInput, 'white');
+            if (!hasCloudBase) return mockJoin(codeInput, 'white');
 
             showToast("正在查找房间...");
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', codeInput);
             
             try {
-                const snap = await getDoc(roomRef);
-                if (!snap.exists()) { showToast("房间不存在哦！"); return; }
+                const res = await getRoomRef(codeInput).get();
+                const data = res.data && res.data[0];
+                if (!data) { showToast("房间不存在哦！"); return; }
                 
-                let data = snap.data();
                 let assignedColor = null;
 
-                if (data.players.black === myName) assignedColor = 'black';
-                else if (data.players.white === myName) assignedColor = 'white';
-                else if (!data.players.black) {
+                if (data.players.black === myName) {
                     assignedColor = 'black';
-                    await updateDoc(roomRef, { 'players.black': myName });
-                }
-                else if (!data.players.white) {
+                } else if (data.players.white === myName) {
                     assignedColor = 'white';
-                    await updateDoc(roomRef, { 'players.white': myName, status: 'playing' });
+                } else if (!data.players.black) {
+                    assignedColor = 'black';
+                    await getRoomRef(codeInput).update({ 'players.black': myName });
+                    data.players.black = myName;
+                } else if (!data.players.white) {
+                    assignedColor = 'white';
+                    await getRoomRef(codeInput).update({ 
+                        'players.white': myName, 
+                        status: 'playing' 
+                    });
+                    data.players.white = myName;
+                    data.status = 'playing';
                 } else {
                     showToast("房间已满，作为旁观者加入");
                 }
 
                 joinRoomSuccess(codeInput, assignedColor, data);
             } catch (e) {
+                console.error(e);
                 showToast("加入房间失败！");
             }
         };
@@ -787,33 +760,30 @@
             }
         }
 
-        // 强健的房间监听逻辑，包含掉线重连
+        // 强健的房间监听逻辑
         function subscribeToRoom(code) {
             if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', code);
             
-            // includeMetadataChanges 允许我们监听到从本地缓存返回的数据，以此判断是否掉线
-            unsubscribe = onSnapshot(roomRef, { includeMetadataChanges: true }, (snap) => {
-                if (snap.exists()) {
-                    // 如果来自缓存且 navigator 判定离线，说明断联了
-                    if (snap.metadata.fromCache && !navigator.onLine) {
-                        updateNetworkStatus(false);
+            const watcher = getRoomRef(code).watch({
+                onChange: (snapshot) => {
+                    const data = pickDoc(snapshot, code);
+                    if (data) {
+                        applyNewState(data);
                     } else {
-                        updateNetworkStatus(true);
+                        showToast("房间已解散");
+                        leaveRoom();
                     }
-                    applyNewState(snap.data());
-                } else {
-                    showToast("房间已解散");
-                    leaveRoom();
+                },
+                onError: (err) => {
+                    console.error("房间监听断开", err);
+                    updateNetworkStatus(-1);
+                    // 发生异常时，静默尝试重新建立连接
+                    setTimeout(() => {
+                        if (currentRoomCode === code) subscribeToRoom(code);
+                    }, 2000);
                 }
-            }, (error) => {
-                console.error("房间监听断开", error);
-                updateNetworkStatus(false);
-                // 发生异常时，静默尝试重新建立连接
-                setTimeout(() => {
-                    if (currentRoomCode === code) subscribeToRoom(code);
-                }, 2000);
             });
+            unsubscribe = () => watcher.close();
         }
 
         function joinRoomSuccess(code, color, initialData) {
@@ -831,7 +801,7 @@
 
             document.getElementById('roomCodeDisplay').innerText = code;
             
-            if (hasFirebase) {
+            if (hasCloudBase) {
                 subscribeToRoom(code);
             }
         }
@@ -882,15 +852,19 @@
         }
 
         window.requestRestart = async function() {
-            if (!hasFirebase) {
+            if (!hasCloudBase) {
                 applyNewState({
                     ...gameState, board: [], status: 'playing', turn: 'black', winner: null
                 });
                 return;
             }
             try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gomokuRooms', currentRoomCode);
-                await updateDoc(roomRef, { board: [], status: 'playing', turn: 'black', winner: null });
+                await getRoomRef(currentRoomCode).update({ 
+                    board: [], 
+                    status: 'playing', 
+                    turn: 'black', 
+                    winner: null 
+                });
             } catch (e) { showToast("重置失败，请检查网络"); }
         };
 
