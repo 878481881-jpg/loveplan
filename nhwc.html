@@ -2,10 +2,15 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>心动你画我猜 🎨💖</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://static.cloudbase.net">
+    <!-- 腾讯云开发 CloudBase Web SDK -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Noto Sans SC', sans-serif;
@@ -14,6 +19,7 @@
             background-size: 20px 20px;
             overflow-x: hidden;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
         @keyframes float {
             0% { transform: translateY(0px); }
@@ -33,7 +39,7 @@
         canvas { touch-action: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6">
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
 
     <!-- 全局加载遮罩 -->
     <div id="globalLoading" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
@@ -44,192 +50,266 @@
         </div>
     </div>
 
-    <header class="w-full max-w-lg flex justify-between items-center mb-3 animate-float px-2">
-       <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+    <!-- 弹窗 Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/95 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-bold hidden z-50 whitespace-nowrap border border-gray-600"></div>
+
+    <!-- 顶部导航栏 -->
+    <header class="w-full max-w-lg flex justify-between items-center mb-3 animate-float px-2 z-10">
+        <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
         </a>
         <div class="flex items-center gap-2">
-            <span class="text-3xl">🎨</span>
+            <span class="text-3xl drop-shadow-sm">🎨</span>
             <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-rose-500 flex items-center gap-1">
+                <h1 class="text-xl sm:text-2xl font-black text-rose-500 tracking-wide drop-shadow-sm flex items-center gap-1">
                     心动你画我猜 💖
                 </h1>
-                <p class="text-[11px] text-rose-400 font-medium">专属双人默契大考验</p>
+                <p class="text-[10px] text-rose-400 font-bold tracking-wider uppercase">专属双人默契大考验</p>
             </div>
         </div>
-        <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs">
-            <span class="text-gray-400">我是:</span>
-            <span id="currentRoleDisplay" class="px-3 py-1 rounded-full font-bold bg-rose-500 text-white shadow-xs">加载中...</span>
+        <div class="flex flex-col items-end">
+            <div class="bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs flex items-center gap-1.5">
+                <span class="text-gray-400 font-medium">身份:</span>
+                <span id="currentRoleDisplay" class="font-bold text-rose-500">加载中...</span>
+            </div>
+            <!-- 实时网络延迟指示器 -->
+            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            </span>
         </div>
     </header>
 
-    <main class="w-full max-w-lg flex flex-col items-center gap-3">
-        <!-- 房间与状态看板 -->
-        <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border border-rose-100 shadow-sm flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <div id="drawerAvatar" class="w-9 h-9 rounded-full bg-rose-100 border border-rose-200 flex items-center justify-center text-lg">
-                    🐰
+    <main class="w-full max-w-lg flex flex-col items-center gap-3 relative z-10">
+        
+        <!-- 大厅视图 (创建/加入房间) -->
+        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
+            <div class="bg-white/90 backdrop-blur-md rounded-3xl p-6 border-2 border-rose-100 shadow-xl flex flex-col items-center text-center mt-2">
+                <div class="w-24 h-24 bg-gradient-to-br from-rose-100 to-pink-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">
+                    🎨
                 </div>
-                <div>
-                    <div class="text-xs text-gray-400 font-medium">当前主画人</div>
-                    <div id="drawerName" class="text-sm font-bold text-rose-600">哼哼 正在画...</div>
-                </div>
-            </div>
-
-            <!-- 中间题目与提示 -->
-            <div class="text-center px-2 flex-1">
-                <div class="text-[11px] text-gray-400">当前词条 (<span id="wordCategory">浪漫情话</span>)</div>
-                <div id="wordDisplay" class="text-sm sm:text-base font-black text-rose-500 tracking-wider">
-                    🌸 🌸 🌸
-                </div>
-            </div>
-
-            <!-- 回合/换画按钮 -->
-            <div class="flex flex-col items-end gap-1">
-                <button id="newRoundBtn" onclick="requestNewRound()" class="px-3 py-1.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold text-xs rounded-full shadow hover:opacity-95 transition-transform active:scale-95 flex items-center gap-1">
-                    <span>🎲</span> 换题
-                </button>
-                <span id="roundCounter" class="text-[10px] text-gray-400">第 1 轮</span>
-            </div>
-        </div>
-
-        <!-- 画板主区域 -->
-        <div class="w-full bg-white rounded-3xl p-3 shadow-md border-2 border-rose-100 relative flex flex-col items-center">
-            <!-- 画板顶部提示条 -->
-            <div id="canvasRoleBanner" class="w-full mb-2 py-1 px-3 bg-rose-50 rounded-xl text-center text-xs font-bold text-rose-500 flex items-center justify-between">
-                <span id="bannerRoleTag">✏️ 轮到你画啦，快画给对方猜吧！</span>
-                <span id="strokeCountText" class="text-[10px] text-rose-300 font-normal">笔画: 0</span>
-            </div>
-
-            <!-- 核心交互 Canvas -->
-            <div class="w-full aspect-[4/3] relative rounded-2xl overflow-hidden border border-rose-100 bg-[#fffdfc] shadow-inner">
-                <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
-
-                <!-- 猜中庆祝动画覆盖层 -->
-                <div id="celebrationOverlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm hidden flex flex-col items-center justify-center animate-fade-in z-20">
-                    <div class="text-5xl animate-bounce">🎉💖</div>
-                    <div class="text-lg font-bold text-rose-600 mt-2" id="winAnnouncement">恭喜！亲亲猜对啦！</div>
-                    <div class="text-xs text-gray-500 mt-1" id="winWordText">答案是：海边日落</div>
-                </div>
-            </div>
-
-            <!-- 绘画工具栏（仅画画者可用，猜题者被禁用） -->
-            <div id="drawToolsBar" class="w-full mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-rose-50 pt-2.5">
-                <!-- 调色板 -->
-                <div class="flex items-center gap-1.5 overflow-x-auto py-1">
-                    <button onclick="setColor('#e11d48')" class="w-6 h-6 rounded-full bg-rose-600 border-2 border-white shadow-sm ring-2 ring-rose-400 color-btn" data-color="#e11d48"></button>
-                    <button onclick="setColor('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600 border-2 border-white shadow-sm color-btn" data-color="#2563eb"></button>
-                    <button onclick="setColor('#16a34a')" class="w-6 h-6 rounded-full bg-green-600 border-2 border-white shadow-sm color-btn" data-color="#16a34a"></button>
-                    <button onclick="setColor('#d97706')" class="w-6 h-6 rounded-full bg-amber-600 border-2 border-white shadow-sm color-btn" data-color="#d97706"></button>
-                    <button onclick="setColor('#9333ea')" class="w-6 h-6 rounded-full bg-purple-600 border-2 border-white shadow-sm color-btn" data-color="#9333ea"></button>
-                    <button onclick="setColor('#1f2937')" class="w-6 h-6 rounded-full bg-gray-800 border-2 border-white shadow-sm color-btn" data-color="#1f2937"></button>
-                </div>
-
-                <!-- 粗细与橡皮/清空 -->
-                <div class="flex items-center gap-1.5 text-xs">
-                    <button onclick="setLineWidth(3)" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-bold hover:bg-rose-100">细</button>
-                    <button onclick="setLineWidth(7)" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-bold hover:bg-rose-100">中</button>
-                    <button onclick="setLineWidth(14)" class="px-2 py-1 rounded-lg bg-rose-50 text-rose-600 font-bold hover:bg-rose-100">粗</button>
-                    <button onclick="useEraser()" class="px-2.5 py-1 rounded-lg bg-gray-100 text-gray-700 font-bold hover:bg-gray-200 flex items-center gap-1">
-                        <span>🧹</span>橡皮
+                <h2 class="text-2xl font-black text-gray-800 mb-2 tracking-wide">准备动笔</h2>
+                <p class="text-sm text-gray-500 mb-6 px-2 font-medium">创建专属画室邀请对方，或输入画室号加入考验。</p>
+                
+                <div class="w-full space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-rose-300/50">
+                        <span>✨</span> 创建专属画室
                     </button>
-                    <button onclick="clearCanvasAction()" class="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-600 font-bold hover:bg-rose-200">
-                        清空
-                    </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 w-full">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位画室号" class="w-full px-4 py-4 bg-white border-2 border-rose-100 rounded-2xl text-center text-xl font-black text-rose-600 tracking-[0.5em] focus:outline-none focus:border-rose-400 focus:ring-4 focus:ring-rose-50 uppercase transition-all shadow-inner" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-pink-400 to-rose-400 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-pink-300/50">
+                            加入对方画室
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 实时聊天与猜词面板 -->
-        <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 border border-rose-100 shadow-sm flex flex-col h-64">
-            <div class="flex items-center justify-between pb-2 border-b border-rose-50 mb-2">
-                <span class="text-xs font-bold text-gray-600 flex items-center gap-1">
-                    <span>💬</span> 默契猜词记录
-                </span>
-                <span class="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 实时同步中
-                </span>
-            </div>
-
-            <!-- 消息瀑布流 -->
-            <div id="chatMessages" class="flex-1 overflow-y-auto space-y-2 no-scrollbar pr-1">
-                <div class="text-center text-xs text-gray-400 py-4">输入你的猜测，猜中即过关哦！💌</div>
-            </div>
-
-            <!-- 猜词输入框 -->
-            <form id="guessForm" onsubmit="handleSendGuess(event)" class="mt-2 flex gap-2 pt-2 border-t border-rose-50">
-                <input id="guessInput" type="text" maxlength="20" placeholder="猜一猜是什么？按发送猜词..."
-                       class="flex-1 px-3.5 py-2 text-sm bg-rose-50/50 border border-rose-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-gray-700 placeholder-rose-300">
-                <button type="submit" class="px-4 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold text-sm rounded-xl shadow hover:opacity-95 active:scale-95 transition-transform flex items-center gap-1">
-                    <span>发送</span>
+        <!-- 游戏主视图 -->
+        <div id="gameView" class="w-full flex flex-col items-center gap-3 hidden">
+            
+            <!-- 房间号提示与退出 -->
+            <div class="w-full flex justify-between items-center px-1 mb-1">
+                <div class="flex items-center gap-2 bg-white/60 px-3 py-1.5 rounded-xl border border-rose-100 shadow-sm backdrop-blur-sm">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">画室号</span>
+                    <span id="displayRoomCode" class="text-sm font-black text-rose-600 tracking-widest">----</span>
+                </div>
+                <button onclick="exitRoom()" class="px-3 py-1.5 rounded-xl bg-white/80 text-gray-600 font-bold text-xs shadow-sm border border-rose-100 hover:bg-rose-50 hover:text-rose-600 active:scale-95 transition-all flex items-center gap-1 backdrop-blur-sm">
+                    <span>🚪</span> 离开
                 </button>
-            </form>
+            </div>
+
+            <!-- 状态看板 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3.5 border-2 border-rose-100 shadow-sm flex items-center justify-between">
+                <div class="flex items-center gap-2 w-1/3">
+                    <div id="drawerAvatar" class="w-10 h-10 rounded-full bg-gradient-to-br from-rose-100 to-pink-50 border-2 border-white shadow-sm flex items-center justify-center text-xl">
+                        🐰
+                    </div>
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 font-bold tracking-wider">当前主画人</span>
+                        <span id="drawerName" class="text-xs sm:text-sm font-black text-rose-600 truncate max-w-[80px] sm:max-w-[100px]">加载中...</span>
+                    </div>
+                </div>
+
+                <!-- 中间题目与提示 -->
+                <div class="text-center px-1 flex-1 flex flex-col items-center justify-center">
+                    <div class="text-[10px] text-gray-400 font-bold tracking-wider">当前词条 (<span id="wordCategory" class="text-rose-400">浪漫情话</span>)</div>
+                    <div id="wordDisplay" class="text-sm sm:text-base font-black text-rose-500 tracking-wider mt-0.5">
+                        🌸 🌸 🌸
+                    </div>
+                </div>
+
+                <!-- 回合/换画按钮 -->
+                <div class="flex flex-col items-end gap-1.5 w-1/4">
+                    <button id="newRoundBtn" onclick="requestNewRound()" class="px-3 py-1.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold text-[11px] rounded-lg shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center gap-1">
+                        <span>🎲</span> 换题
+                    </button>
+                    <span id="roundCounter" class="text-[10px] text-gray-400 font-bold tracking-wider bg-gray-50 px-2 py-0.5 rounded border border-gray-100">第 1 轮</span>
+                </div>
+            </div>
+
+            <!-- 画板主区域 -->
+            <div class="w-full bg-white rounded-3xl p-3 shadow-lg border-2 border-rose-100 relative flex flex-col items-center">
+                
+                <!-- 等待加入遮罩 -->
+                <div id="waitingOverlay" class="absolute inset-0 bg-white/75 backdrop-blur-[3px] flex flex-col items-center justify-center z-30 transition-opacity rounded-3xl hidden">
+                    <div class="text-5xl animate-bounce mb-3 drop-shadow-sm">⏳</div>
+                    <div class="text-sm font-black text-rose-500 bg-white px-5 py-2.5 rounded-full shadow-md border-2 border-rose-100 tracking-wide">等待对方加入，即可开始游戏...</div>
+                </div>
+
+                <!-- 画板顶部提示条 -->
+                <div id="canvasRoleBanner" class="w-full mb-2 py-1.5 px-3 bg-rose-50 rounded-xl text-center text-xs font-bold text-rose-600 flex items-center justify-between border border-rose-100/50">
+                    <span id="bannerRoleTag">✏️ 轮到你画啦，快画给对方猜吧！</span>
+                    <span id="strokeCountText" class="text-[10px] text-rose-400 font-bold bg-white px-2 py-0.5 rounded-md shadow-sm">笔画: 0</span>
+                </div>
+
+                <!-- 核心交互 Canvas -->
+                <div class="w-full aspect-[4/3] relative rounded-2xl overflow-hidden border-2 border-rose-50 bg-[#fffdfc] shadow-inner">
+                    <canvas id="gameCanvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+                    <!-- 猜中庆祝动画覆盖层 -->
+                    <div id="celebrationOverlay" class="absolute inset-0 bg-white/80 backdrop-blur-[2px] hidden flex flex-col items-center justify-center animate-fade-in z-20">
+                        <div class="text-6xl animate-bounce drop-shadow-md">🎉💖</div>
+                        <div class="text-xl font-black text-rose-600 mt-3 tracking-wide" id="winAnnouncement">恭喜！亲亲猜对啦！</div>
+                        <div class="text-sm font-bold text-gray-500 bg-white px-4 py-1 rounded-full shadow-sm mt-2" id="winWordText">答案是：海边日落</div>
+                    </div>
+                </div>
+
+                <!-- 绘画工具栏（仅画画者可用） -->
+                <div id="drawToolsBar" class="w-full mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-rose-50 pt-2.5 transition-opacity duration-300">
+                    <div class="flex items-center gap-2 overflow-x-auto py-1 px-1">
+                        <button onclick="setColor('#e11d48')" class="w-6 h-6 rounded-full bg-rose-600 border-2 border-white shadow-md ring-2 ring-rose-400 color-btn transition-transform hover:scale-110" data-color="#e11d48"></button>
+                        <button onclick="setColor('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600 border-2 border-white shadow-md color-btn transition-transform hover:scale-110" data-color="#2563eb"></button>
+                        <button onclick="setColor('#16a34a')" class="w-6 h-6 rounded-full bg-green-600 border-2 border-white shadow-md color-btn transition-transform hover:scale-110" data-color="#16a34a"></button>
+                        <button onclick="setColor('#d97706')" class="w-6 h-6 rounded-full bg-amber-600 border-2 border-white shadow-md color-btn transition-transform hover:scale-110" data-color="#d97706"></button>
+                        <button onclick="setColor('#9333ea')" class="w-6 h-6 rounded-full bg-purple-600 border-2 border-white shadow-md color-btn transition-transform hover:scale-110" data-color="#9333ea"></button>
+                        <button onclick="setColor('#1f2937')" class="w-6 h-6 rounded-full bg-gray-800 border-2 border-white shadow-md color-btn transition-transform hover:scale-110" data-color="#1f2937"></button>
+                    </div>
+
+                    <div class="flex items-center gap-1.5 text-xs font-bold">
+                        <button onclick="setLineWidth(3)" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100">细</button>
+                        <button onclick="setLineWidth(7)" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100">中</button>
+                        <button onclick="setLineWidth(14)" class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors border border-rose-100">粗</button>
+                        <div class="w-px h-5 bg-rose-200 mx-1"></div>
+                        <button onclick="useEraser()" class="px-2.5 py-1.5 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center gap-1 transition-colors border border-gray-200">
+                            <span>🧹</span>橡皮
+                        </button>
+                        <button onclick="clearCanvasAction()" class="px-3 py-1.5 rounded-lg bg-rose-100 text-rose-600 hover:bg-rose-200 transition-colors border border-rose-200 shadow-sm ml-1">
+                            清空
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 实时聊天与猜词面板 -->
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-3xl p-4 border-2 border-rose-100 shadow-lg flex flex-col h-64 relative">
+                <div class="flex items-center justify-between pb-2 border-b border-rose-100 mb-2">
+                    <span class="text-xs font-black text-gray-700 flex items-center gap-1.5 tracking-wide">
+                        <span class="text-sm">💬</span> 默契猜词记录
+                    </span>
+                    <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> 实时同步
+                    </span>
+                </div>
+
+                <div id="chatMessages" class="flex-1 overflow-y-auto space-y-2.5 no-scrollbar pr-1 pb-2">
+                    <div class="text-center text-xs font-medium text-gray-400 py-4 opacity-70">输入你的猜测，猜中即过关哦！💌</div>
+                </div>
+
+                <form id="guessForm" onsubmit="handleSendGuess(event)" class="mt-2 flex gap-2 pt-3 border-t border-rose-100">
+                    <input id="guessInput" type="text" maxlength="20" placeholder="猜一猜是什么？..."
+                           class="flex-1 px-4 py-2.5 text-sm font-medium bg-rose-50/50 border border-rose-200 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 text-gray-700 placeholder-rose-300 shadow-inner">
+                    <button type="submit" class="px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-black text-sm rounded-xl shadow-md hover:shadow-lg active:scale-95 transition-all flex items-center justify-center tracking-wide">
+                        发送
+                    </button>
+                </form>
+            </div>
         </div>
     </main>
 
-    <!-- 弹窗 Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-medium hidden z-50 whitespace-nowrap"></div>
-
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { 
-            getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc, arrayUnion 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        // ==========================================
+        // 配置与初始化 (腾讯云开发 CloudBase)
+        // ==========================================
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 替换为你的云开发环境ID
+        const REGION = "ap-shanghai"; 
+        const ROOM_COLLECTION = "nhwcRooms";         
 
-        // 获取外部配置或降级模拟
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'draw-guess-love';
-        
-        // 👇 在这里填入你自己的 Firebase 配置 👇
-        let firebaseConfig = {
-            apiKey: "AIzaSyCrTNZeBIBSLJjmNXKTwXk9fSm4tsrpzdc",
-            authDomain: "love-ce90d.firebaseapp.com",
-            projectId: "love-ce90d",
-            storageBucket: "love-ce90d.firebasestorage.app",
-            messagingSenderId: "494248275277",
-            appId: "1:494248275277:web:179bd2755ff64a4a2b5b04",
-            measurementId: "G-LSK28Z112V"
-        };
-        // 👆 -------------------------------- 👆
+        const fallbackTimer = setTimeout(() => hideLoading(), 800);
 
-        if (typeof __firebase_config !== 'undefined') {
-            try { firebaseConfig = JSON.parse(__firebase_config); } catch (e) { console.error(e); }
+        function getRoomRef(code) {
+            return db.collection(ROOM_COLLECTION).doc(String(code));
         }
 
-        // 初始化 Firebase
-        let app, auth, db;
+        function pickDoc(snapshot, code) {
+            if (!snapshot) return null;
+            const docs = snapshot.docs;
+            if (Array.isArray(docs)) return docs.length > 0 ? docs[0] : null;
+            if (docs && typeof docs === 'object') {
+                return docs[code] || (docs._id ? docs : null);
+            }
+            return null;
+        }
+
+        let app, auth, db, _;
         let currentUser = null;
-        let hasFirebase = false;
+        let hasCloudBase = false;
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+        let pingInterval = null;
 
-        if (firebaseConfig && firebaseConfig.apiKey) {
-            app = initializeApp(firebaseConfig);
-            auth = getAuth(app);
-            db = getFirestore(app);
-            hasFirebase = true;
+        try {
+            app = cloudbase.init({ env: ENV_ID, region: REGION });
+            auth = app.auth;
+            db = app.database();
+            _ = db.command; 
+            hasCloudBase = true;
+        } catch(e) {
+            console.error("CloudBase init failed", e);
         }
 
-        // 读取身份与 GitHub Token
-        const myIdentity = localStorage.getItem('loveGacha_myIdentity');
+        // ==========================================
+        // 身份验证严格读取 (保持和 index.html 完全一致)
+        // ==========================================
+        const myIdentityRaw = localStorage.getItem('loveGacha_myIdentity');
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
 
-        if (!myIdentity || !GITHUB_TOKEN) {
-            // 如果本地没有身份认证信息，则退回首页
+        if (!myIdentityRaw || !GITHUB_TOKEN) {
             window.location.href = 'index.html'; 
         }
 
-        let myRole = myIdentity; // 设置身份
-        document.getElementById('currentRoleDisplay').innerText = myRole + (myRole === '哼哼' ? '🐰' : '🐱');
+        let myIdentity = myIdentityRaw.trim(); 
+
+        // 工具函数：获取搭档身份
+        function getPartner(role) {
+            return role.includes('哼哼') ? '亲亲' : '哼哼';
+        }
+
+        function getAvatar(name) {
+            if (!name) return '👤';
+            if (name.includes('哼哼')) return '🐰';
+            if (name.includes('亲亲')) return '🐱';
+            return '👤';
+        }
+
+        document.getElementById('currentRoleDisplay').innerText = myIdentity + ' ' + getAvatar(myIdentity);
 
         const OWNER_REPO = '878481881-jpg/loveplan'; 
         const FILE_WORDS = 'data/nhwc.json'; 
 
-        // 默认题库（将在成功获取云端题库后被覆盖）
         let WORD_BANK = [
             { word: "奶茶", category: "甜蜜生活", hint: "两个字，香甜可口的饮品" },
             { word: "海边日落", category: "浪漫约定", hint: "四个字，夕阳与浪花" }
         ];
 
         async function fetchWordsFromGithub() {
+            if (!GITHUB_TOKEN) return;
             try {
                 const timestamp = new Date().getTime();
                 const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${FILE_WORDS}?t=${timestamp}`, {
@@ -240,11 +320,8 @@
                     const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
                     const data = JSON.parse(contentStr);
                     if (Array.isArray(data) && data.length > 0) {
-                        // 支持兼容纯字符串数组或完整的对象数组
                         WORD_BANK = data.map(item => {
-                            if (typeof item === 'string') {
-                                return { word: item, category: "心动猜词", hint: `提示：${item.length}个字` };
-                            }
+                            if (typeof item === 'string') return { word: item, category: "心动猜词", hint: `提示：${item.length}个字` };
                             return item;
                         });
                     }
@@ -254,17 +331,10 @@
             }
         }
 
-        let currentGameState = {
-            drawer: '哼哼',
-            word: '奶茶',
-            category: '甜蜜生活',
-            hint: '两个字，香甜可口的饮品',
-            round: 1,
-            completed: false,
-            winner: '',
-            strokes: [],
-            messages: []
-        };
+        // ==========================================
+        // 游戏状态与实时画板变量
+        // ==========================================
+        let currentGameState = null;
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -273,16 +343,16 @@
         let currentColor = '#e11d48';
         let currentWidth = 4;
         let isEraser = false;
+        let lastSyncTime = 0; // 节流同步用
 
-        // 自适应 Canvas 分辨率
         function resizeCanvas() {
             const rect = canvas.getBoundingClientRect();
+            if(rect.width === 0) return;
             canvas.width = rect.width * 2;
             canvas.height = rect.height * 2;
             ctx.scale(2, 2);
             redrawAllStrokes();
         }
-
         window.addEventListener('resize', resizeCanvas);
 
         function getCanvasPos(e) {
@@ -296,7 +366,7 @@
         }
 
         function startDrawing(e) {
-            if (currentGameState.drawer !== myRole || currentGameState.completed) return;
+            if (!currentGameState || currentGameState.status !== 'playing' || currentGameState.drawer !== myIdentity || currentGameState.completed) return;
             e.preventDefault();
             isDrawing = true;
             const pt = getCanvasPos(e);
@@ -314,21 +384,50 @@
             const pt = getCanvasPos(e);
             const prev = currentStroke.points[currentStroke.points.length - 1];
             currentStroke.points.push(pt);
+            
+            // 1. 本地立即绘制，保证零延迟手感
             drawSegment(prev, pt, currentStroke.color, currentStroke.width);
+
+            // 2. 节流：每 150ms 往云端发送一次正在画的线条，实现对方视角的"实时绘画"效果
+            const now = Date.now();
+            if (now - lastSyncTime > 150) {
+                syncCurrentStrokeToCloud();
+                lastSyncTime = now;
+            }
+        }
+
+        function syncCurrentStrokeToCloud() {
+            if (!hasCloudBase || !currentRoomId || !currentStroke) return;
+            // 异步发送，不阻塞UI线程
+            getRoomRef(currentRoomId).update({
+                currentStroke: currentStroke
+            }).catch(() => {});
         }
 
         async function stopDrawing() {
             if (!isDrawing || !currentStroke) return;
             isDrawing = false;
             if (currentStroke.points.length > 1) {
-                currentGameState.strokes.push(currentStroke);
-                syncStrokesToCloud(currentStroke);
+                // 将画完的一笔放入总数组并清空实时笔画
+                const strokeToSave = { ...currentStroke };
+                if (!currentGameState.strokes) currentGameState.strokes = [];
+                currentGameState.strokes.push(strokeToSave);
+                currentStroke = null;
+                
+                if (hasCloudBase && currentRoomId) {
+                    await getRoomRef(currentRoomId).update({
+                        strokes: _.push(strokeToSave),
+                        currentStroke: null
+                    });
+                }
+            } else {
+                currentStroke = null;
             }
-            currentStroke = null;
         }
 
         function drawSegment(p1, p2, color, width) {
             const rect = canvas.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
             const sx = rect.width / 400;
             const sy = rect.height / 300;
 
@@ -345,13 +444,35 @@
         function redrawAllStrokes() {
             const rect = canvas.getBoundingClientRect();
             ctx.clearRect(0, 0, rect.width, rect.height);
-            if (!currentGameState.strokes) return;
-            for (const s of currentGameState.strokes) {
-                for (let i = 1; i < s.points.length; i++) {
-                    drawSegment(s.points[i - 1], s.points[i], s.color, s.width);
+            if (!currentGameState) return;
+
+            // 1. 绘制所有已完成的笔画
+            if (currentGameState.strokes) {
+                for (const s of currentGameState.strokes) {
+                    if (!s || !s.points || !Array.isArray(s.points)) continue;
+                    for (let i = 1; i < s.points.length; i++) {
+                        drawSegment(s.points[i - 1], s.points[i], s.color, s.width);
+                    }
                 }
             }
-            document.getElementById('strokeCountText').innerText = `笔画: ${currentGameState.strokes.length}`;
+
+            // 2. 绘制正在进行中的“实时笔画”
+            // (如果你自己正在画，本地已经被 drawMove 绘制过了；但如果发生重绘，需要补上自己当前的一笔)
+            if (currentStroke) {
+                for (let i = 1; i < currentStroke.points.length; i++) {
+                    drawSegment(currentStroke.points[i - 1], currentStroke.points[i], currentStroke.color, currentStroke.width);
+                }
+            } else if (currentGameState.currentStroke && currentGameState.drawer !== myIdentity) {
+                // 如果是对方正在画，渲染对方同步过来的笔画数据
+                const s = currentGameState.currentStroke;
+                if (s && s.points && Array.isArray(s.points)) {
+                    for (let i = 1; i < s.points.length; i++) {
+                        drawSegment(s.points[i - 1], s.points[i], s.color, s.width);
+                    }
+                }
+            }
+
+            document.getElementById('strokeCountText').innerText = `笔画: ${currentGameState.strokes ? currentGameState.strokes.length : 0}`;
         }
 
         canvas.addEventListener('mousedown', startDrawing);
@@ -363,117 +484,251 @@
         canvas.addEventListener('touchmove', drawMove, { passive: false });
         canvas.addEventListener('touchend', stopDrawing);
 
-        async function initAuthAndData() {
-            if (!hasFirebase) {
-                renderGameUI();
-                showToast("单机演示模式（未注入Firebase配置）");
-                return;
-            }
+        // ==========================================
+        // 测速 (Ping) 及 网络模块
+        // ==========================================
+        function startPingLoop() {
+            if (pingInterval) clearInterval(pingInterval);
+            measurePing();
+            // 每4秒测一次延迟
+            pingInterval = setInterval(measurePing, 4000);
+        }
 
+        async function measurePing() {
+            if (!hasCloudBase) return;
+            const start = Date.now();
             try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                if (currentRoomId) {
+                    await getRoomRef(currentRoomId).get();
                 } else {
-                    await signInAnonymously(auth);
+                    // 大厅空闲状态下查询集合以测速
+                    await db.collection(ROOM_COLLECTION).limit(1).get();
                 }
-                currentUser = auth.currentUser;
-
-                // 统一存放在 /artifacts/{appId}/public/data/gameRoom/main
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameRoom', 'main');
-                const snap = await getDoc(roomRef);
-
-                if (!snap.exists()) {
-                    const initWord = WORD_BANK[0];
-                    const initData = {
-                        drawer: '哼哼',
-                        word: initWord.word,
-                        category: initWord.category,
-                        hint: initWord.hint,
-                        round: 1,
-                        completed: false,
-                        winner: '',
-                        hintStatus: 'none',
-                        strokes: [],
-                        messages: [{ sender: '系统', text: '游戏已创建，快叫上TA一起来画吧！💖', time: Date.now() }]
-                    };
-                    await setDoc(roomRef, initData);
-                }
-
-                // 监听实时更新
-                onSnapshot(roomRef, (docSnap) => {
-                    if (docSnap.exists()) {
-                        const data = docSnap.data();
-                        handleRemoteUpdate(data);
-                    }
-                }, (err) => {
-                    console.error("Firebase Snapshot Error:", err);
-                    showToast("同步出错啦，请检查网络！");
-                });
-
-            } catch (err) {
-                console.error("Auth / Load Error:", err);
-                showToast("连接联机云端服务失败");
+                const ping = Date.now() - start;
+                updatePingDisplay(ping);
+            } catch(e) {
+                updatePingDisplay(-1);
             }
         }
 
-        async function syncStrokesToCloud(newStroke) {
-            if (!hasFirebase || !currentUser) return;
-            try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameRoom', 'main');
-                await updateDoc(roomRef, {
-                    strokes: arrayUnion(newStroke)
-                });
-            } catch (e) {
-                console.error("Failed to sync stroke:", e);
+        function updatePingDisplay(ping) {
+            const badge = document.getElementById('syncStatusBadge');
+            if (ping < 0) {
+                badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                return;
             }
+            let colorStr = 'bg-green-500 shadow-[0_0_4px_#22c55e]';
+            let textColor = 'text-green-500';
+            
+            if (ping > 200) { colorStr = 'bg-yellow-500 shadow-[0_0_4px_#eab308]'; textColor = 'text-yellow-500'; }
+            if (ping > 500) { colorStr = 'bg-red-500 shadow-[0_0_4px_#ef4444]'; textColor = 'text-red-500'; }
+
+            badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorStr}"></span> 在线 <span class="${textColor} ml-1 font-bold">${ping}ms</span>`;
+        }
+
+        async function initAuth() {
+            if (!hasCloudBase) {
+                showToast("未检测到网络配置，进入离线预览");
+                clearTimeout(fallbackTimer);
+                hideLoading();
+                return;
+            }
+            try {
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                switchToLobby();
+                startPingLoop(); // 启动测速模块
+            } catch (err) {
+                console.error("Auth Error:", err);
+                showToast("网络通信异常，请检查连接");
+                switchToLobby();
+            } finally {
+                clearTimeout(fallbackTimer);
+                hideLoading();
+            }
+        }
+
+        function hideLoading() {
+            const el = document.getElementById('globalLoading');
+            el.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => el.classList.add('hidden'), 500);
+        }
+
+        function switchToLobby() {
+            document.getElementById('lobbyView').classList.remove('hidden');
+            document.getElementById('gameView').classList.add('hidden');
+            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            currentRoomId = null;
+            currentGameState = null;
+        }
+
+        window.createRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            const initWord = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
+            
+            const initialData = {
+                status: 'waiting', 
+                drawer: myIdentity,
+                word: initWord.word,
+                category: initWord.category,
+                hint: initWord.hint,
+                round: 1,
+                completed: false,
+                winner: '',
+                hintStatus: 'none',
+                strokes: [],
+                currentStroke: null, // 初始化实时绘制数据字段
+                messages: [{ sender: '系统', text: `✨ 画室已创建！快将画室号【${code}】分享给对方，等待TA加入吧！`, time: Date.now() }],
+                p1: myIdentity,
+                p2: null
+            };
+
+            try {
+                await getRoomRef(code).set(initialData);
+                listenToRoom(code);
+                showToast(`画室 ${code} 创建成功`);
+            } catch (e) {
+                console.error(e);
+                showToast("创建画室失败");
+            }
+        };
+
+        window.joinRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!code || code.length !== 4) return showToast("请输入4位数字画室号");
+
+            try {
+                const res = await getRoomRef(code).get();
+                const data = res.data && res.data[0];
+                if (!data) return showToast("画室不存在");
+
+                if (data.status === 'waiting') {
+                    // 严格身份配对 & 容错逻辑
+                    const expectedPartner = getPartner(data.p1);
+                    let joinerId = myIdentity;
+
+                    if (data.p1 === myIdentity) {
+                        joinerId = expectedPartner + "(测试)";
+                        myIdentity = joinerId;
+                        document.getElementById('currentRoleDisplay').innerText = myIdentity + ' ' + getAvatar(myIdentity);
+                        showToast(`本地测试：自动分配为 ${joinerId}`);
+                    } else if (!myIdentity.includes(expectedPartner)) {
+                        return showToast(`该画室由 ${data.p1} 创建，仅限 ${expectedPartner} 加入哦！`);
+                    }
+
+                    const newMessages = [...(data.messages || [])];
+                    newMessages.push({ sender: '系统', text: `🎉 ${myIdentity} 加入了画室，默契考验正式开始！`, time: Date.now() });
+
+                    const updates = {
+                        p2: joinerId,
+                        status: 'playing',
+                        messages: newMessages
+                    };
+                    
+                    await getRoomRef(code).update(updates);
+                    
+                } else if (data.status === 'playing') {
+                    if (data.p1 !== myIdentity && data.p2 !== myIdentity) {
+                        return showToast("画室已满或正在进行中");
+                    }
+                }
+
+                listenToRoom(code);
+            } catch (e) {
+                console.error(e);
+                if (e.message === "DB_PERMISSION_DENIED" || (e.code && e.code.includes('PERMISSION'))) {
+                    return showToast("⚠️ 权限受限: 请在云开发控制台将 nhwcRooms 集合的权限设为【所有用户可读写】");
+                }
+                showToast("加入画室失败");
+            }
+        };
+
+        window.exitRoom = function() {
+            switchToLobby();
+        };
+
+        function listenToRoom(code) {
+            currentRoomId = code;
+            document.getElementById('lobbyView').classList.add('hidden');
+            document.getElementById('gameView').classList.remove('hidden');
+            
+            setTimeout(() => resizeCanvas(), 100);
+
+            if (unsubscribeRoom) unsubscribeRoom();
+            
+            const watcher = getRoomRef(code).watch({
+                onChange: (snapshot) => {
+                    const data = pickDoc(snapshot, code);
+                    if (data) {
+                        handleRemoteUpdate(data);
+                    } else {
+                        showToast("画室已解散");
+                        switchToLobby();
+                    }
+                },
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
+                }
+            });
+            unsubscribeRoom = () => watcher.close();
         }
 
         async function syncGameStateToCloud(diff) {
-            if (!hasFirebase || !currentUser) return;
+            if (!hasCloudBase || !currentRoomId) return;
             try {
-                const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'gameRoom', 'main');
-                await updateDoc(roomRef, diff);
+                await getRoomRef(currentRoomId).update(diff);
             } catch (e) {
                 console.error("Failed to update gameState:", e);
             }
         }
 
         function handleRemoteUpdate(data) {
-            const hadDifferentStrokes = JSON.stringify(data.strokes) !== JSON.stringify(currentGameState.strokes);
             currentGameState = data;
             renderGameUI();
-            if (hadDifferentStrokes) {
-                redrawAllStrokes();
-            }
+            // 每当云端数据刷新时，必然需要重绘（无论是已有线条增加，还是“实时笔画”发生了变动）
+            redrawAllStrokes();
             renderMessages();
         }
 
         function renderGameUI() {
-            const isMeDrawing = currentGameState.drawer === myRole;
+            if (!currentGameState) return;
 
-            // 头像与信息更新
-            document.getElementById('drawerAvatar').innerText = currentGameState.drawer === '哼哼' ? '🐰' : '🐱';
-            document.getElementById('drawerName').innerText = `${currentGameState.drawer} ${isMeDrawing ? '(你)' : ''} 正在作画`;
+            document.getElementById('displayRoomCode').innerText = currentRoomId;
+
+            const isMeDrawing = currentGameState.drawer === myIdentity;
+            
+            document.getElementById('drawerAvatar').innerText = getAvatar(currentGameState.drawer);
+            const drawPrefix = currentGameState.drawer ? currentGameState.drawer : '加载中';
+            document.getElementById('drawerName').innerText = `${drawPrefix} ${isMeDrawing ? '(你)' : ''}`;
             document.getElementById('wordCategory').innerText = currentGameState.category || '生活情调';
             document.getElementById('roundCounter').innerText = `第 ${currentGameState.round || 1} 轮`;
 
-            // 词条隐藏/显示
+            const waitingOverlay = document.getElementById('waitingOverlay');
+            if (currentGameState.status === 'waiting') {
+                waitingOverlay.classList.remove('hidden');
+            } else {
+                waitingOverlay.classList.add('hidden');
+            }
+
             const wordDisplay = document.getElementById('wordDisplay');
             if (isMeDrawing) {
                 wordDisplay.innerText = `✏️ 题目: ${currentGameState.word}`;
-                wordDisplay.className = "text-sm sm:text-base font-black text-rose-600 tracking-wide";
+                wordDisplay.className = "text-sm sm:text-base font-black text-rose-600 tracking-wide mt-0.5";
             } else {
                 if (currentGameState.completed) {
                     wordDisplay.innerText = `🎉 答案: ${currentGameState.word}`;
-                    wordDisplay.className = "text-sm sm:text-base font-black text-emerald-600 tracking-wide";
+                    wordDisplay.className = "text-sm sm:text-base font-black text-emerald-600 tracking-wide mt-0.5";
                 } else {
-                    const masked = currentGameState.word.split('').map(() => '🌸').join(' ');
-                    wordDisplay.innerText = `${masked} (${currentGameState.word.length}个字)`;
-                    wordDisplay.className = "text-sm sm:text-base font-black text-rose-400 tracking-wider";
+                    const masked = (currentGameState.word || '').split('').map(() => '🌸').join(' ');
+                    wordDisplay.innerText = `${masked} (${(currentGameState.word||'').length}个字)`;
+                    wordDisplay.className = "text-sm sm:text-base font-black text-rose-400 tracking-wider mt-0.5";
                 }
             }
 
-            // 顶部条及工具栏可用状态
             const toolsBar = document.getElementById('drawToolsBar');
             const bannerRoleTag = document.getElementById('bannerRoleTag');
             const hStatus = currentGameState.hintStatus || 'none';
@@ -481,9 +736,9 @@
             if (isMeDrawing) {
                 let hintHtml = `✏️ 轮到你画啦！提示：${currentGameState.hint}`;
                 if (hStatus === 'pending') {
-                    hintHtml = `✏️ 轮到你画啦！提示：${currentGameState.hint} <button onclick="approveHint()" class="ml-2 px-2 py-0.5 bg-rose-500 text-white rounded text-[10px] animate-pulse shadow-sm active:scale-95 transition-transform">同意对方看提示</button>`;
+                    hintHtml = `✏️ 提示：${currentGameState.hint} <button onclick="approveHint()" class="ml-2 px-2.5 py-1 bg-rose-500 text-white rounded font-bold text-[10px] animate-pulse shadow-sm active:scale-95 transition-transform">同意对方看提示</button>`;
                 } else if (hStatus === 'approved') {
-                    hintHtml = `✏️ 轮到你画啦！提示：${currentGameState.hint} <span class="ml-2 text-[10px] text-emerald-500 font-bold">(已给提示)</span>`;
+                    hintHtml = `✏️ 提示：${currentGameState.hint} <span class="ml-2 text-[10px] text-emerald-500 font-black">(已给提示)</span>`;
                 }
                 bannerRoleTag.innerHTML = hintHtml;
                 toolsBar.classList.remove('opacity-40', 'pointer-events-none');
@@ -492,15 +747,14 @@
                 if (hStatus === 'approved') {
                     guessHtml = `💡 提示：${currentGameState.hint}`;
                 } else if (hStatus === 'pending') {
-                    guessHtml += ` <span class="ml-2 text-rose-400 text-[10px] animate-pulse">等待对方同意提示...</span>`;
+                    guessHtml += ` <span class="ml-2 text-rose-400 text-[10px] font-bold animate-pulse">等待同意提示...</span>`;
                 } else {
-                    guessHtml += ` <button onclick="requestHintAction()" class="ml-2 px-2.5 py-0.5 bg-rose-100 text-rose-500 font-bold rounded-md border border-rose-200 hover:bg-rose-200 active:scale-95 transition-transform">求提示🥺</button>`;
+                    guessHtml += ` <button onclick="requestHintAction()" class="ml-2 px-3 py-1 bg-white text-rose-500 font-bold text-[10px] rounded-lg border border-rose-200 shadow-sm hover:bg-rose-50 active:scale-95 transition-transform">求提示 🥺</button>`;
                 }
                 bannerRoleTag.innerHTML = guessHtml;
                 toolsBar.classList.add('opacity-40', 'pointer-events-none');
             }
 
-            // 完成动画展示
             const overlay = document.getElementById('celebrationOverlay');
             if (currentGameState.completed) {
                 document.getElementById('winAnnouncement').innerText = `🎉 恭喜！${currentGameState.winner} 猜对啦！`;
@@ -514,33 +768,34 @@
         function renderMessages() {
             const box = document.getElementById('chatMessages');
             box.innerHTML = '';
-            if (!currentGameState.messages || currentGameState.messages.length === 0) {
-                box.innerHTML = `<div class="text-center text-xs text-gray-400 py-4">还未有猜词记录，开始你的第一次尝试吧！💖</div>`;
+            if (!currentGameState || !currentGameState.messages || currentGameState.messages.length === 0) {
+                box.innerHTML = `<div class="text-center text-xs font-medium text-gray-400 py-4 opacity-70">还未有猜词记录，开始你的尝试吧！💖</div>`;
                 return;
             }
 
             currentGameState.messages.forEach(msg => {
+                if(!msg) return; 
                 const isSys = msg.sender === '系统';
                 const isCorrect = msg.isCorrect;
-                const isMe = msg.sender === myRole;
+                const isMe = msg.sender === myIdentity;
 
                 const div = document.createElement('div');
-                div.className = `flex flex-col ${isSys ? 'items-center my-1' : isMe ? 'items-end' : 'items-start'}`;
+                div.className = `flex flex-col ${isSys ? 'items-center my-1.5' : isMe ? 'items-end' : 'items-start'}`;
 
                 if (isSys) {
-                    div.innerHTML = `<span class="px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-[11px] font-medium border border-rose-100">${msg.text}</span>`;
+                    div.innerHTML = `<span class="px-4 py-1.5 bg-rose-50 text-rose-500 rounded-full text-[11px] font-bold border border-rose-100 shadow-sm">${msg.text}</span>`;
                 } else if (isCorrect) {
                     div.innerHTML = `
-                        <div class="bg-gradient-to-r from-emerald-400 to-teal-400 text-white px-3 py-1.5 rounded-2xl text-xs font-bold shadow-sm flex items-center gap-1">
-                            <span>✨ ${msg.sender} 猜中了答案【${msg.text}】！默契值爆棚！</span>
+                        <div class="bg-gradient-to-r from-emerald-400 to-teal-400 text-white px-4 py-2 rounded-2xl text-xs font-black shadow-md flex items-center gap-1.5 my-1">
+                            <span>✨ ${msg.sender} 猜中了答案【${msg.text}】！默契满分！</span>
                         </div>
                     `;
                 } else {
                     div.innerHTML = `
-                        <div class="flex items-center gap-1 mb-0.5">
-                            <span class="text-[10px] text-gray-400">${msg.sender}</span>
+                        <div class="flex items-center gap-1 mb-0.5 px-1">
+                            <span class="text-[10px] font-bold text-gray-400">${msg.sender}</span>
                         </div>
-                        <div class="px-3 py-1.5 rounded-2xl text-xs font-medium ${isMe ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-700'} max-w-[80%] break-words">
+                        <div class="px-3.5 py-2 rounded-2xl text-xs font-bold shadow-sm ${isMe ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-br-sm' : 'bg-white border border-gray-100 text-gray-700 rounded-bl-sm'} max-w-[80%] break-words">
                             ${msg.text}
                         </div>
                     `;
@@ -554,35 +809,40 @@
             e.preventDefault();
             const input = document.getElementById('guessInput');
             const guess = input.value.trim();
-            if (!guess) return;
+            if (!guess || currentGameState.status === 'waiting') return;
             input.value = '';
 
             const isCorrect = guess.toLowerCase() === currentGameState.word.toLowerCase();
             const newMsg = {
-                sender: myRole,
+                sender: myIdentity,
                 text: guess,
                 isCorrect: isCorrect,
                 time: Date.now()
             };
 
-            const updatedMessages = [...(currentGameState.messages || []), newMsg];
-            const updates = { messages: updatedMessages };
+            const updates = {};
+            
+            const currentMsgs = currentGameState.messages || [];
+            const msgsToAppend = [newMsg];
 
             if (isCorrect && !currentGameState.completed) {
                 updates.completed = true;
-                updates.winner = myRole;
-                updates.messages.push({
+                updates.winner = myIdentity;
+                msgsToAppend.push({
                     sender: '系统',
-                    text: `🎊 恭喜！${myRole} 破解了心动暗号！即将互换身份开启下一题...`,
+                    text: `🎊 恭喜！${myIdentity} 破解了心动暗号！即将开启下一题...`,
                     time: Date.now()
                 });
             }
 
-            currentGameState.messages = updates.messages;
+            updates.messages = [...currentMsgs, ...msgsToAppend];
+            
+            const localMsgs = updates.messages;
+            currentGameState.messages = localMsgs;
             let justWon = false;
             if (updates.completed) {
                 currentGameState.completed = true;
-                currentGameState.winner = myRole;
+                currentGameState.winner = myIdentity;
                 justWon = true;
             }
             renderGameUI();
@@ -590,20 +850,26 @@
 
             await syncGameStateToCloud(updates);
 
-            // 如果本条猜测直接触发了胜利，则3秒后自动轮换到下一题，并互换画画身份
             if (justWon) {
                 setTimeout(() => {
                     triggerNextRound(true);
-                }, 3000);
+                }, 3500);
             }
         };
 
         window.triggerNextRound = async function(swapDrawer = false) {
-            // 如果 swapDrawer 为真，互换角色；否则保持原画师
-            const nextDrawer = swapDrawer ? (currentGameState.drawer === '哼哼' ? '亲亲' : '哼哼') : currentGameState.drawer;
-            // 随机抽取新词汇
+            const otherRole = (currentGameState.drawer === currentGameState.p1) ? currentGameState.p2 : currentGameState.p1;
+            const nextDrawer = (swapDrawer && otherRole) ? otherRole : currentGameState.drawer;
+            
             const pool = WORD_BANK.filter(w => w.word !== currentGameState.word);
             const nextWordObj = pool[Math.floor(Math.random() * pool.length)] || WORD_BANK[0];
+
+            const currentMsgs = currentGameState.messages || [];
+            const nextMsg = { 
+                sender: '系统', 
+                text: swapDrawer ? `🎊 答对啦！第 ${(currentGameState.round || 1) + 1} 轮开始，由 ${nextDrawer} 接棒画画 🎨` : `第 ${(currentGameState.round || 1) + 1} 轮开始！更换了新题目 🎨`, 
+                time: Date.now() 
+            };
 
             const nextData = {
                 drawer: nextDrawer,
@@ -615,41 +881,34 @@
                 winner: '',
                 hintStatus: 'none',
                 strokes: [],
-                messages: [
-                    ...(currentGameState.messages || []).slice(-15),
-                    { sender: '系统', text: swapDrawer ? `🎊 答对啦！第 ${(currentGameState.round || 1) + 1} 轮开始，由 ${nextDrawer} 接棒画画 🎨` : `第 ${(currentGameState.round || 1) + 1} 轮开始！更换了新题目 🎨`, time: Date.now() }
-                ]
+                currentStroke: null,
+                // 仅保留最近20条消息防臃肿
+                messages: [...currentMsgs.slice(-20), nextMsg]
             };
-
-            currentGameState = nextData;
-            renderGameUI();
-            redrawAllStrokes();
-            renderMessages();
 
             await syncGameStateToCloud(nextData);
             showToast(swapDrawer ? `恭喜答对！轮到 ${nextDrawer} 画画啦` : `已为您换题！`);
         };
 
         window.requestNewRound = function() {
-            if (currentGameState.drawer !== myRole) {
+            if (currentGameState.drawer !== myIdentity) {
                 showToast("只有当前主画人可以换题哦！");
                 return;
             }
-            // 仅换题，不换人
             triggerNextRound(false);
         };
 
         window.requestHintAction = async function() {
+            if (currentGameState.status === 'waiting') return;
             const hStatus = currentGameState.hintStatus || 'none';
             if (hStatus !== 'none') return;
             
+            const currentMsgs = currentGameState.messages || [];
             const updates = { 
                 hintStatus: 'pending',
-                messages: [
-                    ...(currentGameState.messages || []),
-                    { sender: '系统', text: `🥺 【${myRole}】遇到困难，向对方发起了提示申请！`, time: Date.now() }
-                ]
+                messages: [...currentMsgs, { sender: '系统', text: `🥺 【${myIdentity}】向对方发起了提示申请！`, time: Date.now() }]
             };
+            
             currentGameState.hintStatus = 'pending';
             currentGameState.messages = updates.messages;
             renderGameUI();
@@ -662,13 +921,12 @@
             const hStatus = currentGameState.hintStatus || 'none';
             if (hStatus !== 'pending') return;
             
+            const currentMsgs = currentGameState.messages || [];
             const updates = { 
                 hintStatus: 'approved',
-                messages: [
-                    ...(currentGameState.messages || []),
-                    { sender: '系统', text: `✨ 【${myRole}】心软啦，同意了提示申请！猜词方可以看提示了！`, time: Date.now() }
-                ]
+                messages: [...currentMsgs, { sender: '系统', text: `✨ 【${myIdentity}】心软啦，同意了提示申请！猜词方可以看提示了！`, time: Date.now() }]
             };
+            
             currentGameState.hintStatus = 'approved';
             currentGameState.messages = updates.messages;
             renderGameUI();
@@ -677,30 +935,14 @@
             showToast("已给出提示！");
         };
 
-        window.selectIdentity = function(role) {
-            myRole = role;
-            const btnH = document.getElementById('roleBtnH');
-            const btnQ = document.getElementById('roleBtnQ');
-
-            if (role === '哼哼') {
-                btnH.className = "px-2.5 py-1 rounded-full font-bold transition-all bg-rose-500 text-white shadow-xs";
-                btnQ.className = "px-2.5 py-1 rounded-full font-bold transition-all text-rose-500 hover:bg-rose-50";
-            } else {
-                btnQ.className = "px-2.5 py-1 rounded-full font-bold transition-all bg-rose-500 text-white shadow-xs";
-                btnH.className = "px-2.5 py-1 rounded-full font-bold transition-all text-rose-500 hover:bg-rose-50";
-            }
-            renderGameUI();
-            showToast(`已切换身份为：${role}`);
-        };
-
         window.setColor = function(hex) {
             isEraser = false;
             currentColor = hex;
             document.querySelectorAll('.color-btn').forEach(btn => {
                 if (btn.getAttribute('data-color') === hex) {
-                    btn.classList.add('ring-2', 'ring-rose-400');
+                    btn.classList.add('ring-2', 'ring-rose-400', 'scale-110');
                 } else {
-                    btn.classList.remove('ring-2', 'ring-rose-400');
+                    btn.classList.remove('ring-2', 'ring-rose-400', 'scale-110');
                 }
             });
         };
@@ -715,13 +957,14 @@
         };
 
         window.clearCanvasAction = async function() {
-            if (currentGameState.drawer !== myRole) {
+            if (currentGameState.drawer !== myIdentity) {
                 showToast("只有当前画画的人可以清空画板哦");
                 return;
             }
             currentGameState.strokes = [];
+            currentStroke = null;
             redrawAllStrokes();
-            await syncGameStateToCloud({ strokes: [] });
+            await syncGameStateToCloud({ strokes: [], currentStroke: null });
             showToast("画板已清空");
         };
 
@@ -736,20 +979,13 @@
             }, 3000);
         }
 
-        // 初始化
-        window.addEventListener('load', async () => {
-            resizeCanvas();
-            // 先拉取云端题库，再初始化游戏数据
+        async function bootstrap() {
             await fetchWordsFromGithub();
-            await initAuthAndData();
-            
-            // 数据初始化完成后隐藏全局加载遮罩
-            const loadingOverlay = document.getElementById('globalLoading');
-            if(loadingOverlay) {
-                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
-            }
-        });
+            await initAuth();
+        }
+
+        bootstrap();
+
     </script>
 </body>
 </html>
