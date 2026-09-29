@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端 UNO 🌈</title>
+    <title>云端 UNO 哈哈哈🌈</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.cloudbase.net">
@@ -76,25 +76,27 @@
             flex-direction: column;
             justify-content: space-between;
             padding: 0.25rem;
-            /* 多重边框与立体阴影 */
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2), inset 0 0 0 4px white;
+            /* 增强左侧阴影隔离，防止堆叠时视觉串联 */
+            box-shadow: -3px 0 8px rgba(0,0,0,0.15), 0 4px 8px rgba(0,0,0,0.2), inset 0 0 0 2px white;
             position: relative;
             background-color: white;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 2px solid white; /* 强化实体边框 */
             transition: transform 0.2s, margin 0.2s;
             flex-shrink: 0;
             cursor: pointer;
             transform-origin: bottom center;
             overflow: hidden; /* 裁剪卡牌内部元素 */
+            -webkit-backface-visibility: hidden; /* 强制硬件加速，修复Safari溢出圆角裁剪失效 */
+            transform: translateZ(0);
         }
         @media (min-width: 640px) {
             .uno-card { width: 5.5rem; height: 8rem; }
         }
 
         .uno-card:hover:not(.disabled) {
-            transform: translateY(-15px) scale(1.05);
+            transform: translateY(-15px) scale(1.05) translateZ(0);
             z-index: 50;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 0 4px white;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3), inset 0 0 0 2px white;
         }
 
         /* 经典白色斜向内椭圆 */
@@ -356,6 +358,8 @@
                     <div class="flex gap-4 items-center mt-4">
                         <!-- 牌库 (摸牌区) -->
                         <div class="relative cursor-pointer hover:scale-105 active:scale-95 transition-transform" onclick="handleDrawCard()" id="drawPileBtn">
+                            <!-- 新增：无牌可出时的提示箭头 -->
+                            <div id="drawHintArrow" class="absolute -top-10 left-1/2 transform -translate-x-1/2 text-4xl animate-bounce z-20 hidden drop-shadow-md">👇</div>
                             <div class="uno-card card-back shadow-lg border-4 border-gray-100">
                                 <div class="text-3xl text-white opacity-80 font-black tracking-widest transform -rotate-45">UNO</div>
                             </div>
@@ -747,8 +751,12 @@
             // 优化：动态计算我的卡牌重叠度，超过 8 张时增强重叠
             const myOverlapMargin = myHand.length > 8 ? `-${Math.min(3.5, 1.5 + myHand.length * 0.1)}rem` : '';
             
+            let hasValidCardToPlay = false;
+
             myHand.forEach((card, index) => {
                 const isValid = isValidPlay(card, topCard, gameState.currentColor);
+                if (isValid) hasValidCardToPlay = true;
+
                 const el = document.createElement('div');
                 el.className = `uno-card ${getCardColorClass(card.color)} ${(!isMyTurn || !isValid) ? 'disabled' : ''}`;
                 
@@ -769,6 +777,16 @@
                 }
                 myHandArea.appendChild(el);
             });
+
+            // 摸牌提示箭头逻辑：轮到我且无牌可出时显示
+            const drawHint = document.getElementById('drawHintArrow');
+            if (drawHint) {
+                if (isMyTurn && !hasValidCardToPlay) {
+                    drawHint.classList.remove('hidden');
+                } else {
+                    drawHint.classList.add('hidden');
+                }
+            }
 
             // 渲染日志
             const logBox = document.getElementById('eventLogs');
