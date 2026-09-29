@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生化逃生舱1</title>
+    <title>生化逃生舱</title>
     <!-- 引入腾讯云开发 SDK 和 Tailwind -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -153,7 +153,7 @@
             </div>
             
             <div class="bg-zinc-800/80 rounded-lg p-4 border border-zinc-700 text-left text-sm text-zinc-400 space-y-2">
-                <p><b class="text-red-400">🚨 怪物巡逻：</b>异形每回合靠近。单人遭遇必死，两人相邻或同格可将其击退。</p>
+                <comment-tag id="1"><p><b class="text-red-400">🚨 怪物巡逻：</b>异形每回合靠近。单人遭遇必死，两人相邻或同格可将其击退。</p></comment-tag id="1" text="<p><b class="text-red-400">🚨 异形追击：</b>异形每回合随机狂奔1-3格！但在扑杀前会在你面前停顿1回合（防瞬移秒杀）。单人遭遇必死，双人相邻可将其击退。</p>" type="suggestion">
                 <p><b class="text-purple-400">📦 探索盲盒：</b>点击未知房间移动，可能找到能开启逃生舱的<b class="text-green-400">密匙</b>，也可能是陷阱。</p>
                 <p><b class="text-yellow-500">💥 倒塌轮盘：</b>每回合结束，随机1-2个房间会永久塌陷，掉入即死。</p>
                 <p><b class="text-zinc-100">🔪 背叛时刻：</b>你可以随时消耗回合点击“暗算”，引爆队友所在的区域。逃命时千万别手软！</p>
@@ -170,7 +170,7 @@
                 <div class="flex items-center gap-3 bg-zinc-900 px-4 py-1.5 rounded border border-zinc-800">
                     <div class="flex flex-col items-center">
                         <span id="p1NameDisplay" class="text-xs font-black text-red-500">等待</span>
-                        <span id="p1Status" class="text-[10px] text-zinc-400">❤️ 存活</span>
+                        <span id="p1Status" class="text-[10px] text-zinc-400">❤️️ 存活</span>
                     </div>
                     <div class="text-zinc-600 font-black italic text-sm">VS</div>
                     <div class="flex flex-col items-center">
@@ -587,10 +587,18 @@
                 } else if (rand < 0.4 && !me.hasGun) {
                     me.hasGun = true;
                     logs.push(`🎒 <span class="text-blue-400">${myName} 搜刮到了一个急救包。</span>`);
-                } else if (rand < 0.6) {
+                <comment-tag id="2">} else if (rand < 0.6) {
                     stateUpdate.monster.pos = newPos;
                     logs.push(`👾 <span class="text-purple-400">糟了！盲盒里跳出了变异体！它就在你面前！</span>`);
-                } else {
+                }</comment-tag id="2" text="} else if (rand < 0.6) {
+                    let adjCells = [newPos - 1, newPos + 1, newPos - GRID_W, newPos + GRID_W].filter(p => p >= 0 && p < 49 && !stateUpdate.collapsed.includes(p) && Math.abs((p%GRID_W) - (newPos%GRID_W)) <= 1);
+                    if(adjCells.length > 0) {
+                        stateUpdate.monster.pos = adjCells[Math.floor(Math.random() * adjCells.length)];
+                        logs.push(`👾 <span class="text-purple-400">警报！附近的阴影中窜出了变异体！它盯上你了！</span>`);
+                    } else {
+                        logs.push(`📦 房间里阴森森的，但似乎暂时安全。`);
+                    }
+                }" type="suggestion"> else {
                     logs.push(`📦 房间里空空如也，只有冷风吹过。`);
                 }
             }
@@ -627,7 +635,7 @@
             if(state.p2.alive) targets.push(state.p2.pos);
             
             if(targets.length > 0) {
-                let mPos = state.monster.pos;
+                <comment-tag id="3">let mPos = state.monster.pos;
                 let mX = mPos % GRID_W, mY = Math.floor(mPos / GRID_W);
                 
                 let minDist = 999, bestTarget = mPos;
@@ -643,7 +651,52 @@
                     else if(mY < tY) mY++; else if(mY > tY) mY--;
                     state.monster.pos = mY * GRID_W + mX;
                     logs.push(`👾 变异体嗅到了血肉的味道，正在逼近...`);
+                }</comment-tag id="3" text="let mPos = state.monster.pos;
+                let steps = Math.floor(Math.random() * 3) + 1; // 随机移动1-3格
+                let movedSteps = 0;
+                let fellIntoTrap = false;
+
+                for (let s = 0; s < steps; s++) {
+                    let mX = mPos % GRID_W, mY = Math.floor(mPos / GRID_W);
+                    
+                    // 每次移动前重新寻找最近的存活玩家目标
+                    let minDist = 999, bestTarget = mPos;
+                    targets.forEach(tPos => {
+                        let tX = tPos % GRID_W, tY = Math.floor(tPos / GRID_W);
+                        let dist = Math.abs(tX - mX) + Math.abs(tY - mY);
+                        if(dist < minDist) { minDist = dist; bestTarget = tPos; }
+                    });
+
+                    if (minDist === 0) break; // 已经抓到玩家
+                    
+                    // 防瞬移核心逻辑：如果不是本次移动的第一步，且距离玩家只剩1格了，就强行停下。
+                    // 这样如果异形原本离得远，即使摇到了3格，也会在扑到脸上的那一刻停住，留给玩家一回合反应时间。
+                    if (minDist === 1 && s > 0) break;
+
+                    let tX = bestTarget % GRID_W, tY = Math.floor(bestTarget / GRID_W);
+                    let nextX = mX, nextY = mY;
+                    
+                    if (mX < tX) nextX++; else if (mX > tX) nextX--;
+                    else if (mY < tY) nextY++; else if (mY > tY) nextY--;
+                    
+                    let nextPos = nextY * GRID_W + nextX;
+                    mPos = nextPos;
+                    movedSteps++;
+
+                    // 怪物踩到塌陷区会复活（防止怪物卡在死胡同无敌）
+                    if (state.collapsed.includes(mPos)) {
+                        fellIntoTrap = true;
+                        break;
+                    }
                 }
+
+                if (fellIntoTrap) {
+                    state.monster.pos = 0;
+                    logs.push(`👾 变异体在狂奔时掉入了坍塌区域，随后在休眠舱重新出现！`);
+                } else if (movedSteps > 0) {
+                    state.monster.pos = mPos;
+                    logs.push(`👾 变异体发出一声嘶吼，快速逼近了 ${movedSteps} 格！`);
+                }" type="suggestion">
 
                 // ==========================================
                 // 修复 2 & 3：同格也算火力覆盖，修复重复播报 Bug
@@ -718,3 +771,5 @@ function submitUpdate(stateUpdate) {
     </script>
 </body>
 </html>
+```eof
+*建议已添加*
