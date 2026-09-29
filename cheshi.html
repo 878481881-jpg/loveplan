@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生化逃生舱：只有一个名额 ☣️</title>
+    <title>生化逃生舱</title>
     <!-- 引入腾讯云开发 SDK 和 Tailwind -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,7 +11,7 @@
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #18181b; /* 暗黑科幻背景 */
+            background-color: #18181b; 
             background-image: 
                 radial-gradient(#3f3f46 2px, transparent 2px),
                 radial-gradient(#3f3f46 2px, transparent 2px);
@@ -22,14 +22,12 @@
             touch-action: manipulation;
         }
 
-        /* 呼吸灯特效 - 警报 */
         @keyframes alertPulse {
-            0%, 100% { opacity: 0.2; }
-            50% { opacity: 0.6; }
+            0%, 100% { opacity: 0.15; }
+            50% { opacity: 0.4; }
         }
         .alert-bg { animation: alertPulse 3s infinite; }
 
-        /* 实体移动平滑过渡 */
         .entity-transition { 
             transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.3s ease, top 0.3s ease; 
             will-change: transform, left, top;
@@ -123,7 +121,7 @@
         </div>
         <div class="flex flex-col items-end">
             <div class="bg-zinc-800/90 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                探险家: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded bg-zinc-600 text-white">加载中</span>
+                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded bg-zinc-600 text-white">加载中</span>
             </div>
         </div>
     </header>
@@ -155,10 +153,10 @@
             </div>
             
             <div class="bg-zinc-800/80 rounded-lg p-4 border border-zinc-700 text-left text-sm text-zinc-400 space-y-2">
-                <p><b class="text-red-400">🚨 怪物巡逻：</b>异形每回合靠近你们。单人遭遇必死，两人相邻可“火力覆盖”将其击退。</p>
-                <p><b class="text-purple-400">📦 探索盲盒：</b>点击未知房间移动，可能找到能开启逃生舱的<b class="text-green-400">密匙</b>，也可能遭遇陷阱。</p>
-                <p><b class="text-yellow-500">💥 倒塌轮盘：</b>每回合结束，随机房间会永久塌陷，掉入即死。</p>
-                <p><b class="text-zinc-100">🔪 背叛时刻：</b>你可以随时消耗回合点击“暗算”，将队友所在区域引爆。逃命时千万别手软！</p>
+                <p><b class="text-red-400">🚨 怪物巡逻：</b>异形每回合靠近。单人遭遇必死，两人相邻或同格可将其击退。</p>
+                <p><b class="text-purple-400">📦 探索盲盒：</b>点击未知房间移动，可能找到能开启逃生舱的<b class="text-green-400">密匙</b>，也可能是陷阱。</p>
+                <p><b class="text-yellow-500">💥 倒塌轮盘：</b>每回合结束，随机1-2个房间会永久塌陷，掉入即死。</p>
+                <p><b class="text-zinc-100">🔪 背叛时刻：</b>你可以随时消耗回合点击“暗算”，引爆队友所在的区域。逃命时千万别手软！</p>
             </div>
         </div>
 
@@ -182,7 +180,7 @@
                 </div>
             </div>
 
-            <div id="turnBanner" class="w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-300 border-l-4 border-zinc-500 shadow-md">
+            <div id="turnBanner" class="w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-300 border-l-4 border-zinc-500 shadow-md transition-all">
                 等待幸存者加入...
             </div>
 
@@ -201,7 +199,7 @@
                     <button id="btnBetray" onclick="handleBetray()" class="w-full py-3 bg-red-900/80 text-white font-bold text-xs rounded border border-red-700 hover:bg-red-800 active:scale-95 transition-all shadow-[0_0_10px_rgba(153,27,27,0.5)]">
                         🔪 锁死暗算<br><span class="text-[8px] font-normal text-red-300">(消耗本回合)</span>
                     </button>
-                    <div class="text-center text-[10px] text-zinc-400 mt-1">点击相邻高亮网格<br>进行探索移动</div>
+                    <div class="text-center text-[10px] text-zinc-400 mt-1">点击自己可原地警戒<br>点击相邻进行移动</div>
                 </div>
 
                 <!-- 日志区 -->
@@ -219,7 +217,6 @@
     </main>
 
     <script type="module">
-        // --- 腾讯云 CloudBase 设定 ---
         const fallbackTimer = setTimeout(() => hideLoading(), 800);
 
         const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 请替换为您的云开发ID
@@ -248,7 +245,16 @@
             hasCloudBase = true;
         } catch(e) { console.error("CloudBase init failed", e); }
 
+        // ==========================================
+        // 修复 1：读取身份逻辑与 fxq.html 保持完全一致
+        // ==========================================
         let myIdentity = "探险家" + Math.floor(Math.random()*1000); 
+        try {
+            const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
+            if (savedIdentity) myIdentity = savedIdentity;
+        } catch(e) {
+            console.warn('当前环境禁止访问 localStorage, 使用随机名字');
+        }
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
@@ -257,10 +263,9 @@
         let gameState = null; 
         let myPlayerId = null;
 
-        // --- 游戏逻辑配置 ---
         const GRID_W = 7;
         const GRID_H = 7;
-        const POD_POS = 24; // 中心 3,3 (y*7+x = 3*7+3 = 24)
+        const POD_POS = 24; 
 
         function getCoordPercent(index) {
             const x = index % GRID_W;
@@ -281,7 +286,6 @@
                 const div = document.createElement('div');
                 div.id = `cell-${i}`;
                 div.className = `board-cell cell-unknown`;
-                // 优化：原文件复用了 onClick 事件进行交互
                 div.onclick = () => handleCellClick(i);
                 
                 if(i === POD_POS) {
@@ -328,7 +332,6 @@
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
         }
 
-        // --- 云端对战逻辑复用[cite: 1] ---
         window.createRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
@@ -337,7 +340,7 @@
                 status: 'waiting', 
                 p1: { name: myName, pos: 0, alive: true, hasGun: false, hasKey: false },
                 p2: { name: null, pos: 48, alive: true, hasGun: false, hasKey: false },
-                monster: { pos: 6 }, // 初始位于右上角
+                monster: { pos: 6 }, 
                 turn: 'p1', 
                 searched: [0, 48],
                 collapsed: [],
@@ -348,7 +351,7 @@
             };
 
             try {
-                await getRoomRef(code).set(initialData); //[cite: 1]
+                await getRoomRef(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
             } catch (e) { showToast("创建失败"); }
@@ -360,12 +363,12 @@
             if (code.length !== 4) return showToast("输入4位频段");
 
             try {
-                const res = await getRoomRef(code).get(); //[cite: 1]
+                const res = await getRoomRef(code).get();
                 const data = res.data && res.data[0];
                 if (!data) return showToast("信号不存在");
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    await getRoomRef(code).update({ //[cite: 1]
+                    await getRoomRef(code).update({
                         'p2.name': myName,
                         status: 'playing',
                         logs: [`${myName} 加入！警报拉响，变异体已出笼！红方先走。`, ...data.logs]
@@ -402,11 +405,10 @@
                     }
                 },
                 onError: () => showToast("同步断开")
-            }); //[cite: 1]
+            });
             unsubscribeRoom = () => watcher.close();
         }
 
-        // --- 渲染逻辑 ---
         function renderGameState() {
             if (!gameState) return;
 
@@ -430,18 +432,18 @@
             const overlay = document.getElementById('boardOverlay');
             
             if (gameState.status === 'waiting') {
-                banner.innerText = '等待幸存者加入...'; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded text-center text-sm font-bold text-zinc-400";
+                banner.innerText = '等待幸存者加入...'; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-400";
                 overlay.classList.remove('hidden');
             } else if (gameState.status === 'playing') {
                 if (gameState[myPlayerId].alive === false) {
-                    banner.innerText = '你已死亡，正在观战...'; banner.className = "w-full py-2 px-4 bg-red-900/50 rounded text-center text-sm font-bold text-red-500";
+                    banner.innerText = '你已死亡，正在观战...'; banner.className = "w-full py-2 px-4 bg-red-900/50 rounded-lg text-center text-sm font-bold text-red-500 border border-red-700";
                     overlay.classList.remove('hidden');
                 } else if (isMyTurn) {
-                    banner.innerText = '轮到你了！点击相邻格子移动或暗算队友！'; banner.className = "w-full py-2 px-4 bg-green-900/40 rounded text-center text-sm font-bold text-green-400 border border-green-700 animate-pulse";
+                    banner.innerText = '轮到你了！点击相邻格子或暗算队友！'; banner.className = "w-full py-2 px-4 bg-green-900/40 rounded-lg text-center text-sm font-bold text-green-400 border border-green-700 animate-pulse";
                     overlay.classList.add('hidden');
                 } else {
                     const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    banner.innerText = `等待 ${activeName} 行动...`; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded text-center text-sm font-bold text-zinc-400";
+                    banner.innerText = `等待 ${activeName} 行动...`; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-400";
                     overlay.classList.remove('hidden');
                 }
             }
@@ -449,7 +451,6 @@
             document.getElementById('btnBetray').disabled = !isMyTurn;
             document.getElementById('btnBetray').style.opacity = isMyTurn ? 1 : 0.4;
 
-            // 渲染地图网格状态
             for(let i=0; i<49; i++) {
                 const cell = document.getElementById(`cell-${i}`);
                 if(gameState.collapsed.includes(i)) {
@@ -468,7 +469,6 @@
                 }
             }
 
-            // 渲染实体位置 (借鉴飞行棋原坐标算法)[cite: 1]
             const renderEntity = (id, pos, isVisible) => {
                 const el = document.getElementById(id);
                 if(!isVisible || pos < 0) { el.classList.add('hidden'); return; }
@@ -482,7 +482,6 @@
             renderEntity('ent-p2', gameState.p2.pos, gameState.p2.alive);
             renderEntity('ent-monster', gameState.monster.pos, true);
 
-            // 渲染日志
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
@@ -493,7 +492,6 @@
                 logBox.appendChild(div);
             });
 
-            // 结算面板
             if (gameState.status === 'finished') {
                 overlay.classList.remove('hidden');
                 document.getElementById('msgModal').classList.remove('hidden');
@@ -502,7 +500,6 @@
             }
         }
 
-        // --- 交互与游戏核心规则 ---
         function isAdjacent(pos1, pos2) {
             const x1 = pos1 % GRID_W, y1 = Math.floor(pos1 / GRID_W);
             const x2 = pos2 % GRID_W, y2 = Math.floor(pos2 / GRID_W);
@@ -513,7 +510,9 @@
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState[myPlayerId].alive) return;
             const myPos = gameState[myPlayerId].pos;
             
-            // 校验：必须是相邻且未坍塌的格子
+            // ==========================================
+            // 修复 4：允许点击自己所在的格子（原地警戒/跳过回合）
+            // ==========================================
             if (!isAdjacent(myPos, targetPos) && targetPos !== myPos) return showToast("只能移动到相邻房间");
             if (gameState.collapsed.includes(targetPos)) return showToast("该房间已坍塌！");
 
@@ -529,7 +528,6 @@
             let logs = [...stateUpdate.logs];
             const oppPos = stateUpdate[oppId].pos;
 
-            // 找到对手周围可坍塌的房间
             let validTraps = [];
             for(let i=0; i<49; i++) {
                 if(isAdjacent(oppPos, i) && !stateUpdate.collapsed.includes(i) && i !== POD_POS) {
@@ -537,35 +535,39 @@
                 }
             }
 
-            logs.push(`<span class="text-red-500 font-bold">⚠️ ${myName} 黑入了基地系统！试图封死对手的退路！</span>`);
+            logs.push(`<span class="text-red-500 font-bold">⚠️ ${myName} 黑入了基地系统！试图封死队友的退路！</span>`);
             
             if(validTraps.length > 0) {
-                // 随机坍塌对手身边的一个房间
                 const trapPos = validTraps[Math.floor(Math.random() * validTraps.length)];
                 stateUpdate.collapsed.push(trapPos);
-                logs.push(`💥 房间 [${trapPos%7},${Math.floor(trapPos/7)}] 被人工强制引爆坍塌！`);
+                logs.push(`💥 房间 [${trapPos%7},${Math.floor(trapPos/7)}] 被强行引爆坍塌！`);
                 
-                // 如果刚好连累了怪物，怪物重置
                 if(stateUpdate.monster.pos === trapPos) {
-                    stateUpdate.monster.pos = 0; // 重置到角落
-                    logs.push(`👾 怪物掉入了人工制造的深渊，但在别处重新爬上来了。`);
+                    stateUpdate.monster.pos = 0; 
+                    logs.push(`👾 变异体掉入了人工制造的深渊，但在别处重新爬上来了。`);
                 }
             } else {
-                logs.push(`⚠️ 周围没有可供引爆的结构，暗算落空！`);
+                logs.push(`⚠️ 对手周围没有可供引爆的结构，暗算落空！`);
             }
 
             finalizeTurn(stateUpdate, logs);
         };
 
         function executePlayerTurn(newPos) {
-            let stateUpdate = JSON.parse(JSON.stringify(gameState)); // 深度拷贝
+            let stateUpdate = JSON.parse(JSON.stringify(gameState)); 
             let logs = stateUpdate.logs;
             let me = stateUpdate[myPlayerId];
+            const oldPos = me.pos;
             
             me.pos = newPos;
-            logs.push(`👣 ${myName} 移动到了房间 [${newPos%7},${Math.floor(newPos/7)}]`);
 
-            // 检查逃生
+            // 根据是否是原地不动改变播报日志
+            if (oldPos === newPos) {
+                logs.push(`👣 ${myName} 原地警戒，屏住了呼吸。`);
+            } else {
+                logs.push(`👣 ${myName} 移动到了房间 [${newPos%7},${Math.floor(newPos/7)}]`);
+            }
+
             if (newPos === POD_POS && stateUpdate.podActive) {
                 stateUpdate.status = 'finished';
                 stateUpdate.winner = myPlayerId;
@@ -575,7 +577,6 @@
                 return;
             }
 
-            // 盲盒逻辑
             if (!stateUpdate.searched.includes(newPos)) {
                 stateUpdate.searched.push(newPos);
                 const rand = Math.random();
@@ -598,21 +599,16 @@
         }
 
         function finalizeTurn(stateUpdate, logs) {
-            // 轮换回合
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             let nextTurn = oppId;
 
-            // 如果此时是 P2 回合结束，或者是 P1 行动但 P2 已死 -> 触发世界回合（怪物+坍塌）
             if (myPlayerId === 'p2' || (myPlayerId === 'p1' && !stateUpdate.p2.alive)) {
                 processWorldEvents(stateUpdate, logs);
-                // 世界事件后如果 P1 还活着，给 P1，否则给 P2
                 nextTurn = stateUpdate.p1.alive ? 'p1' : (stateUpdate.p2.alive ? 'p2' : 'p1');
             } else if (!stateUpdate.p2.alive) {
-                // 如果P2本来就是死的，那不用转交回合，继续刚才处理的世界事件逻辑
                 nextTurn = 'p1';
             }
 
-            // 如果全死
             if (!stateUpdate.p1.alive && !stateUpdate.p2.alive) {
                 stateUpdate.status = 'finished';
                 stateUpdate.winner = null;
@@ -625,9 +621,7 @@
             submitUpdate(stateUpdate);
         }
 
-        // --- 怪物与环境系统 ---
         function processWorldEvents(state, logs) {
-            // 1. 怪物行动 (寻找最近的活人)
             let targets = [];
             if(state.p1.alive) targets.push(state.p1.pos);
             if(state.p2.alive) targets.push(state.p2.pos);
@@ -636,7 +630,6 @@
                 let mPos = state.monster.pos;
                 let mX = mPos % GRID_W, mY = Math.floor(mPos / GRID_W);
                 
-                // 找出距离最近的玩家
                 let minDist = 999, bestTarget = mPos;
                 targets.forEach(tPos => {
                     let tX = tPos % GRID_W, tY = Math.floor(tPos / GRID_W);
@@ -644,7 +637,6 @@
                     if(dist < minDist) { minDist = dist; bestTarget = tPos; }
                 });
 
-                // 寻路向最近玩家走1步
                 if(minDist > 0) {
                     let tX = bestTarget % GRID_W, tY = Math.floor(bestTarget / GRID_W);
                     if(mX < tX) mX++; else if(mX > tX) mX--;
@@ -653,63 +645,65 @@
                     logs.push(`👾 变异体嗅到了血肉的味道，正在逼近...`);
                 }
 
-                // 判定遭遇战
+                // ==========================================
+                // 修复 2 & 3：同格也算火力覆盖，修复重复播报 Bug
+                // ==========================================
                 let p1Hit = state.p1.alive && state.monster.pos === state.p1.pos;
                 let p2Hit = state.p2.alive && state.monster.pos === state.p2.pos;
+                let isCoop = state.p1.alive && state.p2.alive && (isAdjacent(state.p1.pos, state.p2.pos) || state.p1.pos === state.p2.pos);
                 
-                // 判定火力覆盖（两人相邻或同格）
-                let isCoop = state.p1.alive && state.p2.alive && isAdjacent(state.p1.pos, state.p2.pos);
-                if (isCoop && state.monster.pos === state.p1.pos && state.monster.pos === state.p2.pos) isCoop = true;
-
-                const handleHit = (pId, pHit) => {
-                    if(!pHit) return;
-                    if(isCoop) {
-                        logs.push(`🔫 <span class="text-green-500">双人火力覆盖！变异体被打退逃跑了！</span>`);
-                        state.monster.pos = 0; // 滚回起点
+                if (p1Hit || p2Hit) {
+                    if (isCoop) {
+                        logs.push(`🔫 <span class="text-green-500">双人火力交织！变异体被暂时击退回了深渊！</span>`);
+                        state.monster.pos = 0; // 重置到角落
                     } else {
-                        if(state[pId].hasGun) {
-                            state[pId].hasGun = false;
-                            logs.push(`🩸 <span class="text-yellow-500">${state[pId].name} 消耗了急救包，抵挡了怪物的致命一击！</span>`);
-                        } else {
-                            state[pId].alive = false;
-                            logs.push(`💀 <span class="text-red-600 font-bold">惨叫声传来！${state[pId].name} 被变异体撕碎了！</span>`);
+                        // 若非合作状态，挨个结算伤害
+                        if (p1Hit) {
+                            if (state.p1.hasGun) { state.p1.hasGun = false; logs.push(`🩸 <span class="text-yellow-500">${state.p1.name} 消耗了急救包，死里逃生！</span>`); }
+                            else { state.p1.alive = false; logs.push(`💀 <span class="text-red-600 font-bold">${state.p1.name} 被变异体无情撕碎！</span>`); }
+                        }
+                        if (p2Hit) {
+                            if (state.p2.hasGun) { state.p2.hasGun = false; logs.push(`🩸 <span class="text-yellow-500">${state.p2.name} 消耗了急救包，死里逃生！</span>`); }
+                            else { state.p2.alive = false; logs.push(`💀 <span class="text-red-600 font-bold">${state.p2.name} 被变异体无情撕碎！</span>`); }
                         }
                     }
-                };
-
-                handleHit('p1', p1Hit);
-                handleHit('p2', p2Hit);
+                }
             }
 
-            // 2. 倒塌轮盘
+            // ==========================================
+            // 修复 5：倒塌轮盘现在会随机塌陷 1~2 个房间
+            // ==========================================
             let availableCells = [];
             for(let i=0; i<49; i++) {
                 if(!state.collapsed.includes(i) && i !== POD_POS) availableCells.push(i);
             }
             if(availableCells.length > 0) {
-                // 随机坍塌1格
-                let collapseIdx = availableCells[Math.floor(Math.random()*availableCells.length)];
-                state.collapsed.push(collapseIdx);
-                logs.push(`💥 基地结构老化，区域 [${collapseIdx%7},${Math.floor(collapseIdx/7)}] 发生塌陷！`);
+                let collapseCount = Math.floor(Math.random() * 2) + 1; // 1 或 2 个房间
+                collapseCount = Math.min(collapseCount, availableCells.length); // 确保不超过剩余房间
                 
-                // 检查有没有倒霉鬼掉下去
-                if(state.p1.alive && state.p1.pos === collapseIdx) {
-                    state.p1.alive = false;
-                    logs.push(`💀 ${state.p1.name} 坠入了无底深渊！`);
-                }
-                if(state.p2.alive && state.p2.pos === collapseIdx) {
-                    state.p2.alive = false;
-                    logs.push(`💀 ${state.p2.name} 坠入了无底深渊！`);
+                for (let c = 0; c < collapseCount; c++) {
+                    let randIndex = Math.floor(Math.random() * availableCells.length);
+                    let collapseIdx = availableCells[randIndex];
+                    availableCells.splice(randIndex, 1); // 从可用数组中移除，防止本次重复选
+                    
+                    state.collapsed.push(collapseIdx);
+                    logs.push(`💥 基地结构老化，区域 [${collapseIdx%7},${Math.floor(collapseIdx/7)}] 发生塌陷！`);
+                    
+                    if(state.p1.alive && state.p1.pos === collapseIdx) {
+                        state.p1.alive = false;
+                        logs.push(`💀 ${state.p1.name} 坠入了无底深渊！`);
+                    }
+                    if(state.p2.alive && state.p2.pos === collapseIdx) {
+                        state.p2.alive = false;
+                        logs.push(`💀 ${state.p2.name} 坠入了无底深渊！`);
+                    }
                 }
             }
         }
 
         function submitUpdate(stateUpdate) {
-            // 【乐观更新机制】客户端即刻重绘[cite: 1]
             gameState = { ...gameState, ...stateUpdate };
             requestAnimationFrame(renderGameState);
-
-            // 后台静默发送请求
             getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
         }
 
