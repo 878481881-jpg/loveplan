@@ -13,7 +13,6 @@
             background-color: #fdf2f8; 
             background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
             background-size: 20px 20px; 
-            /* 关键修改：禁止整体页面滚动 */
             overflow: hidden; 
         }
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
@@ -22,15 +21,25 @@
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
         
-        /* 隐藏内部区域的原生滚动条，保持画框纯净感 */
         .custom-scrollbar::-webkit-scrollbar { height: 0px; width: 0px; }
+        
+        /* 点赞图标的心跳动画 */
+        @keyframes heartBeat {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+        .heart-animate { animation: heartBeat 0.3s ease-in-out; }
+        
+        /* 隐藏图片查看器的滚动条 */
+        #imageViewerModal {
+            touch-action: none; /* 阻止默认的手势行为，方便实现自定义缩放拖拽 */
+        }
     </style>
 </head>
 
-<!-- 关键修改：全屏高度限制 flex-col -->
 <body class="h-[100dvh] w-screen flex flex-col items-center">
     
-    <!-- 顶部固定区域 -->
     <div class="z-40 w-full max-w-md bg-[#fdf2f8]/95 backdrop-blur-md pt-5 pb-3 px-4 shadow-sm border-b border-rose-100/50 shrink-0">
         <header class="text-center mb-4 w-full flex justify-between items-center px-1">
             <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 transition-transform hover:scale-110 flex-shrink-0">
@@ -44,20 +53,18 @@
             <div class="w-9 h-9 flex-shrink-0"></div>
         </header>
 
-        <!-- 顶层主选项卡 -->
-        <div class="flex space-x-4 w-full justify-center bg-white p-1 rounded-full shadow-sm border border-rose-100">
+        <!-- 顶层主选项卡（新增了排行榜） -->
+        <div class="flex space-x-2 w-full justify-center bg-white p-1 rounded-full shadow-sm border border-rose-100">
             <button id="tabWallBtn" onclick="switchMainTab('wall')" class="flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm">照片墙</button>
-            <button id="tabUploadBtn" onclick="switchMainTab('upload')" class="flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50">发布照片</button>
+            <button id="tabRankBtn" onclick="switchMainTab('rank')" class="flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50">排行榜</button>
+            <button id="tabUploadBtn" onclick="switchMainTab('upload')" class="flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50">发布</button>
         </div>
     </div>
 
-    <!-- 关键修改：弹性占满剩余空间，限制溢出 -->
     <main class="w-full max-w-md flex flex-col flex-1 px-4 mt-3 mb-4 overflow-hidden relative">
         
         <!-- 视图 1：照片墙 -->
         <div id="wallView" class="w-full h-full flex flex-col transition-opacity duration-300">
-            
-            <!-- 墙内子选项卡 (不参与滚动) -->
             <div class="flex justify-between items-center mb-3 w-full bg-white/90 p-2 rounded-xl shadow-sm border border-rose-100 backdrop-blur-sm shrink-0">
                 <div class="flex space-x-1 overflow-x-auto custom-scrollbar" id="categoryTabs">
                     <button onclick="switchCategory('全部')" class="cat-btn px-3 py-1 text-xs font-bold rounded-md bg-rose-100 text-rose-600 shadow-sm transition-all whitespace-nowrap" data-cat="全部">全部</button>
@@ -73,16 +80,29 @@
                 </select>
             </div>
 
-            <!-- 关键修改：照片画框内部自适应高度并允许内部滚动 -->
             <div class="w-full flex-1 bg-white/60 p-2.5 rounded-2xl shadow-sm border border-rose-100/60 backdrop-blur-md overflow-y-auto custom-scrollbar">
-                <!-- 瀑布流双列容器 -->
                 <div id="photoGrid" class="w-full pb-6">
                     <!-- JS动态渲染双列瀑布流 -->
                 </div>
             </div>
         </div>
 
-        <!-- 视图 2：发布照片 (独立滚动，防止小屏幕显示不全) -->
+        <!-- 视图 2：排行榜 -->
+        <div id="rankView" class="w-full h-full flex flex-col hidden transition-opacity duration-300">
+            <div class="w-full flex-1 bg-white/70 p-3 rounded-2xl shadow-sm border border-rose-100/60 backdrop-blur-md overflow-y-auto custom-scrollbar">
+                <div class="flex items-center justify-center gap-2 mb-4 mt-2">
+                    <span class="text-xl">🏆</span>
+                    <h2 class="text-rose-500 font-bold text-lg">人气排行榜</h2>
+                    <span class="text-xl">🔥</span>
+                </div>
+                
+                <div id="rankList" class="w-full pb-6 flex flex-col space-y-3">
+                    <!-- JS动态渲染排行榜列表 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 视图 3：发布照片 -->
         <div id="uploadView" class="w-full h-full flex flex-col hidden transition-opacity duration-300 overflow-y-auto custom-scrollbar pb-6">
             <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-5 shadow-sm border-2 border-rose-100 shrink-0">
                 
@@ -121,7 +141,6 @@
                     </div>
                 </div>
 
-                <!-- 进度条 UI -->
                 <div id="progressContainer" class="hidden w-full mt-5">
                     <div class="flex justify-between text-xs text-rose-500 mb-1.5 font-bold">
                         <span id="progressTitle">🚀 正在上传至时光机...</span>
@@ -144,13 +163,17 @@
     </main>
 
     <!-- 图片大图查看器 -->
-    <div id="imageViewerModal" class="fixed inset-0 bg-black/95 z-50 hidden flex items-center justify-center p-2 transition-opacity opacity-0" onclick="closeImageViewer()">
+    <div id="imageViewerModal" class="fixed inset-0 bg-black/95 z-50 hidden flex items-center justify-center p-0 transition-opacity opacity-0" onclick="closeImageViewer()">
         <div id="imageViewerLoader" class="absolute inset-0 flex items-center justify-center z-40 hidden pointer-events-none">
             <div class="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
         
-        <button class="absolute top-6 right-6 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/40 rounded-full w-12 h-12 flex items-center justify-center backdrop-blur-sm" onclick="closeImageViewer()">&times;</button>
-        <img id="fullSizeImage" src="" class="max-w-full max-h-full object-contain rounded-md transform scale-95 transition-transform duration-300 relative z-30" onclick="event.stopPropagation()">
+        <button class="absolute top-6 right-6 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/40 rounded-full w-12 h-12 flex items-center justify-center backdrop-blur-sm" onclick="closeImageViewer(event)">&times;</button>
+        
+        <!-- 增加一个容器用于处理缩放和拖拽 -->
+        <div id="imageContainer" class="w-full h-full flex items-center justify-center overflow-hidden">
+            <img id="fullSizeImage" src="" class="max-w-none max-h-none object-contain transform transition-transform duration-100 ease-out relative z-30" onclick="event.stopPropagation()">
+        </div>
     </div>
 
     <!-- 提示框 -->
@@ -173,6 +196,17 @@
         let currentImageDataUrl = null; 
         let currentImageBase64 = null;
         let currentImageExt = 'jpg';
+        
+        let isLikingSyncing = false; // 新增：控制点赞同步状态的变量
+
+        // 缩放和拖拽相关的变量
+        let scale = 1;
+        let panning = false;
+        let pointX = 0;
+        let pointY = 0;
+        let startX = 0;
+        let startY = 0;
+        let lastDistance = 0;
 
         window.onload = async function() {
             if (!GITHUB_TOKEN) { showToast("未检测到Token，仅支持预览"); }
@@ -182,21 +216,29 @@
         };
 
         function switchMainTab(tab) {
-            const wallView = document.getElementById('wallView');
-            const uploadView = document.getElementById('uploadView');
-            const btnWall = document.getElementById('tabWallBtn');
-            const btnUpload = document.getElementById('tabUploadBtn');
+            const views = {
+                'wall': document.getElementById('wallView'),
+                'rank': document.getElementById('rankView'),
+                'upload': document.getElementById('uploadView')
+            };
+            const btns = {
+                'wall': document.getElementById('tabWallBtn'),
+                'rank': document.getElementById('tabRankBtn'),
+                'upload': document.getElementById('tabUploadBtn')
+            };
 
-            if (tab === 'wall') {
-                wallView.classList.remove('hidden'); uploadView.classList.add('hidden');
-                btnWall.className = "flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
-                btnUpload.className = "flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50";
-                renderPhotos();
-            } else {
-                wallView.classList.add('hidden'); uploadView.classList.remove('hidden');
-                btnUpload.className = "flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
-                btnWall.className = "flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50";
+            for (const key in views) {
+                if (key === tab) {
+                    views[key].classList.remove('hidden');
+                    btns[key].className = "flex-1 py-1.5 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-sm";
+                } else {
+                    views[key].classList.add('hidden');
+                    btns[key].className = "flex-1 py-1.5 bg-transparent text-rose-500 rounded-full font-bold transition-all text-sm hover:bg-rose-50";
+                }
             }
+
+            if (tab === 'wall') renderPhotos();
+            if (tab === 'rank') renderRank();
         }
 
         function switchCategory(category) {
@@ -254,8 +296,26 @@
             const img = document.getElementById('fullSizeImage');
             const loader = document.getElementById('imageViewerLoader');
             
+            // 重置缩放和位置
+            scale = 1;
+            pointX = 0;
+            pointY = 0;
+            setTransform();
+            
             img.src = thumbUrl || fullUrl;
             
+            // 调整图片初始大小以适应屏幕
+            img.onload = function() {
+                const container = document.getElementById('imageContainer');
+                const ratioX = container.clientWidth / img.naturalWidth;
+                const ratioY = container.clientHeight / img.naturalHeight;
+                const initialScale = Math.min(ratioX, ratioY, 1); // 不超过原始大小
+                
+                // 设置基础宽高
+                img.style.width = (img.naturalWidth * initialScale) + 'px';
+                img.style.height = (img.naturalHeight * initialScale) + 'px';
+            };
+
             if (thumbUrl && thumbUrl !== fullUrl) {
                 loader.classList.remove('hidden');
                 const highResImg = new Image();
@@ -275,18 +335,123 @@
             modal.classList.remove('hidden');
             requestAnimationFrame(() => {
                 modal.classList.remove('opacity-0');
-                img.classList.remove('scale-95');
-                img.classList.add('scale-100');
             });
+            
+            // 绑定事件
+            setupZoomAndPan();
         }
 
-        function closeImageViewer() {
+        function closeImageViewer(event) {
+            if(event) event.stopPropagation();
             const modal = document.getElementById('imageViewerModal');
-            const img = document.getElementById('fullSizeImage');
             modal.classList.add('opacity-0');
-            img.classList.remove('scale-100');
-            img.classList.add('scale-95');
-            setTimeout(() => modal.classList.add('hidden'), 300);
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                const img = document.getElementById('fullSizeImage');
+                img.src = ''; // 清空图片
+            }, 300);
+            
+            // 移除事件监听，防止内存泄漏
+            removeZoomAndPan();
+        }
+        
+        function setTransform() {
+            const img = document.getElementById('fullSizeImage');
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+
+        function handlePointerDown(e) {
+            e.preventDefault();
+            panning = true;
+            
+            if (e.touches && e.touches.length === 2) {
+                // 双指捏合开始
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastDistance = Math.sqrt(dx * dx + dy * dy);
+            } else {
+                // 单指或鼠标拖动开始
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                startX = clientX - pointX;
+                startY = clientY - pointY;
+            }
+        }
+
+        function handlePointerMove(e) {
+            e.preventDefault();
+            if (!panning) return;
+
+            if (e.touches && e.touches.length === 2) {
+                // 双指捏合缩放
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                const delta = distance - lastDistance;
+                scale += delta * 0.01;
+                
+                // 限制缩放比例
+                scale = Math.min(Math.max(0.5, scale), 5);
+                
+                lastDistance = distance;
+                setTransform();
+            } else if (panning) {
+                // 单指或鼠标拖动
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                pointX = clientX - startX;
+                pointY = clientY - startY;
+                setTransform();
+            }
+        }
+
+        function handlePointerUp(e) {
+            e.preventDefault();
+            panning = false;
+        }
+
+        function handleWheel(e) {
+            e.preventDefault();
+            const delta = Math.sign(e.deltaY) * -0.1;
+            scale += delta;
+            
+            // 限制缩放比例
+            scale = Math.min(Math.max(0.5, scale), 5);
+            setTransform();
+        }
+
+        function setupZoomAndPan() {
+            const container = document.getElementById('imageContainer');
+            
+            // 鼠标事件
+            container.addEventListener('mousedown', handlePointerDown);
+            container.addEventListener('mousemove', handlePointerMove);
+            container.addEventListener('mouseup', handlePointerUp);
+            container.addEventListener('mouseleave', handlePointerUp);
+            
+            // 滚轮事件
+            container.addEventListener('wheel', handleWheel, { passive: false });
+            
+            // 触摸事件
+            container.addEventListener('touchstart', handlePointerDown, { passive: false });
+            container.addEventListener('touchmove', handlePointerMove, { passive: false });
+            container.addEventListener('touchend', handlePointerUp);
+            container.addEventListener('touchcancel', handlePointerUp);
+        }
+        
+        function removeZoomAndPan() {
+            const container = document.getElementById('imageContainer');
+            container.removeEventListener('mousedown', handlePointerDown);
+            container.removeEventListener('mousemove', handlePointerMove);
+            container.removeEventListener('mouseup', handlePointerUp);
+            container.removeEventListener('mouseleave', handlePointerUp);
+            container.removeEventListener('wheel', handleWheel);
+            container.removeEventListener('touchstart', handlePointerDown);
+            container.removeEventListener('touchmove', handlePointerMove);
+            container.removeEventListener('touchend', handlePointerUp);
+            container.removeEventListener('touchcancel', handlePointerUp);
         }
 
         async function fetchPhotosData() {
@@ -391,13 +556,85 @@
             });
         }
 
+        async function toggleLike(photoId, event) {
+            event.stopPropagation(); // 阻止打开大图
+            
+            if (!GITHUB_TOKEN) {
+                showToast("预览模式无法点赞哦，请先配置Token 💡");
+                return;
+            }
+            
+            if (isLikingSyncing) {
+                showToast("正在保存上次的点赞，请稍等哦... ⏳");
+                return;
+            }
+
+            const photo = photosData.photos.find(p => p.id === photoId);
+            if (!photo) return;
+            
+            // 兼容老数据结构，如果存在 likedBy 数组，无损转换为纯数字 likes
+            if (photo.likedBy) {
+                photo.likes = (photo.likes || 0) + photo.likedBy.length;
+                delete photo.likedBy;
+            }
+            
+            // 直接增加数字形式的点赞数
+            photo.likes = (photo.likes || 0) + 1;
+            
+            // 本地记录已点赞的照片，用于保持红心状态
+            let localLikes = JSON.parse(localStorage.getItem('loveGacha_myLikes') || '[]');
+            if (!localLikes.includes(photoId)) {
+                localLikes.push(photoId);
+                localStorage.setItem('loveGacha_myLikes', JSON.stringify(localLikes));
+            }
+            
+            // 乐观更新 UI (立即刷新渲染)
+            if (!document.getElementById('wallView').classList.contains('hidden')) {
+                renderPhotos();
+            }
+            if (!document.getElementById('rankView').classList.contains('hidden')) {
+                renderRank();
+            }
+            
+            // 播放一个额外的心跳动画，给当前点击的按钮
+            const btn = event.currentTarget;
+            btn.classList.remove('heart-animate');
+            // 触发重绘
+            void btn.offsetWidth;
+            btn.classList.add('heart-animate');
+            
+            isLikingSyncing = true;
+            showToast("正在保存点赞... 🚀");
+
+            // 同步至 Github
+            const upRes = await updateFile(FILE_PHOTOS, photosData, photosSha);
+            
+            isLikingSyncing = false;
+            
+            if (upRes.success) {
+                photosSha = upRes.sha;
+                showToast("点赞成功 +1 ❤️");
+            } else {
+                // 如果保存失败，回滚点赞数
+                photo.likes = Math.max(0, photo.likes - 1);
+                console.warn("点赞状态同步失败");
+                showToast("点赞数据保存失败，请检查网络 ❌");
+                renderPhotos();
+                renderRank();
+            }
+        }
+
         function startPolling() { 
             if (pollInterval) clearInterval(pollInterval); 
             pollInterval = setInterval(async () => { 
-                if(await fetchPhotosData() && document.getElementById('wallView').classList.contains('hidden') === false) {
-                    renderPhotos(); 
+                if(await fetchPhotosData()) {
+                    if (!document.getElementById('wallView').classList.contains('hidden')) {
+                        renderPhotos(); 
+                    } else if (!document.getElementById('rankView').classList.contains('hidden')) {
+                        renderRank();
+                    }
                 }
-            }, 150000); 
+            }, 60000); // 加快轮询频率到 60 秒
         }
 
         async function submitPhoto() {
@@ -449,7 +686,8 @@
                     uploader: myIdentity,
                     subject: subject,
                     level: isNaN(level) ? 100 : level,
-                    time: Date.now()
+                    time: Date.now(),
+                    likes: 0 // 新增照片初始点赞数
                 };
 
                 if (!photosData.photos) photosData.photos = [];
@@ -506,28 +744,51 @@
                 return;
             }
 
-            // Flex 双列布局拆分
             let leftColHtml = '';
             let rightColHtml = '';
+            
+            let localLikes = JSON.parse(localStorage.getItem('loveGacha_myLikes') || '[]');
 
             displayList.forEach((item, index) => {
                 const dateStr = new Date(item.time).toLocaleDateString();
                 const displayThumb = item.thumbUrl || item.url;
                 
+                // 兼容老数据：将 likedBy 数组转换为数字
+                if (item.likedBy) {
+                    item.likes = (item.likes || 0) + item.likedBy.length;
+                    delete item.likedBy;
+                }
+                
+                // 计算点赞数据
+                const likesCount = item.likes || 0;
+                const isLiked = localLikes.includes(item.id);
+                
+                const heartSvg = `<svg class="w-3.5 h-3.5 ${isLiked ? 'text-rose-500 fill-current' : 'text-white stroke-current fill-transparent'} transition-colors" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>`;
+
                 const cardHtml = `
                     <div class="bg-white rounded-lg shadow-sm border border-rose-100/50 animate-fade-in hover:shadow-md transition-shadow relative overflow-hidden group w-full mb-2.5">
                         <div class="cursor-zoom-in relative w-full h-full block" onclick="openImageViewer('${displayThumb}', '${item.url}')">
                             <img src="${displayThumb}" loading="lazy" class="w-full h-auto block object-cover transform group-hover:scale-105 transition-transform duration-500">
-                            <div class="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
+                            <div class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none"></div>
                         </div>
                         
-                        <div class="absolute bottom-0 left-0 right-0 p-2 text-white flex flex-col justify-end pointer-events-none">
-                            <div class="flex items-center justify-between drop-shadow-md">
+                        <div class="absolute bottom-0 left-0 right-0 p-2 text-white flex flex-col justify-end pointer-events-none z-10">
+                            <div class="flex items-center justify-between drop-shadow-md w-full">
                                 <div class="flex items-center gap-1">
                                     <span class="text-[13px]">👦</span>
                                     <span class="text-[11px] font-bold truncate max-w-[70px]">${item.uploader}</span>
                                 </div>
-                                <span class="text-[9px] bg-white/20 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/30 shadow-sm font-bold">Lv.${item.level}</span>
+                                <div class="flex items-center gap-1.5 pointer-events-auto">
+                                    <span class="text-[9px] bg-white/20 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/30 shadow-sm font-bold">Lv.${item.level}</span>
+                                    
+                                    <!-- 新增：点赞按钮 -->
+                                    <button onclick="toggleLike(${item.id}, event)" class="flex items-center gap-0.5 bg-white/20 backdrop-blur-sm px-1.5 py-0.5 rounded border border-white/30 shadow-sm hover:bg-rose-400/50 transition-colors">
+                                        ${heartSvg}
+                                        <span class="text-[10px] font-bold text-white ml-0.5">${likesCount}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
@@ -536,11 +797,8 @@
                     </div>
                 `;
 
-                if (index % 2 === 0) {
-                    leftColHtml += cardHtml;
-                } else {
-                    rightColHtml += cardHtml;
-                }
+                if (index % 2 === 0) leftColHtml += cardHtml;
+                else rightColHtml += cardHtml;
             });
 
             container.innerHTML = `
@@ -549,6 +807,80 @@
                     <div class="flex flex-col w-1/2">${rightColHtml}</div>
                 </div>
             `;
+        }
+
+        function renderRank() {
+            const container = document.getElementById('rankList');
+            if (!photosData.photos || photosData.photos.length === 0) {
+                container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10">相册还是空空的哦，快去发布吧~ 📸</div>`;
+                return;
+            }
+            
+            let localLikes = JSON.parse(localStorage.getItem('loveGacha_myLikes') || '[]');
+
+            // 兼容老数据，转换为新字段，并按照点赞数进行降序排列
+            let rankList = [...photosData.photos].map(p => {
+                if (p.likedBy) {
+                    p.likes = (p.likes || 0) + p.likedBy.length;
+                    delete p.likedBy;
+                }
+                return {
+                    ...p,
+                    likesCount: p.likes || 0
+                };
+            }).sort((a, b) => b.likesCount - a.likesCount || b.time - a.time);
+
+            // 如果整个应用里一张点赞照片都没有
+            if (rankList.every(p => p.likesCount === 0)) {
+                 container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10 mt-6">还没有人点过赞哦，<br>快去“照片墙”给喜欢的照片比心吧！❤️</div>`;
+                 return;
+            }
+
+            let html = '';
+            
+            // 过滤掉点赞数为0的（不在榜单显示没被赞过的）
+            rankList = rankList.filter(p => p.likesCount > 0);
+
+            rankList.forEach((item, index) => {
+                let rankBadge = '';
+                if (index === 0) rankBadge = '<div class="absolute -top-3 -left-3 text-4xl drop-shadow-md z-10">🥇</div>';
+                else if (index === 1) rankBadge = '<div class="absolute -top-3 -left-3 text-4xl drop-shadow-md z-10">🥈</div>';
+                else if (index === 2) rankBadge = '<div class="absolute -top-3 -left-3 text-4xl drop-shadow-md z-10">🥉</div>';
+                else rankBadge = `<div class="absolute -top-2 -left-2 w-7 h-7 bg-gray-200/90 backdrop-blur-sm rounded-full flex items-center justify-center text-xs font-bold text-gray-600 border-2 border-white shadow-sm z-10">${index + 1}</div>`;
+
+                const displayThumb = item.thumbUrl || item.url;
+                const isLiked = localLikes.includes(item.id);
+                const dateStr = new Date(item.time).toLocaleDateString();
+
+                const heartSvg = `<svg class="w-5 h-5 ${isLiked ? 'text-rose-500 fill-current' : 'text-gray-400 stroke-current fill-transparent'} transition-colors" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                </svg>`;
+
+                html += `
+                    <div class="flex items-center bg-white/90 backdrop-blur-md rounded-xl p-3 shadow-sm border border-rose-100/60 transition-transform active:scale-95 cursor-zoom-in group" onclick="openImageViewer('${displayThumb}', '${item.url}')">
+                        <div class="relative w-20 h-20 shrink-0">
+                            ${rankBadge}
+                            <img src="${displayThumb}" class="w-full h-full object-cover rounded-xl shadow-sm border border-rose-50 group-hover:opacity-90 transition-opacity">
+                        </div>
+                        <div class="ml-4 flex-1 flex flex-col justify-center">
+                            <div class="flex items-center gap-1.5 mb-1.5">
+                                <span class="text-xs bg-rose-100 text-rose-500 px-1.5 py-0.5 rounded text-[10px] font-bold">${item.subject}</span>
+                                <span class="text-sm font-bold text-gray-700 truncate max-w-[100px]">${item.uploader}</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 font-mono">${dateStr}</p>
+                        </div>
+                        
+                        <!-- 榜单里的点赞按钮 -->
+                        <div class="flex flex-col items-center justify-center pl-2 pr-1 pointer-events-auto cursor-pointer" onclick="toggleLike(${item.id}, event)">
+                            <div class="w-10 h-10 rounded-full ${isLiked ? 'bg-rose-50' : 'bg-gray-50'} flex items-center justify-center shadow-sm border ${isLiked ? 'border-rose-200' : 'border-gray-200'} transition-colors hover:bg-rose-100">
+                                ${heartSvg}
+                            </div>
+                            <span class="text-[11px] font-bold ${isLiked ? 'text-rose-500' : 'text-gray-500'} mt-1">${item.likesCount} 赞</span>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
         }
 
         function showToast(msg) { 
