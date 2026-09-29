@@ -3,308 +3,228 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>迷雾航线 🌊 勘探协议</title>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://static.cloudbase.net">
+    <title>生化逃生舱：只有一个名额 ☣️</title>
+    <!-- 引入腾讯云开发 SDK 和 Tailwind -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
-    
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        'sans': ['Noto Sans SC', 'sans-serif'],
-                        'mono': ['Orbitron', 'monospace'],
-                    },
-                    colors: {
-                        nav: { dark: '#0f172a', light: '#38bdf8', accent: '#0284c7' },
-                        exp: { dark: '#1c1917', light: '#fbbf24', accent: '#d97706' }
-                    }
-                }
-            }
-        }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
         body {
-            background-color: #050505;
-            color: #e5e5e5;
+            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
+            background-color: #18181b; /* 暗黑科幻背景 */
+            background-image: 
+                radial-gradient(#3f3f46 2px, transparent 2px),
+                radial-gradient(#3f3f46 2px, transparent 2px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
             overflow-x: hidden;
             user-select: none;
-            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            background-image: 
-                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
-            background-size: 20px 20px;
         }
 
-        /* 扫描线效果 */
-        .scanline {
-            position: fixed;
-            top: 0;
-            left: 0;
+        /* 呼吸灯特效 - 警报 */
+        @keyframes alertPulse {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 0.6; }
+        }
+        .alert-bg { animation: alertPulse 3s infinite; }
+
+        /* 实体移动平滑过渡 */
+        .entity-transition { 
+            transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.3s ease, top 0.3s ease; 
+            will-change: transform, left, top;
+        }
+
+        #board-container {
+            position: relative;
             width: 100%;
-            height: 100px;
-            background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.1), transparent);
-            opacity: 0.5;
-            animation: scan 4s linear infinite;
-            pointer-events: none;
-            z-index: 50;
+            max-width: 400px;
+            aspect-ratio: 1 / 1;
+            background: rgba(20, 20, 24, 0.95);
+            border-radius: 12px;
+            box-shadow: 0 10px 35px rgba(220,38,38,0.2), inset 0 0 0 2px #52525b;
+            padding: 8px;
+            margin: 0 auto;
         }
-        @keyframes scan {
-            0% { transform: translateY(-100px); }
-            100% { transform: translateY(100vh); }
+        
+        #board-grid {
+            display: grid;
+            width: 100%;
+            height: 100%;
+            gap: 2px;
+            position: relative;
         }
 
-        /* 雷达动画 (领航员) */
-        .radar-sweep {
+        .board-cell {
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.5);
+            transition: background-color 0.3s;
+            cursor: pointer;
+        }
+
+        .cell-unknown { background-color: #27272a; border: 1px dashed #3f3f46; }
+        .cell-searched { background-color: #3f3f46; }
+        .cell-collapsed { background-color: #000; box-shadow: inset 0 0 10px #7f1d1d; cursor: not-allowed; }
+        .cell-pod { background: radial-gradient(circle, #22c55e 0%, #14532d 100%); box-shadow: 0 0 15px #22c55e; }
+        
+        .entity {
             position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 150%;
-            height: 150%;
-            background: conic-gradient(from 0deg, transparent 70%, rgba(56, 189, 248, 0.4) 100%);
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            transform-origin: center;
-            animation: radar 4s linear infinite;
-            pointer-events: none;
-            margin-top: -75%;
-            margin-left: -75%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
+            z-index: 10;
         }
-        @keyframes radar { 100% { transform: rotate(360deg); } }
-
-        /* 迷雾呼吸效果 (探险家) */
-        .fog-overlay {
-            position: absolute;
-            inset: 0;
-            background: radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.85) 60%, #000 90%);
-            pointer-events: none;
-            animation: fogBreathe 4s ease-in-out infinite alternate;
-        }
-        @keyframes fogBreathe {
-            0% { transform: scale(1); opacity: 0.9; }
-            100% { transform: scale(1.05); opacity: 1; }
-        }
-
-        /* 按钮点击反馈 */
-        .d-pad-btn {
-            transition: all 0.1s;
-        }
-        .d-pad-btn:active {
-            transform: scale(0.9);
-            filter: brightness(1.2);
-        }
-
-        /* 隐藏滚动条 */
+        .entity-p1 { background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 2px solid #fca5a5; }
+        .entity-p2 { background: linear-gradient(135deg, #3b82f6, #1e3a8a); border: 2px solid #93c5fd; }
+        .entity-monster { background: linear-gradient(135deg, #8b5cf6, #4c1d95); border: 2px solid #c4b5fd; font-size: 1.4rem; z-index: 15; box-shadow: 0 0 15px #8b5cf6;}
+        
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-4 relative font-sans">
-    
-    <!-- 全局扫描线特效 -->
-    <div class="scanline"></div>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative text-zinc-100">
+    <div class="fixed inset-0 bg-red-900/10 alert-bg pointer-events-none z-[-1]"></div>
 
-    <!-- 全局 Loading -->
-    <div id="globalLoading" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-4xl animate-pulse mb-4 font-mono text-cyan-400 border border-cyan-500/50 p-4 rounded-lg bg-cyan-900/20">
-            ESTABLISHING CONNECTION...
-        </div>
-        <div class="text-gray-400 font-bold text-sm flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-            连接至云端服务器
+    <div id="globalLoading" class="fixed inset-0 bg-zinc-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-pulse mb-4">🧬</div>
+        <div class="text-red-500 font-bold text-xl flex items-center gap-2">
+            连接中枢系统...
         </div>
     </div>
 
-    <!-- 提示框 -->
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-md shadow-2xl text-sm font-bold hidden z-[150] whitespace-nowrap border border-gray-600 transition-all duration-300 opacity-0 translate-y-[-20px]"></div>
+    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-900/90 text-white px-6 py-3 rounded-lg shadow-2xl text-sm font-bold hidden z-50 border border-red-500 transition-all"></div>
 
-    <!-- 结算弹窗 -->
-    <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4">
-        <div class="bg-gray-900 border-2 border-emerald-500 rounded-xl p-6 w-full max-w-sm shadow-[0_0_30px_rgba(16,185,129,0.3)] text-center">
-            <div class="text-5xl mb-4">🏆</div>
-            <h3 class="text-2xl font-mono font-bold text-emerald-400 mb-2">勘探任务完成</h3>
-            <p class="text-gray-300 mb-6 font-medium text-sm">所有目标样本已回收。干得漂亮，特派员。</p>
-            <button onclick="exitRoom()" class="w-full py-3 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 active:scale-95 transition-all tracking-widest">
-                断开连接
-            </button>
+    <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
+        <div class="bg-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl text-center border border-zinc-700" id="msgModalContent">
+            <div id="msgIcon" class="text-6xl mb-4">🚀</div>
+            <h3 class="text-2xl font-bold text-green-500 mb-2" id="msgTitle">结局</h3>
+            <p class="text-zinc-300 mb-6 font-medium" id="msgDesc">描述信息</p>
+            <div class="flex gap-3">
+                <button onclick="exitRoom()" class="flex-1 py-3 rounded-lg bg-zinc-700 text-zinc-100 font-bold hover:bg-zinc-600 transition-all">返回大厅</button>
+            </div>
         </div>
     </div>
 
-    <header class="w-full max-w-md flex justify-between items-center mb-6 z-10 px-2 border-b border-gray-800 pb-3">
-        <div class="flex items-center gap-2">
-            <span class="text-2xl">📡</span>
+    <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
+        <div class="flex items-center gap-2 bg-zinc-800/80 px-4 py-2 rounded-xl shadow-sm border border-zinc-700">
+            <span class="text-2xl">☣️</span>
             <div>
-                <h1 class="text-lg font-mono font-bold text-gray-200 tracking-wider">PROJECT: ENIGMA</h1>
-                <p class="text-[10px] text-gray-500 tracking-[0.2em]">ASYMMETRIC PROTOCOL</p>
+                <h1 class="text-lg font-bold text-red-500 leading-tight">生化逃生舱</h1>
+                <p class="text-[10px] text-zinc-400 font-medium tracking-wider">只有一个名额</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="text-xs font-mono text-gray-400 flex items-center gap-2">
-                ID: <span id="currentRoleDisplay" class="text-gray-200 bg-gray-800 px-2 py-0.5 rounded border border-gray-700">加载中</span>
+            <div class="bg-zinc-800/90 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                探险家: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded bg-zinc-600 text-white">加载中</span>
             </div>
-            <span id="syncStatusBadge" class="text-[9px] text-red-500 mt-1 flex items-center gap-1 font-mono">
-                [ OFFLINE ]
-            </span>
         </div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
         
-        <!-- ================= 大厅视图 ================= -->
-        <div id="lobbyView" class="w-full flex flex-col gap-6 hidden">
-            <div class="bg-gray-900/80 backdrop-blur-md rounded-xl p-6 border border-gray-700 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
-                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-800 via-gray-900 to-black -z-10"></div>
+        <!-- 大厅视图 -->
+        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
+            <div class="bg-zinc-800/90 backdrop-blur-md rounded-xl p-6 border-2 border-red-900/50 shadow-xl flex flex-col items-center text-center">
+                <h2 class="text-2xl font-bold text-red-400 mb-2">生存指令</h2>
+                <p class="text-sm text-zinc-400 mb-6 px-2">建立连接以寻找另外一名幸存者。基地即将坍塌，逃生舱只能容纳一人。</p>
                 
-                <h2 class="text-xl font-bold text-gray-100 mb-2 font-mono tracking-widest">选择你的作战序列</h2>
-                <p class="text-xs text-gray-400 mb-8 px-2">高维视界引导，抑或身陷迷雾勘探。需双方密切语音沟通。</p>
-                
-                <div class="w-full space-y-6">
-                    <!-- 领航员创建房间 -->
-                    <div class="relative p-1 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-900">
-                        <button onclick="createRoom()" class="w-full py-4 bg-gray-900 text-cyan-400 rounded-lg font-bold text-sm shadow-lg active:bg-gray-800 transition-all flex flex-col items-center justify-center gap-1">
-                            <span class="text-xl">👁️</span>
-                            <span class="tracking-widest">建立通讯矩阵 (领航员)</span>
-                            <span class="text-[10px] text-cyan-600/70">提供全景视野与指挥</span>
+                <div class="w-full space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-red-700 text-white rounded-lg font-bold text-lg hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(185,28,28,0.5)]">
+                        发起求救信号 (红方)
+                    </button>
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-zinc-700"></div>
+                        <span class="flex-shrink-0 mx-4 text-zinc-500 text-xs font-bold">OR</span>
+                        <div class="flex-grow border-t border-zinc-700"></div>
+                    </div>
+                    <div class="flex flex-col gap-3 w-full">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段号" class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-center text-xl font-black text-blue-400 tracking-[0.5em] focus:outline-none focus:border-blue-500">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-blue-700 text-white font-bold text-lg rounded-lg hover:bg-blue-600 transition-all shadow-[0_0_15px_rgba(29,78,216,0.5)]">
+                            响应求救信号 (蓝方)
                         </button>
-                    </div>
-                    
-                    <div class="flex items-center text-gray-600 text-xs font-mono">
-                        <div class="flex-grow border-t border-gray-800"></div>
-                        <span class="mx-4">CONNECT</span>
-                        <div class="flex-grow border-t border-gray-800"></div>
-                    </div>
-
-                    <!-- 探险家加入房间 -->
-                    <div class="flex flex-col gap-2 w-full p-1 rounded-xl bg-gradient-to-r from-amber-600 to-orange-900">
-                        <div class="bg-gray-900 rounded-lg p-3">
-                            <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段码" class="w-full px-4 py-3 bg-black border border-amber-900/50 rounded text-center text-lg font-mono font-bold text-amber-500 tracking-[0.5em] focus:outline-none focus:border-amber-500 placeholder-gray-700 uppercase" autocomplete="off">
-                            <button onclick="joinRoom()" class="w-full mt-2 py-3 bg-amber-600 text-black font-bold text-sm rounded shadow-lg active:bg-amber-500 transition-all tracking-widest">
-                                潜入迷雾区域 (探险家)
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-800 text-left">
-                <h3 class="text-xs font-bold text-gray-400 mb-2 font-mono border-b border-gray-700 pb-1">系统操作手册</h3>
-                <ul class="text-[11px] text-gray-500 space-y-2 list-none pl-1">
-                    <li><span class="text-cyan-500">▶ 领航员 (玩家A):</span> 拥有上帝视角，能看到完整地形、危险暗礁(红色)与目标标本(金色)。负责语音指导。</li>
-                    <li><span class="text-amber-500">▶ 探险家 (玩家B):</span> 视野受限，仅能看到周遭极小范围。根据指示移动，收集所有标本。</li>
-                    <li><span class="text-red-500 font-bold">▶ 核心机制:</span> 探险家无法穿过暗礁。必须由领航员规划路线。</li>
-                </ul>
+            <div class="bg-zinc-800/80 rounded-lg p-4 border border-zinc-700 text-left text-sm text-zinc-400 space-y-2">
+                <p><b class="text-red-400">🚨 怪物巡逻：</b>异形每回合靠近你们。单人遭遇必死，两人相邻可“火力覆盖”将其击退。</p>
+                <p><b class="text-purple-400">📦 探索盲盒：</b>点击未知房间移动，可能找到能开启逃生舱的<b class="text-green-400">密匙</b>，也可能遭遇陷阱。</p>
+                <p><b class="text-yellow-500">💥 倒塌轮盘：</b>每回合结束，随机房间会永久塌陷，掉入即死。</p>
+                <p><b class="text-zinc-100">🔪 背叛时刻：</b>你可以随时消耗回合点击“暗算”，将队友所在区域引爆。逃命时千万别手软！</p>
             </div>
         </div>
 
-        <!-- ================= 游戏视图 ================= -->
+        <!-- 游戏视图 -->
         <div id="gameView" class="w-full flex flex-col gap-4 hidden">
-            
-            <!-- 顶部状态栏 -->
-            <div class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 flex items-center justify-between shadow-lg">
+            <div class="w-full bg-zinc-800/90 backdrop-blur-md rounded-lg p-3 border border-zinc-700 flex items-center justify-between">
                 <div class="flex flex-col">
-                    <span class="text-[9px] text-gray-500 font-mono tracking-widest">CHANNEL</span>
-                    <span id="displayRoomCode" class="text-lg font-mono font-bold text-white tracking-widest">----</span>
+                    <span class="text-[10px] text-zinc-500 font-bold">频段号</span>
+                    <span id="displayRoomCode" class="text-xl font-black text-red-500 tracking-wider">----</span>
                 </div>
-                
-                <div class="flex items-center gap-3">
-                    <div id="roleBadge" class="px-3 py-1 rounded text-xs font-bold font-mono border">
-                        <!-- 动态填充角色徽章 -->
+                <div class="flex items-center gap-3 bg-zinc-900 px-4 py-1.5 rounded border border-zinc-800">
+                    <div class="flex flex-col items-center">
+                        <span id="p1NameDisplay" class="text-xs font-black text-red-500">等待</span>
+                        <span id="p1Status" class="text-[10px] text-zinc-400">❤️ 存活</span>
+                    </div>
+                    <div class="text-zinc-600 font-black italic text-sm">VS</div>
+                    <div class="flex flex-col items-center">
+                        <span id="p2NameDisplay" class="text-xs font-black text-blue-500">等待</span>
+                        <span id="p2Status" class="text-[10px] text-zinc-400">❤️ 存活</span>
                     </div>
                 </div>
-                
-                <button onclick="exitRoom()" class="w-8 h-8 rounded bg-gray-800 text-red-500 flex items-center justify-center hover:bg-gray-700 border border-gray-700 active:scale-90">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
             </div>
 
-            <!-- 进度/提示信息 -->
-            <div id="gameStatusBanner" class="w-full py-2 px-4 bg-gray-800 rounded border border-gray-700 text-center text-xs font-mono text-gray-300">
-                等待人员就绪...
+            <div id="turnBanner" class="w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-300 border-l-4 border-zinc-500 shadow-md">
+                等待幸存者加入...
             </div>
 
-            <!-- 领航员视图 (全景地图) -->
-            <div id="navigatorUI" class="w-full flex-col gap-4 hidden">
-                <div class="relative w-full aspect-square bg-black border-2 border-cyan-800 rounded-lg overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.2)]">
-                    <canvas id="navCanvas" class="absolute inset-0 w-full h-full"></canvas>
-                    <div class="radar-sweep"></div>
-                    <!-- 坐标轴装饰 -->
-                    <div class="absolute top-0 left-0 w-full h-4 border-b border-cyan-900/30 flex justify-between px-1 text-[8px] text-cyan-700 font-mono"><span>0</span><span>X-AXIS</span><span>15</span></div>
-                    <div class="absolute top-0 left-0 h-full w-4 border-r border-cyan-900/30 flex flex-col justify-between py-1 text-[8px] text-cyan-700 font-mono text-center"><span>0</span><span class="writing-vertical-rl">Y-AXIS</span><span>15</span></div>
-                </div>
-                <div class="bg-gray-900 p-3 rounded border border-gray-800 grid grid-cols-3 gap-2 text-center text-xs font-mono mt-2">
-                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-red-900 border border-red-500 mb-1"></span><span class="text-gray-400 text-[9px]">暗礁(阻挡)</span></div>
-                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-amber-900 border border-amber-400 mb-1"></span><span class="text-gray-400 text-[9px]">目标标本</span></div>
-                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_8px_cyan] mb-1"></span><span class="text-gray-400 text-[9px]">探险家位置</span></div>
-                </div>
+            <!-- 网格地图 -->
+            <div id="board-container">
+                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/40 rounded-xl hidden cursor-not-allowed"></div>
+                <div id="board-grid"></div>
+                <!-- 实体层 -->
+                <div id="entities-layer" class="absolute inset-0 pointer-events-none"></div>
             </div>
 
-            <!-- 探险家视图 (局域迷雾 + 操作) -->
-            <div id="explorerUI" class="w-full flex-col items-center gap-4 hidden">
-                <!-- 迷雾画布容器 -->
-                <div class="relative w-full max-w-[280px] aspect-square bg-black border-4 border-gray-800 rounded-full overflow-hidden mx-auto shadow-[0_0_20px_rgba(0,0,0,0.8)]">
-                    <canvas id="expCanvas" class="absolute inset-0 w-full h-full"></canvas>
-                    <div class="fog-overlay"></div>
-                    <!-- 准星 -->
-                    <div class="absolute top-1/2 left-1/2 w-4 h-4 border-2 border-amber-500/50 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
-                    <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-amber-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none shadow-[0_0_5px_#fbbf24]"></div>
-                </div>
-
-                <!-- 收集进度 -->
-                <div class="w-full bg-gray-900 border border-gray-700 rounded p-2 flex justify-between items-center px-4 font-mono">
-                    <span class="text-xs text-gray-500">SAMPLES</span>
-                    <div class="flex gap-1" id="inventoryDisplay">
-                        <!-- 动态生成点 -->
-                    </div>
-                </div>
-
-                <!-- 操控台 D-Pad -->
-                <div class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center gap-2 relative mt-2">
-                    <div class="text-[10px] text-gray-600 font-mono absolute top-2 left-3">MOVEMENT SYS</div>
-                    
-                    <button onclick="handleMove(0, -1)" id="btnUp" class="d-pad-btn w-16 h-14 bg-gray-800 border-b-4 border-gray-950 rounded-t-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mb-1">
-                        ▲
+            <!-- 动作与日志区 -->
+            <div class="w-full flex gap-3 h-32">
+                <!-- 恶意动作区 -->
+                <div class="flex-shrink-0 flex flex-col justify-center gap-2 w-28">
+                    <button id="btnBetray" onclick="handleBetray()" class="w-full py-3 bg-red-900/80 text-white font-bold text-xs rounded border border-red-700 hover:bg-red-800 active:scale-95 transition-all shadow-[0_0_10px_rgba(153,27,27,0.5)]">
+                        🔪 锁死暗算<br><span class="text-[8px] font-normal text-red-300">(消耗本回合)</span>
                     </button>
-                    <div class="flex gap-1 w-full justify-center">
-                        <button onclick="handleMove(-1, 0)" id="btnLeft" class="d-pad-btn w-16 h-14 bg-gray-800 border-r-4 border-gray-950 rounded-l-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mr-1">
-                            ◀
-                        </button>
-                        <button onclick="handleAction()" id="btnAction" class="d-pad-btn w-16 h-14 bg-amber-900 border-b-4 border-amber-950 rounded text-amber-400 flex items-center justify-center text-xs font-bold font-mono shadow-[0_0_10px_rgba(217,119,6,0.2)]">
-                            COLLECT
-                        </button>
-                        <button onclick="handleMove(1, 0)" id="btnRight" class="d-pad-btn w-16 h-14 bg-gray-800 border-l-4 border-gray-950 rounded-r-xl text-gray-400 flex items-center justify-center text-xl shadow-inner ml-1">
-                            ▶
-                        </button>
+                    <div class="text-center text-[10px] text-zinc-400 mt-1">点击相邻高亮网格<br>进行探索移动</div>
+                </div>
+
+                <!-- 日志区 -->
+                <div class="flex-1 flex flex-col bg-zinc-900/80 rounded border border-zinc-700 p-2 overflow-hidden relative">
+                    <div class="text-[10px] font-bold text-green-600 mb-1 px-1 border-b border-green-900/50 pb-1 flex justify-between">
+                        <span>📡 基地系统日志</span>
+                        <span class="animate-pulse">REC 🔴</span>
                     </div>
-                    <button onclick="handleMove(0, 1)" id="btnDown" class="d-pad-btn w-16 h-14 bg-gray-800 border-t-4 border-gray-950 rounded-b-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mt-1">
-                        ▼
-                    </button>
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-[11px] text-zinc-400 leading-tight">
+                        <div class="text-center py-2 opacity-50">无记录...</div>
+                    </div>
                 </div>
             </div>
-
-            <!-- 通用日志区 -->
-            <div class="w-full bg-black border border-gray-800 rounded-lg p-2 h-24 flex flex-col">
-                <div class="text-[9px] text-gray-600 font-mono border-b border-gray-800 pb-1 mb-1">SYSTEM LOGS</div>
-                <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar text-[10px] font-mono text-gray-400 flex flex-col-reverse">
-                    <!-- 日志动态插入 -->
-                </div>
-            </div>
-
         </div>
     </main>
 
     <script type="module">
-        // --- 容错兜底 ---
-        const fallbackTimer = setTimeout(() => { hideLoading(); }, 1200);
+        // --- 腾讯云 CloudBase 设定 ---
+        const fallbackTimer = setTimeout(() => hideLoading(), 800);
 
-        // --- 腾讯云开发 CloudBase 配置 ---
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 基于参考配置
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 请替换为您的云开发ID
         const REGION = "ap-shanghai";
-        const ROOM_COLLECTION = "mistRouteRooms"; 
+        const ROOM_COLLECTION = "bioEscapeRooms"; 
 
         function getRoomRef(code) {
             return db.collection(ROOM_COLLECTION).doc(String(code));
@@ -326,80 +246,69 @@
             auth = app.auth;
             db = app.database();
             hasCloudBase = true;
-        } catch(e) {
-            console.error("CloudBase init failed", e);
-        }
+        } catch(e) { console.error("CloudBase init failed", e); }
 
-        // --- 身份标识处理 ---
-        let myIdentity = "USR-" + Math.floor(1000 + Math.random()*9000); 
-        try {
-            const savedIdentity = localStorage.getItem('mistRoute_myIdentity');
-            if (savedIdentity) {
-                myIdentity = savedIdentity;
-            } else {
-                localStorage.setItem('mistRoute_myIdentity', myIdentity);
-            }
-        } catch(e) {
-            console.warn('localStorage access denied, using random ID');
-        }
-        
-        document.getElementById('currentRoleDisplay').innerText = myIdentity;
+        let myIdentity = "探险家" + Math.floor(Math.random()*1000); 
+        const myName = myIdentity; 
+        document.getElementById('currentRoleDisplay').innerText = myName;
 
-        // --- 游戏核心状态变量 ---
         let currentRoomId = null;
         let unsubscribeRoom = null;
         let gameState = null; 
-        let myPlayerId = null; // 'p1' (Nav) or 'p2' (Exp)
-        
-        const MAP_SIZE = 16;
-        const TARGET_COUNT = 5;
+        let myPlayerId = null;
 
-        // --- 地图生成逻辑 ---
-        function generateMap() {
-            let map = Array(MAP_SIZE).fill(0).map(() => Array(MAP_SIZE).fill(0));
-            // 0: 空地, 1: 暗礁(墙), 2: 标本(目标)
+        // --- 游戏逻辑配置 ---
+        const GRID_W = 7;
+        const GRID_H = 7;
+        const POD_POS = 24; // 中心 3,3 (y*7+x = 3*7+3 = 24)
 
-            // 生成暗礁 (约25%密度)
-            for(let i = 0; i < MAP_SIZE * MAP_SIZE * 0.25; i++) {
-                let x = Math.floor(Math.random() * MAP_SIZE);
-                let y = Math.floor(Math.random() * MAP_SIZE);
-                // 预留出生点 (0,0) 周围空间
-                if (x + y > 2) { 
-                    map[y][x] = 1;
-                }
-            }
-
-            // 生成标本
-            let placedTargets = 0;
-            while(placedTargets < TARGET_COUNT) {
-                let x = Math.floor(Math.random() * MAP_SIZE);
-                let y = Math.floor(Math.random() * MAP_SIZE);
-                if (map[y][x] === 0 && (x > 2 || y > 2)) {
-                    map[y][x] = 2;
-                    placedTargets++;
-                }
-            }
-            return map;
+        function getCoordPercent(index) {
+            const x = index % GRID_W;
+            const y = Math.floor(index / GRID_W);
+            return {
+                x: (x + 0.5) * (100 / GRID_W),
+                y: (y + 0.5) * (100 / GRID_H)
+            };
         }
 
-        // --- 认证与视图切换 ---
-        async function initAuth() {
-            if (!hasCloudBase) {
-                showToast("环境异常，进入单机演示模式");
-                clearTimeout(fallbackTimer);
-                hideLoading();
-                return;
+        function initBoardGrid() {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${GRID_W}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${GRID_H}, 1fr)`;
+
+            for(let i=0; i < GRID_W * GRID_H; i++) {
+                const div = document.createElement('div');
+                div.id = `cell-${i}`;
+                div.className = `board-cell cell-unknown`;
+                // 优化：原文件复用了 onClick 事件进行交互
+                div.onclick = () => handleCellClick(i);
+                
+                if(i === POD_POS) {
+                    div.innerHTML = '<span class="text-xl opacity-20">🚀</span>';
+                }
+                grid.appendChild(div);
             }
+            initEntitiesDOM();
+        }
+
+        function initEntitiesDOM() {
+            const layer = document.getElementById('entities-layer');
+            layer.innerHTML = `
+                <div id="ent-p1" class="entity entity-p1 entity-transition hidden">1️⃣</div>
+                <div id="ent-p2" class="entity entity-p2 entity-transition hidden">2️⃣</div>
+                <div id="ent-monster" class="entity entity-monster entity-transition hidden">👾</div>
+            `;
+        }
+
+        async function initAuth() {
+            if (!hasCloudBase) return hideLoading();
             try {
                 const res = await auth.signInAnonymously();
-                if (res && res.error) throw res.error;
-                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '[ <span class="text-green-500">ONLINE</span> ]';
-                document.getElementById('syncStatusBadge').classList.replace('text-red-500', 'text-green-500');
+                currentUser = res?.data?.user || { uid: 'anonymous' };
                 switchToLobby();
             } catch (err) {
-                console.error("Auth Error:", err);
-                showToast("网络连接失败");
+                showToast("网络异常");
                 switchToLobby();
             } finally {
                 clearTimeout(fallbackTimer);
@@ -417,68 +326,56 @@
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            currentRoomId = null;
-            myPlayerId = null;
-            gameState = null;
         }
 
+        // --- 云端对战逻辑复用[cite: 1] ---
         window.createRoom = async function() {
-            if (!currentUser) return showToast("系统未连接");
+            if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
-            const initialMap = generateMap();
-
             const initialData = {
                 status: 'waiting', 
-                p1: { name: myIdentity }, // 领航员
-                p2: { name: null, pos: {x: 0, y: 0}, score: 0 }, // 探险家
-                mapData: JSON.stringify(initialMap), // 序列化存入DB防嵌套限制
-                logs: [`> ${myIdentity} 建立了通讯矩阵 [${code}]`],
-                winner: null
+                p1: { name: myName, pos: 0, alive: true, hasGun: false, hasKey: false },
+                p2: { name: null, pos: 48, alive: true, hasGun: false, hasKey: false },
+                monster: { pos: 6 }, // 初始位于右上角
+                turn: 'p1', 
+                searched: [0, 48],
+                collapsed: [],
+                podActive: false,
+                logs: [`${myName} 进入了科研基地，等待另一名探险家响应...`],
+                winner: null,
+                winReason: ''
             };
 
             try {
-                await getRoomRef(code).set(initialData);
+                await getRoomRef(code).set(initialData); //[cite: 1]
                 myPlayerId = 'p1';
                 listenToRoom(code);
-                showToast(`频道 ${code} 创建成功`);
-            } catch (e) {
-                console.error(e);
-                showToast("建立频段失败");
-            }
+            } catch (e) { showToast("创建失败"); }
         };
 
         window.joinRoom = async function() {
-            if (!currentUser) return showToast("系统未连接");
+            if (!currentUser) return;
             const code = document.getElementById('roomCodeInput').value.trim();
-            if (!code || code.length !== 4) return showToast("请输入4位数字频段");
+            if (code.length !== 4) return showToast("输入4位频段");
 
             try {
-                const res = await getRoomRef(code).get();
+                const res = await getRoomRef(code).get(); //[cite: 1]
                 const data = res.data && res.data[0];
-                if (!data) return showToast("频段不存在");
-                
-                if (data.status === 'waiting' && data.p1.name !== myIdentity) {
-                    // 加入作为 P2
-                    await getRoomRef(code).update({
-                        'p2.name': myIdentity,
+                if (!data) return showToast("信号不存在");
+
+                if (data.status === 'waiting' && data.p1.name !== myName) {
+                    await getRoomRef(code).update({ //[cite: 1]
+                        'p2.name': myName,
                         status: 'playing',
-                        logs: [`> ${myIdentity} 已接入信号。勘探开始。`, ...data.logs].slice(0, 15)
+                        logs: [`${myName} 加入！警报拉响，变异体已出笼！红方先走。`, ...data.logs]
                     });
                     myPlayerId = 'p2';
-                } else if (data.p1.name === myIdentity) {
-                    myPlayerId = 'p1'; // 重连
-                } else if (data.p2.name === myIdentity) {
-                    myPlayerId = 'p2'; // 重连
                 } else {
-                    return showToast("该频道已满载");
+                    myPlayerId = data.p1.name === myName ? 'p1' : 'p2';
                 }
-
                 listenToRoom(code);
-            } catch (e) {
-                console.error(e);
-                showToast("连接频段失败");
-            }
+            } catch (e) { showToast("加入失败"); }
         };
 
         window.exitRoom = function() {
@@ -486,379 +383,337 @@
             switchToLobby();
         };
 
-        // --- 房间监听 ---
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
-
-            // 依据身份显示对应UI
-            if(myPlayerId === 'p1') {
-                document.getElementById('navigatorUI').classList.remove('hidden');
-                document.getElementById('explorerUI').classList.add('hidden');
-                document.getElementById('roleBadge').className = "px-3 py-1 rounded text-xs font-bold font-mono border bg-cyan-900/30 text-cyan-400 border-cyan-700";
-                document.getElementById('roleBadge').innerText = "NAVIGATOR [上帝视角]";
-                initNavCanvas();
-            } else {
-                document.getElementById('navigatorUI').classList.add('hidden');
-                document.getElementById('explorerUI').classList.remove('hidden');
-                document.getElementById('explorerUI').classList.add('flex');
-                document.getElementById('roleBadge').className = "px-3 py-1 rounded text-xs font-bold font-mono border bg-amber-900/30 text-amber-500 border-amber-700";
-                document.getElementById('roleBadge').innerText = "EXPLORER [局部视野]";
-                initExpCanvas();
-            }
+            initBoardGrid();
 
             if (unsubscribeRoom) unsubscribeRoom();
-            
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        // 解析地图数据
-                        if(typeof data.mapData === 'string') {
-                            data.parsedMap = JSON.parse(data.mapData);
-                        }
                         gameState = data;
                         requestAnimationFrame(renderGameState);
                     } else {
-                        showToast("通讯已中断");
+                        showToast("房间已解散");
                         switchToLobby();
                     }
                 },
-                onError: (err) => {
-                    console.error(err);
-                    showToast("同步断开");
-                }
-            });
+                onError: () => showToast("同步断开")
+            }); //[cite: 1]
             unsubscribeRoom = () => watcher.close();
         }
 
         // --- 渲染逻辑 ---
-        let navCtx, expCtx;
-        
-        function initNavCanvas() {
-            const cvs = document.getElementById('navCanvas');
-            const rect = cvs.parentElement.getBoundingClientRect();
-            cvs.width = rect.width;
-            cvs.height = rect.height;
-            navCtx = cvs.getContext('2d');
-        }
-
-        function initExpCanvas() {
-            const cvs = document.getElementById('expCanvas');
-            // Fixed internal resolution for consistent retro feel
-            cvs.width = 200; 
-            cvs.height = 200;
-            expCtx = cvs.getContext('2d');
-        }
-
         function renderGameState() {
             if (!gameState) return;
 
-            // UI 状态更新
             document.getElementById('displayRoomCode').innerText = currentRoomId;
+            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
+
+            const updateStatus = (pId, spanId) => {
+                const p = gameState[pId];
+                let txt = p.alive ? '❤️ 存活' : '💀 死亡';
+                if(p.hasKey) txt += ' | 🔑密匙';
+                if(p.hasGun) txt += ' | 🎒急救';
+                document.getElementById(spanId).innerText = txt;
+                document.getElementById(spanId).className = `text-[10px] ${p.alive?'text-green-400':'text-red-500'}`;
+            };
+            if(gameState.p1.name) updateStatus('p1', 'p1Status');
+            if(gameState.p2.name) updateStatus('p2', 'p2Status');
+
+            const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing' && gameState[myPlayerId].alive;
+            const banner = document.getElementById('turnBanner');
+            const overlay = document.getElementById('boardOverlay');
             
-            const banner = document.getElementById('gameStatusBanner');
             if (gameState.status === 'waiting') {
-                banner.innerText = "等待探险家接入...";
-                banner.className = "w-full py-2 px-4 bg-gray-800 rounded border border-gray-700 text-center text-xs font-mono text-gray-400 animate-pulse";
+                banner.innerText = '等待幸存者加入...'; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded text-center text-sm font-bold text-zinc-400";
+                overlay.classList.remove('hidden');
             } else if (gameState.status === 'playing') {
-                if(myPlayerId === 'p1') {
-                    banner.innerText = "指挥探险家收集所有样本。注意规避暗礁。";
-                    banner.className = "w-full py-2 px-4 bg-cyan-900/20 rounded border border-cyan-800 text-center text-xs font-mono text-cyan-500";
+                if (gameState[myPlayerId].alive === false) {
+                    banner.innerText = '你已死亡，正在观战...'; banner.className = "w-full py-2 px-4 bg-red-900/50 rounded text-center text-sm font-bold text-red-500";
+                    overlay.classList.remove('hidden');
+                } else if (isMyTurn) {
+                    banner.innerText = '轮到你了！点击相邻格子移动或暗算队友！'; banner.className = "w-full py-2 px-4 bg-green-900/40 rounded text-center text-sm font-bold text-green-400 border border-green-700 animate-pulse";
+                    overlay.classList.add('hidden');
                 } else {
-                    banner.innerText = "视野受限。听从领航员指令移动。";
-                    banner.className = "w-full py-2 px-4 bg-amber-900/20 rounded border border-amber-800 text-center text-xs font-mono text-amber-500";
+                    const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    banner.innerText = `等待 ${activeName} 行动...`; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded text-center text-sm font-bold text-zinc-400";
+                    overlay.classList.remove('hidden');
                 }
             }
 
-            // 更新日志
+            document.getElementById('btnBetray').disabled = !isMyTurn;
+            document.getElementById('btnBetray').style.opacity = isMyTurn ? 1 : 0.4;
+
+            // 渲染地图网格状态
+            for(let i=0; i<49; i++) {
+                const cell = document.getElementById(`cell-${i}`);
+                if(gameState.collapsed.includes(i)) {
+                    cell.className = "board-cell cell-collapsed";
+                    cell.innerHTML = '☠️';
+                } else if (i === POD_POS && gameState.podActive) {
+                    cell.className = "board-cell cell-pod";
+                    cell.innerHTML = '<span class="text-2xl animate-bounce">🚀</span>';
+                } else if (gameState.searched.includes(i)) {
+                    cell.className = "board-cell cell-searched";
+                    if(i === POD_POS) cell.innerHTML = '<span class="text-xl opacity-20">🚀</span>';
+                    else cell.innerHTML = '';
+                } else {
+                    cell.className = "board-cell cell-unknown";
+                    cell.innerHTML = '<span class="text-zinc-600/30 text-xs">?</span>';
+                }
+            }
+
+            // 渲染实体位置 (借鉴飞行棋原坐标算法)[cite: 1]
+            const renderEntity = (id, pos, isVisible) => {
+                const el = document.getElementById(id);
+                if(!isVisible || pos < 0) { el.classList.add('hidden'); return; }
+                el.classList.remove('hidden');
+                const coords = getCoordPercent(pos);
+                el.style.left = `calc(${coords.x}% - 16px)`;
+                el.style.top = `calc(${coords.y}% - 16px)`;
+            };
+
+            renderEntity('ent-p1', gameState.p1.pos, gameState.p1.alive);
+            renderEntity('ent-p2', gameState.p2.pos, gameState.p2.alive);
+            renderEntity('ent-monster', gameState.monster.pos, true);
+
+            // 渲染日志
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
-            const logsToRender = gameState.logs || [];
+            const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
-                div.innerText = log;
+                div.className = "border-b border-zinc-700/50 pb-1 w-full";
+                div.innerHTML = log;
                 logBox.appendChild(div);
             });
 
-            // 更新探险家背包UI
-            if(myPlayerId === 'p2') {
-                const invDiv = document.getElementById('inventoryDisplay');
-                invDiv.innerHTML = '';
-                for(let i=0; i<TARGET_COUNT; i++) {
-                    const dot = document.createElement('div');
-                    dot.className = `w-3 h-3 rounded-sm border ${i < gameState.p2.score ? 'bg-amber-400 border-amber-200 shadow-[0_0_5px_#fbbf24]' : 'bg-gray-800 border-gray-700'}`;
-                    invDiv.appendChild(dot);
-                }
-            }
-
-            // 画布绘制
-            if (gameState.parsedMap && gameState.status !== 'waiting') {
-                if (myPlayerId === 'p1' && navCtx) drawNavigatorMap();
-                if (myPlayerId === 'p2' && expCtx) drawExplorerMap();
-            }
-
-            // 结算判定
-            if (gameState.winner) {
+            // 结算面板
+            if (gameState.status === 'finished') {
+                overlay.classList.remove('hidden');
                 document.getElementById('msgModal').classList.remove('hidden');
+                document.getElementById('msgTitle').innerText = gameState.winner ? `${gameState[gameState.winner].name} 成功逃生！` : '全军覆没';
+                document.getElementById('msgDesc').innerText = gameState.winReason;
             }
         }
 
-        // P1 全景渲染
-        function drawNavigatorMap() {
-            const cvs = document.getElementById('navCanvas');
-            const w = cvs.width;
-            const h = cvs.height;
-            const cellSize = w / MAP_SIZE;
-            const map = gameState.parsedMap;
-            const p2Pos = gameState.p2.pos;
-
-            navCtx.clearRect(0, 0, w, h);
-
-            // 绘制网格
-            navCtx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
-            navCtx.lineWidth = 1;
-            navCtx.beginPath();
-            for(let i=0; i<=MAP_SIZE; i++) {
-                navCtx.moveTo(i * cellSize, 0); navCtx.lineTo(i * cellSize, h);
-                navCtx.moveTo(0, i * cellSize); navCtx.lineTo(w, i * cellSize);
-            }
-            navCtx.stroke();
-
-            // 绘制地形
-            for(let y=0; y<MAP_SIZE; y++) {
-                for(let x=0; x<MAP_SIZE; x++) {
-                    if (map[y][x] === 1) { // 暗礁
-                        navCtx.fillStyle = 'rgba(153, 27, 27, 0.6)'; // red-800
-                        navCtx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
-                        // 加点纹理
-                        navCtx.fillStyle = 'rgba(239, 68, 68, 0.4)';
-                        navCtx.fillRect(x * cellSize + cellSize*0.2, y * cellSize + cellSize*0.2, cellSize*0.6, cellSize*0.6);
-                    } else if (map[y][x] === 2) { // 标本
-                        navCtx.fillStyle = '#fbbf24'; // amber-400
-                        navCtx.beginPath();
-                        navCtx.arc(x * cellSize + cellSize/2, y * cellSize + cellSize/2, cellSize*0.3, 0, Math.PI*2);
-                        navCtx.fill();
-                        navCtx.shadowColor = '#fbbf24';
-                        navCtx.shadowBlur = 10;
-                        navCtx.fill();
-                        navCtx.shadowBlur = 0;
-                    }
-                }
-            }
-
-            // 绘制探险家位置
-            navCtx.fillStyle = '#06b6d4'; // cyan-500
-            navCtx.beginPath();
-            navCtx.arc(p2Pos.x * cellSize + cellSize/2, p2Pos.y * cellSize + cellSize/2, cellSize*0.4, 0, Math.PI*2);
-            navCtx.fill();
-            navCtx.shadowColor = '#22d3ee';
-            navCtx.shadowBlur = 15;
-            navCtx.fill();
-            navCtx.shadowBlur = 0;
+        // --- 交互与游戏核心规则 ---
+        function isAdjacent(pos1, pos2) {
+            const x1 = pos1 % GRID_W, y1 = Math.floor(pos1 / GRID_W);
+            const x2 = pos2 % GRID_W, y2 = Math.floor(pos2 / GRID_W);
+            return (Math.abs(x1 - x2) + Math.abs(y1 - y2)) === 1;
         }
 
-        // P2 局域渲染 (5x5 视野)
-        function drawExplorerMap() {
-            const cvs = document.getElementById('expCanvas');
-            const w = cvs.width;
-            const h = cvs.height;
-            const VIEW_RADIUS = 2; // 5x5 grid -> center is 2
-            const CELLS_ACROSS = VIEW_RADIUS * 2 + 1; // 5
-            const cellSize = w / CELLS_ACROSS;
+        window.handleCellClick = function(targetPos) {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState[myPlayerId].alive) return;
+            const myPos = gameState[myPlayerId].pos;
             
-            const map = gameState.parsedMap;
-            const cx = gameState.p2.pos.x;
-            const cy = gameState.p2.pos.y;
+            // 校验：必须是相邻且未坍塌的格子
+            if (!isAdjacent(myPos, targetPos) && targetPos !== myPos) return showToast("只能移动到相邻房间");
+            if (gameState.collapsed.includes(targetPos)) return showToast("该房间已坍塌！");
 
-            // 背景色 (深渊)
-            expCtx.fillStyle = '#0a0a0a';
-            expCtx.fillRect(0, 0, w, h);
-
-            // 绘制视野内的格子
-            for(let dy = -VIEW_RADIUS; dy <= VIEW_RADIUS; dy++) {
-                for(let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx++) {
-                    let mapX = cx + dx;
-                    let mapY = cy + dy;
-                    
-                    let drawX = (dx + VIEW_RADIUS) * cellSize;
-                    let drawY = (dy + VIEW_RADIUS) * cellSize;
-
-                    // 绘制底格线
-                    expCtx.strokeStyle = 'rgba(255,255,255,0.05)';
-                    expCtx.strokeRect(drawX, drawY, cellSize, cellSize);
-
-                    // 越界区域画虚空
-                    if (mapX < 0 || mapX >= MAP_SIZE || mapY < 0 || mapY >= MAP_SIZE) {
-                        expCtx.fillStyle = '#000';
-                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
-                        // 画个边界警告线
-                        expCtx.strokeStyle = 'rgba(239,68,68,0.2)';
-                        expCtx.beginPath();
-                        expCtx.moveTo(drawX, drawY);
-                        expCtx.lineTo(drawX+cellSize, drawY+cellSize);
-                        expCtx.stroke();
-                        continue;
-                    }
-
-                    const cellVal = map[mapY][mapX];
-                    
-                    if (cellVal === 1) { // 暗礁 (面前的墙)
-                        expCtx.fillStyle = '#1c1917'; // stone-900
-                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
-                        
-                        // 岩石纹理表现
-                        expCtx.fillStyle = '#292524';
-                        expCtx.beginPath();
-                        expCtx.moveTo(drawX + cellSize*0.1, drawY + cellSize*0.9);
-                        expCtx.lineTo(drawX + cellSize*0.5, drawY + cellSize*0.2);
-                        expCtx.lineTo(drawX + cellSize*0.9, drawY + cellSize*0.9);
-                        expCtx.fill();
-                    } else if (cellVal === 2) { // 标本
-                        // 闪烁金光
-                        const time = Date.now() / 200;
-                        const pulse = Math.abs(Math.sin(time));
-                        
-                        expCtx.fillStyle = `rgba(251, 191, 36, ${0.5 + pulse*0.5})`; // amber-400
-                        expCtx.beginPath();
-                        expCtx.arc(drawX + cellSize/2, drawY + cellSize/2, cellSize*0.2, 0, Math.PI*2);
-                        expCtx.fill();
-                        
-                        // 发光环
-                        expCtx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
-                        expCtx.lineWidth = 2;
-                        expCtx.beginPath();
-                        expCtx.arc(drawX + cellSize/2, drawY + cellSize/2, cellSize*(0.3 + pulse*0.1), 0, Math.PI*2);
-                        expCtx.stroke();
-                    }
-                    
-                    // 标记当前位置脚下的地面
-                    if (dx === 0 && dy === 0 && cellVal === 0) {
-                        expCtx.fillStyle = 'rgba(255,255,255,0.02)';
-                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
-                    }
-                }
-            }
-        }
-
-        // --- 交互控制逻辑 (仅P2可用) ---
-        window.handleMove = function(dx, dy) {
-            if (gameState?.status !== 'playing' || myPlayerId !== 'p2') return;
-
-            const currentPos = gameState.p2.pos;
-            const newX = currentPos.x + dx;
-            const newY = currentPos.y + dy;
-            const map = gameState.parsedMap;
-
-            // 边界检查
-            if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) {
-                showToast("警告：已达扫描边界");
-                return;
-            }
-
-            // 障碍检查
-            if (map[newY][newX] === 1) {
-                showToast("路线受阻：检测到高密度岩层");
-                // 震动反馈 (支持的设备)
-                if (navigator.vibrate) navigator.vibrate(50);
-                return;
-            }
-
-            // 乐观更新UI
-            const newState = { 
-                'p2.pos': {x: newX, y: newY}
-            };
-            gameState.p2.pos = {x: newX, y: newY}; 
-            requestAnimationFrame(renderGameState);
-
-            // 存入DB
-            getRoomRef(currentRoomId).update(newState).catch(e => console.error(e));
+            executePlayerTurn(targetPos);
         };
 
-        window.handleAction = function() {
-            if (gameState?.status !== 'playing' || myPlayerId !== 'p2') return;
+        window.handleBetray = function() {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
+            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+            if (!gameState[oppId].alive) return showToast("对手已死，无需暗算");
 
-            const pos = gameState.p2.pos;
-            const map = gameState.parsedMap;
+            let stateUpdate = { ...gameState };
+            let logs = [...stateUpdate.logs];
+            const oppPos = stateUpdate[oppId].pos;
 
-            if (map[pos.y][pos.x] === 2) {
-                // 采集成功
-                let newMap = JSON.parse(JSON.stringify(map));
-                newMap[pos.y][pos.x] = 0; // 清除标本
+            // 找到对手周围可坍塌的房间
+            let validTraps = [];
+            for(let i=0; i<49; i++) {
+                if(isAdjacent(oppPos, i) && !stateUpdate.collapsed.includes(i) && i !== POD_POS) {
+                    validTraps.push(i);
+                }
+            }
+
+            logs.push(`<span class="text-red-500 font-bold">⚠️ ${myName} 黑入了基地系统！试图封死对手的退路！</span>`);
+            
+            if(validTraps.length > 0) {
+                // 随机坍塌对手身边的一个房间
+                const trapPos = validTraps[Math.floor(Math.random() * validTraps.length)];
+                stateUpdate.collapsed.push(trapPos);
+                logs.push(`💥 房间 [${trapPos%7},${Math.floor(trapPos/7)}] 被人工强制引爆坍塌！`);
                 
-                let newScore = (gameState.p2.score || 0) + 1;
-                let logs = [`> 探险家成功回收标本 [${newScore}/${TARGET_COUNT}]`, ...(gameState.logs||[])].slice(0, 15);
+                // 如果刚好连累了怪物，怪物重置
+                if(stateUpdate.monster.pos === trapPos) {
+                    stateUpdate.monster.pos = 0; // 重置到角落
+                    logs.push(`👾 怪物掉入了人工制造的深渊，但在别处重新爬上来了。`);
+                }
+            } else {
+                logs.push(`⚠️ 周围没有可供引爆的结构，暗算落空！`);
+            }
+
+            finalizeTurn(stateUpdate, logs);
+        };
+
+        function executePlayerTurn(newPos) {
+            let stateUpdate = JSON.parse(JSON.stringify(gameState)); // 深度拷贝
+            let logs = stateUpdate.logs;
+            let me = stateUpdate[myPlayerId];
+            
+            me.pos = newPos;
+            logs.push(`👣 ${myName} 移动到了房间 [${newPos%7},${Math.floor(newPos/7)}]`);
+
+            // 检查逃生
+            if (newPos === POD_POS && stateUpdate.podActive) {
+                stateUpdate.status = 'finished';
+                stateUpdate.winner = myPlayerId;
+                stateUpdate.winReason = '唯一的逃生舱已发射，胜者为王，败者化为宇宙尘埃。';
+                logs.push(`🚀 ${myName} 登上了逃生舱！抛弃了队友独自逃生！`);
+                submitUpdate(stateUpdate);
+                return;
+            }
+
+            // 盲盒逻辑
+            if (!stateUpdate.searched.includes(newPos)) {
+                stateUpdate.searched.push(newPos);
+                const rand = Math.random();
+                if (rand < 0.2 && !stateUpdate.podActive) {
+                    me.hasKey = true;
+                    stateUpdate.podActive = true;
+                    logs.push(`🔑 <span class="text-green-400">大发现！${myName} 找到了逃生密匙，中心逃生舱已启动！</span>`);
+                } else if (rand < 0.4 && !me.hasGun) {
+                    me.hasGun = true;
+                    logs.push(`🎒 <span class="text-blue-400">${myName} 搜刮到了一个急救包。</span>`);
+                } else if (rand < 0.6) {
+                    stateUpdate.monster.pos = newPos;
+                    logs.push(`👾 <span class="text-purple-400">糟了！盲盒里跳出了变异体！它就在你面前！</span>`);
+                } else {
+                    logs.push(`📦 房间里空空如也，只有冷风吹过。`);
+                }
+            }
+
+            finalizeTurn(stateUpdate, logs);
+        }
+
+        function finalizeTurn(stateUpdate, logs) {
+            // 轮换回合
+            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+            let nextTurn = oppId;
+
+            // 如果此时是 P2 回合结束，或者是 P1 行动但 P2 已死 -> 触发世界回合（怪物+坍塌）
+            if (myPlayerId === 'p2' || (myPlayerId === 'p1' && !stateUpdate.p2.alive)) {
+                processWorldEvents(stateUpdate, logs);
+                // 世界事件后如果 P1 还活着，给 P1，否则给 P2
+                nextTurn = stateUpdate.p1.alive ? 'p1' : (stateUpdate.p2.alive ? 'p2' : 'p1');
+            } else if (!stateUpdate.p2.alive) {
+                // 如果P2本来就是死的，那不用转交回合，继续刚才处理的世界事件逻辑
+                nextTurn = 'p1';
+            }
+
+            // 如果全死
+            if (!stateUpdate.p1.alive && !stateUpdate.p2.alive) {
+                stateUpdate.status = 'finished';
+                stateUpdate.winner = null;
+                stateUpdate.winReason = '所有探险家均已阵亡，科研基地彻底化为死城。';
+            } else {
+                stateUpdate.turn = nextTurn;
+            }
+
+            stateUpdate.logs = logs;
+            submitUpdate(stateUpdate);
+        }
+
+        // --- 怪物与环境系统 ---
+        function processWorldEvents(state, logs) {
+            // 1. 怪物行动 (寻找最近的活人)
+            let targets = [];
+            if(state.p1.alive) targets.push(state.p1.pos);
+            if(state.p2.alive) targets.push(state.p2.pos);
+            
+            if(targets.length > 0) {
+                let mPos = state.monster.pos;
+                let mX = mPos % GRID_W, mY = Math.floor(mPos / GRID_W);
                 
-                let updateData = {
-                    mapData: JSON.stringify(newMap),
-                    'p2.score': newScore,
-                    logs: logs
+                // 找出距离最近的玩家
+                let minDist = 999, bestTarget = mPos;
+                targets.forEach(tPos => {
+                    let tX = tPos % GRID_W, tY = Math.floor(tPos / GRID_W);
+                    let dist = Math.abs(tX - mX) + Math.abs(tY - mY);
+                    if(dist < minDist) { minDist = dist; bestTarget = tPos; }
+                });
+
+                // 寻路向最近玩家走1步
+                if(minDist > 0) {
+                    let tX = bestTarget % GRID_W, tY = Math.floor(bestTarget / GRID_W);
+                    if(mX < tX) mX++; else if(mX > tX) mX--;
+                    else if(mY < tY) mY++; else if(mY > tY) mY--;
+                    state.monster.pos = mY * GRID_W + mX;
+                    logs.push(`👾 变异体嗅到了血肉的味道，正在逼近...`);
+                }
+
+                // 判定遭遇战
+                let p1Hit = state.p1.alive && state.monster.pos === state.p1.pos;
+                let p2Hit = state.p2.alive && state.monster.pos === state.p2.pos;
+                
+                // 判定火力覆盖（两人相邻或同格）
+                let isCoop = state.p1.alive && state.p2.alive && isAdjacent(state.p1.pos, state.p2.pos);
+                if (isCoop && state.monster.pos === state.p1.pos && state.monster.pos === state.p2.pos) isCoop = true;
+
+                const handleHit = (pId, pHit) => {
+                    if(!pHit) return;
+                    if(isCoop) {
+                        logs.push(`🔫 <span class="text-green-500">双人火力覆盖！变异体被打退逃跑了！</span>`);
+                        state.monster.pos = 0; // 滚回起点
+                    } else {
+                        if(state[pId].hasGun) {
+                            state[pId].hasGun = false;
+                            logs.push(`🩸 <span class="text-yellow-500">${state[pId].name} 消耗了急救包，抵挡了怪物的致命一击！</span>`);
+                        } else {
+                            state[pId].alive = false;
+                            logs.push(`💀 <span class="text-red-600 font-bold">惨叫声传来！${state[pId].name} 被变异体撕碎了！</span>`);
+                        }
+                    }
                 };
 
-                // 胜利判定
-                if (newScore >= TARGET_COUNT) {
-                    updateData.status = 'finished';
-                    updateData.winner = 'p2';
-                    logs.unshift(`> 任务完成！所有标本已回收。`);
-                    updateData.logs = logs;
-                }
+                handleHit('p1', p1Hit);
+                handleHit('p2', p2Hit);
+            }
 
-                // 乐观更新
-                gameState.parsedMap = newMap;
-                gameState.p2.score = newScore;
-                gameState.logs = logs;
-                if(newScore >= TARGET_COUNT) gameState.winner = 'p2';
-                requestAnimationFrame(renderGameState);
+            // 2. 倒塌轮盘
+            let availableCells = [];
+            for(let i=0; i<49; i++) {
+                if(!state.collapsed.includes(i) && i !== POD_POS) availableCells.push(i);
+            }
+            if(availableCells.length > 0) {
+                // 随机坍塌1格
+                let collapseIdx = availableCells[Math.floor(Math.random()*availableCells.length)];
+                state.collapsed.push(collapseIdx);
+                logs.push(`💥 基地结构老化，区域 [${collapseIdx%7},${Math.floor(collapseIdx/7)}] 发生塌陷！`);
                 
-                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // 成功震动
-
-                getRoomRef(currentRoomId).update(updateData);
-            } else {
-                showToast("当前坐标未检测到目标物");
+                // 检查有没有倒霉鬼掉下去
+                if(state.p1.alive && state.p1.pos === collapseIdx) {
+                    state.p1.alive = false;
+                    logs.push(`💀 ${state.p1.name} 坠入了无底深渊！`);
+                }
+                if(state.p2.alive && state.p2.pos === collapseIdx) {
+                    state.p2.alive = false;
+                    logs.push(`💀 ${state.p2.name} 坠入了无底深渊！`);
+                }
             }
-        };
-
-        // 键盘控制支持
-        document.addEventListener('keydown', (e) => {
-            if(myPlayerId !== 'p2' || document.getElementById('gameView').classList.contains('hidden')) return;
-            switch(e.key) {
-                case 'ArrowUp': case 'w': handleMove(0, -1); break;
-                case 'ArrowDown': case 's': handleMove(0, 1); break;
-                case 'ArrowLeft': case 'a': handleMove(-1, 0); break;
-                case 'ArrowRight': case 'd': handleMove(1, 0); break;
-                case ' ': case 'Enter': handleAction(); break;
-            }
-        });
-
-        // --- 辅助UI ---
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg;
-            toast.classList.remove('hidden');
-            // Trigger reflow
-            void toast.offsetWidth;
-            toast.style.opacity = '1';
-            toast.style.transform = 'translate(-50%, 0)';
-            
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translate(-50%, -20px)';
-                setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 2500);
         }
 
-        // Handle canvas resize on window resize (mostly for Nav view)
-        window.addEventListener('resize', () => {
-            if (gameState && myPlayerId === 'p1' && document.getElementById('navigatorUI').offsetParent !== null) {
-                initNavCanvas();
-                requestAnimationFrame(renderGameState);
-            }
-        });
+        function submitUpdate(stateUpdate) {
+            // 【乐观更新机制】客户端即刻重绘[cite: 1]
+            gameState = { ...gameState, ...stateUpdate };
+            requestAnimationFrame(renderGameState);
 
-        // 启动
+            // 后台静默发送请求
+            getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
+        }
+
         initAuth();
-
     </script>
 </body>
 </html>
