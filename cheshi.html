@@ -3,343 +3,317 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端 UNO 🌈</title>
+    <title>迷雾航线 🌊 勘探协议</title>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.cloudbase.net">
-    <!-- 腾讯云开发 CloudBase Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+SC:wght@400;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'sans': ['Noto Sans SC', 'sans-serif'],
+                        'mono': ['Orbitron', 'monospace'],
+                    },
+                    colors: {
+                        nav: { dark: '#0f172a', light: '#38bdf8', accent: '#0284c7' },
+                        exp: { dark: '#1c1917', light: '#fbbf24', accent: '#d97706' }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
-            font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #e0f2fe;
-            background-image: 
-                radial-gradient(#bae6fd 2px, transparent 2px),
-                radial-gradient(#bae6fd 2px, transparent 2px);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
-            overflow: hidden; /* 游戏界面禁止原生滚动 */
+            background-color: #050505;
+            color: #e5e5e5;
+            overflow-x: hidden;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            background-image: 
+                linear-gradient(rgba(0, 255, 0, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 255, 0, 0.03) 1px, transparent 1px);
+            background-size: 20px 20px;
         }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0) translateX(0); }
-            50% { transform: translateY(-10px) translateX(5px); }
-        }
-        .cloud { animation: float 6s ease-in-out infinite; }
-        .cloud-delayed { animation: float 7s ease-in-out 2s infinite; }
-
-        .uno-card {
-            width: 4rem; /* w-16 */
-            height: 6rem; /* h-24 */
-            border-radius: 0.5rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 0.25rem;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1), inset 0 0 0 2px rgba(255,255,255,0.5);
-            position: relative;
-            background-color: white;
-            border: 2px solid white;
-            transition: transform 0.2s, margin 0.2s;
-            flex-shrink: 0;
-            cursor: pointer;
-            transform-origin: bottom center;
-        }
-        @media (min-width: 640px) {
-            .uno-card { width: 5rem; height: 7.5rem; }
-        }
-
-        .uno-card:hover:not(.disabled) {
-            transform: translateY(-15px) scale(1.05);
+        /* 扫描线效果 */
+        .scanline {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100px;
+            background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.1), transparent);
+            opacity: 0.5;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
             z-index: 50;
         }
-        
-        /* 手牌重叠效果 */
-        .hand-container > .uno-card:not(:first-child) {
-            margin-left: -2rem;
-        }
-        .hand-container > .uno-card:hover ~ .uno-card {
-            transform: translateX(1.5rem);
+        @keyframes scan {
+            0% { transform: translateY(-100px); }
+            100% { transform: translateY(100vh); }
         }
 
-        .card-red { background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; }
-        .card-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; }
-        .card-green { background: linear-gradient(135deg, #10b981, #047857); color: white; }
-        .card-yellow { background: linear-gradient(135deg, #f59e0b, #b45309); color: white; }
-        .card-black { background: linear-gradient(135deg, #374151, #111827); color: white; }
-        .card-back { 
-            background: linear-gradient(135deg, #ef4444, #3b82f6); 
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        .card-value-center {
-            font-size: 2rem;
-            font-weight: 900;
-            text-align: center;
-            text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
-            margin: auto;
-        }
-        .card-value-corner {
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-shadow: 1px 1px 0 #000;
-        }
-        .card-value-corner.bottom { transform: rotate(180deg); }
-
-        .disabled { filter: brightness(0.6) grayscale(0.5); cursor: not-allowed; }
-
-        /* 飞行动画 */
-        @keyframes playCardAnim {
-            0% { transform: scale(1) translateY(0); opacity: 1; }
-            50% { transform: scale(1.2) translateY(-100px); opacity: 0.8; }
-            100% { transform: scale(0.5) translateY(-200px); opacity: 0; }
-        }
-        .playing-card-anim {
-            animation: playCardAnim 0.4s ease-in forwards;
+        /* 雷达动画 (领航员) */
+        .radar-sweep {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 150%;
+            height: 150%;
+            background: conic-gradient(from 0deg, transparent 70%, rgba(56, 189, 248, 0.4) 100%);
+            border-radius: 50%;
+            transform-origin: center;
+            animation: radar 4s linear infinite;
             pointer-events: none;
-            z-index: 100;
+            margin-top: -75%;
+            margin-left: -75%;
+        }
+        @keyframes radar { 100% { transform: rotate(360deg); } }
+
+        /* 迷雾呼吸效果 (探险家) */
+        .fog-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.85) 60%, #000 90%);
+            pointer-events: none;
+            animation: fogBreathe 4s ease-in-out infinite alternate;
+        }
+        @keyframes fogBreathe {
+            0% { transform: scale(1); opacity: 0.9; }
+            100% { transform: scale(1.05); opacity: 1; }
         }
 
-        @keyframes oppPlayAnim {
-            0% { transform: scale(0.5) translateY(-200px); opacity: 0; }
-            50% { transform: scale(1.2) translateY(-50px); opacity: 0.8; }
-            100% { transform: scale(1) translateY(0); opacity: 1; }
+        /* 按钮点击反馈 */
+        .d-pad-btn {
+            transition: all 0.1s;
         }
-        .opp-play-anim {
-            animation: oppPlayAnim 0.4s ease-out forwards;
+        .d-pad-btn:active {
+            transform: scale(0.9);
+            filter: brightness(1.2);
         }
 
-        @keyframes drawCardAnim {
-            0% { transform: scale(0.5) translateX(-100px); opacity: 0; }
-            100% { transform: scale(1) translateX(0); opacity: 1; }
-        }
-        .draw-anim { animation: drawCardAnim 0.3s ease-out forwards; }
-
-        @keyframes slideUpFade {
-            0% { opacity: 0; transform: translate(-50%, 20px); }
-            10% { opacity: 1; transform: translate(-50%, 0); }
-            90% { opacity: 1; transform: translate(-50%, 0); }
-            100% { opacity: 0; transform: translate(-50%, -20px); }
-        }
-        .toast-animate { animation: slideUpFade 3s forwards; }
-        
+        /* 隐藏滚动条 */
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        /* 选色器 */
-        .color-btn { transition: transform 0.1s; }
-        .color-btn:active { transform: scale(0.9); }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-start py-2 px-2 sm:px-6 relative">
-    <!-- 装饰云朵 -->
-    <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
-    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
-    <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-4 relative font-sans">
+    
+    <!-- 全局扫描线特效 -->
+    <div class="scanline"></div>
 
-    <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-spin mb-4">🌈</div>
-        <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span>
-            连接牌局中...
+    <!-- 全局 Loading -->
+    <div id="globalLoading" class="fixed inset-0 bg-black/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-4xl animate-pulse mb-4 font-mono text-cyan-400 border border-cyan-500/50 p-4 rounded-lg bg-cyan-900/20">
+            ESTABLISHING CONNECTION...
+        </div>
+        <div class="text-gray-400 font-bold text-sm flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            连接至云端服务器
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-1/4 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-gray-600"></div>
+    <!-- 提示框 -->
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-md shadow-2xl text-sm font-bold hidden z-[150] whitespace-nowrap border border-gray-600 transition-all duration-300 opacity-0 translate-y-[-20px]"></div>
 
-    <!-- 游戏结算模态框 -->
-    <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
-            <div id="msgIcon" class="text-6xl mb-4 animate-bounce">🏆</div>
-            <h3 class="text-2xl font-bold text-sky-600 mb-2" id="msgTitle">游戏结束</h3>
-            <p class="text-gray-600 mb-6 font-medium" id="msgDesc">恭喜玩家获胜！</p>
-            <div class="flex gap-3">
-                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 active:scale-95 transition-all">关闭</button>
-                <button id="modalActionBtn" onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 text-white font-bold shadow-md hover:opacity-95 active:scale-95 transition-all">再来一局</button>
-            </div>
+    <!-- 结算弹窗 -->
+    <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4">
+        <div class="bg-gray-900 border-2 border-emerald-500 rounded-xl p-6 w-full max-w-sm shadow-[0_0_30px_rgba(16,185,129,0.3)] text-center">
+            <div class="text-5xl mb-4">🏆</div>
+            <h3 class="text-2xl font-mono font-bold text-emerald-400 mb-2">勘探任务完成</h3>
+            <p class="text-gray-300 mb-6 font-medium text-sm">所有目标样本已回收。干得漂亮，特派员。</p>
+            <button onclick="exitRoom()" class="w-full py-3 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-500 active:scale-95 transition-all tracking-widest">
+                断开连接
+            </button>
         </div>
     </div>
 
-    <!-- 选色模态框 (万能牌打出时) -->
-    <div id="colorPickerModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[90] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-64 shadow-2xl text-center border-4 border-gray-200">
-            <h3 class="text-xl font-bold text-gray-800 mb-4">请指定接下来的颜色</h3>
-            <div class="grid grid-cols-2 gap-4">
-                <button onclick="submitWildColor('red')" class="color-btn h-16 rounded-xl bg-red-500 shadow-md border-2 border-red-700"></button>
-                <button onclick="submitWildColor('blue')" class="color-btn h-16 rounded-xl bg-blue-500 shadow-md border-2 border-blue-700"></button>
-                <button onclick="submitWildColor('green')" class="color-btn h-16 rounded-xl bg-green-500 shadow-md border-2 border-green-700"></button>
-                <button onclick="submitWildColor('yellow')" class="color-btn h-16 rounded-xl bg-yellow-400 shadow-md border-2 border-yellow-600"></button>
-            </div>
-        </div>
-    </div>
-
-    <header class="w-full max-w-md flex justify-between items-center mb-2 z-10 px-2 flex-shrink-0">
-        <div class="flex items-center gap-2 bg-white/80 px-3 py-1.5 rounded-2xl shadow-sm border border-white">
-            <span class="text-2xl">🌈</span>
+    <header class="w-full max-w-md flex justify-between items-center mb-6 z-10 px-2 border-b border-gray-800 pb-3">
+        <div class="flex items-center gap-2">
+            <span class="text-2xl">📡</span>
             <div>
-                <h1 class="text-lg font-bold text-sky-600 leading-tight">云端 UNO</h1>
+                <h1 class="text-lg font-mono font-bold text-gray-200 tracking-wider">PROJECT: ENIGMA</h1>
+                <p class="text-[10px] text-gray-500 tracking-[0.2em]">ASYMMETRIC PROTOCOL</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="bg-white/90 px-3 py-1 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
-                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
+            <div class="text-xs font-mono text-gray-400 flex items-center gap-2">
+                ID: <span id="currentRoleDisplay" class="text-gray-200 bg-gray-800 px-2 py-0.5 rounded border border-gray-700">加载中</span>
             </div>
-            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            <span id="syncStatusBadge" class="text-[9px] text-red-500 mt-1 flex items-center gap-1 font-mono">
+                [ OFFLINE ]
             </span>
         </div>
     </header>
 
-    <main class="w-full max-w-md flex-1 flex flex-col items-center gap-2 relative z-10 overflow-hidden">
+    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
         
-        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden overflow-y-auto">
-            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-sky-100 shadow-xl flex flex-col items-center text-center mt-4">
-                <div class="flex justify-center gap-[-20px] mb-4">
-                    <div class="uno-card card-red transform -rotate-12"><div class="card-value-center">+2</div></div>
-                    <div class="uno-card card-blue transform z-10"><div class="card-value-center">🔄</div></div>
-                    <div class="uno-card card-yellow transform rotate-12"><div class="card-value-center">🚫</div></div>
-                </div>
-                <h2 class="text-2xl font-bold text-gray-800 mb-2">匹配大厅</h2>
-                <p class="text-sm text-gray-500 mb-6">创建房间或输入房间号加入对战。</p>
+        <!-- ================= 大厅视图 ================= -->
+        <div id="lobbyView" class="w-full flex flex-col gap-6 hidden">
+            <div class="bg-gray-900/80 backdrop-blur-md rounded-xl p-6 border border-gray-700 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
+                <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-gray-800 via-gray-900 to-black -z-10"></div>
                 
-                <div class="w-full space-y-4">
-                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
-                        <span>🏠</span> 创建房间 (红方)
-                    </button>
+                <h2 class="text-xl font-bold text-gray-100 mb-2 font-mono tracking-widest">选择你的作战序列</h2>
+                <p class="text-xs text-gray-400 mb-8 px-2">高维视界引导，抑或身陷迷雾勘探。需双方密切语音沟通。</p>
+                
+                <div class="w-full space-y-6">
+                    <!-- 领航员创建房间 -->
+                    <div class="relative p-1 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-900">
+                        <button onclick="createRoom()" class="w-full py-4 bg-gray-900 text-cyan-400 rounded-lg font-bold text-sm shadow-lg active:bg-gray-800 transition-all flex flex-col items-center justify-center gap-1">
+                            <span class="text-xl">👁️</span>
+                            <span class="tracking-widest">建立通讯矩阵 (领航员)</span>
+                            <span class="text-[10px] text-cyan-600/70">提供全景视野与指挥</span>
+                        </button>
+                    </div>
                     
-                    <div class="relative flex py-2 items-center">
-                        <div class="flex-grow border-t border-gray-200"></div>
-                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
-                        <div class="flex-grow border-t border-gray-200"></div>
+                    <div class="flex items-center text-gray-600 text-xs font-mono">
+                        <div class="flex-grow border-t border-gray-800"></div>
+                        <span class="mx-4">CONNECT</span>
+                        <div class="flex-grow border-t border-gray-800"></div>
                     </div>
 
-                    <div class="flex flex-col gap-3 w-full">
-                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间号" class="w-full px-4 py-4 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 uppercase transition-all shadow-inner" autocomplete="off">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
-                            加入房间 (蓝方)
-                        </button>
+                    <!-- 探险家加入房间 -->
+                    <div class="flex flex-col gap-2 w-full p-1 rounded-xl bg-gradient-to-r from-amber-600 to-orange-900">
+                        <div class="bg-gray-900 rounded-lg p-3">
+                            <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段码" class="w-full px-4 py-3 bg-black border border-amber-900/50 rounded text-center text-lg font-mono font-bold text-amber-500 tracking-[0.5em] focus:outline-none focus:border-amber-500 placeholder-gray-700 uppercase" autocomplete="off">
+                            <button onclick="joinRoom()" class="w-full mt-2 py-3 bg-amber-600 text-black font-bold text-sm rounded shadow-lg active:bg-amber-500 transition-all tracking-widest">
+                                潜入迷雾区域 (探险家)
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left mb-4">
-                <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 双人版规则摘要</h3>
-                <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li><b class="text-red-500">颜色或符号相同</b>即可出牌，先打完手牌者胜。</li>
-                    <li><b class="text-yellow-600">🚫阻挡 / 🔄反转</b>：双人模式下效果一致，跳过对方回合（你可连出一张）。</li>
-                    <li><b class="text-blue-500">+2 / +4</b>：对方强制摸牌，且<b class="text-red-500">跳过对方回合</b>。</li>
-                    <li>摸牌若无牌可出，回合直接结束。</li>
+            <div class="bg-gray-900/50 rounded-lg p-4 border border-gray-800 text-left">
+                <h3 class="text-xs font-bold text-gray-400 mb-2 font-mono border-b border-gray-700 pb-1">系统操作手册</h3>
+                <ul class="text-[11px] text-gray-500 space-y-2 list-none pl-1">
+                    <li><span class="text-cyan-500">▶ 领航员 (玩家A):</span> 拥有上帝视角，能看到完整地形、危险暗礁(红色)与目标标本(金色)。负责语音指导。</li>
+                    <li><span class="text-amber-500">▶ 探险家 (玩家B):</span> 视野受限，仅能看到周遭极小范围。根据指示移动，收集所有标本。</li>
+                    <li><span class="text-red-500 font-bold">▶ 核心机制:</span> 探险家无法穿过暗礁。必须由领航员规划路线。</li>
                 </ul>
             </div>
         </div>
 
-        <div id="gameView" class="w-full flex-1 flex flex-col gap-2 hidden h-full">
-            <!-- 房间信息与横幅 -->
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-xl p-2 border border-sky-100 shadow-sm flex items-center justify-between flex-shrink-0">
+        <!-- ================= 游戏视图 ================= -->
+        <div id="gameView" class="w-full flex flex-col gap-4 hidden">
+            
+            <!-- 顶部状态栏 -->
+            <div class="w-full bg-gray-900 border border-gray-700 rounded-lg p-3 flex items-center justify-between shadow-lg">
                 <div class="flex flex-col">
-                    <span class="text-[10px] text-gray-400 font-bold uppercase">房间号</span>
-                    <span id="displayRoomCode" class="text-lg font-black text-sky-600 tracking-wider">----</span>
+                    <span class="text-[9px] text-gray-500 font-mono tracking-widest">CHANNEL</span>
+                    <span id="displayRoomCode" class="text-lg font-mono font-bold text-white tracking-widest">----</span>
                 </div>
-                <div id="turnBanner" class="flex-1 mx-2 py-1.5 bg-gray-100 rounded-lg text-center text-xs font-bold text-gray-500 shadow-inner flex items-center justify-center gap-1 transition-all duration-300">
-                    <span id="turnBannerIcon">⏳</span> <span id="turnBannerText">等待中...</span>
+                
+                <div class="flex items-center gap-3">
+                    <div id="roleBadge" class="px-3 py-1 rounded text-xs font-bold font-mono border">
+                        <!-- 动态填充角色徽章 -->
+                    </div>
                 </div>
-                <button onclick="exitRoom()" class="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-100 active:scale-90">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                
+                <button onclick="exitRoom()" class="w-8 h-8 rounded bg-gray-800 text-red-500 flex items-center justify-center hover:bg-gray-700 border border-gray-700 active:scale-90">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
 
-            <!-- 游戏主区域 -->
-            <div class="w-full flex-1 flex flex-col relative bg-white/50 rounded-2xl border-2 border-white overflow-hidden shadow-inner p-2">
-                
-                <!-- 遮罩层(非己方回合) -->
-                <div id="boardOverlay" class="absolute inset-0 z-[60] bg-black/5 hidden cursor-not-allowed"></div>
-                
-                <!-- 顶部：对手区域 -->
-                <div class="flex flex-col items-center justify-start h-1/4 pt-2">
-                    <div class="flex items-center gap-2 mb-1">
-                        <span class="text-xs font-bold text-gray-600">对手: <span id="oppNameDisplay" class="text-gray-800">等待加入</span></span>
-                        <span class="text-[10px] bg-gray-200 px-2 rounded-full text-gray-600" id="oppCardCount">0 张</span>
-                    </div>
-                    <div class="flex hand-container scale-75 transform-origin-top" id="oppHandArea">
-                        <!-- 对手背面卡牌渲染区 -->
-                    </div>
+            <!-- 进度/提示信息 -->
+            <div id="gameStatusBanner" class="w-full py-2 px-4 bg-gray-800 rounded border border-gray-700 text-center text-xs font-mono text-gray-300">
+                等待人员就绪...
+            </div>
+
+            <!-- 领航员视图 (全景地图) -->
+            <div id="navigatorUI" class="w-full flex-col gap-4 hidden">
+                <div class="relative w-full aspect-square bg-black border-2 border-cyan-800 rounded-lg overflow-hidden shadow-[0_0_15px_rgba(6,182,212,0.2)]">
+                    <canvas id="navCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    <div class="radar-sweep"></div>
+                    <!-- 坐标轴装饰 -->
+                    <div class="absolute top-0 left-0 w-full h-4 border-b border-cyan-900/30 flex justify-between px-1 text-[8px] text-cyan-700 font-mono"><span>0</span><span>X-AXIS</span><span>15</span></div>
+                    <div class="absolute top-0 left-0 h-full w-4 border-r border-cyan-900/30 flex flex-col justify-between py-1 text-[8px] text-cyan-700 font-mono text-center"><span>0</span><span class="writing-vertical-rl">Y-AXIS</span><span>15</span></div>
                 </div>
-
-                <div class="flex-1 flex flex-col items-center justify-center relative">
-                    <!-- 当前颜色指示器 -->
-                    <div class="absolute top-0 w-full flex justify-center">
-                        <div id="colorIndicator" class="px-4 py-1 rounded-full text-xs font-bold text-white shadow-md transition-colors duration-300 hidden">
-                            当前需要: <span id="colorIndicatorText">红色</span>
-                        </div>
-                    </div>
-
-                    <div class="flex gap-4 items-center mt-4">
-                        <!-- 牌库 (摸牌区) -->
-                        <div class="relative cursor-pointer hover:scale-105 active:scale-95 transition-transform" onclick="handleDrawCard()" id="drawPileBtn">
-                            <div class="uno-card card-back shadow-lg border-4 border-gray-100">
-                                <div class="text-3xl text-white opacity-80 font-black tracking-widest transform -rotate-45">UNO</div>
-                            </div>
-                            <div class="absolute -bottom-6 left-0 w-full text-center text-xs font-bold text-gray-500">摸牌 <span id="deckCount">(0)</span></div>
-                        </div>
-
-                        <!-- 弃牌堆 -->
-                        <div class="relative" id="discardPileArea">
-                            <div id="discardPileTop" class="uno-card card-gray flex items-center justify-center">
-                                <span class="text-gray-300 text-sm">空</span>
-                            </div>
-                            <div class="absolute -bottom-6 left-0 w-full text-center text-xs font-bold text-gray-500">弃牌堆</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 底部：玩家手牌区域 -->
-                <div class="h-1/3 w-full flex flex-col items-center justify-end pb-2">
-                    <div class="w-full overflow-x-auto no-scrollbar pb-2 pt-4 px-4 flex justify-center">
-                        <div class="flex hand-container min-w-max" id="myHandArea">
-                            <!-- 我的手牌渲染区 -->
-                        </div>
-                    </div>
+                <div class="bg-gray-900 p-3 rounded border border-gray-800 grid grid-cols-3 gap-2 text-center text-xs font-mono mt-2">
+                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-red-900 border border-red-500 mb-1"></span><span class="text-gray-400 text-[9px]">暗礁(阻挡)</span></div>
+                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-amber-900 border border-amber-400 mb-1"></span><span class="text-gray-400 text-[9px]">目标标本</span></div>
+                    <div class="flex flex-col items-center"><span class="w-3 h-3 bg-cyan-500 rounded-full shadow-[0_0_8px_cyan] mb-1"></span><span class="text-gray-400 text-[9px]">探险家位置</span></div>
                 </div>
             </div>
 
-            <div class="w-full h-24 bg-sky-50/80 backdrop-blur-md rounded-xl border border-sky-100 p-2 overflow-hidden relative flex-shrink-0 flex flex-col shadow-inner">
-                <div class="text-[10px] font-bold text-sky-600/70 mb-1 px-1 border-b border-sky-200/50 pb-1 flex justify-between">
-                    <span>📡 牌局通讯记录</span>
-                    <span class="text-green-500">实时同步中</span>
+            <!-- 探险家视图 (局域迷雾 + 操作) -->
+            <div id="explorerUI" class="w-full flex-col items-center gap-4 hidden">
+                <!-- 迷雾画布容器 -->
+                <div class="relative w-full max-w-[280px] aspect-square bg-black border-4 border-gray-800 rounded-full overflow-hidden mx-auto shadow-[0_0_20px_rgba(0,0,0,0.8)]">
+                    <canvas id="expCanvas" class="absolute inset-0 w-full h-full"></canvas>
+                    <div class="fog-overlay"></div>
+                    <!-- 准星 -->
+                    <div class="absolute top-1/2 left-1/2 w-4 h-4 border-2 border-amber-500/50 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"></div>
+                    <div class="absolute top-1/2 left-1/2 w-1 h-1 bg-amber-400 rounded-full transform -translate-x-1/2 -translate-y-1/2 pointer-events-none shadow-[0_0_5px_#fbbf24]"></div>
                 </div>
-                <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar p-1 text-[11px] font-medium text-gray-600">
-                    <div class="text-center text-gray-400 py-2 opacity-50">等待通讯...</div>
+
+                <!-- 收集进度 -->
+                <div class="w-full bg-gray-900 border border-gray-700 rounded p-2 flex justify-between items-center px-4 font-mono">
+                    <span class="text-xs text-gray-500">SAMPLES</span>
+                    <div class="flex gap-1" id="inventoryDisplay">
+                        <!-- 动态生成点 -->
+                    </div>
                 </div>
-                <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
+
+                <!-- 操控台 D-Pad -->
+                <div class="w-full bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col items-center gap-2 relative mt-2">
+                    <div class="text-[10px] text-gray-600 font-mono absolute top-2 left-3">MOVEMENT SYS</div>
+                    
+                    <button onclick="handleMove(0, -1)" id="btnUp" class="d-pad-btn w-16 h-14 bg-gray-800 border-b-4 border-gray-950 rounded-t-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mb-1">
+                        ▲
+                    </button>
+                    <div class="flex gap-1 w-full justify-center">
+                        <button onclick="handleMove(-1, 0)" id="btnLeft" class="d-pad-btn w-16 h-14 bg-gray-800 border-r-4 border-gray-950 rounded-l-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mr-1">
+                            ◀
+                        </button>
+                        <button onclick="handleAction()" id="btnAction" class="d-pad-btn w-16 h-14 bg-amber-900 border-b-4 border-amber-950 rounded text-amber-400 flex items-center justify-center text-xs font-bold font-mono shadow-[0_0_10px_rgba(217,119,6,0.2)]">
+                            COLLECT
+                        </button>
+                        <button onclick="handleMove(1, 0)" id="btnRight" class="d-pad-btn w-16 h-14 bg-gray-800 border-l-4 border-gray-950 rounded-r-xl text-gray-400 flex items-center justify-center text-xl shadow-inner ml-1">
+                            ▶
+                        </button>
+                    </div>
+                    <button onclick="handleMove(0, 1)" id="btnDown" class="d-pad-btn w-16 h-14 bg-gray-800 border-t-4 border-gray-950 rounded-b-xl text-gray-400 flex items-center justify-center text-xl shadow-inner mt-1">
+                        ▼
+                    </button>
+                </div>
+            </div>
+
+            <!-- 通用日志区 -->
+            <div class="w-full bg-black border border-gray-800 rounded-lg p-2 h-24 flex flex-col">
+                <div class="text-[9px] text-gray-600 font-mono border-b border-gray-800 pb-1 mb-1">SYSTEM LOGS</div>
+                <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar text-[10px] font-mono text-gray-400 flex flex-col-reverse">
+                    <!-- 日志动态插入 -->
+                </div>
             </div>
 
         </div>
     </main>
 
     <script type="module">
-        const fallbackTimer = setTimeout(() => hideLoading(), 1000);
+        // --- 容错兜底 ---
+        const fallbackTimer = setTimeout(() => { hideLoading(); }, 1200);
 
-        // ===== 腾讯云开发 CloudBase 配置 =====
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // TODO: 替换为实际环境ID
-        const REGION = "ap-shanghai";             
-        const ROOM_COLLECTION = "unoRooms";
+        // --- 腾讯云开发 CloudBase 配置 ---
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 基于参考配置
+        const REGION = "ap-shanghai";
+        const ROOM_COLLECTION = "mistRouteRooms"; 
 
         function getRoomRef(code) {
             return db.collection(ROOM_COLLECTION).doc(String(code));
         }
-
         function pickDoc(snapshot, code) {
             if (!snapshot) return null;
             const docs = snapshot.docs;
             if (Array.isArray(docs)) return docs[0] || null;
-            if (docs && typeof docs === 'object') {
-                return docs[code] || (docs._id ? docs : null);
-            }
+            if (docs && typeof docs === 'object') return docs[code] || (docs._id ? docs : null);
             return null;
         }
 
@@ -349,72 +323,69 @@
 
         try {
             app = cloudbase.init({ env: ENV_ID, region: REGION });
-            auth = app.auth;      
+            auth = app.auth;
             db = app.database();
             hasCloudBase = true;
         } catch(e) {
             console.error("CloudBase init failed", e);
         }
 
-        let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
+        // --- 身份标识处理 ---
+        let myIdentity = "USR-" + Math.floor(1000 + Math.random()*9000); 
         try {
-            const savedIdentity = localStorage.getItem('uno_myIdentity');
-            if (savedIdentity) myIdentity = savedIdentity;
-        } catch(e) {}
+            const savedIdentity = localStorage.getItem('mistRoute_myIdentity');
+            if (savedIdentity) {
+                myIdentity = savedIdentity;
+            } else {
+                localStorage.setItem('mistRoute_myIdentity', myIdentity);
+            }
+        } catch(e) {
+            console.warn('localStorage access denied, using random ID');
+        }
         
-        const myName = myIdentity; 
-        document.getElementById('currentRoleDisplay').innerText = myName;
+        document.getElementById('currentRoleDisplay').innerText = myIdentity;
 
-        // 游戏核心状态变量
+        // --- 游戏核心状态变量 ---
         let currentRoomId = null;
         let unsubscribeRoom = null;
         let gameState = null; 
-        let myPlayerId = null;
-        let oppPlayerId = null;
+        let myPlayerId = null; // 'p1' (Nav) or 'p2' (Exp)
         
-        // 用于处理万能牌选择颜色的临时变量
-        let pendingWildPlay = null;
+        const MAP_SIZE = 16;
+        const TARGET_COUNT = 5;
 
-        const COLORS = ['red', 'blue', 'green', 'yellow'];
-        const VALUES = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '🚫', '🔄', '+2'];
-        const WILDS = ['🌈', '➕4'];
+        // --- 地图生成逻辑 ---
+        function generateMap() {
+            let map = Array(MAP_SIZE).fill(0).map(() => Array(MAP_SIZE).fill(0));
+            // 0: 空地, 1: 暗礁(墙), 2: 标本(目标)
 
-        function createDeck() {
-            let deck = [];
-            let idCounter = 0;
-            // 基础颜色牌
-            COLORS.forEach(color => {
-                VALUES.forEach(val => {
-                    // 0只有一张，其他各有两张
-                    const count = val === '0' ? 1 : 2;
-                    for(let i=0; i<count; i++) {
-                        let type = isNaN(val) ? 'action' : 'number';
-                        deck.push({ id: `c-${idCounter++}`, color, value: val, type });
-                    }
-                });
-            });
-            // 万能牌 (各4张)
-            WILDS.forEach(val => {
-                for(let i=0; i<4; i++) {
-                    deck.push({ id: `w-${idCounter++}`, color: 'black', value: val, type: 'wild' });
+            // 生成暗礁 (约25%密度)
+            for(let i = 0; i < MAP_SIZE * MAP_SIZE * 0.25; i++) {
+                let x = Math.floor(Math.random() * MAP_SIZE);
+                let y = Math.floor(Math.random() * MAP_SIZE);
+                // 预留出生点 (0,0) 周围空间
+                if (x + y > 2) { 
+                    map[y][x] = 1;
                 }
-            });
-            return shuffle(deck);
-        }
-
-        function shuffle(array) {
-            let currentIndex = array.length, randomIndex;
-            while (currentIndex !== 0) {
-                randomIndex = Math.floor(Math.random() * currentIndex);
-                currentIndex--;
-                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
             }
-            return array;
+
+            // 生成标本
+            let placedTargets = 0;
+            while(placedTargets < TARGET_COUNT) {
+                let x = Math.floor(Math.random() * MAP_SIZE);
+                let y = Math.floor(Math.random() * MAP_SIZE);
+                if (map[y][x] === 0 && (x > 2 || y > 2)) {
+                    map[y][x] = 2;
+                    placedTargets++;
+                }
+            }
+            return map;
         }
 
+        // --- 认证与视图切换 ---
         async function initAuth() {
             if (!hasCloudBase) {
-                showToast("未检测到网络配置，进入离线模式");
+                showToast("环境异常，进入单机演示模式");
                 clearTimeout(fallbackTimer);
                 hideLoading();
                 return;
@@ -423,12 +394,12 @@
                 const res = await auth.signInAnonymously();
                 if (res && res.error) throw res.error;
                 currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 在线';
+                document.getElementById('syncStatusBadge').innerHTML = '[ <span class="text-green-500">ONLINE</span> ]';
+                document.getElementById('syncStatusBadge').classList.replace('text-red-500', 'text-green-500');
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                showToast("网络通信异常");
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                showToast("网络连接失败");
                 switchToLobby();
             } finally {
                 clearTimeout(fallbackTimer);
@@ -448,446 +419,446 @@
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
             currentRoomId = null;
             myPlayerId = null;
-            oppPlayerId = null;
+            gameState = null;
         }
 
         window.createRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
+            if (!currentUser) return showToast("系统未连接");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
+            const initialMap = generateMap();
+
             const initialData = {
                 status: 'waiting', 
-                p1: { name: myName },
-                p2: { name: null },
-                p1Hand: [],
-                p2Hand: [],
-                deck: [],
-                discardPile: [],
-                currentColor: '',
-                turn: 'p1', 
-                logs: [`🏠 ${myName} 创建了房间，等待对手...`],
+                p1: { name: myIdentity }, // 领航员
+                p2: { name: null, pos: {x: 0, y: 0}, score: 0 }, // 探险家
+                mapData: JSON.stringify(initialMap), // 序列化存入DB防嵌套限制
+                logs: [`> ${myIdentity} 建立了通讯矩阵 [${code}]`],
                 winner: null
             };
 
             try {
                 await getRoomRef(code).set(initialData);
                 myPlayerId = 'p1';
-                oppPlayerId = 'p2';
                 listenToRoom(code);
-                showToast(`房间 ${code} 创建成功`);
+                showToast(`频道 ${code} 创建成功`);
             } catch (e) {
                 console.error(e);
-                showToast("创建失败");
+                showToast("建立频段失败");
             }
         };
 
         window.joinRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
-            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (!code || code.length !== 4) return showToast("请输入4位房间号");
+            if (!currentUser) return showToast("系统未连接");
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if (!code || code.length !== 4) return showToast("请输入4位数字频段");
 
             try {
                 const res = await getRoomRef(code).get();
                 const data = res.data && res.data[0];
-                if (!data) return showToast("房间不存在");
-                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
-                    return showToast("对战已开始或满人");
-                }
-
-                if (data.status === 'waiting' && data.p1.name !== myName) {
-                    // 初始化游戏牌局
-                    let deck = createDeck();
-                    let p1Hand = deck.splice(0, 7);
-                    let p2Hand = deck.splice(0, 7);
-                    // 翻开第一张非万能牌作为起始牌
-                    let startCardIndex = deck.findIndex(c => c.type !== 'wild');
-                    if (startCardIndex === -1) startCardIndex = 0; // 极端情况全万能
-                    let discardPile = [deck.splice(startCardIndex, 1)[0]];
-                    let currentColor = discardPile[0].color;
-
+                if (!data) return showToast("频段不存在");
+                
+                if (data.status === 'waiting' && data.p1.name !== myIdentity) {
+                    // 加入作为 P2
                     await getRoomRef(code).update({
-                        'p2.name': myName,
+                        'p2.name': myIdentity,
                         status: 'playing',
-                        deck, p1Hand, p2Hand, discardPile, currentColor,
-                        logs: [`⚔️ ${myName} 加入，对战开始！红方先手。`, `👉 起始牌为 ${getColorName(currentColor)} ${discardPile[0].value}`]
+                        logs: [`> ${myIdentity} 已接入信号。勘探开始。`, ...data.logs].slice(0, 15)
                     });
                     myPlayerId = 'p2';
-                    oppPlayerId = 'p1';
-                } else if (data.p1.name === myName) {
-                    myPlayerId = 'p1'; oppPlayerId = 'p2';
-                } else if (data.p2.name === myName) {
-                    myPlayerId = 'p2'; oppPlayerId = 'p1';
+                } else if (data.p1.name === myIdentity) {
+                    myPlayerId = 'p1'; // 重连
+                } else if (data.p2.name === myIdentity) {
+                    myPlayerId = 'p2'; // 重连
+                } else {
+                    return showToast("该频道已满载");
                 }
 
                 listenToRoom(code);
             } catch (e) {
                 console.error(e);
-                showToast("加入失败");
+                showToast("连接频段失败");
             }
         };
 
         window.exitRoom = function() {
+            document.getElementById('msgModal').classList.add('hidden');
             switchToLobby();
         };
 
+        // --- 房间监听 ---
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
 
+            // 依据身份显示对应UI
+            if(myPlayerId === 'p1') {
+                document.getElementById('navigatorUI').classList.remove('hidden');
+                document.getElementById('explorerUI').classList.add('hidden');
+                document.getElementById('roleBadge').className = "px-3 py-1 rounded text-xs font-bold font-mono border bg-cyan-900/30 text-cyan-400 border-cyan-700";
+                document.getElementById('roleBadge').innerText = "NAVIGATOR [上帝视角]";
+                initNavCanvas();
+            } else {
+                document.getElementById('navigatorUI').classList.add('hidden');
+                document.getElementById('explorerUI').classList.remove('hidden');
+                document.getElementById('explorerUI').classList.add('flex');
+                document.getElementById('roleBadge').className = "px-3 py-1 rounded text-xs font-bold font-mono border bg-amber-900/30 text-amber-500 border-amber-700";
+                document.getElementById('roleBadge').innerText = "EXPLORER [局部视野]";
+                initExpCanvas();
+            }
+
             if (unsubscribeRoom) unsubscribeRoom();
             
-            let previousDiscardTopId = null;
-
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        // 检测对手是否出牌，用于触发动画
-                        if (gameState && data.discardPile.length > 0) {
-                            const newTopCard = data.discardPile[data.discardPile.length - 1];
-                            const oldTopCard = gameState.discardPile[gameState.discardPile.length - 1];
-                            if ((!oldTopCard || newTopCard.id !== oldTopCard.id) && data.turn === myPlayerId && gameState.turn === oppPlayerId) {
-                                // 轮到我了，且弃牌堆变了，说明对手出了牌
-                                triggerOpponentPlayAnim();
-                            }
+                        // 解析地图数据
+                        if(typeof data.mapData === 'string') {
+                            data.parsedMap = JSON.parse(data.mapData);
                         }
-
                         gameState = data;
                         requestAnimationFrame(renderGameState);
                     } else {
-                        showToast("房间已解散");
+                        showToast("通讯已中断");
                         switchToLobby();
                     }
                 },
-                onError: (err) => { console.error(err); }
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
+                }
             });
             unsubscribeRoom = () => watcher.close();
         }
 
-        // 辅助工具函数
-        function getColorName(c) {
-            const map = {red:'红色', blue:'蓝色', green:'绿色', yellow:'黄色', black:'万能'};
-            return map[c] || c;
+        // --- 渲染逻辑 ---
+        let navCtx, expCtx;
+        
+        function initNavCanvas() {
+            const cvs = document.getElementById('navCanvas');
+            const rect = cvs.parentElement.getBoundingClientRect();
+            cvs.width = rect.width;
+            cvs.height = rect.height;
+            navCtx = cvs.getContext('2d');
         }
-        function getCardColorClass(c) {
-            return `card-${c}`;
-        }
-        function getOppName() {
-            return gameState[oppPlayerId].name || '等待中...';
-        }
-        function getMyName() {
-            return gameState[myPlayerId].name;
+
+        function initExpCanvas() {
+            const cvs = document.getElementById('expCanvas');
+            // Fixed internal resolution for consistent retro feel
+            cvs.width = 200; 
+            cvs.height = 200;
+            expCtx = cvs.getContext('2d');
         }
 
         function renderGameState() {
             if (!gameState) return;
 
+            // UI 状态更新
             document.getElementById('displayRoomCode').innerText = currentRoomId;
-            document.getElementById('oppNameDisplay').innerText = getOppName();
-
-            const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
             
-            // 渲染顶部横幅与遮罩
-            const banner = document.getElementById('turnBanner');
-            const bIcon = document.getElementById('turnBannerIcon');
-            const bText = document.getElementById('turnBannerText');
-            const overlay = document.getElementById('boardOverlay');
-
+            const banner = document.getElementById('gameStatusBanner');
             if (gameState.status === 'waiting') {
-                banner.className = "flex-1 mx-2 py-1.5 bg-gray-100 rounded-lg text-center text-xs font-bold text-gray-500 flex items-center justify-center gap-1";
-                bIcon.innerText = '⏳'; bText.innerText = '等待对手加入...';
-                overlay.classList.remove('hidden');
+                banner.innerText = "等待探险家接入...";
+                banner.className = "w-full py-2 px-4 bg-gray-800 rounded border border-gray-700 text-center text-xs font-mono text-gray-400 animate-pulse";
             } else if (gameState.status === 'playing') {
-                if (isMyTurn) {
-                    banner.className = "flex-1 mx-2 py-1.5 bg-green-100 text-green-700 rounded-lg text-center text-xs font-bold flex items-center justify-center gap-1 shadow-sm";
-                    bIcon.innerText = '👉'; bText.innerText = '轮到你出牌！';
-                    overlay.classList.add('hidden');
+                if(myPlayerId === 'p1') {
+                    banner.innerText = "指挥探险家收集所有样本。注意规避暗礁。";
+                    banner.className = "w-full py-2 px-4 bg-cyan-900/20 rounded border border-cyan-800 text-center text-xs font-mono text-cyan-500";
                 } else {
-                    banner.className = "flex-1 mx-2 py-1.5 bg-red-50 text-red-500 rounded-lg text-center text-xs font-bold flex items-center justify-center gap-1";
-                    bIcon.innerText = '👀'; bText.innerText = `等待 ${getOppName()} 出牌...`;
-                    overlay.classList.remove('hidden');
+                    banner.innerText = "视野受限。听从领航员指令移动。";
+                    banner.className = "w-full py-2 px-4 bg-amber-900/20 rounded border border-amber-800 text-center text-xs font-mono text-amber-500";
                 }
             }
 
-            // 渲染对手手牌背面
-            const oppHand = gameState[`${oppPlayerId}Hand`] || [];
-            document.getElementById('oppCardCount').innerText = `${oppHand.length} 张`;
-            const oppHandArea = document.getElementById('oppHandArea');
-            oppHandArea.innerHTML = '';
-            for(let i=0; i<Math.min(oppHand.length, 15); i++) { // 最多展示15张背面的重叠
-                const cardEl = document.createElement('div');
-                cardEl.className = 'uno-card card-back';
-                cardEl.innerHTML = '<div class="text-white text-xl font-black transform -rotate-45 opacity-60">UNO</div>';
-                oppHandArea.appendChild(cardEl);
-            }
-
-            // 渲染中央弃牌堆与颜色指示器
-            const discardPileTop = document.getElementById('discardPileTop');
-            const topCard = gameState.discardPile.length > 0 ? gameState.discardPile[gameState.discardPile.length - 1] : null;
-            document.getElementById('deckCount').innerText = `(${gameState.deck ? gameState.deck.length : 0})`;
-
-            if (topCard) {
-                discardPileTop.className = `uno-card ${getCardColorClass(topCard.color)} shadow-xl z-10`;
-                discardPileTop.innerHTML = `
-                    <div class="card-value-corner">${topCard.value}</div>
-                    <div class="card-value-center">${topCard.value}</div>
-                    <div class="card-value-corner bottom">${topCard.value}</div>
-                `;
-            }
-
-            const colorIndicator = document.getElementById('colorIndicator');
-            if (gameState.currentColor) {
-                colorIndicator.classList.remove('hidden');
-                const bgColors = { red: 'bg-red-500', blue: 'bg-blue-500', green: 'bg-green-500', yellow: 'bg-yellow-500' };
-                colorIndicator.className = `px-4 py-1 rounded-full text-xs font-bold text-white shadow-md transition-colors duration-300 absolute top-0 -translate-y-1/2 z-20 ${bgColors[gameState.currentColor]}`;
-                document.getElementById('colorIndicatorText').innerText = getColorName(gameState.currentColor);
-            }
-
-            // 渲染我的手牌
-            const myHandArea = document.getElementById('myHandArea');
-            myHandArea.innerHTML = '';
-            const myHand = gameState[`${myPlayerId}Hand`] || [];
-            
-            myHand.forEach((card, index) => {
-                const isValid = isValidPlay(card, topCard, gameState.currentColor);
-                const el = document.createElement('div');
-                el.className = `uno-card ${getCardColorClass(card.color)} ${(!isMyTurn || !isValid) ? 'disabled' : ''}`;
-                el.id = `my-card-${index}`;
-                el.innerHTML = `
-                    <div class="card-value-corner">${card.value}</div>
-                    <div class="card-value-center">${card.value}</div>
-                    <div class="card-value-corner bottom">${card.value}</div>
-                `;
-                if (isMyTurn && isValid) {
-                    el.onclick = () => handlePlayCard(index, card);
-                } else if (isMyTurn && !isValid) {
-                    el.onclick = () => showToast("这张牌不符合规则");
-                }
-                myHandArea.appendChild(el);
-            });
-
-            // 渲染日志
+            // 更新日志
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
-            const logsToRender = (gameState.logs || []).slice().reverse().slice(0, 15);
+            const logsToRender = gameState.logs || [];
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
-                div.className = "border-b border-sky-100/50 pb-0.5 w-full text-left";
-                let html = log.replace(getMyName(), `<span class="text-sky-600 font-bold">${getMyName()} (你)</span>`);
-                html = html.replace(getOppName(), `<span class="text-orange-500 font-bold">${getOppName()}</span>`);
-                // 高亮颜色词
-                html = html.replace('红色', '<span class="text-red-500">红色</span>').replace('蓝色', '<span class="text-blue-500">蓝色</span>').replace('绿色', '<span class="text-green-500">绿色</span>').replace('黄色', '<span class="text-yellow-600">黄色</span>');
-                div.innerHTML = html;
+                div.innerText = log;
                 logBox.appendChild(div);
             });
 
-            // 结算检测
+            // 更新探险家背包UI
+            if(myPlayerId === 'p2') {
+                const invDiv = document.getElementById('inventoryDisplay');
+                invDiv.innerHTML = '';
+                for(let i=0; i<TARGET_COUNT; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `w-3 h-3 rounded-sm border ${i < gameState.p2.score ? 'bg-amber-400 border-amber-200 shadow-[0_0_5px_#fbbf24]' : 'bg-gray-800 border-gray-700'}`;
+                    invDiv.appendChild(dot);
+                }
+            }
+
+            // 画布绘制
+            if (gameState.parsedMap && gameState.status !== 'waiting') {
+                if (myPlayerId === 'p1' && navCtx) drawNavigatorMap();
+                if (myPlayerId === 'p2' && expCtx) drawExplorerMap();
+            }
+
+            // 结算判定
             if (gameState.winner) {
-                overlay.classList.remove('hidden');
                 document.getElementById('msgModal').classList.remove('hidden');
-                setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
-                const wName = gameState.winner === myPlayerId ? '你' : getOppName();
-                document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
-                document.getElementById('msgDesc').innerText = '手牌已清空！🎉';
             }
         }
 
-        function isValidPlay(card, topCard, currentColor) {
-            if (!topCard) return true;
-            if (card.type === 'wild') return true; // 万能牌随时可出
-            if (card.color === currentColor) return true; // 颜色匹配
-            if (card.value === topCard.value) return true; // 数值/符号匹配
-            return false;
+        // P1 全景渲染
+        function drawNavigatorMap() {
+            const cvs = document.getElementById('navCanvas');
+            const w = cvs.width;
+            const h = cvs.height;
+            const cellSize = w / MAP_SIZE;
+            const map = gameState.parsedMap;
+            const p2Pos = gameState.p2.pos;
+
+            navCtx.clearRect(0, 0, w, h);
+
+            // 绘制网格
+            navCtx.strokeStyle = 'rgba(6, 182, 212, 0.1)';
+            navCtx.lineWidth = 1;
+            navCtx.beginPath();
+            for(let i=0; i<=MAP_SIZE; i++) {
+                navCtx.moveTo(i * cellSize, 0); navCtx.lineTo(i * cellSize, h);
+                navCtx.moveTo(0, i * cellSize); navCtx.lineTo(w, i * cellSize);
+            }
+            navCtx.stroke();
+
+            // 绘制地形
+            for(let y=0; y<MAP_SIZE; y++) {
+                for(let x=0; x<MAP_SIZE; x++) {
+                    if (map[y][x] === 1) { // 暗礁
+                        navCtx.fillStyle = 'rgba(153, 27, 27, 0.6)'; // red-800
+                        navCtx.fillRect(x * cellSize + 1, y * cellSize + 1, cellSize - 2, cellSize - 2);
+                        // 加点纹理
+                        navCtx.fillStyle = 'rgba(239, 68, 68, 0.4)';
+                        navCtx.fillRect(x * cellSize + cellSize*0.2, y * cellSize + cellSize*0.2, cellSize*0.6, cellSize*0.6);
+                    } else if (map[y][x] === 2) { // 标本
+                        navCtx.fillStyle = '#fbbf24'; // amber-400
+                        navCtx.beginPath();
+                        navCtx.arc(x * cellSize + cellSize/2, y * cellSize + cellSize/2, cellSize*0.3, 0, Math.PI*2);
+                        navCtx.fill();
+                        navCtx.shadowColor = '#fbbf24';
+                        navCtx.shadowBlur = 10;
+                        navCtx.fill();
+                        navCtx.shadowBlur = 0;
+                    }
+                }
+            }
+
+            // 绘制探险家位置
+            navCtx.fillStyle = '#06b6d4'; // cyan-500
+            navCtx.beginPath();
+            navCtx.arc(p2Pos.x * cellSize + cellSize/2, p2Pos.y * cellSize + cellSize/2, cellSize*0.4, 0, Math.PI*2);
+            navCtx.fill();
+            navCtx.shadowColor = '#22d3ee';
+            navCtx.shadowBlur = 15;
+            navCtx.fill();
+            navCtx.shadowBlur = 0;
         }
 
-        // 动画触发辅助
-        function triggerOpponentPlayAnim() {
-            const discardArea = document.getElementById('discardPileTop');
-            discardArea.classList.remove('opp-play-anim');
-            void discardArea.offsetWidth; // 触发重绘
-            discardArea.classList.add('opp-play-anim');
+        // P2 局域渲染 (5x5 视野)
+        function drawExplorerMap() {
+            const cvs = document.getElementById('expCanvas');
+            const w = cvs.width;
+            const h = cvs.height;
+            const VIEW_RADIUS = 2; // 5x5 grid -> center is 2
+            const CELLS_ACROSS = VIEW_RADIUS * 2 + 1; // 5
+            const cellSize = w / CELLS_ACROSS;
+            
+            const map = gameState.parsedMap;
+            const cx = gameState.p2.pos.x;
+            const cy = gameState.p2.pos.y;
+
+            // 背景色 (深渊)
+            expCtx.fillStyle = '#0a0a0a';
+            expCtx.fillRect(0, 0, w, h);
+
+            // 绘制视野内的格子
+            for(let dy = -VIEW_RADIUS; dy <= VIEW_RADIUS; dy++) {
+                for(let dx = -VIEW_RADIUS; dx <= VIEW_RADIUS; dx++) {
+                    let mapX = cx + dx;
+                    let mapY = cy + dy;
+                    
+                    let drawX = (dx + VIEW_RADIUS) * cellSize;
+                    let drawY = (dy + VIEW_RADIUS) * cellSize;
+
+                    // 绘制底格线
+                    expCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+                    expCtx.strokeRect(drawX, drawY, cellSize, cellSize);
+
+                    // 越界区域画虚空
+                    if (mapX < 0 || mapX >= MAP_SIZE || mapY < 0 || mapY >= MAP_SIZE) {
+                        expCtx.fillStyle = '#000';
+                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
+                        // 画个边界警告线
+                        expCtx.strokeStyle = 'rgba(239,68,68,0.2)';
+                        expCtx.beginPath();
+                        expCtx.moveTo(drawX, drawY);
+                        expCtx.lineTo(drawX+cellSize, drawY+cellSize);
+                        expCtx.stroke();
+                        continue;
+                    }
+
+                    const cellVal = map[mapY][mapX];
+                    
+                    if (cellVal === 1) { // 暗礁 (面前的墙)
+                        expCtx.fillStyle = '#1c1917'; // stone-900
+                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
+                        
+                        // 岩石纹理表现
+                        expCtx.fillStyle = '#292524';
+                        expCtx.beginPath();
+                        expCtx.moveTo(drawX + cellSize*0.1, drawY + cellSize*0.9);
+                        expCtx.lineTo(drawX + cellSize*0.5, drawY + cellSize*0.2);
+                        expCtx.lineTo(drawX + cellSize*0.9, drawY + cellSize*0.9);
+                        expCtx.fill();
+                    } else if (cellVal === 2) { // 标本
+                        // 闪烁金光
+                        const time = Date.now() / 200;
+                        const pulse = Math.abs(Math.sin(time));
+                        
+                        expCtx.fillStyle = `rgba(251, 191, 36, ${0.5 + pulse*0.5})`; // amber-400
+                        expCtx.beginPath();
+                        expCtx.arc(drawX + cellSize/2, drawY + cellSize/2, cellSize*0.2, 0, Math.PI*2);
+                        expCtx.fill();
+                        
+                        // 发光环
+                        expCtx.strokeStyle = 'rgba(251, 191, 36, 0.3)';
+                        expCtx.lineWidth = 2;
+                        expCtx.beginPath();
+                        expCtx.arc(drawX + cellSize/2, drawY + cellSize/2, cellSize*(0.3 + pulse*0.1), 0, Math.PI*2);
+                        expCtx.stroke();
+                    }
+                    
+                    // 标记当前位置脚下的地面
+                    if (dx === 0 && dy === 0 && cellVal === 0) {
+                        expCtx.fillStyle = 'rgba(255,255,255,0.02)';
+                        expCtx.fillRect(drawX, drawY, cellSize, cellSize);
+                    }
+                }
+            }
         }
 
-        window.handlePlayCard = function(index, card) {
-            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
+        // --- 交互控制逻辑 (仅P2可用) ---
+        window.handleMove = function(dx, dy) {
+            if (gameState?.status !== 'playing' || myPlayerId !== 'p2') return;
 
-            // 播放本地飞行动画
-            const cardEl = document.getElementById(`my-card-${index}`);
-            if (cardEl) {
-                cardEl.classList.add('playing-card-anim');
+            const currentPos = gameState.p2.pos;
+            const newX = currentPos.x + dx;
+            const newY = currentPos.y + dy;
+            const map = gameState.parsedMap;
+
+            // 边界检查
+            if (newX < 0 || newX >= MAP_SIZE || newY < 0 || newY >= MAP_SIZE) {
+                showToast("警告：已达扫描边界");
+                return;
             }
 
-            if (card.type === 'wild') {
-                pendingWildPlay = { index, card };
-                document.getElementById('colorPickerModal').classList.remove('hidden');
-                return; // 等待选色后提交
+            // 障碍检查
+            if (map[newY][newX] === 1) {
+                showToast("路线受阻：检测到高密度岩层");
+                // 震动反馈 (支持的设备)
+                if (navigator.vibrate) navigator.vibrate(50);
+                return;
             }
 
-            submitPlay(index, card, card.color);
-        };
-
-        window.submitWildColor = function(color) {
-            document.getElementById('colorPickerModal').classList.add('hidden');
-            if (pendingWildPlay) {
-                submitPlay(pendingWildPlay.index, pendingWildPlay.card, color);
-                pendingWildPlay = null;
-            }
-        };
-
-        function submitPlay(index, card, chosenColor) {
-            let myHand = [...gameState[`${myPlayerId}Hand`]];
-            let deck = [...gameState.deck];
-            let oppHand = [...gameState[`${oppPlayerId}Hand`]];
-            let discardPile = [...gameState.discardPile];
-            let logs = [...gameState.logs];
-
-            // 从手牌移除，加入弃牌堆
-            myHand.splice(index, 1);
-            discardPile.push(card);
-
-            let nextTurn = oppPlayerId;
-            let logMsg = `🃏 ${getMyName()} 打出了 <b class="text-${card.color === 'black' ? 'gray-800' : card.color+'-500'}">${card.value}</b>`;
-            if (card.type === 'wild') logMsg += `，指定颜色为 ${getColorName(chosenColor)}`;
-            logs.push(logMsg);
-
-            // 结算特殊牌效果 (双人规则)
-            if (card.value === '🚫' || card.value === '🔄') {
-                logs.push(`⚡ 触发效果！跳过 ${getOppName()} 回合，${getMyName()} 继续出牌。`);
-                nextTurn = myPlayerId; // 连动
-            } else if (card.value === '+2' || card.value === '➕4') {
-                const drawCount = card.value === '+2' ? 2 : 4;
-                // 检查牌库是否够摸，不够则洗入弃牌堆
-                checkAndReshuffleDeck(deck, discardPile, drawCount, logs);
-                
-                const drawnCards = deck.splice(0, drawCount);
-                oppHand.push(...drawnCards);
-                logs.push(`💥 强力打击！${getOppName()} 被迫摸 ${drawCount} 张牌，且跳过回合。`);
-                nextTurn = myPlayerId; // 对方被跳过，我方连动
-            }
-
-            let winner = null;
-            if (myHand.length === 0) {
-                winner = myPlayerId;
-                logs.push(`🏆 ${getMyName()} 清空了手牌，获得胜利！`);
-            } else if (myHand.length === 1) {
-                logs.push(`⚠️️ ${getMyName()} 大喊一声："UNO！" 只剩最后一张了！`);
-            }
-
-            let nextState = {
-                [`${myPlayerId}Hand`]: myHand,
-                [`${oppPlayerId}Hand`]: oppHand,
-                deck,
-                discardPile,
-                currentColor: chosenColor,
-                turn: winner ? myPlayerId : nextTurn,
-                logs,
-                winner: winner || gameState.winner,
-                status: winner ? 'finished' : 'playing'
+            // 乐观更新UI
+            const newState = { 
+                'p2.pos': {x: newX, y: newY}
             };
-
-            // 乐观更新
-            gameState = { ...gameState, ...nextState };
-            // 短暂延迟等动画播放完一点点再重绘
-            setTimeout(() => {
-                requestAnimationFrame(renderGameState);
-            }, 100);
-
-            // 后台发送
-            getRoomRef(currentRoomId).update(nextState).catch(e => console.error('出牌同步失败:', e));
-        }
-
-        window.handleDrawCard = function() {
-            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
-
-            const drawBtn = document.getElementById('drawPileBtn');
-            drawBtn.classList.remove('draw-anim');
-            void drawBtn.offsetWidth;
-            drawBtn.classList.add('draw-anim');
-
-            let myHand = [...gameState[`${myPlayerId}Hand`]];
-            let deck = [...gameState.deck];
-            let discardPile = [...gameState.discardPile];
-            let logs = [...gameState.logs];
-
-            checkAndReshuffleDeck(deck, discardPile, 1, logs);
-
-            const drawnCard = deck.splice(0, 1)[0];
-            myHand.push(drawnCard);
-            logs.push(`👇 ${getMyName()} 从牌库摸了一张牌。`);
-
-            // 简易双人规则：摸牌直接结束回合
-            let nextState = {
-                [`${myPlayerId}Hand`]: myHand,
-                deck,
-                discardPile,
-                turn: oppPlayerId,
-                logs
-            };
-
-            gameState = { ...gameState, ...nextState };
+            gameState.p2.pos = {x: newX, y: newY}; 
             requestAnimationFrame(renderGameState);
 
-            getRoomRef(currentRoomId).update(nextState).catch(e => console.error('摸牌同步失败:', e));
+            // 存入DB
+            getRoomRef(currentRoomId).update(newState).catch(e => console.error(e));
         };
 
-        function checkAndReshuffleDeck(deck, discardPile, neededCount, logs) {
-            if (deck.length < neededCount) {
-                if (discardPile.length <= 1) {
-                    logs.push("⚠️ 牌库已尽，且无废牌可洗！(极端情况)");
-                    return;
-                }
-                logs.push("♻️ 牌库即将耗尽，系统自动将弃牌堆重新洗牌！");
-                // 保留顶牌，其余洗入牌库
-                const topCard = discardPile.pop();
-                deck.push(...discardPile);
-                shuffle(deck);
-                discardPile.length = 0; // 清空
-                discardPile.push(topCard);
-            }
-        }
+        window.handleAction = function() {
+            if (gameState?.status !== 'playing' || myPlayerId !== 'p2') return;
 
-        window.showToast = function(msg) {
+            const pos = gameState.p2.pos;
+            const map = gameState.parsedMap;
+
+            if (map[pos.y][pos.x] === 2) {
+                // 采集成功
+                let newMap = JSON.parse(JSON.stringify(map));
+                newMap[pos.y][pos.x] = 0; // 清除标本
+                
+                let newScore = (gameState.p2.score || 0) + 1;
+                let logs = [`> 探险家成功回收标本 [${newScore}/${TARGET_COUNT}]`, ...(gameState.logs||[])].slice(0, 15);
+                
+                let updateData = {
+                    mapData: JSON.stringify(newMap),
+                    'p2.score': newScore,
+                    logs: logs
+                };
+
+                // 胜利判定
+                if (newScore >= TARGET_COUNT) {
+                    updateData.status = 'finished';
+                    updateData.winner = 'p2';
+                    logs.unshift(`> 任务完成！所有标本已回收。`);
+                    updateData.logs = logs;
+                }
+
+                // 乐观更新
+                gameState.parsedMap = newMap;
+                gameState.p2.score = newScore;
+                gameState.logs = logs;
+                if(newScore >= TARGET_COUNT) gameState.winner = 'p2';
+                requestAnimationFrame(renderGameState);
+                
+                if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // 成功震动
+
+                getRoomRef(currentRoomId).update(updateData);
+            } else {
+                showToast("当前坐标未检测到目标物");
+            }
+        };
+
+        // 键盘控制支持
+        document.addEventListener('keydown', (e) => {
+            if(myPlayerId !== 'p2' || document.getElementById('gameView').classList.contains('hidden')) return;
+            switch(e.key) {
+                case 'ArrowUp': case 'w': handleMove(0, -1); break;
+                case 'ArrowDown': case 's': handleMove(0, 1); break;
+                case 'ArrowLeft': case 'a': handleMove(-1, 0); break;
+                case 'ArrowRight': case 'd': handleMove(1, 0); break;
+                case ' ': case 'Enter': handleAction(); break;
+            }
+        });
+
+        // --- 辅助UI ---
+        function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.classList.remove('hidden');
-            toast.classList.add('toast-animate');
-            setTimeout(() => {
-                toast.classList.add('hidden');
-                toast.classList.remove('toast-animate');
-            }, 3000);
-        };
-
-        window.closeMsgModal = function() {
-            document.getElementById('msgModalContent').classList.add('scale-95');
-            setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200);
-        };
-
-        window.resetGame = async function() {
-            if (!currentRoomId || !gameState) return;
-            const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
+            // Trigger reflow
+            void toast.offsetWidth;
+            toast.style.opacity = '1';
+            toast.style.transform = 'translate(-50%, 0)';
             
-            // 重新发牌
-            let deck = createDeck();
-            let p1Hand = deck.splice(0, 7);
-            let p2Hand = deck.splice(0, 7);
-            let startCardIndex = deck.findIndex(c => c.type !== 'wild');
-            if (startCardIndex === -1) startCardIndex = 0;
-            let discardPile = [deck.splice(startCardIndex, 1)[0]];
-            let currentColor = discardPile[0].color;
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translate(-50%, -20px)';
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 2500);
+        }
 
-            await getRoomRef(currentRoomId).update({
-                status: 'playing',
-                p1Hand, p2Hand, deck, discardPile, currentColor,
-                turn: nextTurn,
-                winner: null,
-                logs: [`🔄 重新开始游戏！本次由 ${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
-            });
-            closeMsgModal();
-        };
+        // Handle canvas resize on window resize (mostly for Nav view)
+        window.addEventListener('resize', () => {
+            if (gameState && myPlayerId === 'p1' && document.getElementById('navigatorUI').offsetParent !== null) {
+                initNavCanvas();
+                requestAnimationFrame(renderGameState);
+            }
+        });
 
         // 启动
         initAuth();
+
     </script>
 </body>
 </html>
