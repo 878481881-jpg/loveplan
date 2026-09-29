@@ -3,9 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️（Bmob 版）</title>
+    <title>云端飞行棋 ✈️☁️</title>
+    <!-- 优化：增加资源预加载与预连接，加速首屏 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://static.cloudbase.net">
+    <!-- 腾讯云开发 CloudBase Web SDK（全量版，暴露全局 cloudbase 对象） -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
@@ -21,7 +25,7 @@
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; /* 优化：Safari 惯性滚动 */
         }
 
         @keyframes float {
@@ -49,6 +53,7 @@
             z-index: 20;
             filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
         }
+        /* 优化：收窄过渡属性，开启 GPU 硬件加速 */
         .plane-transition { 
             transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1); 
             will-change: transform, left, top;
@@ -309,49 +314,49 @@
         </div>
     </main>
 
-    <!-- Bmob SDK（hydrogen-js-sdk，官方 Web/H5 用） -->
-    <script src="https://cdn.jsdelivr.net/npm/hydrogen-js-sdk@3.0.2/dist/Bmob-3.0.2.min.js"></script>
-    <script>
-        // ============================================================
-        // ★ Bmob 配置区：把下面 2 个必填值换成你自己应用的密钥
-        //   （其余游戏逻辑不用改）
-        // ============================================================
-        const BMOB_CONFIG = {
-            // 控制台 → 你的应用 → 设置 → 应用密钥 → Secret Key
-            secretKey: "c9e54e0cd2cb2961",
-            // 控制台 → 你的应用 → 设置 → 安全验证 → API安全码（需自己设置，16位）
-            apiSecurityCode: "952f8e927e2a3072",
-            // 数据表名：先在控制台 → 数据 里建好这张表
-            tableName: "aeroplaneRooms",
-            // true = 使用Bmob实时数据（WebSocket，需开通，¥99/月）；false = 轮询同步（免费，回合制够用）
-            useRealtime: true,
-            // 轮询间隔（毫秒），回合制游戏 1~2 秒即可
-            pollIntervalMs: 1500,
-            // 仅 useRealtime=true 时需要：应用密钥里的 Application ID
-            applicationId: ""
-        };
+    <script type="module">
 
         // 优化 1：启动兜底机制，无论网络/脚本是否抛错，800ms强制进入大厅，避免白屏卡死
         const fallbackTimer = setTimeout(() => {
             hideLoading();
         }, 800);
 
-        // ---------- Bmob 初始化（SDK 2.0+ 用 Secret Key + API安全码） ----------
-        let hasBackend = false;
-        try {
-            Bmob.initialize(BMOB_CONFIG.secretKey, BMOB_CONFIG.apiSecurityCode);
-            hasBackend = true;
-        } catch(e) {
-            console.error("Bmob init failed", e);
+        // ===== 腾讯云开发 CloudBase 配置（替换原 Firebase 配置）=====
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";             // TODO: 换成你的云开发环境ID
+        const REGION = "ap-shanghai";             // 环境地域，上海为默认
+        const ROOM_COLLECTION = "aeroplaneRooms"; // 房间集合名（原 artifacts/{appId}/public/data/aeroplaneRooms）
+
+        // 统一取房间文档引用：集合 aeroplaneRooms，文档 ID = 4 位航班号
+        function getRoomRef(code) {
+            return db.collection(ROOM_COLLECTION).doc(String(code));
         }
 
-        let roomObjectId = null;   // 房间记录在 Bmob 中的 objectId
-        let socket = null;         // 实时数据连接（可选）
-        let pollTimer = null;      // 轮询定时器（默认同步方式）
-        let pendingWrites = 0;     // 本地乐观更新后，尚未被服务器确认的写请求数
+        // watch 回调里取文档数据：兼容单文档 / 查询快照的不同返回形态
+        function pickDoc(snapshot, code) {
+            if (!snapshot) return null;
+            const docs = snapshot.docs;
+            if (Array.isArray(docs)) return docs[0] || null;
+            if (docs && typeof docs === 'object') {
+                return docs[code] || (docs._id ? docs : null);
+            }
+            return null;
+        }
+
+        let app, auth, db;
+        let currentUser = null;
+        let hasCloudBase = false;
 
         // 【性能缓存】布局坐标预计算
         let cachedBaseSpots = {};
+
+        try {
+            app = cloudbase.init({ env: ENV_ID, region: REGION });
+            auth = app.auth;      // v3 中 auth 是属性，不是 app.auth()
+            db = app.database();
+            hasCloudBase = true;
+        } catch(e) {
+            console.error("CloudBase init failed", e);
+        }
 
         let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
         // 优化 2：try...catch 包裹 localStorage，防止部分受限 iframe/沙盒环境直接抛出 SecurityError 阻断整个 JS 运行
@@ -366,6 +371,7 @@
         document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null;
+        let unsubscribeRoom = null;
         let gameState = null; 
         let myPlayerId = null;
 
@@ -469,142 +475,22 @@
             return (gridVal + 0.5) * (100 / GRID_SIZE);
         }
 
-        // ============================================================
-        // Bmob 数据层（对应原 Firebase 的 Firestore 读写/监听）
-        // ============================================================
-
-        // 行记录 → 游戏状态（原 Firebase 用嵌套文档 p1.name/p1.pieces，Bmob 用平铺字段）
-        function roomRowToState(row) {
-            return {
-                status: row.status || 'waiting',
-                p1: { name: row.p1Name, pieces: row.p1Pieces || [-1, -1, -1, -1] },
-                p2: { name: row.p2Name || null, pieces: row.p2Pieces || [-1, -1, -1, -1] },
-                turn: row.turn || 'p1',
-                diceValue: row.diceValue || null,
-                hasRolled: !!row.hasRolled,
-                logs: row.logs || [],
-                winner: row.winner || null
-            };
-        }
-
-        // 游戏状态 → 行记录字段
-        // 注意：Bmob SDK 的 Query.set() 遇到 null 会直接崩溃
-        // （源码 set() 里对值做 `const { filename } = val` 解构，null 无法解构，
-        //   报错 "null is not an object (evaluating 't.filename')"），
-        // 所以空值一律用 ''（字符串）/ 0（数字）存储，读回时再还原成 null。
-        function stateToRoomRow(state) {
-            return {
-                status: state.status,
-                p1Name: state.p1.name,
-                p2Name: state.p2.name || '',
-                p1Pieces: state.p1.pieces,
-                p2Pieces: state.p2.pieces,
-                turn: state.turn,
-                diceValue: state.diceValue || 0,
-                hasRolled: state.hasRolled,
-                logs: state.logs,
-                winner: state.winner || ''
-            };
-        }
-
-        // 兼容 find()/get() 两种返回结构
-        function findFirstRow(res) {
-            if (!res) return null;
-            if (Array.isArray(res)) return res[0] || null;
-            if (Array.isArray(res.results)) return res.results[0] || null;
-            if (res.objectId) return res;
-            return null;
-        }
-
-        // 把当前 gameState 整行写回服务器（原 Firebase updateDoc）
-        // 先乐观更新本地再静默推送，与原来"即发即弃"的体验一致
-        function pushRoom() {
-            if (!roomObjectId || !hasBackend) return Promise.resolve();
-            pendingWrites++;
-            const q = Bmob.Query(BMOB_CONFIG.tableName);
-            q.set('id', roomObjectId); // 指定要修改的 objectId
-            const row = stateToRoomRow(gameState);
-            Object.keys(row).forEach(k => q.set(k, row[k]));
-            return q.save()
-                .then(() => {
-                    pendingWrites--;
-                    refreshRoom();
-                })
-                .catch(e => {
-                    pendingWrites--;
-                    console.error('网络同步失败:', e);
-                });
-        }
-
-        // 从服务器拉取房间最新状态（原 Firebase onSnapshot 的替代）
-        function refreshRoom() {
-            if (!roomObjectId || !hasBackend || pendingWrites > 0) return;
-            const q = Bmob.Query(BMOB_CONFIG.tableName);
-            q.get(roomObjectId)
-                .then(res => {
-                    const row = findFirstRow(res);
-                    if (!row) return;
-                    gameState = roomRowToState(row);
-                    requestAnimationFrame(renderGameState);
-                })
-                .catch(e => console.error('同步读取失败:', e));
-        }
-
-        function stopListenRoom() {
-            if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-            if (socket) {
-                try { socket.unsubUpdateRow(BMOB_CONFIG.tableName, roomObjectId); } catch(e) {}
-                socket = null;
-            }
-        }
-
-        // 进入房间后开始同步：默认轮询；开通 Bmob 实时数据后可改用 WebSocket 订阅行更新
-        function listenToRoom(code) {
-            currentRoomId = code;
-            document.getElementById('lobbyView').classList.add('hidden');
-            document.getElementById('gameView').classList.remove('hidden');
-            initBoardGrid();
-
-            stopListenRoom();
-            refreshRoom();
-
-            if (BMOB_CONFIG.useRealtime && BMOB_CONFIG.applicationId && typeof Bmob.Socket === 'function') {
-                try {
-                    socket = new Bmob.Socket(BMOB_CONFIG.applicationId);
-                    socket.onInitListen = () => socket.updateRow(BMOB_CONFIG.tableName, roomObjectId);
-                    socket.onUpdateRow = (tablename, objectId) => {
-                        if (tablename === BMOB_CONFIG.tableName && objectId === roomObjectId) refreshRoom();
-                    };
-                    socket.onUpdateTable = () => refreshRoom();
-                } catch (e) {
-                    console.error('Bmob 实时连接失败，已改用轮询', e);
-                    socket = null;
-                    pollTimer = setInterval(refreshRoom, BMOB_CONFIG.pollIntervalMs);
-                }
-            } else {
-                pollTimer = setInterval(refreshRoom, BMOB_CONFIG.pollIntervalMs);
-            }
-        }
-
-        // 原 Firebase 匿名登录 → Bmob 免登录（表权限在控制台放开即可）
         async function initAuth() {
-            const keyReady = hasBackend
-                && !BMOB_CONFIG.secretKey.includes('在这里填写')
-                && !BMOB_CONFIG.apiSecurityCode.includes('在这里填写');
-
-            if (!keyReady) {
-                showToast("请先在文件顶部 BMOB_CONFIG 中填写 Bmob 密钥");
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+            if (!hasCloudBase) {
+                showToast("未检测到网络配置，进入离线预览");
                 clearTimeout(fallbackTimer);
                 hideLoading();
-                switchToLobby();
                 return;
             }
             try {
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线 <span class="text-green-500 ml-1">Bmob</span>';
+                // 匿名登录：需先在控制台「身份认证」中开启「匿名登录」
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线 <span class="text-green-500 ml-1">12ms</span>';
                 switchToLobby();
             } catch (err) {
-                console.error("Backend Error:", err);
+                console.error("Auth Error:", err);
                 showToast("网络通信异常，请检查连接");
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
                 switchToLobby(); // 强行进入大厅，不卡在这个界面
@@ -623,15 +509,13 @@
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            stopListenRoom();
+            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
             currentRoomId = null;
-            roomObjectId = null;
             myPlayerId = null;
         }
 
-        // 创建房间（原 Firebase setDoc）
         window.createRoom = async function() {
-            if (!hasBackend) return showToast("未连接服务器");
+            if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
             
             const initialData = {
@@ -646,13 +530,8 @@
             };
 
             try {
-                const q = Bmob.Query(BMOB_CONFIG.tableName);
-                q.set('roomCode', code); // 房间号存为字段（Bmob 主键 objectId 由系统生成）
-                const row = stateToRoomRow(initialData);
-                Object.keys(row).forEach(k => q.set(k, row[k]));
-                const res = await q.save();
-                roomObjectId = res.objectId;
-                gameState = initialData;
+                // set()：文档不存在时自动创建（替代 setDoc）
+                await getRoomRef(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
                 showToast(`航班号 ${code} 创建成功`);
@@ -662,35 +541,31 @@
             }
         };
 
-        // 加入房间（原 Firebase getDoc + updateDoc）
         window.joinRoom = async function() {
-            if (!hasBackend) return showToast("未连接服务器");
+            if (!currentUser) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
 
             try {
-                const q = Bmob.Query(BMOB_CONFIG.tableName);
-                q.equalTo('roomCode', '==', code);
-                const res = await q.find();
-                const row = findFirstRow(res);
-                if (!row) return showToast("航班不存在");
-
-                roomObjectId = row.objectId;
-                gameState = roomRowToState(row);
-
-                if (gameState.status !== 'waiting' && gameState.p1.name !== myName && gameState.p2.name !== myName) {
+                // get() 返回 { data: [...] }，取第一条即该文档（替代 getDoc + snap.exists()）
+                const res = await getRoomRef(code).get();
+                const data = res.data && res.data[0];
+                if (!data) return showToast("航班不存在");
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
                     return showToast("对战已开始或人员已满");
                 }
 
-                if (gameState.status === 'waiting' && gameState.p1.name !== myName) {
+                if (data.status === 'waiting' && data.p1.name !== myName) {
+                    // 点路径（MongoDB 风格）只更新 p2.name，保留 p2.pieces
+                    await getRoomRef(code).update({
+                        'p2.name': myName,
+                        status: 'playing',
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
+                    });
                     myPlayerId = 'p2';
-                    gameState.p2.name = myName;
-                    gameState.status = 'playing';
-                    gameState.logs.push(`${myName} 加入对战，游戏开始！红方先手。`);
-                    await pushRoom();
-                } else if (gameState.p1.name === myName) {
+                } else if (data.p1.name === myName) {
                     myPlayerId = 'p1';
-                } else if (gameState.p2.name === myName) {
+                } else if (data.p2.name === myName) {
                     myPlayerId = 'p2';
                 }
 
@@ -704,6 +579,36 @@
         window.exitRoom = function() {
             switchToLobby();
         };
+
+        function listenToRoom(code) {
+            currentRoomId = code;
+            document.getElementById('lobbyView').classList.add('hidden');
+            document.getElementById('gameView').classList.remove('hidden');
+            initBoardGrid();
+
+            if (unsubscribeRoom) unsubscribeRoom();
+            
+            // watch() 取代 onSnapshot()：实时监听该房间文档的变化
+            const watcher = getRoomRef(code).watch({
+                onChange: (snapshot) => {
+                    const data = pickDoc(snapshot, code);
+                    if (data) {
+                        gameState = data;
+                        requestAnimationFrame(renderGameState);
+                    } else {
+                        showToast("房间已解散");
+                        switchToLobby();
+                    }
+                },
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
+                }
+            });
+            // 原代码把 onSnapshot 返回的「取消函数」存进 unsubscribeRoom；
+            // watch() 返回的是 watcher 对象，这里包一层函数，调用处（switchToLobby / 重复监听）无需改动
+            unsubscribeRoom = () => watcher.close();
+        }
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
@@ -887,8 +792,8 @@
             gameState = { ...gameState, ...nextState };
             requestAnimationFrame(renderGameState);
 
-            // 后台静默发送请求（即发即弃不阻塞UI）
-            pushRoom();
+            // 后台静默发送请求（去掉 await，即发即弃不阻塞UI）
+            getRoomRef(currentRoomId).update(nextState).catch(e => console.error('网络同步失败:', e));
         };
 
         window.handlePieceClick = function(player, pieceIndex) {
@@ -1053,8 +958,8 @@
             
             requestAnimationFrame(renderGameState);
 
-            // 后台静默同步到 Bmob
-            pushRoom();
+            // 移除 await，将状态变更放进后台静默通讯
+            getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
         };
 
         function generateLogicalPath(player) {
@@ -1106,20 +1011,17 @@
         window.resetGame = async function() {
             if (!currentRoomId || !gameState) return;
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
-            const p1Name = gameState.p1.name;
-            const p2Name = gameState.p2.name;
 
-            gameState = {
+            await getRoomRef(currentRoomId).update({
                 status: 'playing',
-                p1: { name: p1Name, pieces: [-1, -1, -1, -1] },
-                p2: { name: p2Name, pieces: [-1, -1, -1, -1] },
+                'p1.pieces': [-1, -1, -1, -1],
+                'p2.pieces': [-1, -1, -1, -1],
                 turn: nextTurn,
                 diceValue: null,
                 hasRolled: false,
                 winner: null,
-                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?p1Name:p2Name} 先手。`]
-            };
-            await pushRoom();
+                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
+            });
             closeMsgModal();
         };
 
@@ -1130,8 +1032,8 @@
             }
         });
 
-        // 优化 3：移除不靠谱的 window.addEventListener('load')。由于代码位于 script 标签下会自动在 DOMContentLoaded 之后运行，所以直接调用初始化函数即可。
+        // 优化 3：移除不靠谱的 window.addEventListener('load')。由于代码位于 module 标签下会自动在 DOMContentLoaded 之后运行，所以直接调用初始化函数即可。
         initAuth();
     </script>
 </body>
-</html>
+</html><!--06064625492395614730092321--><!--06102800922395614730092321--><!--06883508942573747210092321-->
