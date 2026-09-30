@@ -62,6 +62,7 @@
         .board-tile {
             transition: transform 0.1s, filter 0.2s;
             box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
+            cursor: pointer;
         }
         .board-tile:active { transform: scale(0.95); }
         
@@ -110,18 +111,29 @@
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
 
     <!-- 全局加载遮罩 -->
-    <div id="globalLoading" class="fixed inset-0 bg-green-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+    <div id="globalLoading" class="fixed inset-0 bg-green-50/95 z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">💰</div>
         <div class="text-green-600 font-bold text-xl flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-green-400 animate-ping"></span> 链接银行系统...
         </div>
     </div>
 
+    <!-- 格子详情弹窗 -->
+    <div id="tileDetailModal" class="fixed inset-0 bg-black/60 z-[150] hidden flex items-center justify-center p-4 transition-opacity" onclick="closeTileDetails(event)">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-[280px] shadow-xl transform scale-95 transition-transform text-center relative" id="tileDetailContent" onclick="event.stopPropagation()">
+            <button onclick="closeTileDetails()" class="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-lg font-bold">✖</button>
+            <div id="tdIcon" class="text-5xl mb-2 drop-shadow-sm"></div>
+            <h3 id="tdName" class="text-xl font-black text-gray-800 mb-1"></h3>
+            <div id="tdType" class="text-xs text-white bg-green-500 px-2 py-0.5 rounded-full inline-block mb-3 font-bold"></div>
+            <div id="tdInfo" class="text-sm text-gray-600 space-y-1 mb-2 text-left bg-green-50 p-3 rounded-xl border border-green-100"></div>
+        </div>
+    </div>
+
     <!-- 消息提示 Toast -->
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-green-800/95 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-[1000] whitespace-nowrap border border-green-400/50"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-green-800 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-[1000] whitespace-nowrap border border-green-400/50"></div>
 
     <!-- 游戏结束/消息弹窗 -->
-    <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
+    <div id="msgModal" class="fixed inset-0 bg-black/60 z-[120] hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
             <div id="msgIcon" class="text-6xl mb-4 animate-bounce">🏆</div>
             <h3 class="text-2xl font-bold text-green-600 mb-2" id="msgTitle">游戏结束</h3>
@@ -135,7 +147,7 @@
 
     <!-- 顶部状态栏 -->
     <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
-        <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
+        <div class="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl shadow-sm border border-green-100">
             <span class="text-3xl drop-shadow-sm">🏙️</span>
             <div>
                 <h1 class="text-xl font-bold text-green-600 leading-tight font-zcool">云端大富翁 <span class="text-xs text-amber-500">策略版</span></h1>
@@ -143,7 +155,7 @@
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="bg-white/90 px-3 py-1.5 rounded-full border border-green-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
+            <div class="bg-white px-3 py-1.5 rounded-full border border-green-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
                 身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-green-500 text-white shadow-inner">加载中</span>
             </div>
             <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
@@ -152,11 +164,11 @@
         </div>
     </header>
 
-    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
+    <main class="w-full max-w-xl flex flex-col items-center gap-4 relative z-10">
         
         <!-- 大厅视图 -->
-        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
-            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-green-100 shadow-xl flex flex-col items-center text-center">
+        <div id="lobbyView" class="w-full max-w-md flex flex-col gap-4 hidden">
+            <div class="bg-white rounded-3xl p-6 border-2 border-green-100 shadow-xl flex flex-col items-center text-center">
                 <div class="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">🌍</div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">投资准备</h2>
                 <p class="text-sm text-gray-500 mb-6 px-2">创建房间邀请对手，或输入房间号加入对局，成为地产大亨！</p>
@@ -178,22 +190,23 @@
                 </div>
             </div>
             
-            <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
+            <div class="bg-white rounded-2xl p-4 border border-green-50 shadow-sm text-left">
                 <h3 class="text-sm font-bold text-green-800 mb-2 flex items-center gap-1 font-zcool"><span>📜</span> 投资法则</h3>
                 <ul class="text-xs text-green-700 space-y-1.5 pl-4 list-disc opacity-90 font-medium">
                     <li><b class="text-red-500">资产升级</b>：再次停留自己的地产可将其升级，最高4级地标，租金翻倍！</li>
                     <li><b class="text-blue-500">道具盲盒</b>：命运格子有概率获得 <b class="text-amber-500">路障、乌龟卡、抢夺卡</b> 等强力道具！</li>
                     <li><b class="text-purple-500">监狱风云</b>：不幸入狱将强制停赛一回合。</li>
                     <li><b class="text-amber-600">破产危机</b>：资金变为负数即宣告破产，对手获胜！</li>
+                    <li><b class="text-green-500">提示</b>：点击棋盘上任意格子即可查看地块所有者及详细收益！</li>
                 </ul>
             </div>
         </div>
 
         <!-- 游戏对局视图 -->
-        <div id="gameView" class="w-full flex flex-col gap-3 hidden">
+        <div id="gameView" class="w-full flex flex-col gap-3 hidden px-1 sm:px-0">
             
             <!-- 房间与玩家状态区 -->
-            <div class="w-full bg-white/95 backdrop-blur-md rounded-2xl p-3 border-2 border-green-100 shadow-md">
+            <div class="w-full max-w-md mx-auto bg-white rounded-2xl p-3 border-2 border-green-100 shadow-md">
                 <div class="flex justify-between items-center mb-2 pb-2 border-b border-gray-100">
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] text-gray-400 font-bold bg-gray-100 px-2 py-1 rounded-md">房间号</span>
@@ -226,25 +239,25 @@
             </div>
 
             <!-- 棋盘主区域 -->
-            <div id="board-container" class="relative w-full aspect-square max-w-[400px] bg-white/70 backdrop-blur-md rounded-3xl p-1.5 sm:p-2 shadow-2xl border-[3px] border-white mx-auto">
-                <div id="boardOverlay" class="absolute inset-0 z-40 bg-black/5 rounded-2xl hidden cursor-not-allowed backdrop-blur-[1px]"></div>
+            <div id="board-container" class="relative w-full aspect-square max-w-[550px] bg-white rounded-3xl p-1 sm:p-1.5 shadow-2xl border-[3px] border-green-100 mx-auto">
+                <div id="boardOverlay" class="absolute inset-0 z-40 bg-black/10 rounded-2xl hidden cursor-not-allowed"></div>
                 
-                <div id="board-grid" class="grid grid-cols-6 grid-rows-6 gap-1 w-full h-full relative">
+                <div id="board-grid" class="grid grid-cols-10 grid-rows-10 gap-[2px] w-full h-full relative">
                     <!-- 动态生成格子 -->
                     
                     <!-- 玩家棋子层 -->
                     <div id="players-layer" class="absolute inset-0 pointer-events-none z-30">
-                        <div id="p1-piece" class="absolute w-8 h-8 transition-all duration-500 text-2xl drop-shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center will-change-[top,left]">🚗</div>
-                        <div id="p2-piece" class="absolute w-8 h-8 transition-all duration-500 text-2xl drop-shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center will-change-[top,left]">🏃</div>
+                        <div id="p1-piece" class="absolute w-5 h-5 transition-all duration-500 text-[14px] sm:text-[18px] drop-shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center will-change-[top,left]">🚗</div>
+                        <div id="p2-piece" class="absolute w-5 h-5 transition-all duration-500 text-[14px] sm:text-[18px] drop-shadow-lg -translate-x-1/2 -translate-y-1/2 flex items-center justify-center will-change-[top,left]">🏃</div>
                     </div>
 
                     <!-- 中心交互与信息区 -->
-                    <div class="col-start-2 col-span-4 row-start-2 row-span-4 bg-white/95 rounded-xl shadow-inner border-2 border-green-50 flex flex-col overflow-hidden relative z-10">
+                    <div class="col-start-2 col-span-8 row-start-2 row-span-8 bg-gray-50/95 rounded-xl shadow-inner border border-green-50 flex flex-col overflow-hidden relative z-10 m-[2px]">
                         
                         <!-- 顶部回合状态 -->
-                        <div class="flex justify-between items-center w-full px-3 py-1.5 bg-gray-50/50 border-b border-gray-100">
-                            <div id="turnIndicator" class="text-[10px] px-2 py-1 rounded shadow-sm bg-gray-200 text-gray-500 font-bold transition-colors">等待开始</div>
-                            <div id="diceVisual" class="text-2xl drop-shadow-sm transition-transform">🎲</div>
+                        <div class="flex justify-between items-center w-full px-3 py-1 bg-white border-b border-gray-100 shadow-sm">
+                            <div id="turnIndicator" class="text-[10px] px-2 py-0.5 rounded shadow-sm bg-gray-200 text-gray-500 font-bold transition-colors">等待开始</div>
+                            <div id="diceVisual" class="text-xl drop-shadow-sm transition-transform">🎲</div>
                         </div>
                         
                         <!-- 中部操作面板 -->
@@ -253,12 +266,12 @@
                         </div>
 
                         <!-- 底部日志区 -->
-                        <div class="h-20 w-full bg-gray-50/80 border-t border-gray-100 flex flex-col p-1.5 overflow-hidden relative">
+                        <div class="h-20 w-full bg-white border-t border-gray-100 flex flex-col p-1.5 overflow-hidden relative shadow-[0_-2px_4px_rgba(0,0,0,0.02)]">
                             <div class="text-[9px] font-bold text-gray-400 mb-1 pl-1">📋 交易日志</div>
                             <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar text-[10px] text-gray-600 px-1 pb-2">
                                 <!-- 日志 -->
                             </div>
-                            <div class="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-gray-50 to-transparent pointer-events-none"></div>
+                            <div class="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
                         </div>
                     </div>
                 </div>
@@ -268,7 +281,7 @@
     </main>
 
     <!-- 物品栏 -->
-    <div id="inventoryBar" class="fixed bottom-[85px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-green-200 flex gap-3 z-[190] hidden w-[90%] max-w-sm overflow-x-auto items-center">
+    <div id="inventoryBar" class="fixed bottom-[85px] left-1/2 transform -translate-x-1/2 bg-white px-4 py-2.5 rounded-2xl shadow-xl border border-green-200 flex gap-3 z-[190] hidden w-[90%] max-w-sm overflow-x-auto items-center">
         <span class="text-xs font-bold text-green-700 whitespace-nowrap">🎒 道具</span>
         <div id="itemsContainer" class="flex gap-2 flex-1 items-center">
             <span class="text-[10px] text-gray-400 ml-2 italic">踩中【命运】概率获取</span>
@@ -276,19 +289,7 @@
     </div>
 
     <!-- 底部嘲讽互动栏 -->
-    <div id="tauntBar" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-6 py-2.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-gray-100 flex gap-8 z-[200] hidden">
-        <button onclick="sendTaunt('tomato')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔番茄">🍅</button>
-        <button onclick="sendTaunt('bomb')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔炸弹">💣</button>
-        <button onclick="sendTaunt('voice')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md flex items-center" title="发送文字气泡">💬</button>
-    </div>
-
-    <script type="module">
-        // 应对云开发加载慢或被屏蔽的回退处理
-        const fallbackTimer = setTimeout(() => { hideLoading(); }, 800);
-
-        // 严格遵循要求：使用文件中的腾讯云联网逻辑配置
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; 
-        const REGION = "ap-shanghai";             
+    <div id="tauntBar" class="fixed bottom-6 left-1/2 transform -translate-x-1/2 bg-white px-6 py-2.5 rounded-full shadow-xl border border-gray-100 flex gap-8 z-[200] hidden">
         const ROOM_COLLECTION = "monopolyRooms"; // 独立集合避免冲突
 
         function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
@@ -324,37 +325,52 @@
         let lastProcessedInteractionTs = 0; 
         let isRoomFirstLoad = true;
 
-        // 棋盘数据配置 (6x6 网格周长，共 20 格)
+        // 棋盘数据配置 (10x10 网格周长，共 36 格)
         const BOARD_TILES = [
             { type: 'start', name: '起点(+200)', icon: '🏁', color: '#fef08a' }, // 0
             { type: 'prop', name: '大排档', price: 100, rent: 20, icon: '🍜', color: '#fca5a5' }, // 1
             { type: 'prop', name: '奶茶店', price: 120, rent: 25, icon: '🧋', color: '#fca5a5' }, // 2
             { type: 'chance', name: '命运盲盒', icon: '❓', color: '#e5e7eb' }, // 3
             { type: 'prop', name: '便利店', price: 150, rent: 30, icon: '🏪', color: '#fdba74' }, // 4
-            { type: 'prison', name: '监狱', icon: '🚓', color: '#cbd5e1' }, // 5 (新增监狱机制)
-            { type: 'prop', name: '网吧', price: 180, rent: 35, icon: '💻', color: '#93c5fd' }, // 6
-            { type: 'prop', name: '电影院', price: 200, rent: 40, icon: '🎬', color: '#93c5fd' }, // 7
-            { type: 'tax', name: '交税', amount: 100, icon: '💸', color: '#f87171' }, // 8
-            { type: 'prop', name: '健身房', price: 220, rent: 45, icon: '🏋️', color: '#c4b5fd' }, // 9
-            { type: 'park', name: '公园', icon: '⛲', color: '#86efac' }, // 10
-            { type: 'prop', name: '游乐场', price: 250, rent: 50, icon: '🎡', color: '#f9a8d4' }, // 11
+            { type: 'prop', name: '书店', price: 160, rent: 32, icon: '📚', color: '#fdba74' }, // 5
+            { type: 'tax', name: '交税', amount: 50, icon: '💸', color: '#f87171' }, // 6
+            { type: 'prop', name: '网吧', price: 180, rent: 35, icon: '💻', color: '#93c5fd' }, // 7
+            { type: 'prop', name: '电影院', price: 200, rent: 40, icon: '🎬', color: '#93c5fd' }, // 8
+            { type: 'prison', name: '监狱', icon: '🚓', color: '#cbd5e1' }, // 9 (角)
+            { type: 'prop', name: '健身房', price: 220, rent: 45, icon: '🏋️', color: '#c4b5fd' }, // 10
+            { type: 'prop', name: '宠物店', price: 230, rent: 46, icon: '🐈', color: '#c4b5fd' }, // 11
             { type: 'chance', name: '命运盲盒', icon: '❓', color: '#e5e7eb' }, // 12
-            { type: 'prop', name: '水族馆', price: 280, rent: 55, icon: '🐬', color: '#67e8f9' }, // 13
-            { type: 'prop', name: '度假村', price: 300, rent: 60, icon: '🏖️', color: '#67e8f9' }, // 14
-            { type: 'flight', name: '机场航班', icon: '✈️', color: '#bae6fd' }, // 15
-            { type: 'prop', name: '写字楼', price: 320, rent: 65, icon: '🏢', color: '#d8b4fe' }, // 16
-            { type: 'tax', name: '罚款', amount: 150, icon: '🚨', color: '#f87171' }, // 17
-            { type: 'prop', name: '商业中心', price: 350, rent: 70, icon: '🏬', color: '#fde047' }, // 18
-            { type: 'prop', name: '地标塔', price: 400, rent: 80, icon: '🗼', color: '#fde047' } // 19
+            { type: 'prop', name: '游乐场', price: 250, rent: 50, icon: '🎡', color: '#f9a8d4' }, // 13
+            { type: 'prop', name: '电玩城', price: 260, rent: 52, icon: '🕹️', color: '#f9a8d4' }, // 14
+            { type: 'tax', name: '环保税', amount: 80, icon: '♻️', color: '#f87171' }, // 15
+            { type: 'prop', name: '水族馆', price: 280, rent: 55, icon: '🐬', color: '#67e8f9' }, // 16
+            { type: 'prop', name: '度假村', price: 300, rent: 60, icon: '🏖️', color: '#67e8f9' }, // 17
+            { type: 'park', name: '公园', icon: '⛲', color: '#86efac' }, // 18 (角)
+            { type: 'prop', name: '服装店', price: 320, rent: 65, icon: '👗', color: '#d8b4fe' }, // 19
+            { type: 'prop', name: '名表店', price: 330, rent: 66, icon: '⌚', color: '#d8b4fe' }, // 20
+            { type: 'chance', name: '命运盲盒', icon: '❓', color: '#e5e7eb' }, // 21
+            { type: 'prop', name: '写字楼', price: 350, rent: 70, icon: '🏢', color: '#fde047' }, // 22
+            { type: 'prop', name: '软件园', price: 360, rent: 72, icon: '🖥️', color: '#fde047' }, // 23
+            { type: 'tax', name: '消费税', amount: 100, icon: '🧾', color: '#f87171' }, // 24
+            { type: 'prop', name: '酒店', price: 400, rent: 80, icon: '🏨', color: '#fca5a5' }, // 25
+            { type: 'prop', name: '温泉', price: 420, rent: 85, icon: '♨️', color: '#fca5a5' }, // 26
+            { type: 'flight', name: '机场航班', icon: '✈️', color: '#bae6fd' }, // 27 (角)
+            { type: 'prop', name: '展览馆', price: 450, rent: 90, icon: '🖼️️', color: '#fdba74' }, // 28
+            { type: 'prop', name: '美术馆', price: 460, rent: 92, icon: '🎨', color: '#fdba74' }, // 29
+            { type: 'chance', name: '命运盲盒', icon: '❓', color: '#e5e7eb' }, // 30
+            { type: 'prop', name: '商业中心', price: 500, rent: 100, icon: '🏬', color: '#93c5fd' }, // 31
+            { type: 'prop', name: '贸易港', price: 550, rent: 110, icon: '🚢', color: '#93c5fd' }, // 32
+            { type: 'tax', name: '奢侈税', amount: 150, icon: '💎', color: '#f87171' }, // 33
+            { type: 'prop', name: '金融塔', price: 600, rent: 120, icon: '🏦', color: '#c4b5fd' }, // 34
+            { type: 'prop', name: '地标塔', price: 700, rent: 150, icon: '🗼', color: '#c4b5fd' }  // 35
         ];
 
-        // 对应 6x6 CSS Grid 的坐标映射 (行和列，1-based)
-        const tileCoords = [
-            {c:1, r:1}, {c:2, r:1}, {c:3, r:1}, {c:4, r:1}, {c:5, r:1}, {c:6, r:1}, // Top row
-            {c:6, r:2}, {c:6, r:3}, {c:6, r:4}, {c:6, r:5}, {c:6, r:6},             // Right col
-            {c:5, r:6}, {c:4, r:6}, {c:3, r:6}, {c:2, r:6}, {c:1, r:6},             // Bottom row
-            {c:1, r:5}, {c:1, r:4}, {c:1, r:3}, {c:1, r:2}                          // Left col
-        ];
+        // 对应 10x10 CSS Grid 的坐标映射 (行和列，1-based)
+        const tileCoords = [];
+        for(let c=1; c<=10; c++) tileCoords.push({c, r:1});
+        for(let r=2; r<=9; r++) tileCoords.push({c:10, r});
+        for(let c=10; c>=1; c--) tileCoords.push({c, r:10});
+        for(let r=9; r>=2; r--) tileCoords.push({c:1, r});
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -366,22 +382,72 @@
                 const tile = BOARD_TILES[index];
                 const el = document.createElement('div');
                 el.id = `tile-${index}`;
-                el.className = `board-tile flex flex-col items-center justify-center p-0.5 sm:p-1 rounded-lg sm:rounded-xl text-center relative shadow-[inset_0_-2px_0_rgba(0,0,0,0.08)] z-0`;
+                el.className = `board-tile flex flex-col items-center justify-center p-0.5 rounded-sm sm:rounded-md text-center relative shadow-[inset_0_-2px_0_rgba(0,0,0,0.08)] z-0`;
                 el.style.gridColumnStart = coord.c;
                 el.style.gridRowStart = coord.r;
                 el.style.backgroundColor = tile.color;
 
-                let contentHtml = `<span class="text-sm sm:text-lg drop-shadow-sm leading-none mt-0.5">${tile.icon}</span>`;
-                contentHtml += `<span class="text-[7px] sm:text-[9px] font-bold text-gray-800 leading-tight w-full truncate mt-0.5 tracking-tighter">${tile.name}</span>`;
-                if(tile.price) {
-                    contentHtml += `<span class="text-[6px] sm:text-[8px] text-gray-700 bg-white/60 px-1 rounded-full mt-0.5 shadow-sm hidden sm:inline-block">$${tile.price}</span>`;
-                }
+                let contentHtml = `<span class="text-[12px] sm:text-[14px] drop-shadow-sm leading-none mt-0.5">${tile.icon}</span>`;
+                contentHtml += `<span class="text-[6px] sm:text-[7px] font-bold text-gray-800 leading-tight w-full truncate mt-0.5 tracking-tighter">${tile.name}</span>`;
+                
                 el.innerHTML = contentHtml;
+                el.onclick = () => showTileDetails(index); // 添加点击查看详情
                 grid.appendChild(el);
             });
             
             setTimeout(updatePiecesPosition, 100);
         }
+
+        window.showTileDetails = function(idx) {
+            const tile = BOARD_TILES[idx];
+            document.getElementById('tdIcon').innerText = tile.icon;
+            document.getElementById('tdName').innerText = tile.name;
+            
+            let typeStr = '未知';
+            if(tile.type === 'start') typeStr = '起点';
+            else if(tile.type === 'prop') typeStr = '地产';
+            else if(tile.type === 'chance') typeStr = '命运盲盒';
+            else if(tile.type === 'prison') typeStr = '监狱';
+            else if(tile.type === 'tax') typeStr = '税务局';
+            else if(tile.type === 'park') typeStr = '公园';
+            else if(tile.type === 'flight') typeStr = '机场航班';
+            document.getElementById('tdType').innerText = typeStr;
+
+            let infoHtml = '';
+            if (tile.type === 'prop') {
+                infoHtml += `<div><span class="font-bold text-gray-700">初始造价:</span> 💰${tile.price}</div>`;
+                infoHtml += `<div><span class="font-bold text-gray-700">基础租金:</span> 💰${tile.rent}</div>`;
+                if (gameState && gameState.properties && gameState.properties[idx]) {
+                    const prop = gameState.properties[idx];
+                    const ownerName = prop.owner === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    const ownerColor = prop.owner === 'p1' ? 'text-red-500' : 'text-blue-500';
+                    const lvlNames = ['空地', '平房', '商铺', '地标'];
+                    const currentRent = tile.rent * Math.pow(2, prop.level - 1);
+                    infoHtml += `<div class="mt-2 pt-2 border-t border-green-200">
+                        <div><span class="font-bold text-gray-700">所有者:</span> <span class="${ownerColor} font-black">${ownerName}</span></div>
+                        <div><span class="font-bold text-gray-700">建筑等级:</span> <span class="font-bold text-amber-500">${lvlNames[prop.level-1]} (Lv.${prop.level})</span></div>
+                        <div><span class="font-bold text-gray-700">当前过路费:</span> <span class="text-rose-500 font-black text-base drop-shadow-sm">💰${currentRent}</span></div>
+                    </div>`;
+                } else {
+                    infoHtml += `<div class="mt-2 pt-2 border-t border-green-200 text-gray-400 font-bold text-center">当前无主，等待投资！</div>`;
+                }
+            } else if (tile.type === 'tax') {
+                infoHtml += `<div><span class="font-bold text-gray-700">需缴纳:</span> <span class="text-rose-500 font-bold">💰${tile.amount}</span></div>`;
+            } else {
+                infoHtml += `<div class="text-center text-gray-500 font-medium mt-2">特殊地块，踩中后触发对应的神秘事件。</div>`;
+            }
+            
+            document.getElementById('tdInfo').innerHTML = infoHtml;
+            const modal = document.getElementById('tileDetailModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('tileDetailContent').classList.remove('scale-95'), 10);
+        };
+
+        window.closeTileDetails = function(e) {
+            if(e && e.target.id !== 'tileDetailModal') return;
+            document.getElementById('tileDetailContent').classList.add('scale-95');
+            setTimeout(() => document.getElementById('tileDetailModal').classList.add('hidden'), 200);
+        };
 
         async function initAuth() {
             if (!hasCloudBase) { hideLoading(); return; }
@@ -692,13 +758,13 @@
                 const tile = document.getElementById(`tile-${pos}`);
                 if (tile && piece) {
                     const tRect = tile.getBoundingClientRect();
-                    // 计算格子中心点相对于 board-grid 容器的百分比位置，使用百分比更具响应性
+                    // 计算格子中心点相对于 board-grid 容器的百分比位置
                     const centerX_pct = ((tRect.left + tRect.width/2 - cRect.left) / cRect.width) * 100;
                     const centerY_pct = ((tRect.top + tRect.height/2 - cRect.top) / cRect.height) * 100;
                     
-                    // 轻微偏移避免完全重叠
-                    const offsetX = pid === 'p1' ? -8 : 8;
-                    const offsetY = pid === 'p1' ? -4 : 4;
+                    // 轻微偏移避免完全重叠，适应更小的 10x10 格子
+                    const offsetX = pid === 'p1' ? -4 : 4;
+                    const offsetY = pid === 'p1' ? -2 : 2;
                     
                     piece.style.left = `calc(${centerX_pct}% + ${offsetX}px)`;
                     piece.style.top = `calc(${centerY_pct}% + ${offsetY}px)`;
@@ -754,7 +820,7 @@
             
             // 逐步计算位置，检测路障与起点奖励
             for(let step=1; step<=roll; step++) {
-                newPos = (newPos + 1) % 20;
+                newPos = (newPos + 1) % 36;
                 if (barricades.includes(newPos)) {
                     hitBarricade = true;
                     logs.push(`🚧 砰！${myName} 撞上了路障，被迫停下！`);
@@ -844,7 +910,7 @@
                 }
                 stateUpdate.currentAction = 'end';
             } else if (tile.type === 'flight') {
-                const newTarget = Math.floor(Math.random() * 20);
+                const newTarget = Math.floor(Math.random() * 36);
                 myData.pos = newTarget;
                 logs.push(`✈️ 乘坐直升机，随机空降到【${BOARD_TILES[newTarget].name}】！`);
                 // 简化处理，落地不再次触发事件
@@ -933,7 +999,7 @@
             stateUpdate[myPlayerId] = myData;
             
             if (item === 'barricade') {
-                let targetPos = (myData.pos + 3) % 20; // 自动放置在前方3步
+                let targetPos = (myData.pos + 3) % 36; // 自动放置在前方3步
                 let barricades = [...(gameState.barricades || []), targetPos];
                 stateUpdate.barricades = barricades;
                 logs.push(`🚧 ${myName} 使用了【路障】，暗中放置在了前方 3 步处！`);
