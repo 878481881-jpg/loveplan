@@ -13,42 +13,50 @@
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #1a1a2e;
+            background-color: #0f172a;
             background-image: 
-                linear-gradient(rgba(30, 255, 0, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(30, 255, 0, 0.05) 1px, transparent 1px);
-            background-size: 20px 20px;
+                linear-gradient(rgba(220, 38, 38, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(220, 38, 38, 0.05) 1px, transparent 1px);
+            background-size: 25px 25px;
             overflow-x: hidden;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            color: #e2e8f0;
+            color: #f8fafc;
         }
 
-        @keyframes pulse-red {
-            0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
-            50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
+        @keyframes pulse-alarm {
+            0%, 100% { box-shadow: inset 0 0 20px rgba(220, 38, 38, 0.1); }
+            50% { box-shadow: inset 0 0 60px rgba(220, 38, 38, 0.4); }
         }
+        .alarm-bg { animation: pulse-alarm 2s infinite; }
 
-        @keyframes glitch {
-            0% { transform: translate(0) }
-            20% { transform: translate(-2px, 1px) }
-            40% { transform: translate(-1px, -1px) }
-            60% { transform: translate(2px, 1px) }
-            80% { transform: translate(1px, -1px) }
-            100% { transform: translate(0) }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); opacity: 0; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(400px); opacity: 0; }
         }
-
+        
         #board-container {
             position: relative;
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
             aspect-ratio: 1 / 1;
-            background: #0f172a;
-            border-radius: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 0 4px #334155;
-            padding: 8px;
+            background: #1e293b;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.9), inset 0 0 0 2px #334155;
+            padding: 4px;
             margin: 0 auto;
+            overflow: hidden;
+        }
+
+        .scanner {
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 10px;
+            background: linear-gradient(to bottom, transparent, rgba(220, 38, 38, 0.8));
+            animation: scanline 3s linear infinite;
+            z-index: 5;
+            pointer-events: none;
         }
         
         #board-grid {
@@ -67,211 +75,226 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            background-color: #1e293b;
-            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
-            transition: all 0.2s;
-            font-size: 1.2rem;
+            background-color: #0f172a;
+            box-shadow: inset 0 0 8px rgba(0,0,0,0.5);
+            transition: all 0.3s ease;
+            font-size: 1.1rem;
         }
 
         .cell-collapse {
             background-color: #000;
-            background-image: repeating-linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111), repeating-linear-gradient(45deg, #111 25%, #000 25%, #000 75%, #111 75%, #111);
-            background-position: 0 0, 10px 10px;
-            background-size: 20px 20px;
-            box-shadow: none;
-            opacity: 0.5;
+            background-image: radial-gradient(circle, #222 10%, #000 80%);
+            box-shadow: inset 0 0 15px #000;
+            border: 1px solid #111;
+        }
+        .cell-collapse::after {
+            content: '❌'; font-size: 0.8rem; opacity: 0.3;
         }
 
         .cell-highlight {
-            background-color: #3b82f6;
+            background-color: rgba(59, 130, 246, 0.2);
             cursor: pointer;
-            animation: pulse-red 1.5s infinite;
-            border: 2px dashed #93c5fd;
+            border: 1px dashed #60a5fa;
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5) inset;
         }
-        
         .cell-highlight:hover {
-            background-color: #60a5fa;
+            background-color: rgba(59, 130, 246, 0.4);
             transform: scale(1.05);
             z-index: 10;
         }
 
         .cell-escape {
-            background: radial-gradient(circle, #22c55e 0%, #14532d 100%);
-            border: 2px solid #4ade80;
-            box-shadow: 0 0 15px #22c55e;
+            background: radial-gradient(circle, #fbbf24 0%, #b45309 100%);
+            border: 2px solid #fcd34d;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.6);
+            animation: pulse-escape 2s infinite;
         }
+        @keyframes pulse-escape { 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.3)} }
 
         .entity {
             position: absolute;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
+            font-size: 1.6rem;
             z-index: 20;
-            transition: all 0.4s cubic-bezier(0.34, 1.3, 0.64, 1);
-            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+            /* 关键点：平滑过渡，实现真实的移动动画而非瞬移 */
+            transition: top 0.4s ease-in-out, left 0.4s ease-in-out;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));
             pointer-events: none;
+            width: 10%;
+            height: 10%;
+            transform: translate(-50%, -50%);
         }
         
         .entity-alien {
-            font-size: 1.8rem;
-            animation: glitch 0.5s infinite;
+            font-size: 2rem;
+            filter: drop-shadow(0 0 10px #22c55e);
             z-index: 25;
         }
 
+        .item-icon { text-shadow: 0 0 5px rgba(255,255,255,0.5); }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .log-entry { animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-6 relative alarm-bg">
 
     <div id="globalLoading" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-pulse mb-4">☢️</div>
-        <div class="text-green-500 font-bold text-xl flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-green-400 animate-ping"></span>
-            连接基地终端...
+        <div class="text-6xl animate-pulse mb-4 text-red-500">☢️</div>
+        <div class="text-red-400 font-bold text-xl flex items-center gap-2 tracking-widest">
+            <span class="w-3 h-3 rounded-full bg-red-500 animate-ping"></span>
+            连接深海实验室终端...
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-red-900/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-red-500/50 transition-all duration-300 opacity-0 translate-y-4"></div>
+    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-xl shadow-2xl text-sm font-bold hidden z-50 border border-slate-600 transition-all duration-300 opacity-0 -translate-y-4 max-w-[90%] text-center"></div>
 
     <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-slate-800 border-2 border-slate-600 rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
+        <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
             <div id="msgIcon" class="text-6xl mb-4">💀</div>
             <h3 class="text-2xl font-bold text-red-500 mb-2" id="msgTitle">结局</h3>
-            <p class="text-gray-300 mb-6 font-medium" id="msgDesc">无人生还。</p>
+            <p class="text-gray-400 mb-6 font-medium text-sm leading-relaxed" id="msgDesc">无人生还。</p>
             <div class="flex gap-3">
-                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-slate-700 text-gray-300 font-bold hover:bg-slate-600 active:scale-95 transition-all">关闭</button>
-                <button id="modalActionBtn" onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-800 text-white font-bold shadow-md hover:opacity-95 active:scale-95 transition-all">重启终端</button>
+                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-slate-800 text-gray-300 font-bold hover:bg-slate-700 transition-all border border-slate-600">关闭面板</button>
+                <button onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-700 to-red-900 text-white font-bold shadow-md hover:opacity-90 transition-all border border-red-500/50">重启模拟</button>
             </div>
         </div>
     </div>
 
-    <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
-        <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-2xl shadow-sm border border-slate-600">
-            <span class="text-3xl">☣️</span>
+    <header class="w-full max-w-md flex justify-between items-center mb-3 z-10 px-1">
+        <div class="flex items-center gap-3 bg-slate-900/80 px-4 py-2 rounded-xl shadow-lg border border-slate-700/50">
+            <span class="text-3xl filter drop-shadow-[0_0_8px_rgba(220,38,38,0.8)]">☣️</span>
             <div>
-                <h1 class="text-lg font-bold text-red-500 leading-tight">生化逃生舱</h1>
-                <p class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Bio-Escape Protocol</p>
+                <h1 class="text-base sm:text-lg font-black text-red-500 leading-tight tracking-wider">生化逃生舱</h1>
+                <p class="text-[9px] text-gray-500 font-bold uppercase tracking-[0.2em]">Only One Survivor</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="bg-slate-800/90 px-3 py-1.5 rounded-full border border-slate-600 shadow-sm text-xs font-bold text-gray-300 flex items-center gap-1.5">
-                特工: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-slate-600 text-white shadow-inner">加载中</span>
+            <div class="bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-700 shadow-sm text-xs font-bold text-gray-400 flex items-center gap-2">
+                代号: <span id="currentRoleDisplay" class="text-blue-400">加载中</span>
             </div>
-            <span id="syncStatusBadge" class="text-[9px] text-gray-500 mt-1 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span> 离线
+            <span id="syncStatusBadge" class="text-[10px] text-gray-600 mt-1 flex items-center gap-1 font-bold">
+                <span class="w-2 h-2 rounded-full bg-gray-600"></span> 离线
             </span>
         </div>
     </header>
 
-    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
+    <main class="w-full max-w-md flex flex-col items-center gap-3 relative z-10">
         
-        <!-- Lobby View -->
         <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
-            <div class="bg-slate-800/90 backdrop-blur-md rounded-3xl p-6 border-2 border-slate-700 shadow-xl flex flex-col items-center text-center">
-                <div class="w-24 h-24 bg-gradient-to-br from-red-900 to-black rounded-full flex items-center justify-center text-5xl mb-4 shadow-[0_0_20px_rgba(255,0,0,0.5)] border-4 border-slate-800">
-                    🦠
-                </div>
-                <h2 class="text-2xl font-bold text-red-500 mb-2">基地即将自毁</h2>
-                <p class="text-sm text-gray-400 mb-6 px-2">邀请同伴，但记住，逃生舱只有一个名额。</p>
+            <div class="bg-slate-900/90 backdrop-blur-md rounded-2xl p-6 border border-slate-700 shadow-2xl flex flex-col items-center text-center">
+                <div class="w-20 h-20 bg-black rounded-full flex items-center justify-center text-4xl mb-4 border-2 border-red-900 shadow-[0_0_30px_rgba(220,38,38,0.3)]">🦠</div>
+                <h2 class="text-xl font-black text-red-500 mb-2">基地隔离协议已启动</h2>
+                <p class="text-xs text-gray-400 mb-6 px-4 leading-relaxed">寻找唯一的逃生密匙，或者...踩着队友的尸体离开。记住，异形正在逼近。</p>
                 
                 <div class="w-full space-y-4">
-                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-bold text-lg shadow-[0_0_15px_rgba(255,0,0,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-red-500/50">
-                        <span>📡</span> 建立求生频段 (红方)
+                    <button onclick="createRoom()" class="w-full py-3.5 bg-red-900/80 text-red-100 rounded-xl font-bold text-base hover:bg-red-800 transition-all flex items-center justify-center gap-2 border border-red-500/30">
+                        <span>📡</span> 创建求生频段 (红方)
                     </button>
                     
-                    <div class="relative flex py-2 items-center">
-                        <div class="flex-grow border-t border-slate-600"></div>
-                        <span class="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-wider">OR</span>
-                        <div class="flex-grow border-t border-slate-600"></div>
+                    <div class="relative flex py-1 items-center">
+                        <div class="flex-grow border-t border-slate-800"></div>
+                        <span class="flex-shrink-0 mx-4 text-slate-600 text-xs font-black uppercase">OR</span>
+                        <div class="flex-grow border-t border-slate-800"></div>
                     </div>
 
                     <div class="flex flex-col gap-3 w-full">
-                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段码" class="w-full px-4 py-4 bg-slate-900 border-2 border-slate-700 rounded-2xl text-center text-xl font-black text-blue-400 tracking-[0.5em] focus:outline-none focus:border-blue-500 transition-all shadow-inner uppercase">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold text-lg rounded-2xl shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all border border-blue-500/50">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段码" class="w-full px-4 py-3 bg-black border border-slate-700 rounded-xl text-center text-xl font-black text-blue-500 tracking-[0.5em] focus:outline-none focus:border-blue-500 transition-all uppercase">
+                        <button onclick="joinRoom()" class="w-full py-3.5 bg-blue-900/80 text-blue-100 font-bold text-base rounded-xl hover:bg-blue-800 transition-all border border-blue-500/30">
                             接入频段 (蓝方)
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 shadow-sm text-left">
-                <h3 class="text-sm font-bold text-red-400 mb-2 flex items-center gap-1"><span>📜</span> 生存法则</h3>
-                <ul class="text-xs text-gray-400 space-y-1.5 pl-4 list-disc opacity-90 font-medium">
-                    <li>掷出步数(1-3)，点击高亮网格移动。</li>
-                    <li>搜刮📦<b class="text-yellow-500">盲盒</b>可获得：🔑逃生密匙、🔫重机枪(抵御1次攻击)、或引爆毒气、惊醒异形！</li>
-                    <li><b class="text-green-500">异形</b>每轮结束追击最近玩家1-3格。遇到落单必杀！<b class="text-blue-400">两名玩家相邻</b>可合力逼退异形。</li>
-                    <li>每轮结束基地随机<b class="text-red-500">坍塌1-2格</b>。</li>
-                    <li>拿到密匙，抵达<b class="text-green-400">中心逃生舱</b>，抛弃队友独赢！</li>
+            <div class="bg-slate-900/80 rounded-xl p-4 border border-slate-800 shadow-lg text-left">
+                <h3 class="text-sm font-black text-red-500 mb-3 flex items-center gap-2"><span>⚠️</span> 生存指北</h3>
+                <ul class="text-[11px] text-gray-400 space-y-2 list-none font-medium leading-relaxed">
+                    <li class="flex gap-2"><span class="text-blue-400">👣</span> <span><b>轮流行动：</b>掷骰子(1-3步)，点击高亮网格移动。</span></li>
+                    <li class="flex gap-2"><span class="text-green-500">👾</span> <span><b>异形逼近：</b>异形绝不瞬移！每回合结束，异形会寻路向最近玩家<b>真实移动1-2格</b>。</span></li>
+                    <li class="flex gap-2"><span class="text-yellow-500">📦</span> <span><b>搜刮盲盒：</b>可开出 🔑密匙、🔫机枪(挡1次死)、💣绊雷(陷害队友停1回合)、💨毒气(随机传送)或⚠️惊醒异形！</span></li>
+                    <li class="flex gap-2"><span class="text-purple-400">🤝</span> <span><b>合作背叛：</b>两名玩家<b>相邻(距离≤1)</b>可合力逼退异形！落单无武器必死。拿到密匙抵达中心🚀即可独自逃生。</span></li>
+                    <li class="flex gap-2"><span class="text-red-600">💥</span> <span><b>基地坍塌：</b>每回合随机塌陷1-2格变为死路。</span></li>
                 </ul>
             </div>
         </div>
 
-        <div id="gameView" class="w-full flex flex-col gap-4 hidden">
-            <!-- Top Status Bar -->
-            <div class="w-full bg-slate-800/90 backdrop-blur-md rounded-2xl p-3 border border-slate-700 shadow-sm flex items-center justify-between">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-gray-500 font-bold uppercase">频段码</span>
-                    <span id="displayRoomCode" class="text-xl font-black text-gray-200 tracking-wider">----</span>
+        <div id="gameView" class="w-full flex flex-col gap-3 hidden">
+            <!-- 状态栏 -->
+            <div class="w-full bg-slate-900/90 rounded-xl p-2.5 border border-slate-700 flex items-center justify-between">
+                <div class="flex flex-col items-center px-2">
+                    <span class="text-[9px] text-gray-500 font-bold uppercase">频段</span>
+                    <span id="displayRoomCode" class="text-lg font-black text-white">----</span>
                 </div>
                 
-                <div class="flex items-center gap-3 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
-                    <div class="flex flex-col items-center">
-                        <span class="text-[9px] text-red-500 font-bold">红方</span>
-                        <span id="p1NameDisplay" class="text-xs font-black text-red-400 max-w-[50px] truncate">等待</span>
-                        <div id="p1Items" class="text-[10px] h-3 mt-0.5"></div>
+                <div class="flex items-center gap-3 bg-black/50 px-4 py-1.5 rounded-lg border border-slate-800">
+                    <div class="flex flex-col items-center w-12">
+                        <span class="text-[10px] text-red-500 font-black mb-0.5">红方</span>
+                        <span id="p1NameDisplay" class="text-[10px] font-bold text-gray-300 truncate w-full text-center">...</span>
+                        <div id="p1Items" class="text-xs h-4 mt-0.5 flex gap-0.5"></div>
                     </div>
-                    <div class="text-slate-600 font-black italic text-sm">VS</div>
-                    <div class="flex flex-col items-center">
-                        <span class="text-[9px] text-blue-500 font-bold">蓝方</span>
-                        <span id="p2NameDisplay" class="text-xs font-black text-blue-400 max-w-[50px] truncate">等待</span>
-                        <div id="p2Items" class="text-[10px] h-3 mt-0.5"></div>
+                    <div class="text-slate-700 font-black italic text-xs">VS</div>
+                    <div class="flex flex-col items-center w-12">
+                        <span class="text-[10px] text-blue-500 font-black mb-0.5">蓝方</span>
+                        <span id="p2NameDisplay" class="text-[10px] font-bold text-gray-300 truncate w-full text-center">...</span>
+                        <div id="p2Items" class="text-xs h-4 mt-0.5 flex gap-0.5"></div>
                     </div>
                 </div>
                 
-                <button onclick="exitRoom()" class="w-10 h-10 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center hover:bg-slate-600 transition-colors border border-slate-600 shadow-sm active:scale-90">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                <button onclick="exitRoom()" class="w-8 h-8 rounded-lg bg-slate-800 text-gray-400 flex items-center justify-center hover:bg-slate-700 transition-colors border border-slate-600 active:scale-90 mr-1">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>
             </div>
 
-            <!-- Turn Banner -->
-            <div id="turnBanner" class="w-full py-2.5 px-4 bg-slate-800 rounded-xl text-center text-sm font-bold text-gray-400 shadow-inner flex items-center justify-center gap-2 transition-all duration-300 border border-slate-700">
-                <span id="turnBannerIcon" class="text-lg">⏳</span>
+            <!-- 轮次横幅 -->
+            <div id="turnBanner" class="w-full py-2 bg-slate-800 rounded-lg text-center text-xs font-bold text-gray-400 flex items-center justify-center gap-2 border border-slate-700 transition-colors duration-300">
+                <span id="turnBannerIcon">⏳</span>
                 <span id="turnBannerText">等待信号接入...</span>
             </div>
 
-            <!-- Game Board -->
+            <!-- 游戏棋盘 -->
             <div id="board-container">
-                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/60 rounded-xl hidden cursor-not-allowed"></div>
+                <div class="scanner"></div>
+                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/70 flex items-center justify-center hidden backdrop-blur-[1px]">
+                    <span class="text-white font-bold tracking-widest bg-black/50 px-4 py-2 rounded-lg border border-slate-600" id="overlayText">等待中</span>
+                </div>
                 <div id="board-grid"></div>
-                <!-- Dynamic Entities Layer -->
-                <div id="entities-layer" class="absolute inset-0 pointer-events-none p-2"></div>
+                <!-- 动态实体层 -->
+                <div id="entities-layer" class="absolute inset-0 pointer-events-none p-1">
+                    <div id="ent-p1" class="entity text-red-500">🔴</div>
+                    <div id="ent-p2" class="entity text-blue-500">🔵</div>
+                    <div id="ent-alien" class="entity entity-alien text-green-500">👾</div>
+                </div>
             </div>
 
-            <!-- Action & Log Area -->
-            <div class="w-full bg-slate-800/90 backdrop-blur-md rounded-2xl p-4 border border-slate-700 shadow-lg flex gap-4 h-36">
-                <!-- Dice Area -->
-                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-slate-900 p-3 rounded-xl border border-slate-700 w-24 relative overflow-hidden">
-                    <div id="diceVisual" class="text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black text-white">?</div>
-                    <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-xs touch-manipulation z-10">
-                        掷点(1-3)
-                    </button>
+            <!-- 操作与日志区 -->
+            <div class="w-full bg-slate-900/90 rounded-xl p-3 border border-slate-700 flex gap-3 h-32">
+                <!-- 骰子与道具区 -->
+                <div class="flex-shrink-0 flex flex-col gap-2 w-24">
+                    <div class="flex-1 bg-black rounded-lg border border-slate-800 flex items-center justify-center text-3xl font-black text-white relative">
+                        <span id="diceVisual">?</span>
+                    </div>
+                    <div class="flex gap-1 h-8">
+                        <button id="btnRollDice" onpointerdown="handleRollDice()" class="flex-1 bg-green-700 text-white font-bold rounded shadow-md hover:bg-green-600 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[10px]">
+                            行动
+                        </button>
+                        <button id="btnPlaceMine" onpointerdown="handlePlaceMine()" class="flex-1 bg-yellow-600 text-white font-bold rounded shadow-md hover:bg-yellow-500 active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-[10px] hidden flex flex-col items-center justify-center leading-none">
+                            <span>💣</span><span class="text-[8px]">埋雷</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Logs Area -->
-                <div class="flex-1 flex flex-col bg-black/50 rounded-xl border border-slate-700 p-2 overflow-hidden relative">
-                    <div class="text-[10px] font-bold text-green-500/70 mb-1 px-1 border-b border-green-900/50 pb-1 flex justify-between uppercase">
-                        <span>📡 系统日志</span>
-                        <span class="text-red-500 tracking-tighter">SECURE 🔒</span>
+                <!-- 日志区 -->
+                <div class="flex-1 flex flex-col bg-black rounded-lg border border-slate-800 p-1.5 overflow-hidden relative">
+                    <div class="text-[9px] font-bold text-green-600 mb-1 px-1 border-b border-green-900/30 pb-1 flex justify-between uppercase tracking-wider">
+                        <span>> System.Log</span>
+                        <span class="text-red-500">REC 🔴</span>
                     </div>
-                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar p-1 text-[11px] font-medium text-gray-400 flex flex-col-reverse">
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar p-1 text-[10px] font-medium text-gray-400 flex flex-col-reverse">
                         <div class="text-center text-gray-600 py-2 opacity-50">等待记录...</div>
                     </div>
-                    <div class="absolute top-5 left-0 right-0 h-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
                 </div>
             </div>
 
@@ -283,7 +306,7 @@
 
         const ENV_ID = "lovegame-d0g3xo4h8d1addad2";
         const REGION = "ap-shanghai";
-        const ROOM_COLLECTION = "aeroplaneRooms"; // Reusing the same collection as requested
+        const ROOM_COLLECTION = "bioEscapeRoomsV2"; 
 
         function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
         function pickDoc(snapshot, code) {
@@ -307,13 +330,7 @@
             console.error("CloudBase init failed", e);
         }
 
-        let myIdentity = "特工" + Math.floor(Math.random()*1000); 
-        try {
-            const savedIdentity = localStorage.getItem('bioEscape_myIdentity');
-            if (savedIdentity) myIdentity = savedIdentity;
-            else localStorage.setItem('bioEscape_myIdentity', myIdentity);
-        } catch(e) {}
-        
+        let myIdentity = "特工_" + Math.floor(Math.random()*900 + 100); 
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
@@ -322,16 +339,15 @@
         let gameState = null; 
         let myPlayerId = null;
         
-        // Game Constants
+        // 游戏常量
         const GRID_SIZE = 10;
         const ESCAPE_POD_POS = {x: 4, y: 4};
         
-        // Local state for rendering path
         let currentReachableCells = [];
 
         async function initAuth() {
             if (!hasCloudBase) {
-                showToast("未检测到网络，进入离线预览");
+                showToast("无网络连接，进入离线模式");
                 clearTimeout(fallbackTimer);
                 hideLoading();
                 return;
@@ -340,12 +356,12 @@
                 const res = await auth.signInAnonymously();
                 if (res && res.error) throw res.error;
                 currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_5px_#22c55e]"></span> 在线';
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
                 showToast("网络异常");
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500"></span> 离线';
                 switchToLobby();
             } finally {
                 clearTimeout(fallbackTimer);
@@ -367,14 +383,13 @@
             myPlayerId = null;
         }
 
-        // Generate initial map elements
         function generateInitialBoxes() {
             let boxes = [];
-            while(boxes.length < 8) {
+            while(boxes.length < 12) {
                 let rx = Math.floor(Math.random() * GRID_SIZE);
                 let ry = Math.floor(Math.random() * GRID_SIZE);
-                // Exclude corners (spawn points), alien spawn, and escape pod
-                if ((rx===0 && ry===0) || (rx===9 && ry===9) || (rx===9 && ry===0) || (rx===ESCAPE_POD_POS.x && ry===ESCAPE_POD_POS.y)) continue;
+                // 排除出生点、异形出生点和逃生舱
+                if ((rx===0 && ry===0) || (rx===9 && ry===9) || (rx===9 && ry===0) || (rx===0 && ry===9) || (rx===ESCAPE_POD_POS.x && ry===ESCAPE_POD_POS.y)) continue;
                 if (!boxes.some(b => b.x === rx && b.y === ry)) boxes.push({x: rx, y: ry});
             }
             return boxes;
@@ -386,16 +401,18 @@
             
             const initialData = {
                 status: 'waiting', 
-                p1: { name: myName, x: 0, y: 0, hasKey: false, hasGun: false, dead: false },
-                p2: { name: null, x: 9, y: 9, hasKey: false, hasGun: false, dead: false },
+                p1: { name: myName, x: 0, y: 0, hasKey: false, hasGun: false, mines: 0, dead: false, skipTurn: false },
+                p2: { name: null, x: 9, y: 9, hasKey: false, hasGun: false, mines: 0, dead: false, skipTurn: false },
                 alien: { x: 9, y: 0 },
                 boxes: generateInitialBoxes(),
+                placedMines: [],
                 collapsed: [],
+                keyFound: false,
                 turn: 'p1', 
                 round: 1,
                 diceValue: null,
                 hasRolled: false,
-                logs: [`[系统] ${myName} 建立了求生频段，等待接入...`],
+                logs: [`[系统] ${myName} 开启了求生频段，等待接入...`],
                 winner: null
             };
 
@@ -406,28 +423,28 @@
                 showToast(`频段 ${code} 建立成功`);
             } catch (e) {
                 console.error(e);
-                showToast("创建房间失败");
+                showToast("创建失败");
             }
         };
 
         window.joinRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (!code || code.length !== 4) return showToast("请输入4位数字频段码");
+            if (!code || code.length !== 4) return showToast("请输入4位数字");
 
             try {
                 const res = await getRoomRef(code).get();
                 const data = res.data && res.data[0];
                 if (!data) return showToast("频段不存在");
                 if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
-                    return showToast("战斗已开始或满员");
+                    return showToast("房间已满或已开始");
                 }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
                     await getRoomRef(code).update({
                         'p2.name': myName,
                         status: 'playing',
-                        logs: [`[系统] ${myName} 接入成功。大逃杀开始！红方先手。`]
+                        logs: [`[系统] ${myName} 接入成功。残酷的生存游戏开始！红方先手。`]
                     });
                     myPlayerId = 'p2';
                 } else if (data.p1.name === myName) {
@@ -464,10 +481,7 @@
                         switchToLobby();
                     }
                 },
-                onError: (err) => {
-                    console.error(err);
-                    showToast("同步断开");
-                }
+                onError: (err) => { console.error(err); showToast("同步断开"); }
             });
             unsubscribeRoom = () => watcher.close();
         }
@@ -481,7 +495,6 @@
                     const div = document.createElement('div');
                     div.id = `cell-${x}-${y}`;
                     div.className = `board-cell`;
-                    // Setup click listener directly on cells for interaction
                     div.onpointerdown = () => handleCellClick(x, y);
                     
                     if (x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y) {
@@ -492,98 +505,112 @@
                 }
             }
             grid.appendChild(fragment);
-            
-            // Init Entities
-            const layer = document.getElementById('entities-layer');
-            layer.innerHTML = `
-                <div id="ent-p1" class="entity text-red-500">🔴</div>
-                <div id="ent-p2" class="entity text-blue-500">🔵</div>
-                <div id="ent-alien" class="entity entity-alien text-green-500 drop-shadow-[0_0_8px_#22c55e]">👾</div>
-            `;
         }
 
         function renderGameState() {
             if (!gameState) return;
 
-            // Render Header Status
             document.getElementById('displayRoomCode').innerText = currentRoomId;
-            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待';
-            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待';
+            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
             
-            document.getElementById('p1Items').innerHTML = `${gameState.p1.hasKey ? '🔑' : ''}${gameState.p1.hasGun ? '🔫' : ''}${gameState.p1.dead ? '💀' : ''}`;
-            document.getElementById('p2Items').innerHTML = `${gameState.p2.hasKey ? '🔑' : ''}${gameState.p2.hasGun ? '🔫' : ''}${gameState.p2.dead ? '💀' : ''}`;
+            const renderItems = (p) => {
+                let html = '';
+                if(p.hasKey) html += '<span title="密匙">🔑</span>';
+                if(p.hasGun) html += '<span title="机枪">🔫</span>';
+                for(let i=0; i<p.mines; i++) html += '<span title="绊雷">💣</span>';
+                if(p.dead) html = '<span>💀已死亡</span>';
+                return html;
+            };
+            document.getElementById('p1Items').innerHTML = renderItems(gameState.p1);
+            document.getElementById('p2Items').innerHTML = renderItems(gameState.p2);
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing' && !gameState[myPlayerId].dead;
             
-            // Turn Banner & Dice
             const banner = document.getElementById('turnBanner');
             const bIcon = document.getElementById('turnBannerIcon');
             const bText = document.getElementById('turnBannerText');
             const overlay = document.getElementById('boardOverlay');
+            const overlayText = document.getElementById('overlayText');
             const btnRoll = document.getElementById('btnRollDice');
+            const btnMine = document.getElementById('btnPlaceMine');
             const diceVis = document.getElementById('diceVisual');
 
+            // 绊雷按钮逻辑
+            if (gameState.status === 'playing' && !gameState[myPlayerId]?.dead && gameState[myPlayerId]?.mines > 0) {
+                btnMine.classList.remove('hidden');
+                btnMine.disabled = !isMyTurn; // 只有自己回合才能放
+            } else {
+                btnMine.classList.add('hidden');
+            }
+
             if (gameState.status === 'waiting') {
+                banner.className = "w-full py-2 bg-slate-800 rounded-lg text-center text-xs font-bold text-gray-500 border border-slate-700";
                 bIcon.innerText = '⏳'; bText.innerText = '等待对手接入...';
-                overlay.classList.remove('hidden'); btnRoll.disabled = true;
+                overlay.classList.remove('hidden'); overlayText.innerText = "等待对手";
+                btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
                 if (gameState[myPlayerId].dead) {
-                    bIcon.innerText = '💀'; bText.innerText = '你已死亡，正在观战';
-                    overlay.classList.remove('hidden'); btnRoll.disabled = true;
-                    diceVis.innerText = '-';
+                    banner.className = "w-full py-2 bg-red-900/50 rounded-lg text-center text-xs font-bold text-red-400 border border-red-800";
+                    bIcon.innerText = '💀'; bText.innerText = '你已阵亡，正在观战';
+                    overlay.classList.remove('hidden'); overlayText.innerText = "观战中";
+                    btnRoll.disabled = true;
+                } else if (gameState[myPlayerId].skipTurn && isMyTurn) {
+                    // 如果轮到我，但被绊雷定身，强制跳过
+                    banner.className = "w-full py-2 bg-yellow-900/50 rounded-lg text-center text-xs font-bold text-yellow-500 border border-yellow-700";
+                    bIcon.innerText = '⚡'; bText.innerText = '被陷阱定身，回合跳过';
+                    overlay.classList.remove('hidden'); overlayText.innerText = "跳过回合";
+                    btnRoll.disabled = true;
+                    // 自动执行跳过
+                    setTimeout(() => executeSkipTurn(), 1500); 
                 } else if (isMyTurn) {
-                    banner.className = `w-full py-2.5 px-4 rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-900/50 text-red-400 border-red-500/50' : 'bg-blue-900/50 text-blue-400 border-blue-500/50'}`;
+                    banner.className = `w-full py-2 rounded-lg text-center text-xs font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-900/60 text-red-400 border-red-500/50' : 'bg-blue-900/60 text-blue-400 border-blue-500/50'}`;
                     bIcon.innerText = gameState.hasRolled ? '🎯' : '🎲';
-                    bText.innerText = gameState.hasRolled ? '点击高亮区域移动' : '轮到你了，进行判定';
+                    bText.innerText = gameState.hasRolled ? '点击高亮区域移动' : '轮到你了，执行行动';
                     overlay.classList.add('hidden');
                     btnRoll.disabled = gameState.hasRolled;
                 } else {
-                    banner.className = "w-full py-2.5 px-4 bg-slate-800 rounded-xl text-center text-sm font-bold text-gray-500 flex items-center justify-center gap-2 border border-slate-700";
+                    banner.className = "w-full py-2 bg-slate-800 rounded-lg text-center text-xs font-bold text-gray-400 border border-slate-700";
                     bIcon.innerText = '👀';
                     const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
                     bText.innerText = `等待 ${activeName} 行动...`;
-                    overlay.classList.remove('hidden');
+                    overlay.classList.remove('hidden'); overlayText.innerText = "对手回合";
                     btnRoll.disabled = true;
                 }
             }
 
-            if (gameState.diceValue) {
-                diceVis.innerText = gameState.diceValue;
-                diceVis.className = `text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black ${gameState.diceValue === 3 ? 'text-red-400 scale-110' : 'text-white'}`;
-            } else {
-                diceVis.innerText = '?';
-                diceVis.className = "text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black text-gray-500";
-            }
+            diceVis.innerText = gameState.diceValue || '?';
+            diceVis.className = gameState.diceValue === 3 ? 'text-red-400 scale-125 transition-transform' : 'text-white transition-transform';
 
-            // Render Logs
+            // 渲染日志
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
-                div.className = "log-entry w-full break-words";
+                div.className = "w-full break-words border-b border-slate-800/50 pb-0.5";
                 let html = log.replace(gameState.p1.name, `<span class="text-red-400 font-bold">${gameState.p1.name}</span>`);
                 if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-400 font-bold">${gameState.p2.name}</span>`);
                 div.innerHTML = html;
                 logBox.appendChild(div);
             });
 
-            // Handle Winner/End Game
             if (gameState.winner) {
-                overlay.classList.remove('hidden');
+                overlay.classList.remove('hidden'); overlayText.innerText = "模拟结束";
                 document.getElementById('msgModal').classList.remove('hidden');
                 setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
                 const title = document.getElementById('msgTitle');
                 const desc = document.getElementById('msgDesc');
                 
                 if (gameState.winner === 'alien' || gameState.winner === 'none') {
-                    title.innerText = "无人生还"; title.className = "text-2xl font-bold text-red-500 mb-2";
-                    desc.innerText = "基地已被异形占据或彻底毁灭。";
+                    title.innerText = "无人生还"; title.className = "text-2xl font-black text-red-500 mb-2 tracking-widest";
+                    desc.innerText = "两名特工均已殉职，基地彻底沦陷。";
                     document.getElementById('msgIcon').innerText = "💀";
                 } else {
                     const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    title.innerText = `${wName} 成功逃生!`; title.className = "text-2xl font-bold text-green-500 mb-2";
-                    desc.innerText = "但另一个人永远留在了这里...";
+                    const loserName = gameState.winner === 'p1' ? gameState.p2.name : gameState.p1.name;
+                    title.innerText = `逃生成功`; title.className = "text-2xl font-black text-green-500 mb-2 tracking-widest";
+                    desc.innerHTML = `<span class="text-white">${wName}</span> 启动了唯一的逃生舱。<br>至于 <span class="text-gray-500">${loserName}</span> ...已成为异形的口粮。`;
                     document.getElementById('msgIcon').innerText = "🚀";
                 }
             }
@@ -595,7 +622,6 @@
             return new Set(gameState.collapsed.map(c => `${c.x},${c.y}`));
         }
 
-        // BFS for movement
         function getReachableCells(startX, startY, maxSteps, collapsedSet) {
             let queue = [{x: startX, y: startY, dist: 0}];
             let visited = new Set([`${startX},${startY}`]);
@@ -603,16 +629,14 @@
             
             while(queue.length > 0) {
                 let curr = queue.shift();
-                if(curr.dist > 0 && curr.dist <= maxSteps) {
-                    result.push(curr);
-                }
+                if(curr.dist > 0 && curr.dist <= maxSteps) result.push(curr);
                 if(curr.dist >= maxSteps) continue;
 
                 let dirs = [[0,1],[1,0],[0,-1],[-1,0]];
                 for(let d of dirs) {
                     let nx = curr.x + d[0], ny = curr.y + d[1];
                     let key = `${nx},${ny}`;
-                    // Cannot walk through collapsed or outside bounds
+                    // 绊雷不阻挡寻路，塌陷阻挡寻路
                     if(nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE && !collapsedSet.has(key) && !visited.has(key)) {
                         visited.add(key);
                         queue.push({x: nx, y: ny, dist: curr.dist + 1});
@@ -625,8 +649,8 @@
         function renderBoard() {
             const collapsedSet = getCollapsedSet();
             const boxSet = new Set(gameState.boxes.map(b => `${b.x},${b.y}`));
+            const mineSet = new Set((gameState.placedMines || []).map(m => `${m.x},${m.y}`));
             
-            // Calculate current valid moves for the active player
             currentReachableCells = [];
             if (gameState.status === 'playing' && gameState.turn === myPlayerId && gameState.hasRolled && !gameState[myPlayerId].dead) {
                 const me = gameState[myPlayerId];
@@ -634,23 +658,25 @@
             }
             const reachableSet = new Set(currentReachableCells.map(c => `${c.x},${c.y}`));
 
-            // Update cells
             for(let y=0; y<GRID_SIZE; y++) {
                 for(let x=0; x<GRID_SIZE; x++) {
                     const cell = document.getElementById(`cell-${x}-${y}`);
                     if(!cell) continue;
                     
                     const key = `${x},${y}`;
-                    
-                    // Reset classes (keep base ones)
                     cell.className = `board-cell ${x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y ? 'cell-escape' : ''}`;
-                    cell.innerHTML = x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y ? '<span class="text-xl">🚀</span>' : '';
+                    
+                    let content = x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y ? '<span class="text-xl">🚀</span>' : '';
 
                     if (collapsedSet.has(key)) {
                         cell.classList.add('cell-collapse');
-                    } else if (boxSet.has(key)) {
-                        cell.innerHTML = '<span class="text-sm drop-shadow-md">📦</span>';
+                        content = '';
+                    } else {
+                        if (boxSet.has(key)) content = '<span class="text-[14px] item-icon">📦</span>';
+                        if (mineSet.has(key)) content += '<span class="text-[12px] absolute bottom-0 right-0 item-icon">💣</span>';
                     }
+                    
+                    cell.innerHTML = content;
 
                     if (reachableSet.has(key)) {
                         cell.classList.add('cell-highlight');
@@ -658,16 +684,17 @@
                 }
             }
 
-            // Update Entities Position based on grid percentage
             const placeEntity = (id, obj, displayCond) => {
                 const el = document.getElementById(id);
                 if (!el) return;
-                if (!displayCond) { el.style.display = 'none'; return; }
+                if (!displayCond) { el.style.opacity = '0'; setTimeout(()=>el.style.display='none', 400); return; }
                 el.style.display = 'flex';
-                el.style.left = `${(obj.x + 0.5) * (100 / GRID_SIZE)}%`;
-                el.style.top = `${(obj.y + 0.5) * (100 / GRID_SIZE)}%`;
-                // Center adjustment
-                el.style.transform = 'translate(-50%, -50%)';
+                // 使用 setTimeout 确保 display block 生效后再改变 top/left 触发 transition
+                setTimeout(() => {
+                    el.style.opacity = '1';
+                    el.style.left = `${(obj.x + 0.5) * (100 / GRID_SIZE)}%`;
+                    el.style.top = `${(obj.y + 0.5) * (100 / GRID_SIZE)}%`;
+                }, 10);
             };
 
             placeEntity('ent-p1', gameState.p1, !gameState.p1.dead);
@@ -675,40 +702,67 @@
             placeEntity('ent-alien', gameState.alien, true);
         }
 
-        function getManhattanDist(a, b) {
-            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        window.executeSkipTurn = function() {
+            if (gameState.turn !== myPlayerId) return;
+            let stateUpdate = { logs: [...gameState.logs] };
+            let myData = { ...gameState[myPlayerId] };
+            
+            myData.skipTurn = false; // 解除异常
+            stateUpdate.logs.push(`[⚠️] ${myName} 挣脱了绊雷，但失去了本回合行动机会。`);
+            stateUpdate[myPlayerId] = myData;
+            
+            completePlayerTurn(myPlayerId, stateUpdate);
         }
 
         window.handleRollDice = function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled || gameState[myPlayerId].dead) return;
             
-            // Random 1 to 3
             const roll = Math.floor(Math.random() * 3) + 1;
-            
             const me = gameState[myPlayerId];
             const collapsedSet = getCollapsedSet();
             const reachable = getReachableCells(me.x, me.y, roll, collapsedSet);
 
             const logs = [...gameState.logs];
-            logs.push(`[>] ${myName} 启动引擎，动力充能 [${roll}] 格。`);
+            logs.push(`[🎲] ${myName} 获得动力 [${roll}] 格。`);
             
             let nextState = { diceValue: roll, hasRolled: true, logs };
 
             if (reachable.length === 0) {
-                logs.push(`[!] 警告: ${myName} 被完全困住，跳过回合！`);
+                logs.push(`[!] 绝境：${myName} 被彻底困住，无法移动！`);
                 nextState.hasRolled = false;
-                
-                // If it's P2's turn (or P1 but P2 is dead, triggering round end anyway), we need to trigger round end
-                // To keep it simple, we handle it via a separate flow, or just pass turn and let the next person trigger it if needed.
-                // Best to run roundEnd logic if needed.
                 completePlayerTurn(myPlayerId, nextState);
             } else {
-                // Optimistic Update
                 gameState = { ...gameState, ...nextState };
                 requestAnimationFrame(renderGameState);
                 getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
             }
         };
+
+        window.handlePlaceMine = function() {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState[myPlayerId].dead) return;
+            let me = gameState[myPlayerId];
+            if (me.mines <= 0) return;
+
+            let placedMines = [...(gameState.placedMines || [])];
+            // 检查当前脚下是否已有雷
+            if (placedMines.some(m => m.x === me.x && m.y === me.y)) {
+                showToast("此处已布置陷阱");
+                return;
+            }
+
+            placedMines.push({x: me.x, y: me.y, owner: myPlayerId});
+            let logs = [...gameState.logs];
+            logs.push(`[💣] ${myName} 阴险地在脚下 (${me.x},${me.y}) 放置了绊雷！`);
+            
+            let nextState = { 
+                placedMines, 
+                logs,
+                [myPlayerId]: { ...me, mines: me.mines - 1 }
+            };
+
+            applyAndSendUpdate(nextState);
+            showToast("绊雷布置成功");
+        }
 
         window.handleCellClick = function(x, y) {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || gameState[myPlayerId].dead) return;
@@ -716,71 +770,69 @@
             const isReachable = currentReachableCells.some(c => c.x === x && c.y === y);
             if (!isReachable) return;
 
-            // Execute Move
             let stateUpdate = { logs: [...gameState.logs] };
             let myData = { ...gameState[myPlayerId] };
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             let oppData = { ...gameState[oppId] };
             let alienData = { ...gameState.alien };
             
-            myData.x = x;
-            myData.y = y;
-            stateUpdate.logs.push(`[移动] ${myName} 前往了坐标 (${x},${y})。`);
+            myData.x = x; myData.y = y;
+            stateUpdate.logs.push(`[👣] ${myName} 移动到 (${x},${y})。`);
 
-            // 1. Check Box
+            // 检查绊雷
+            let placedMines = [...(gameState.placedMines || [])];
+            let mineIdx = placedMines.findIndex(m => m.x === x && m.y === y);
+            if (mineIdx !== -1) {
+                placedMines.splice(mineIdx, 1);
+                stateUpdate.placedMines = placedMines;
+                stateUpdate.logs.push(`[💥] 轰！${myName} 踩中了绊雷，被强力胶黏住，下回合无法行动！`);
+                myData.skipTurn = true;
+            }
+
+            // 检查盲盒
             let boxIdx = gameState.boxes.findIndex(b => b.x === x && b.y === y);
             if (boxIdx !== -1) {
                 let newBoxes = [...gameState.boxes];
                 newBoxes.splice(boxIdx, 1);
                 stateUpdate.boxes = newBoxes;
                 
-                // Blind Box Events
                 const rand = Math.random();
-                if (rand < 0.25) { // 25% Key
-                    if(!myData.hasKey) {
-                        myData.hasKey = true;
-                        stateUpdate.logs.push(`[!] 幸运！${myName} 找到了 🔑 逃生密匙！`);
-                    } else {
-                        stateUpdate.logs.push(`[📦] 箱子里是空的。`);
-                    }
-                } else if (rand < 0.55) { // 30% Gun
+                if (!gameState.keyFound && (rand < 0.25 || newBoxes.length <= 2)) {
+                    // 保底机制：如果箱子快没了还没出钥匙，必然出
+                    myData.hasKey = true;
+                    stateUpdate.keyFound = true;
+                    stateUpdate.logs.push(`[🔑] 天哪！${myName} 从箱子里摸出了【逃生密匙】！`);
+                } else if (rand < 0.50) {
                     myData.hasGun = true;
-                    stateUpdate.logs.push(`[!] ${myName} 搜刮到了 🔫 脉冲重机枪！`);
-                } else if (rand < 0.80) { // 25% Poison Gas on opponent
-                    stateUpdate.logs.push(`[☣️] 陷阱触发！引爆毒气弹！`);
-                    if(!oppData.dead) {
-                        if (oppData.hasGun) {
-                            oppData.hasGun = false;
-                            stateUpdate.logs.push(`[护盾] ${oppData.name} 消耗了装备抵御毒气。`);
-                        } else {
-                            // Damage opponent, maybe drop key
-                            if (oppData.hasKey) {
-                                oppData.hasKey = false;
-                                stateUpdate.logs.push(`[毒气] ${oppData.name} 剧烈咳嗽，丢掉了密匙！`);
-                            } else {
-                                stateUpdate.logs.push(`[毒气] ${oppData.name} 受到毒气侵袭。`);
-                            }
-                        }
+                    stateUpdate.logs.push(`[🔫] 补给：${myName} 获得了重机枪 (抵挡1次异形)`);
+                } else if (rand < 0.70) {
+                    myData.mines = (myData.mines || 0) + 1;
+                    stateUpdate.logs.push(`[💣] 补给：${myName} 获得了绊雷 (可随时布置陷害队友)`);
+                } else if (rand < 0.85) {
+                    stateUpdate.logs.push(`[💨] 陷阱：打开了毒气罐！${myName} 失去意识被随机传送！`);
+                    // 随机传送安全位置
+                    let safePos = getSafeRandomPos(getCollapsedSet());
+                    if (safePos) {
+                        myData.x = safePos.x; myData.y = safePos.y;
                     }
-                } else { // 20% Wake Alien
-                    stateUpdate.logs.push(`[💀] 糟了！警报惊醒了异形！它立即行动！`);
-                    // Trigger extra alien move towards THIS player
-                    alienData = processAlienMove(alienData, myData, oppData, stateUpdate.logs, stateUpdate, [myData, oppData]);
+                } else {
+                    stateUpdate.logs.push(`[⚠️] 陷阱：刺耳的警报惊醒了异形！它立即逼近！`);
+                    // 异形立刻单独追击此人 1 步
+                    alienData = processAlienMove(alienData, myData, oppData, stateUpdate.logs, stateUpdate, [myData], 1, getCollapsedSet());
                 }
             }
 
-            // 2. Check Escape Pod
-            if (x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y) {
+            // 检查逃生舱
+            if (myData.x === ESCAPE_POD_POS.x && myData.y === ESCAPE_POD_POS.y) {
                 if (myData.hasKey) {
-                    stateUpdate.logs.push(`[🚀] ${myName} 插入密匙，启动了唯一的逃生舱！`);
-                    if (!oppData.dead && oppData.x === x && oppData.y === y) {
-                        // Both in pod? Only the one who clicked and has key wins, kills the other by "closing door"
-                        stateUpdate.logs.push(`[🔪] 极致背叛！${myName} 把 ${oppData.name} 踢出了舱门并锁死！`);
+                    stateUpdate.logs.push(`[🚀] ${myName} 启动逃生舱...`);
+                    if (!oppData.dead && oppData.x === myData.x && oppData.y === myData.y) {
+                        stateUpdate.logs.push(`[🔪] 极致背叛！${myName} 将 ${oppData.name} 一把推下舱门并锁死！`);
                     }
                     stateUpdate.winner = myPlayerId;
                     stateUpdate.status = 'finished';
                 } else {
-                    stateUpdate.logs.push(`[🔒] 逃生舱已锁定，需要 🔑 密匙！`);
+                    stateUpdate.logs.push(`[🔒] 逃生舱紧锁，需要 🔑逃生密匙！`);
                 }
             }
 
@@ -788,14 +840,21 @@
             stateUpdate[oppId] = oppData;
             stateUpdate.alien = alienData;
 
-            if (stateUpdate.winner) {
-                applyAndSendUpdate(stateUpdate);
-                return;
-            }
-
-            // 3. End of Turn Handling
+            if (stateUpdate.winner) { applyAndSendUpdate(stateUpdate); return; }
             completePlayerTurn(myPlayerId, stateUpdate);
         };
+
+        function getSafeRandomPos(collapsedSet) {
+            let possible = [];
+            for(let y=0; y<GRID_SIZE; y++){
+                for(let x=0; x<GRID_SIZE; x++){
+                    if (x===ESCAPE_POD_POS.x && y===ESCAPE_POD_POS.y) continue;
+                    if (!collapsedSet.has(`${x},${y}`)) possible.push({x,y});
+                }
+            }
+            if(possible.length > 0) return possible[Math.floor(Math.random() * possible.length)];
+            return null;
+        }
 
         function completePlayerTurn(currentPlayerId, stateUpdate) {
             let nextTurn = currentPlayerId === 'p1' ? 'p2' : 'p1';
@@ -803,13 +862,13 @@
             
             stateUpdate.hasRolled = false;
 
-            // If opponent is dead, skip their turn and act as if round ended
             if (oppData.dead) {
-                stateUpdate.turn = currentPlayerId; // give turn back
+                // 对手死，直接触发回合结束，然后继续自己
+                stateUpdate.turn = currentPlayerId;
                 processRoundEnd(stateUpdate);
             } 
-            // If P2 just finished, round ends
             else if (currentPlayerId === 'p2') {
+                // P2 结束，代表大回合结束，触发异形和塌陷
                 stateUpdate.turn = 'p1';
                 processRoundEnd(stateUpdate);
             } 
@@ -824,34 +883,32 @@
             let logs = stateUpdate.logs;
             let round = gameState.round + 1;
             stateUpdate.round = round;
-            logs.push(`--- 第 ${round} 轮开始 ---`);
+            logs.push(`======== 第 ${round} 轮 ========`);
 
             let p1Data = stateUpdate.p1 || gameState.p1;
             let p2Data = stateUpdate.p2 || gameState.p2;
             let alienData = stateUpdate.alien || gameState.alien;
+            let collapsedSet = new Set((stateUpdate.collapsed || gameState.collapsed).map(c => `${c.x},${c.y}`));
 
-            // 1. Alien Action (Move 1-3 steps towards nearest player)
-            let alienSteps = Math.floor(Math.random() * 3) + 1;
-            logs.push(`[👾] 异形嗅到了生者的气息，移动了 ${alienSteps} 格...`);
+            // 1. 异形真实移动 (1-2格)
+            let alienSteps = Math.floor(Math.random() * 2) + 1;
+            logs.push(`[👾] 异形嗅探到活物，沉重地迈出 ${alienSteps} 步...`);
             
-            for(let s=0; s<alienSteps; s++) {
-                alienData = processAlienMove(alienData, p1Data, p2Data, logs, stateUpdate, [p1Data, p2Data]);
-                if (stateUpdate.winner) break; // Game over during alien move
-            }
+            alienData = processAlienMove(alienData, p1Data, p2Data, logs, stateUpdate, [p1Data, p2Data], alienSteps, collapsedSet);
             stateUpdate.alien = alienData;
 
             if (stateUpdate.winner) return;
 
-            // 2. Map Collapse (1-2 grids)
+            // 2. 地图塌陷
             let collapsed = stateUpdate.collapsed ? [...stateUpdate.collapsed] : [...gameState.collapsed];
-            let collapseCount = Math.floor(Math.random() * 2) + 1;
-            
+            let collapseCount = Math.floor(Math.random() * 2) + 1; // 1-2个
             let possibleCollapses = [];
+            
             for(let y=0; y<GRID_SIZE; y++){
                 for(let x=0; x<GRID_SIZE; x++){
                     if (x===ESCAPE_POD_POS.x && y===ESCAPE_POD_POS.y) continue;
                     let key = `${x},${y}`;
-                    if (!collapsed.some(c => c.x===x && c.y===y) && 
+                    if (!collapsedSet.has(key) && 
                         !(p1Data.x===x && p1Data.y===y && !p1Data.dead) &&
                         !(p2Data.x===x && p2Data.y===y && !p2Data.dead) &&
                         !(alienData.x===x && alienData.y===y)) {
@@ -864,75 +921,13 @@
                 let idx = Math.floor(Math.random() * possibleCollapses.length);
                 let cCell = possibleCollapses.splice(idx, 1)[0];
                 collapsed.push(cCell);
-                logs.push(`[⚠️] 轰隆！坐标 (${cCell.x},${cCell.y}) 发生了坍塌！`);
+                logs.push(`[💥] 轰隆！坐标 (${cCell.x},${cCell.y}) 发生了塌陷，化为深渊。`);
             }
             stateUpdate.collapsed = collapsed;
         }
 
-        // Alien AI single step calculation
-        function processAlienMove(alien, p1, p2, logs, stateUpdate, players) {
-            let targets = players.filter(p => !p.dead);
-            if (targets.length === 0) {
-                stateUpdate.winner = 'none';
-                return alien;
-            }
-
-            // Find closest target using BFS distance
-            let collapsedSet = new Set((stateUpdate.collapsed || gameState.collapsed).map(c => `${c.x},${c.y}`));
-            
-            let bestTarget = null;
-            let minPath = null;
-
-            targets.forEach(t => {
-                let path = getPathBFS(alien.x, alien.y, t.x, t.y, collapsedSet);
-                if (path && (!minPath || path.length < minPath.length)) {
-                    minPath = path;
-                    bestTarget = t;
-                }
-            });
-
-            if (minPath && minPath.length > 0) {
-                // Move 1 step along the path
-                alien.x = minPath[0].x;
-                alien.y = minPath[0].y;
-            }
-
-            // Check Collision
-            targets.forEach(t => {
-                if (alien.x === t.x && alien.y === t.y) {
-                    // Encounter!
-                    // Check if they are together (distance <= 1)
-                    let p1Alive = !p1.dead;
-                    let p2Alive = !p2.dead;
-                    let isTogether = p1Alive && p2Alive && getManhattanDist(p1, p2) <= 1;
-
-                    if (isTogether) {
-                        logs.push(`[🛡️] 激战！${p1.name} 和 ${p2.name} 互相掩护，合力逼退了异形！`);
-                        // Push alien back (simplified: just stays or moves randomly)
-                    } else if (t.hasGun) {
-                        t.hasGun = false;
-                        logs.push(`[🔫] 惊险！${t.name} 用脉冲重机枪击退了异形，武器耗尽！`);
-                    } else {
-                        t.dead = true;
-                        logs.push(`[🩸] 惨叫！落单的 ${t.name} 被异形撕碎了！`);
-                        if (t.hasKey) {
-                            t.hasKey = false;
-                            logs.push(`[🔑] 密匙掉落在了血泊中...`);
-                            // Drop key mechanics omitted for simplicity, or treat as lost forever to increase panic
-                        }
-                    }
-                }
-            });
-
-            if (players.every(p => p.dead)) {
-                stateUpdate.winner = 'alien';
-            }
-
-            return alien;
-        }
-
-        // Simple BFS to find actual path (returns array of next steps)
-        function getPathBFS(startX, startY, targetX, targetY, collapsedSet) {
+        // BFS 计算最短路径（返回路径数组）
+        function getBFSPath(startX, startY, targetX, targetY, collapsedSet) {
             let queue = [{x: startX, y: startY, path: []}];
             let visited = new Set([`${startX},${startY}`]);
             
@@ -944,23 +939,87 @@
                 for(let d of dirs) {
                     let nx = curr.x + d[0], ny = curr.y + d[1];
                     let key = `${nx},${ny}`;
+                    // 异形移动也会避开塌陷区
                     if(nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE && !collapsedSet.has(key) && !visited.has(key)) {
                         visited.add(key);
                         queue.push({x: nx, y: ny, path: [...curr.path, {x: nx, y: ny}]});
                     }
                 }
             }
-            return null;
+            return null; // 无法到达
+        }
+
+        // 处理异形真实移动并判决战斗
+        function processAlienMove(alien, p1, p2, logs, stateUpdate, targetPlayers, maxSteps, collapsedSet) {
+            let targets = targetPlayers.filter(p => !p.dead);
+            if (targets.length === 0) {
+                stateUpdate.winner = 'none'; // 全灭
+                return alien;
+            }
+
+            // 一步一步地移动，以便在途中触发碰撞
+            for (let s = 0; s < maxSteps; s++) {
+                let bestTarget = null;
+                let minPath = null;
+
+                // 重新寻路，以防玩家或者塌陷改变了最短距离
+                targets.forEach(t => {
+                    let path = getBFSPath(alien.x, alien.y, t.x, t.y, collapsedSet);
+                    if (path && (!minPath || path.length < minPath.length)) {
+                        minPath = path; bestTarget = t;
+                    }
+                });
+
+                if (minPath && minPath.length > 0) {
+                    // 沿路径真实移动1格
+                    alien.x = minPath[0].x;
+                    alien.y = minPath[0].y;
+                }
+
+                // 检查碰撞判定
+                let collisionOccurred = false;
+                targets.forEach(t => {
+                    if (alien.x === t.x && alien.y === t.y) {
+                        collisionOccurred = true;
+                        // 战斗逻辑
+                        let other = (t.name === p1.name) ? p2 : p1;
+                        let isAdj = !other.dead && (Math.abs(t.x - other.x) + Math.abs(t.y - other.y) <= 1);
+
+                        if (isAdj && targetPlayers.length === 2) {
+                            logs.push(`[🛡️] 激战！${t.name} 和 ${other.name} 背靠背火力压制，逼退了异形！`);
+                        } else if (t.hasGun) {
+                            t.hasGun = false;
+                            logs.push(`[🔫] 惊险！${t.name} 使用重机枪击退了异形，武器过热报废！`);
+                        } else {
+                            t.dead = true;
+                            logs.push(`[🩸] 惨叫！落单的 ${t.name} 被异形无情撕碎！`);
+                            if (t.hasKey) {
+                                t.hasKey = false;
+                                stateUpdate.keyFound = false; // 钥匙重置回盲盒
+                                logs.push(`[🔑] 沾满鲜血的密匙遗落，被冲入了未知的盲盒中...`);
+                            }
+                        }
+                    }
+                });
+
+                if (collisionOccurred) {
+                    break; // 一旦发生战斗，本轮异形停止继续前进
+                }
+            }
+
+            // 检查游戏结束
+            if ((p1.dead && p2.dead) || (!p1 && p2.dead) || (p1.dead && !p2)) {
+                stateUpdate.winner = 'alien';
+            }
+            return alien;
         }
 
         function applyAndSendUpdate(stateUpdate) {
-            // Optimistic Update
             gameState = { ...gameState, ...stateUpdate };
             if (stateUpdate.p1) gameState.p1 = stateUpdate.p1;
             if (stateUpdate.p2) gameState.p2 = stateUpdate.p2;
             
             requestAnimationFrame(renderGameState);
-            // Async send
             getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
         }
 
@@ -968,13 +1027,12 @@
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.classList.remove('hidden');
-            // Trigger reflow
             void toast.offsetWidth;
-            toast.classList.remove('opacity-0', 'translate-y-4');
+            toast.classList.remove('opacity-0', '-translate-y-4');
             setTimeout(() => {
-                toast.classList.add('opacity-0', 'translate-y-4');
+                toast.classList.add('opacity-0', '-translate-y-4');
                 setTimeout(() => toast.classList.add('hidden'), 300);
-            }, 3000);
+            }, 2500);
         };
 
         window.closeMsgModal = function() {
@@ -984,25 +1042,25 @@
 
         window.resetGame = async function() {
             if (!currentRoomId || !gameState) return;
-            
             await getRoomRef(currentRoomId).update({
                 status: 'playing',
-                p1: { ...gameState.p1, x: 0, y: 0, hasKey: false, hasGun: false, dead: false },
-                p2: { ...gameState.p2, x: 9, y: 9, hasKey: false, hasGun: false, dead: false },
+                p1: { ...gameState.p1, x: 0, y: 0, hasKey: false, hasGun: false, mines: 0, dead: false, skipTurn: false },
+                p2: { ...gameState.p2, x: 9, y: 9, hasKey: false, hasGun: false, mines: 0, dead: false, skipTurn: false },
                 alien: { x: 9, y: 0 },
                 boxes: generateInitialBoxes(),
+                placedMines: [],
                 collapsed: [],
+                keyFound: false,
                 turn: 'p1',
                 round: 1,
                 diceValue: null,
                 hasRolled: false,
                 winner: null,
-                logs: [`[系统] 终端重启。时间回溯，新的轮回开始了。红方先手。`]
+                logs: [`[系统] 时间回溯。新的轮回开始了。红方先手。`]
             });
             closeMsgModal();
         };
 
-        // Init App
         initAuth();
     </script>
 </body>
