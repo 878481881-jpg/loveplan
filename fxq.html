@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 - 道具空投版 ✈️☁️</title>
+    <title>云端飞行棋 - 战术拓展版 ✈️☁️</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.cloudbase.net">
     
-    <!-- 腾讯云开发 CloudBase Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
@@ -62,6 +61,7 @@
             transform: translateZ(0);
         }
 
+        /* 战机特殊身份特效 */
         .plane-ace::after {
             content: '👑';
             position: absolute;
@@ -71,14 +71,10 @@
             filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
             animation: float 2s infinite;
         }
-        .plane-ace {
-            box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.8), inset 0 -2px 0 rgba(0,0,0,0.2) !important;
-            border-color: #fbbf24 !important;
-        }
-        .plane-bomber {
-            filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
-            border-color: #ef4444 !important;
-        }
+        .plane-ace { box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.8), inset 0 -2px 0 rgba(0,0,0,0.2) !important; border-color: #fbbf24 !important; }
+        .plane-bomber { filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8)); border-color: #ef4444 !important; }
+        .plane-frigate { filter: drop-shadow(0 0 8px rgba(6, 182, 212, 0.8)); border-color: #06b6d4 !important; }
+        .plane-recon { filter: drop-shadow(0 0 8px rgba(34, 197, 94, 0.8)); border-color: #22c55e !important; }
 
         #board-container {
             position: relative;
@@ -126,10 +122,13 @@
             0%, 100% { background-color: rgba(239, 68, 68, 0.2); }
             50% { background-color: rgba(239, 68, 68, 0.7); box-shadow: 0 0 10px red inset; }
         }
-        .thunder-zone {
-            animation: pulseRed 1s infinite !important;
-            border: 1px solid red;
+        @keyframes pulseSelect {
+            0%, 100% { filter: brightness(1); transform: scale(1); }
+            50% { filter: brightness(1.3); transform: scale(1.1); box-shadow: 0 0 15px #fbbf24; }
         }
+        .thunder-zone { animation: pulseRed 1s infinite !important; border: 1px solid red; }
+
+        .selecting-mode-plane { animation: pulseSelect 1s infinite !important; cursor: crosshair !important; z-index: 50; }
 
         .weather-overlay {
             position: absolute;
@@ -140,21 +139,10 @@
             border-radius: 20px;
         }
         .weather-fog { background: rgba(255, 255, 255, 0.6); backdrop-filter: blur(3px); }
-        @keyframes flashLightning {
-            0%, 95%, 100% { background: transparent; }
-            96%, 98% { background: rgba(255, 255, 255, 0.8); }
-        }
+        @keyframes flashLightning { 0%, 95%, 100% { background: transparent; } 96%, 98% { background: rgba(255, 255, 255, 0.8); } }
         .weather-thunder { animation: flashLightning 5s infinite; background: rgba(15, 23, 42, 0.3); }
-        @keyframes windBlow {
-            from { background-position: 0 0; }
-            to { background-position: 400px 400px; }
-        }
-        .weather-tailwind {
-            background-image: radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px);
-            background-size: 30px 30px;
-            animation: windBlow 2s linear infinite;
-            opacity: 0.5;
-        }
+        @keyframes windBlow { from { background-position: 0 0; } to { background-position: 400px 400px; } }
+        .weather-tailwind { background-image: radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px); background-size: 30px 30px; animation: windBlow 2s linear infinite; opacity: 0.5; }
 
         .plane {
             position: absolute;
@@ -190,59 +178,26 @@
         .base-blue { bottom: 0; right: 0; border-color: #93c5fd; }
         .base-spot { width: 100%; height: 100%; border-radius: 50%; background: rgba(0,0,0,0.04); }
 
-        @keyframes slideUpFade {
-            0% { opacity: 0; transform: translate(-50%, 20px); }
-            10% { opacity: 1; transform: translate(-50%, 0); }
-            90% { opacity: 1; transform: translate(-50%, 0); }
-            100% { opacity: 0; transform: translate(-50%, -20px); }
-        }
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* 嘲讽特效绝对顶层 */
-        .taunt-projectile {
-            position: fixed;
-            z-index: 9999;
-            pointer-events: none;
-            transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
-            will-change: transform, left, top;
-        }
-        @keyframes voicePop {
-            0% { transform: scale(0.5); opacity: 0; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        .taunt-voice {
-            animation: voicePop 0.3s forwards;
-            background: white;
-            border: 2px solid #ddd;
-            padding: 6px 12px;
-            border-radius: 12px;
-            color: #333;
-            font-size: 14px;
-            white-space: nowrap;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-        }
+        .taunt-projectile { position: fixed; z-index: 9999; pointer-events: none; transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1); will-change: transform, left, top; }
+        @keyframes voicePop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+        .taunt-voice { animation: voicePop 0.3s forwards; background: white; border: 2px solid #ddd; padding: 6px 12px; border-radius: 12px; color: #333; font-size: 14px; white-space: nowrap; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
         
-        .placing-mode-active {
-            box-shadow: 0 0 15px 5px rgba(251, 191, 36, 0.6) !important;
-            animation: pulseRed 1.5s infinite !important;
-        }
+        .placing-mode-active { box-shadow: 0 0 15px 5px rgba(251, 191, 36, 0.6) !important; animation: pulseRed 1.5s infinite !important; }
     </style>
 </head>
-<!-- 加大了 pb (底部留白)，防止页面内容被新的悬浮栏遮挡 -->
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-40">
-    <!-- 背景云朵 -->
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">✈️</div>
-        <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span> 连接塔台中...
-        </div>
+        <div class="text-sky-600 font-bold text-xl flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span> 连接塔台中...</div>
     </div>
 
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/95 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-[1000] whitespace-nowrap border border-sky-400/50"></div>
@@ -263,7 +218,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈️</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">道具版</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">战术版</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Aero Chess Battle</p>
             </div>
         </div>
@@ -283,31 +238,27 @@
             <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-sky-100 shadow-xl flex flex-col items-center text-center">
                 <div class="w-24 h-24 bg-gradient-to-br from-sky-100 to-blue-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">🌍</div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">准备起飞</h2>
-                <p class="text-sm text-gray-500 mb-6 px-2">创建房间邀请对手，或输入航班号加入对战。</p>
                 <div class="w-full space-y-4">
                     <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
                         <span>✨</span> 创建对战房间 (红方)
                     </button>
                     <div class="relative flex py-2 items-center">
-                        <div class="flex-grow border-t border-gray-200"></div>
-                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
-                        <div class="flex-grow border-t border-gray-200"></div>
+                        <div class="flex-grow border-t border-gray-200"></div><span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span><div class="flex-grow border-t border-gray-200"></div>
                     </div>
                     <div class="flex flex-col gap-3 w-full">
                         <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位航班号" class="w-full px-4 py-4 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 uppercase transition-all shadow-inner" autocomplete="off">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
-                            加入对战 (蓝方)
-                        </button>
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">加入对战 (蓝方)</button>
                     </div>
                 </div>
             </div>
             
             <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
-                <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规 (道具拓展版)</h3>
+                <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规</h3>
                 <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li><b class="text-green-600">🎒手牌道具</b>：停留 🎁 盲盒可获取主动道具，随时释放扭转战局！</li>
-                    <li><b class="text-yellow-600">👑王牌与赏金</b>：击杀敌机成为王牌，击落王牌可直接起飞新机！</li>
-                    <li><b class="text-purple-500">❓高能盲盒</b>：遭遇黑洞坍塌、洗牌、突发雷电等随机事件！</li>
+                    <li><b class="text-red-500">🚀轰炸机</b>：摧毁3格内所有敌机！遇上敌方轰炸机同归于尽。</li>
+                    <li><b class="text-cyan-600">🛸护卫舰</b>：保护3格内友军免遭击落，但本体可被击毁。</li>
+                    <li><b class="text-green-600">🛩️侦察机</b>：提供高空视野，揭示前方连续10格底牌。</li>
+                    <li>（以上3种机型需要点击使用后，再点击己方战机进行改装）</li>
                 </ul>
             </div>
         </div>
@@ -319,7 +270,6 @@
                     <span class="text-[10px] text-gray-400 font-bold uppercase">航班号</span>
                     <span id="displayRoomCode" class="text-xl font-black text-sky-600 tracking-wider">----</span>
                 </div>
-                
                 <div class="flex items-center gap-4 bg-gray-50 px-4 py-1.5 rounded-full border border-gray-100">
                     <div class="flex flex-col items-center relative transition-all duration-300 rounded-lg p-1" id="p1AvatarArea">
                         <span class="text-[9px] text-red-400 font-bold">红方</span>
@@ -331,7 +281,6 @@
                         <span id="p2NameDisplay" class="text-xs font-black text-blue-600">等待</span>
                     </div>
                 </div>
-                
                 <button onclick="exitRoom()" class="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors border border-red-100 shadow-sm active:scale-90">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>
@@ -381,11 +330,10 @@
                     <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
                 </div>
             </div>
-
         </div>
     </main>
 
-    <!-- 物品栏 (位置抬高且 z-index 设置最高防止遮挡) -->
+    <!-- 物品栏 -->
     <div id="inventoryBar" class="fixed bottom-[100px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex gap-3 z-[200] hidden w-[90%] max-w-sm overflow-x-auto items-center">
         <span class="text-xs font-bold text-sky-700 whitespace-nowrap">🎒 物品栏</span>
         <div id="itemsContainer" class="flex gap-2 flex-1 items-center">
@@ -393,7 +341,7 @@
         </div>
     </div>
 
-    <!-- 嘲讽栏 (修复移动端底栏遮挡，且增加视觉反馈与最顶层级) -->
+    <!-- 嘲讽栏 -->
     <div id="tauntBar" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-6 py-2.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-gray-100 flex gap-8 z-[200] hidden">
         <button onclick="sendTaunt('tomato')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔番茄">🍅</button>
         <button onclick="sendTaunt('bomb')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔炸弹">💣</button>
@@ -441,7 +389,8 @@
         let isRoomFirstLoad = true;
         
         window.isPlacingBarricade = false;
-        window.placingBarricadeItemIndex = -1;
+        window.isSelectingPlaneFor = null;
+        window.selectingItemIndex = -1;
 
         const GRID_SIZE = 14;
         const trackCoords = [];
@@ -455,9 +404,13 @@
         
         const eventCellIndices = [3, 8, 14, 19, 25, 30, 36, 41];
         const itemCellIndices = [5, 12, 17, 23, 28, 34, 39]; 
+        const itemPool = ['missile', 'barricade', 'shield', 'bomber', 'frigate', 'recon'];
 
         function getCellColor(index) { return index % 4; }
         let cellToTrackIdx = {};
+
+        function generateInitialCellEvents() { let e = {}; eventCellIndices.forEach(idx => e[idx] = Math.floor(Math.random() * 11)); return e; }
+        function generateInitialCellItems() { let it = {}; itemCellIndices.forEach(idx => it[idx] = itemPool[Math.floor(Math.random() * itemPool.length)]); return it; }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -465,9 +418,7 @@
             grid.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 1fr)`;
             grid.style.gridTemplateRows = `repeat(${GRID_SIZE}, 1fr)`;
 
-            const cellMap = {};
-            const eventMap = {};
-            const itemMap = {};
+            const cellMap = {}; const eventMap = {}; const itemMap = {};
             cellToTrackIdx = {};
 
             trackCoords.forEach((c, idx) => {
@@ -489,12 +440,10 @@
                     
                     if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-red-700/60">起飞</span>';
                     else if(x === 12 && y === 12) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-blue-700/60">起飞</span>';
-                    else if (eventMap[key]) div.innerHTML = '<span class="text-xs sm:text-sm animate-pulse drop-shadow-md">❓</span>';
-                    else if (itemMap[key]) div.innerHTML = '<span class="text-xs sm:text-sm drop-shadow-md animate-bounce" style="animation-duration: 2s">🎁</span>';
+                    else if (eventMap[key]) div.innerHTML = '<span class="cell-icon text-xs sm:text-sm animate-pulse drop-shadow-md">❓</span>';
+                    else if (itemMap[key]) div.innerHTML = '<span class="cell-icon text-xs sm:text-sm drop-shadow-md animate-bounce" style="animation-duration: 2s">🎁</span>';
                     
-                    if (cellToTrackIdx[key] !== undefined) {
-                        div.onclick = () => handleCellClick(cellToTrackIdx[key]);
-                    }
+                    if (cellToTrackIdx[key] !== undefined) div.onclick = () => handleCellClick(cellToTrackIdx[key]);
                     fragment.appendChild(div);
                 }
             }
@@ -505,20 +454,15 @@
 
         window.handleCellClick = function(trackIdx) {
             if(!window.isPlacingBarricade) return;
-            
             let myItems = [...gameState[myPlayerId].items];
-            myItems.splice(window.placingBarricadeItemIndex, 1);
+            myItems.splice(window.selectingItemIndex, 1);
             let barricades = [...(gameState.barricades || []), trackIdx];
             let logs = [...gameState.logs];
             logs.push(`🚧 ${myName} 在赛道上放置了【强力路障】！`);
             
-            getRoomRef(currentRoomId).update({
-                [`${myPlayerId}.items`]: myItems,
-                barricades: barricades,
-                logs: logs
-            });
+            getRoomRef(currentRoomId).update({ [`${myPlayerId}.items`]: myItems, barricades: barricades, logs: logs });
             
-            window.isPlacingBarricade = false;
+            window.isPlacingBarricade = false; window.selectingItemIndex = -1;
             document.getElementById('board-container').classList.remove('placing-mode-active');
             showToast("路障放置成功");
         };
@@ -550,7 +494,7 @@
                 const el = document.createElement('div');
                 el.id = `plane-${player}-${i}`;
                 el.className = `plane plane-transition pointer-events-auto ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
-                el.innerText = '✈️';
+                el.innerText = '✈️️';
                 el.onpointerdown = () => handlePieceClick(player, i);
                 layer.appendChild(el);
             };
@@ -586,23 +530,15 @@
         window.createRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
+            const getDefP = (name) => ({ name: name, pieces: [-1,-1,-1,-1], aces: [false,false,false,false], bombers:[false,false,false,false], frigates:[false,false,false,false], recons:[false,false,false,false], items:[], shield:false });
             
             const initialData = {
-                status: 'waiting', 
-                p1: { name: myName, pieces: [-1,-1,-1,-1], aces: [false,false,false,false], bombers:[false,false,false,false], items:[], shield:false },
-                p2: { name: null, pieces: [-1,-1,-1,-1], aces: [false,false,false,false], bombers:[false,false,false,false], items:[], shield:false },
-                barricades: [], turn: 'p1', diceValue: null, hasRolled: false,
-                logs: [`${myName} 创建了航班，等待对手...`], winner: null,
-                weather: { type: 'normal', remainingTurns: 0, zone: [] },
-                latestInteraction: null
+                status: 'waiting', p1: getDefP(myName), p2: getDefP(null), barricades: [], turn: 'p1', diceValue: null, hasRolled: false,
+                logs: [`${myName} 创建了航班，等待对手...`], winner: null, weather: { type: 'normal', remainingTurns: 0, zone: [] },
+                latestInteraction: null, cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems()
             };
 
-            try {
-                await getRoomRef(code).set(initialData);
-                myPlayerId = 'p1';
-                listenToRoom(code);
-                showToast(`航班号 ${code} 创建成功`);
-            } catch (e) { showToast("创建房间失败"); }
+            try { await getRoomRef(code).set(initialData); myPlayerId = 'p1'; listenToRoom(code); showToast(`航班号 ${code} 创建成功`); } catch (e) { showToast("创建房间失败"); }
         };
 
         window.joinRoom = async function() {
@@ -626,12 +562,9 @@
         window.exitRoom = function() { switchToLobby(); };
 
         function listenToRoom(code) {
-            currentRoomId = code;
-            isRoomFirstLoad = true; // 重置进入房间状态
-            document.getElementById('lobbyView').classList.add('hidden');
-            document.getElementById('gameView').classList.remove('hidden');
-            document.getElementById('tauntBar').classList.remove('hidden');
-            document.getElementById('inventoryBar').classList.remove('hidden');
+            currentRoomId = code; isRoomFirstLoad = true;
+            document.getElementById('lobbyView').classList.add('hidden'); document.getElementById('gameView').classList.remove('hidden');
+            document.getElementById('tauntBar').classList.remove('hidden'); document.getElementById('inventoryBar').classList.remove('hidden');
             initBoardGrid();
 
             if (unsubscribeRoom) unsubscribeRoom();
@@ -639,16 +572,15 @@
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        // 防止老房间记录在刷新时自动播放历史动画
-                        if (isRoomFirstLoad) {
-                            lastProcessedInteractionTs = Date.now();
-                            isRoomFirstLoad = false;
-                        }
+                        if (isRoomFirstLoad) { lastProcessedInteractionTs = Date.now(); isRoomFirstLoad = false; }
                         
-                        if(!data.p1.bombers) data.p1.bombers = [false,false,false,false];
-                        if(!data.p2.bombers) data.p2.bombers = [false,false,false,false];
+                        // Data migration checks
+                        if(!data.p1.bombers) data.p1.bombers = [false,false,false,false]; if(!data.p2.bombers) data.p2.bombers = [false,false,false,false];
+                        if(!data.p1.frigates) data.p1.frigates = [false,false,false,false]; if(!data.p2.frigates) data.p2.frigates = [false,false,false,false];
+                        if(!data.p1.recons) data.p1.recons = [false,false,false,false]; if(!data.p2.recons) data.p2.recons = [false,false,false,false];
                         if(!data.p1.items) data.p1.items = []; if(!data.p2.items) data.p2.items = [];
                         if(!data.barricades) data.barricades = [];
+                        if(!data.cellEvents) data.cellEvents = generateInitialCellEvents(); if(!data.cellItems) data.cellItems = generateInitialCellItems();
                         
                         gameState = data;
                         requestAnimationFrame(renderGameState);
@@ -663,15 +595,12 @@
 
         function renderGameState() {
             if (!gameState) return;
-
             document.getElementById('displayRoomCode').innerText = currentRoomId;
             document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
-            const overlay = document.getElementById('boardOverlay');
-            const btnRoll = document.getElementById('btnRollDice');
-            const turnInd = document.getElementById('turnIndicator');
+            const overlay = document.getElementById('boardOverlay'); const btnRoll = document.getElementById('btnRollDice'); const turnInd = document.getElementById('turnIndicator');
 
             if (gameState.status === 'waiting') {
                 turnInd.innerText = '等待中...'; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500';
@@ -685,22 +614,18 @@
                     turnInd.innerText = `👀 等待对手`; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600';
                     overlay.classList.remove('hidden'); btnRoll.disabled = true;
                 }
-                renderWeatherSystem();
-                renderInventory();
+                renderWeatherSystem(); renderInventory();
             }
 
             document.getElementById('diceVisual').innerText = gameState.diceValue ? diceIcons[gameState.diceValue] : '🎲';
 
-            const logBox = document.getElementById('eventLogs');
-            logBox.innerHTML = '';
+            const logBox = document.getElementById('eventLogs'); logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
             logsToRender.forEach(log => {
-                const div = document.createElement('div');
-                div.className = "border-b border-sky-100/50 pb-1 w-full text-left leading-snug";
+                const div = document.createElement('div'); div.className = "border-b border-sky-100/50 pb-1 w-full text-left leading-snug";
                 let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
                 if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
-                div.innerHTML = html;
-                logBox.appendChild(div);
+                div.innerHTML = html; logBox.appendChild(div);
             });
 
             if (gameState.winner) {
@@ -713,36 +638,80 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            updateBoardDecorations();
-            updatePlanesPosition();
-            processInteractions();
+            updateBoardDecorations(); updatePlanesPosition(); processInteractions();
         }
 
         function renderInventory() {
-            const container = document.getElementById('itemsContainer');
-            container.innerHTML = '';
+            const container = document.getElementById('itemsContainer'); container.innerHTML = '';
             const myItems = gameState[myPlayerId] ? gameState[myPlayerId].items || [] : [];
             
             myItems.forEach((item, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'px-3 py-1.5 bg-gradient-to-r from-sky-400 to-blue-500 text-white text-xs font-bold rounded-lg shadow border border-sky-300 hover:scale-105 active:scale-95 whitespace-nowrap transition-all';
                 let icon = '', name = '';
-                if(item === 'missile') { icon = '🚀'; name = '导弹'; }
+                if(item === 'missile') { icon = '🎯'; name = '导弹'; }
                 if(item === 'barricade') { icon = '🚧'; name = '路障'; }
                 if(item === 'shield') { icon = '🛡️'; name = '护盾'; }
-                if(item === 'bomber') { icon = '🛸'; name = '轰炸机'; }
+                if(item === 'bomber') { icon = '🚀'; name = '轰炸机'; }
+                if(item === 'frigate') { icon = '🛸'; name = '护卫舰'; }
+                if(item === 'recon') { icon = '🛩️'; name = '侦察机'; }
                 btn.innerHTML = `${icon} ${name}`;
                 btn.onclick = () => window.useItem(idx);
                 container.appendChild(btn);
             });
-
-            if(myItems.length === 0) {
-                container.innerHTML = '<span class="text-[10px] text-gray-400 ml-2 italic">暂无手牌，踩🎁抽取</span>';
-            }
+            if(myItems.length === 0) container.innerHTML = '<span class="text-[10px] text-gray-400 ml-2 italic">暂无手牌，踩🎁抽取</span>';
         }
 
         function updateBoardDecorations() {
             document.querySelectorAll('.barricade-icon').forEach(e => e.remove());
+            
+            let revealedCells = new Set();
+            if (gameState.status === 'playing' && myPlayerId) {
+                for(let i=0; i<4; i++) {
+                    if (gameState[myPlayerId].recons[i] && gameState[myPlayerId].pieces[i] >= 0 && gameState[myPlayerId].pieces[i] <= 43) {
+                        let rPos = gameState[myPlayerId].pieces[i];
+                        for(let step=1; step<=10; step++) {
+                            let fPos = calculateDestination(myPlayerId, rPos, step, []).pos;
+                            if (fPos >= 0 && fPos <= 43) revealedCells.add(fPos);
+                        }
+                    }
+                }
+            }
+
+            eventCellIndices.forEach(idx => {
+                const cell = document.getElementById(`cell-${trackCoords[idx].x}-${trackCoords[idx].y}`);
+                if (!cell) return;
+                let iconSpan = cell.querySelector('.cell-icon');
+                if (!iconSpan) { iconSpan = document.createElement('span'); iconSpan.className = 'cell-icon text-xs sm:text-sm drop-shadow-md'; cell.appendChild(iconSpan); }
+                
+                if (revealedCells.has(idx)) {
+                    let ev = gameState.cellEvents[idx];
+                    let icon = '🔄'; 
+                    if ([1,3,4,9].includes(ev)) icon = '🍀'; 
+                    else if ([0,2,7,8,10].includes(ev)) icon = '⚠️'; 
+                    iconSpan.innerText = icon; iconSpan.classList.remove('animate-pulse', 'animate-bounce');
+                } else {
+                    iconSpan.innerText = '❓'; iconSpan.classList.add('animate-pulse'); iconSpan.classList.remove('animate-bounce');
+                }
+            });
+
+            itemCellIndices.forEach(idx => {
+                const cell = document.getElementById(`cell-${trackCoords[idx].x}-${trackCoords[idx].y}`);
+                if (!cell) return;
+                let iconSpan = cell.querySelector('.cell-icon');
+                if (!iconSpan) { iconSpan = document.createElement('span'); iconSpan.className = 'cell-icon text-xs sm:text-sm drop-shadow-md animate-bounce'; iconSpan.style.animationDuration = '2s'; cell.appendChild(iconSpan); }
+                
+                if (revealedCells.has(idx)) {
+                    let it = gameState.cellItems[idx];
+                    let icon = '🎁';
+                    if (it === 'missile') icon = '🎯'; if (it === 'barricade') icon = '🚧'; if (it === 'shield') icon = '🛡️';
+                    if (it === 'bomber') icon = '🚀'; if (it === 'frigate') icon = '🛸'; if (it === 'recon') icon = '🛩️';
+                    iconSpan.innerText = icon; iconSpan.classList.remove('animate-pulse', 'animate-bounce');
+                } else {
+                    iconSpan.innerText = '🎁'; iconSpan.classList.add('animate-bounce'); iconSpan.classList.remove('animate-pulse');
+                }
+            });
+
             (gameState.barricades || []).forEach(pos => {
                 const coord = trackCoords[pos];
                 if(coord) {
@@ -750,8 +719,7 @@
                     if(cell) {
                         const b = document.createElement('div');
                         b.className = 'barricade-icon absolute z-20 text-xl animate-pulse cursor-not-allowed';
-                        b.innerText = '🚧';
-                        cell.appendChild(b);
+                        b.innerText = '🚧'; cell.appendChild(b);
                     }
                 }
             });
@@ -762,33 +730,34 @@
             if (gameState.hasRolled) return showToast("掷骰子后不能使用道具");
             
             const item = gameState[myPlayerId].items[idx];
-            let stateUpdate = {};
-            let logs = [...gameState.logs];
+            let stateUpdate = {}; let logs = [...gameState.logs];
             let myItems = [...gameState[myPlayerId].items];
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             
             if (item === 'barricade') {
-                window.isPlacingBarricade = true;
-                window.placingBarricadeItemIndex = idx;
+                window.isPlacingBarricade = true; window.selectingItemIndex = idx;
                 showToast("👉 请点击赛道上的任意格子放置路障");
                 document.getElementById('board-container').classList.add('placing-mode-active');
                 return;
             }
+            if (['bomber', 'frigate', 'recon'].includes(item)) {
+                window.isSelectingPlaneFor = item; window.selectingItemIndex = idx;
+                let t = item === 'bomber' ? '轰炸机' : item === 'frigate' ? '护卫舰' : '侦察机';
+                showToast(`👉 请点击主赛道上的【己方战机】改装为${t}`);
+                document.body.classList.add('selecting-mode');
+                return;
+            }
             
-            myItems.splice(idx, 1);
-            stateUpdate[`${myPlayerId}.items`] = myItems;
-            let myPieces = [...gameState[myPlayerId].pieces];
-            let oppPieces = [...gameState[oppId].pieces];
+            myItems.splice(idx, 1); stateUpdate[`${myPlayerId}.items`] = myItems;
+            let myPieces = [...gameState[myPlayerId].pieces]; let oppPieces = [...gameState[oppId].pieces];
             
             if (item === 'missile') {
-                let targetFound = false;
                 let validTargets = [];
                 myPieces.forEach(myPos => {
                     if(myPos >= 0 && myPos <= 43) {
                         oppPieces.forEach((oppPos, oppIdx) => {
                             if(oppPos >= 0 && oppPos <= 43) {
-                                let dist = (oppPos - myPos);
-                                if (dist < 0) dist += 44;
+                                let dist = (oppPos - myPos); if (dist < 0) dist += 44;
                                 if(dist > 0 && dist <= 6) validTargets.push({idx: oppIdx, dist});
                             }
                         });
@@ -797,80 +766,89 @@
                 if(validTargets.length > 0) {
                     validTargets.sort((a,b) => a.dist - b.dist);
                     let targetIdx = validTargets[0].idx;
-                    oppPieces[targetIdx] = -1;
-                    stateUpdate[`${oppId}.pieces`] = oppPieces;
-                    logs.push(`🚀 嗖——砰！${myName} 发射了【定向导弹】，炸毁了前方的一架敌机！`);
+                    
+                    let oppFrigates = [...gameState[oppId].frigates];
+                    if (gameState[oppId].shield) {
+                        logs.push(`🛡️ 敌方的【反导护盾】拦截了导弹！`);
+                        stateUpdate[`${oppId}.shield`] = false;
+                    } else if (!oppFrigates[targetIdx] && isProtectedByFrigate(oppId, oppPieces[targetIdx])) {
+                        logs.push(`🛸 导弹被敌方【护卫舰】的防御力场拦截！`);
+                    } else {
+                        killPlane(targetIdx, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, oppFrigates, gameState[oppId].recons);
+                        stateUpdate[`${oppId}.pieces`] = oppPieces;
+                        stateUpdate[`${oppId}.aces`] = gameState[oppId].aces;
+                        stateUpdate[`${oppId}.bombers`] = gameState[oppId].bombers;
+                        stateUpdate[`${oppId}.frigates`] = oppFrigates;
+                        stateUpdate[`${oppId}.recons`] = gameState[oppId].recons;
+                        logs.push(`🚀 嗖——砰！${myName} 的【定向导弹】精准炸毁了前方敌机！`);
+                    }
                 } else { return showToast("前方 6 格内未锁定任何敌机"); }
             } 
             else if (item === 'shield') {
-                stateUpdate[`${myPlayerId}.shield`] = true;
-                logs.push(`🛡️ ${myName} 开启了【反导护盾】，可抵挡一次坠机灾难！`);
-            }
-            else if (item === 'bomber') {
-                let bestIdx = -1, maxPos = -2;
-                myPieces.forEach((p, i) => { if(p >= 0 && p <= 43 && p > maxPos) { maxPos = p; bestIdx = i; } });
-                if(bestIdx !== -1) {
-                    let myBombers = [...gameState[myPlayerId].bombers];
-                    myBombers[bestIdx] = true;
-                    stateUpdate[`${myPlayerId}.bombers`] = myBombers;
-                    logs.push(`🛸 警告！${myName} 将前线战机改装为【轰炸机】！周边3格进入死亡禁区！`);
-                } else { return showToast("主赛道上没有可改装的战机"); }
+                stateUpdate[`${myPlayerId}.shield`] = true; logs.push(`🛡️ ${myName} 开启了【反导护盾】！`);
             }
             
             stateUpdate.logs = logs;
             getRoomRef(currentRoomId).update(stateUpdate);
         };
 
+        function isProtectedByFrigate(ownerId, pos) {
+            const pieces = gameState[ownerId].pieces; const frigates = gameState[ownerId].frigates;
+            for(let i=0; i<4; i++) {
+                if (frigates[i] && pieces[i] >= 0 && pieces[i] <= 43) {
+                    let dist1 = Math.abs(pieces[i] - pos); let dist2 = 44 - dist1;
+                    if (Math.min(dist1, dist2) <= 3) return true;
+                }
+            }
+            return false;
+        }
+
+        function killPlane(idx, pArray, aArray, bArray, fArray, rArray) {
+            pArray[idx] = -1; aArray[idx] = false; bArray[idx] = false; fArray[idx] = false; rArray[idx] = false;
+        }
+
         function renderWeatherSystem() {
-            const banner = document.getElementById('weatherBanner');
-            const overlay = document.getElementById('weatherOverlay');
+            const banner = document.getElementById('weatherBanner'); const overlay = document.getElementById('weatherOverlay');
             const { type, remainingTurns, zone } = gameState.weather;
             if (type === 'normal' || remainingTurns <= 0) {
                 banner.classList.add('hidden'); overlay.className = 'weather-overlay';
-                document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
-                return;
+                document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone')); return;
             }
             banner.classList.remove('hidden'); document.getElementById('weatherTurns').innerText = remainingTurns;
-            overlay.className = 'weather-overlay'; 
-            document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
-
-            if (type === 'tailwind') {
-                document.getElementById('weatherIcon').innerText = '🌬️'; document.getElementById('weatherText').innerText = '顺风 (移动+2)';
-                overlay.classList.add('weather-tailwind');
-            } else if (type === 'fog') {
-                document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾 (限速1格)';
-                overlay.classList.add('weather-fog');
-            } else if (type === 'thunder') {
+            overlay.className = 'weather-overlay'; document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
+            if (type === 'tailwind') { document.getElementById('weatherIcon').innerText = '🌬️'; document.getElementById('weatherText').innerText = '顺风 (移动+2)'; overlay.classList.add('weather-tailwind'); } 
+            else if (type === 'fog') { document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾 (限速1格)'; overlay.classList.add('weather-fog'); } 
+            else if (type === 'thunder') {
                 document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '雷暴预警';
                 overlay.classList.add('weather-thunder');
-                zone.forEach(pos => {
-                    const coord = trackCoords[pos];
-                    if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); }
-                });
+                zone.forEach(pos => { const coord = trackCoords[pos]; if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); } });
             }
         }
 
         function processInteractions() {
             const interact = gameState.latestInteraction;
-            if (interact && interact.ts > lastProcessedInteractionTs) {
-                lastProcessedInteractionTs = interact.ts;
-                playInteractionAnim(interact);
-            }
+            if (interact && interact.ts > lastProcessedInteractionTs) { lastProcessedInteractionTs = interact.ts; playInteractionAnim(interact); }
         }
 
         function updatePlanesPosition() {
-            const renderPlayerPlanes = (player, pieces, aces, bombers) => {
+            const renderPlayerPlanes = (player, pieces, aces, bombers, frigates, recons) => {
                 pieces.forEach((pos, i) => {
                     const planeEl = document.getElementById(`plane-${player}-${i}`);
                     if (!planeEl) return;
                     
-                    planeEl.classList.remove('plane-active');
+                    planeEl.classList.remove('plane-active', 'plane-bomber', 'plane-frigate', 'plane-recon', 'selecting-mode-plane');
                     if (aces && aces[i]) planeEl.classList.add('plane-ace'); else planeEl.classList.remove('plane-ace');
                     
+                    planeEl.innerText = '✈️';
                     if (bombers && bombers[i]) { planeEl.innerText = '🚀'; planeEl.classList.add('plane-bomber'); }
-                    else { planeEl.innerText = '✈️'; planeEl.classList.remove('plane-bomber'); }
+                    else if (frigates && frigates[i]) { planeEl.innerText = '🛸'; planeEl.classList.add('plane-frigate'); }
+                    else if (recons && recons[i]) { planeEl.innerText = '🛩️'; planeEl.classList.add('plane-recon'); }
 
-                    if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
+                    if (window.isSelectingPlaneFor && player === myPlayerId && pos >= 0 && pos <= 43) {
+                        planeEl.classList.add('selecting-mode-plane');
+                    }
+
+                    if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled && !window.isSelectingPlaneFor) {
                         const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
                         if (canMove) planeEl.classList.add('plane-active');
                     }
@@ -897,7 +875,6 @@
                                 countOnSpot++;
                             }
                         });
-
                         if (countOnSpot > 1) {
                             const offset = 3; 
                             if (myIndexOnSpot === 0) { targetX_pct -= offset; targetY_pct -= offset; }
@@ -906,25 +883,21 @@
                             if (myIndexOnSpot === 3) { targetX_pct += offset; targetY_pct -= offset; }
                         }
                     }
-
-                    if (targetX_pct !== undefined && targetY_pct !== undefined) {
-                        planeEl.style.left = `calc(${targetX_pct}% - 13px)`;
-                        planeEl.style.top = `calc(${targetY_pct}% - 13px)`;
-                    }
+                    if (targetX_pct !== undefined && targetY_pct !== undefined) { planeEl.style.left = `calc(${targetX_pct}% - 13px)`; planeEl.style.top = `calc(${targetY_pct}% - 13px)`; }
                 });
             };
 
-            renderPlayerPlanes('p1', gameState.p1.pieces, gameState.p1.aces, gameState.p1.bombers);
-            renderPlayerPlanes('p2', gameState.p2.pieces, gameState.p2.aces, gameState.p2.bombers);
+            renderPlayerPlanes('p1', gameState.p1.pieces, gameState.p1.aces, gameState.p1.bombers, gameState.p1.frigates, gameState.p1.recons);
+            renderPlayerPlanes('p2', gameState.p2.pieces, gameState.p2.aces, gameState.p2.bombers, gameState.p2.frigates, gameState.p2.recons);
         }
 
         window.handleRollDice = function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             if (window.isPlacingBarricade) return showToast("请先完成路障放置");
+            if (window.isSelectingPlaneFor) return showToast("请先选定要改装的战机");
             
             const diceVis = document.getElementById('diceVisual');
-            diceVis.classList.remove('dice-rolling');
-            void diceVis.offsetWidth; diceVis.classList.add('dice-rolling');
+            diceVis.classList.remove('dice-rolling'); void diceVis.offsetWidth; diceVis.classList.add('dice-rolling');
 
             const roll = Math.floor(Math.random() * 6) + 1;
             const pieces = gameState[myPlayerId].pieces;
@@ -943,10 +916,8 @@
                 updateWeatherTurn(nextState, logs);
             }
 
-            nextState.logs = logs;
-            gameState = { ...gameState, ...nextState };
-            requestAnimationFrame(renderGameState);
-            getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+            nextState.logs = logs; gameState = { ...gameState, ...nextState };
+            requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
         };
 
         function updateWeatherTurn(stateUpdate, logs) {
@@ -956,20 +927,41 @@
                 if (weather.remainingTurns === 0) { logs.push(`🌤️ 天气恢复正常。`); weather.type = 'normal'; }
             }
             if (weather.type === 'normal' && Math.random() < 0.15) {
-                const types = ['tailwind', 'thunder', 'fog'];
-                weather.type = types[Math.floor(Math.random() * types.length)];
+                const types = ['tailwind', 'thunder', 'fog']; weather.type = types[Math.floor(Math.random() * types.length)];
                 weather.remainingTurns = Math.floor(Math.random() * 3) + 2; 
                 if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
                 else if (weather.type === 'fog') logs.push(`🌫️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
-                else if (weather.type === 'thunder') {
-                    weather.zone = Array.from({length: 6}, (_, i) => Math.floor(Math.random() * 35) + i);
-                    logs.push(`⚡ 前方出现雷暴区！`);
-                }
+                else if (weather.type === 'thunder') { weather.zone = Array.from({length: 6}, (_, i) => Math.floor(Math.random() * 35) + i); logs.push(`⚡ 前方出现雷暴区！`); }
             }
             stateUpdate.weather = weather;
         }
 
         window.handlePieceClick = function(player, pieceIndex) {
+            // 拦截改装模式点击
+            if (window.isSelectingPlaneFor && player === myPlayerId) {
+                const pos = gameState[myPlayerId].pieces[pieceIndex];
+                if (pos >= 0 && pos <= 43) {
+                    let myItems = [...gameState[myPlayerId].items];
+                    myItems.splice(window.selectingItemIndex, 1);
+                    
+                    let stateUpdate = { [`${myPlayerId}.items`]: myItems };
+                    let b = [...gameState[myPlayerId].bombers]; let f = [...gameState[myPlayerId].frigates]; let r = [...gameState[myPlayerId].recons];
+                    b[pieceIndex] = false; f[pieceIndex] = false; r[pieceIndex] = false; // 清除旧特殊身份
+                    
+                    let roleName = "";
+                    if (window.isSelectingPlaneFor === 'bomber') { b[pieceIndex] = true; roleName = '【轰炸机】🚀'; }
+                    if (window.isSelectingPlaneFor === 'frigate') { f[pieceIndex] = true; roleName = '【护卫舰】🛸'; }
+                    if (window.isSelectingPlaneFor === 'recon') { r[pieceIndex] = true; roleName = '【侦察机】🛩️'; }
+                    
+                    stateUpdate[`${myPlayerId}.bombers`] = b; stateUpdate[`${myPlayerId}.frigates`] = f; stateUpdate[`${myPlayerId}.recons`] = r;
+                    let logs = [...gameState.logs]; logs.push(`🔧 ${myName} 将战机成功改装为${roleName}！`); stateUpdate.logs = logs;
+                    
+                    window.isSelectingPlaneFor = null; window.selectingItemIndex = -1; document.body.classList.remove('selecting-mode');
+                    getRoomRef(currentRoomId).update(stateUpdate); showToast("改装完成！");
+                } else { showToast("⚠️ 只能改装主赛道上部署的战机"); }
+                return;
+            }
+
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
 
             const currentPos = gameState[myPlayerId].pieces[pieceIndex];
@@ -978,27 +970,21 @@
             if (currentPos === 999) return;
 
             const logs = [...gameState.logs];
-            let newPos = currentPos;
-            let extraTurn = false;
-            let stateUpdate = {};
-
+            let newPos = currentPos; let extraTurn = false; let stateUpdate = {};
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            let myPieces = [...gameState[myPlayerId].pieces];
-            let myAces = [...gameState[myPlayerId].aces];
-            let myBombers = [...gameState[myPlayerId].bombers];
-            let myItems = [...gameState[myPlayerId].items];
-            let myShield = gameState[myPlayerId].shield;
+
+            let myPieces = [...gameState[myPlayerId].pieces]; let myAces = [...gameState[myPlayerId].aces]; let myBombers = [...gameState[myPlayerId].bombers];
+            let myFrigates = [...gameState[myPlayerId].frigates]; let myRecons = [...gameState[myPlayerId].recons];
+            let myItems = [...gameState[myPlayerId].items]; let myShield = gameState[myPlayerId].shield;
+            let myCellEvents = {...gameState.cellEvents}; let myCellItems = {...gameState.cellItems};
             
-            let oppPieces = [...gameState[oppId].pieces];
-            let oppAces = [...gameState[oppId].aces];
-            let oppBombers = [...gameState[oppId].bombers];
-            let oppShield = gameState[oppId].shield;
+            let oppPieces = [...gameState[oppId].pieces]; let oppAces = [...gameState[oppId].aces]; let oppBombers = [...gameState[oppId].bombers];
+            let oppFrigates = [...gameState[oppId].frigates]; let oppRecons = [...gameState[oppId].recons]; let oppShield = gameState[oppId].shield;
 
             let hitBarricade = false;
 
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
-                newPos = myPlayerId === 'p1' ? 0 : 22; 
-                logs.push(`✈ ${myName} 的飞机驶出机库！`);
+                newPos = myPlayerId === 'p1' ? 0 : 22; logs.push(`✈ ${myName} 的飞机驶出机库！`);
             } else {
                 let moveSteps = dice;
                 if (gameState.weather.type === 'tailwind') { moveSteps += 2; logs.push(`💨 顺风额外前进 2 格！`); } 
@@ -1007,8 +993,7 @@
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, gameState.barricades);
                 newPos = moveResult.pos;
                 if (moveResult.hitBarricadePos !== -1) {
-                    hitBarricade = true;
-                    logs.push(`🚧 砰！${myName} 撞上了【强力路障】，被迫停下！`);
+                    hitBarricade = true; logs.push(`🚧 砰！${myName} 撞上【强力路障】被逼停！`);
                     let remainingBarricades = (gameState.barricades || []).filter(b => b !== moveResult.hitBarricadePos);
                     stateUpdate.barricades = remainingBarricades; gameState.barricades = remainingBarricades; 
                 }
@@ -1018,8 +1003,7 @@
                 if (getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
                     const path = generateLogicalPath(myPlayerId);
                     const currPathIndex = path.indexOf(newPos);
-                    const jumpPathIndex = currPathIndex + 4;
-                    if (jumpPathIndex < 44) { 
+                    if (currPathIndex + 4 < 44) { 
                         let moveResult = calculateDestination(myPlayerId, newPos, 4, gameState.barricades);
                         newPos = moveResult.pos;
                         if(moveResult.hitBarricadePos !== -1) {
@@ -1032,18 +1016,20 @@
             }
 
             if (newPos >= 0 && newPos <= 43 && itemCellIndices.includes(newPos)) {
-                const types = ['missile', 'barricade', 'shield', 'bomber'];
-                const get = types[Math.floor(Math.random() * types.length)];
+                const get = myCellItems[newPos];
                 if (myItems.length < 3) {
                     myItems.push(get);
-                    let n = get === 'missile'?'🚀导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡️护盾':'🛸轰炸机';
+                    let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡️护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':'🛩️侦察机';
                     logs.push(`🎁 拆开盲盒，获得：【${n}】！`);
                 } else { logs.push(`🎒 物品栏已满，无法拾取空投。`); }
+                myCellItems[newPos] = itemPool[Math.floor(Math.random() * itemPool.length)]; // 重置
             }
 
             let randEvent = -1;
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
-                randEvent = Math.floor(Math.random() * 11);
+                randEvent = myCellEvents[newPos];
+                myCellEvents[newPos] = Math.floor(Math.random() * 11); // 重置
+                
                 const triggerBadEvent = (action) => {
                     if (myShield) { logs.push(`🛡️ 【反导护盾】弹开了恶意盲盒！`); myShield = false; }
                     else { action(); }
@@ -1052,10 +1038,9 @@
                 switch(randEvent) {
                     case 0: triggerBadEvent(() => { logs.push(`🌪️ 高空气流，后退3格！`); newPos = calculateDestination(myPlayerId, newPos, -3, gameState.barricades).pos; }); break;
                     case 1: logs.push(`🚀 完美顺风，前进3格！`); newPos = calculateDestination(myPlayerId, newPos, 3, gameState.barricades).pos; break;
-                    case 2: triggerBadEvent(() => { logs.push(`⚡ 被雷电击中，直接坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }); break;
+                    case 2: triggerBadEvent(() => { logs.push(`⚡ 被雷电击中，直接坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); }); break;
                     case 3: logs.push(`🎲 拾取神秘胶囊，额外回合！`); extraTurn = true; break;
-                    case 4: 
-                        logs.push(`🌈 跃迁至下一同色格！`);
+                    case 4: logs.push(`🌈 跃迁至下一同色格！`);
                         const path = generateLogicalPath(myPlayerId);
                         const currIdx = path.indexOf(newPos);
                         if (currIdx !== -1) {
@@ -1087,80 +1072,75 @@
             
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
-                    if (myShield) { logs.push(`🛡️️ 护盾弹开了雷暴！`); myShield = false; }
-                    else { logs.push(`⚡ 轰隆！被雷暴击中坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }
+                    if (myShield) { logs.push(`🛡 护盾弹开了雷暴！`); myShield = false; }
+                    else { logs.push(`⚡ 轰隆！被雷暴击中坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); }
                 } else { logs.push(`⛈️ 惊险穿过雷暴区。`); }
             }
 
             myPieces[pieceIndex] = newPos;
 
+            // 撞击踩踏
             if (newPos >= 0 && newPos <= 43 && randEvent !== 10) { 
                 let collisionOccurred = false;
                 for(let i=0; i<4; i++) {
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                         if (oppShield) {
-                            logs.push(`🛡️ 敌方的【反导护盾】抵挡了坠毁危机！`);
-                            oppShield = false;
+                            logs.push(`🛡️ 敌方的【反导护盾】抵挡了坠毁危机！`); oppShield = false;
+                        } else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) {
+                            logs.push(`🛸 敌方战机被【护卫舰】力场庇护，免疫了击杀！`);
                         } else {
-                            oppPieces[i] = -1;
-                            collisionOccurred = true;
-                            logs.push(`💥 ${myName} 击落了 ${oppName} 的飞机！`);
-                            if (oppBombers[i]) { logs.push(`⚠️ 击毁了敌方轰炸机！`); oppBombers[i] = false; }
-                            
+                            killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
+                            collisionOccurred = true; logs.push(`💥 ${myName} 击落了 ${oppName} 的飞机！`);
                             if (oppAces[i]) {
                                 logs.push(`💰 击落敌方【王牌】，奖励起飞新机！`);
-                                oppAces[i] = false; extraTurn = true;
-                                let idleIdx = myPieces.findIndex(p => p === -1);
+                                extraTurn = true; let idleIdx = myPieces.findIndex(p => p === -1);
                                 if (idleIdx !== -1) { myPieces[idleIdx] = myPlayerId === 'p1' ? 0 : 22; }
                             }
                         }
                     }
                 }
-                if (collisionOccurred && !myAces[pieceIndex]) {
-                    myAces[pieceIndex] = true; logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`);
-                }
+                if (collisionOccurred && !myAces[pieceIndex]) { myAces[pieceIndex] = true; logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
             
+            // 轰炸机结界（只炸敌方，且会被护卫舰拦截）
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
-                let bomberCrashed = false;
-                const checkExplosion = (piecesArray, acesArray, bombersArray, ownerId) => {
-                    piecesArray.forEach((p, i) => {
-                        if (p >= 0 && p <= 43 && !(ownerId === myPlayerId && i === pieceIndex)) { 
-                            let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
-                            if (Math.min(dist1, dist2) <= 3) {
-                                if ((ownerId === oppId && oppShield) || (ownerId === myPlayerId && myShield)) {
-                                    logs.push(`🛡️ 护盾在爆炸冲击波中保住了一架战机！`);
-                                    if(ownerId === oppId) oppShield = false; else myShield = false;
-                                } else {
-                                    piecesArray[i] = -1; acesArray[i] = false;
-                                    logs.push(`🔥 【轰炸机】引爆！周边战机被摧毁！`);
-                                    if (bombersArray[i]) { bomberCrashed = true; logs.push(`⚠️ 引发严重殉爆！`); }
-                                    bombersArray[i] = false;
-                                }
+                let enemyBomberHit = false;
+                oppPieces.forEach((p, i) => {
+                    if (p >= 0 && p <= 43) { 
+                        let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
+                        if (Math.min(dist1, dist2) <= 3) {
+                            if (oppShield) {
+                                logs.push(`🛡️ 护盾在爆炸冲击波中保住了敌方战机！`); oppShield = false;
+                            } else if (!oppFrigates[i] && isProtectedByFrigate(oppId, p)) {
+                                logs.push(`🛸 敌方战机被【护卫舰】力场保护，免受轰炸！`);
+                            } else {
+                                let wasBomber = oppBombers[i];
+                                killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
+                                logs.push(`🔥 【轰炸机】引爆摧毁了范围内一架敌机！`);
+                                if (wasBomber) { enemyBomberHit = true; }
                             }
                         }
-                    });
-                };
-                checkExplosion(oppPieces, oppAces, oppBombers, oppId);
-                checkExplosion(myPieces, myAces, myBombers, myPlayerId);
+                    }
+                });
                 
-                if (bomberCrashed) {
-                    myPieces[pieceIndex] = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false;
-                    logs.push(`💥 双方轰炸机同归于尽！`);
+                if (enemyBomberHit) {
+                    killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons);
+                    logs.push(`💥 炸毁敌方轰炸机引发了严重殉爆！双方同归于尽！`);
                 }
             }
 
             stateUpdate[`${myPlayerId}.pieces`] = myPieces; stateUpdate[`${myPlayerId}.aces`] = myAces;
-            stateUpdate[`${myPlayerId}.items`] = myItems; stateUpdate[`${myPlayerId}.shield`] = myShield; stateUpdate[`${myPlayerId}.bombers`] = myBombers;
-            stateUpdate[`${oppId}.pieces`] = oppPieces; stateUpdate[`${oppId}.aces`] = oppAces;
-            stateUpdate[`${oppId}.shield`] = oppShield; stateUpdate[`${oppId}.bombers`] = oppBombers;
+            stateUpdate[`${myPlayerId}.items`] = myItems; stateUpdate[`${myPlayerId}.shield`] = myShield; 
+            stateUpdate[`${myPlayerId}.bombers`] = myBombers; stateUpdate[`${myPlayerId}.frigates`] = myFrigates; stateUpdate[`${myPlayerId}.recons`] = myRecons;
+            
+            stateUpdate[`${oppId}.pieces`] = oppPieces; stateUpdate[`${oppId}.aces`] = oppAces; stateUpdate[`${oppId}.shield`] = oppShield; 
+            stateUpdate[`${oppId}.bombers`] = oppBombers; stateUpdate[`${oppId}.frigates`] = oppFrigates; stateUpdate[`${oppId}.recons`] = oppRecons;
+            
+            stateUpdate.cellEvents = myCellEvents; stateUpdate.cellItems = myCellItems;
 
             const allFinished = myPieces.every(p => p === 999);
-            if (allFinished) {
-                stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished';
-                logs.push(`🏆 恭喜 ${myName} 获得胜利！`);
-            }
+            if (allFinished) { stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished'; logs.push(`🏆 恭喜 ${myName} 获得胜利！`); }
 
             stateUpdate.hasRolled = false;
             if ((dice === 6 || extraTurn) && !allFinished) {
@@ -1173,8 +1153,8 @@
             stateUpdate.logs = logs;
             
             gameState = { ...gameState, ...stateUpdate };
-            gameState[myPlayerId] = {...gameState[myPlayerId], pieces: myPieces, aces: myAces, items: myItems, shield: myShield, bombers: myBombers};
-            gameState[oppId] = {...gameState[oppId], pieces: oppPieces, aces: oppAces, shield: oppShield, bombers: oppBombers};
+            gameState[myPlayerId] = {...gameState[myPlayerId], pieces: myPieces, aces: myAces, items: myItems, shield: myShield, bombers: myBombers, frigates: myFrigates, recons: myRecons};
+            gameState[oppId] = {...gameState[oppId], pieces: oppPieces, aces: oppAces, shield: oppShield, bombers: oppBombers, frigates: oppFrigates, recons: oppRecons};
             
             requestAnimationFrame(renderGameState);
             getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
@@ -1182,14 +1162,8 @@
 
         function generateLogicalPath(player) {
             let path = [];
-            if (player === 'p1') {
-                for(let i=0; i<=43; i++) path.push(i);
-                path.push(100, 101, 102, 103, 104, 999);
-            } else {
-                for(let i=22; i<=43; i++) path.push(i);
-                for(let i=0; i<=21; i++) path.push(i);
-                path.push(200, 201, 202, 203, 204, 999);
-            }
+            if (player === 'p1') { for(let i=0; i<=43; i++) path.push(i); path.push(100, 101, 102, 103, 104, 999); } 
+            else { for(let i=22; i<=43; i++) path.push(i); for(let i=0; i<=21; i++) path.push(i); path.push(200, 201, 202, 203, 204, 999); }
             return path;
         }
 
@@ -1198,11 +1172,8 @@
             const currIdx = path.indexOf(currentPos);
             if (currIdx === -1) return { pos: currentPos, hitBarricadePos: -1 };
 
-            let actualPos = currentPos;
-            let tempIdx = currIdx;
-            let direction = steps > 0 ? 1 : -1;
-            let absSteps = Math.abs(steps);
-            let hitBarricadePos = -1;
+            let actualPos = currentPos; let tempIdx = currIdx;
+            let direction = steps > 0 ? 1 : -1; let absSteps = Math.abs(steps); let hitBarricadePos = -1;
             
             for(let i=1; i<=absSteps; i++) {
                 tempIdx += direction;
@@ -1213,86 +1184,48 @@
                     direction = -direction;
                 }
                 actualPos = path[tempIdx];
-                if (barricades.includes(actualPos) && actualPos >= 0 && actualPos <= 43) {
-                    hitBarricadePos = actualPos; break;
-                }
+                if (barricades.includes(actualPos) && actualPos >= 0 && actualPos <= 43) { hitBarricadePos = actualPos; break; }
             }
             return { pos: actualPos, hitBarricadePos };
         }
 
-        /* ----- 绝对可靠的嘲讽下发机制 ----- */
         window.sendTaunt = function(type) {
             try {
                 if (myPlayerId !== 'p1' && myPlayerId !== 'p2') return showToast("仅对局双方可互动");
                 if (!gameState || gameState.status !== 'playing') return showToast("游戏进行中才能互动哦");
-                
                 const payload = { type: type, from: myPlayerId, ts: Date.now() };
-                
-                // 1. 本地乐观渲染，点击瞬间保证一定会有反应（修复自己点没反应）
-                gameState.latestInteraction = payload;
-                processInteractions();
-
-                // 2. 将数据推给对方
+                gameState.latestInteraction = payload; processInteractions();
                 let updateData = { latestInteraction: payload };
                 if (type === 'voice') {
-                    let logs = [...gameState.logs];
-                    logs.push(`💬 ${myName}: ${myPlayerId === 'p1' ? '😎就这？' : '😡急了？'}`);
-                    updateData.logs = logs;
+                    let logs = [...gameState.logs]; logs.push(`💬 ${myName}: ${myPlayerId === 'p1' ? '😎就这？' : '😡急了？'}`); updateData.logs = logs;
                 }
-                // 云端 update 不会覆盖其他并发操作（因为并非覆盖整个文档）
                 getRoomRef(currentRoomId).update(updateData).catch(e => console.error("交互上传失败:", e));
-            } catch (e) {
-                console.error("互动发生异常", e);
-            }
+            } catch (e) { console.error("互动发生异常", e); }
         };
 
         function playInteractionAnim(interaction) {
             const startId = interaction.from === 'p1' ? 'p1AvatarArea' : 'p2AvatarArea';
             const targetId = interaction.from === 'p1' ? 'p2AvatarArea' : 'p1AvatarArea';
-            const startNode = document.getElementById(startId);
-            const targetNode = document.getElementById(targetId);
+            const startNode = document.getElementById(startId); const targetNode = document.getElementById(targetId);
             if(!startNode || !targetNode) return;
 
-            const el = document.createElement('div');
-            el.className = 'taunt-projectile';
-            
-            const startRect = startNode.getBoundingClientRect();
-            const targetRect = targetNode.getBoundingClientRect();
-
-            // 如果头像节点因滚动不可见，则安全跳过不弹报错，正常情况下页面锁死不允许大滚动
+            const el = document.createElement('div'); el.className = 'taunt-projectile';
+            const startRect = startNode.getBoundingClientRect(); const targetRect = targetNode.getBoundingClientRect();
             if (startRect.width === 0) return;
 
             if (interaction.type === 'voice') {
-                el.innerText = interaction.from === 'p1' ? '😎就这？' : '😡急了？';
-                el.classList.add('taunt-voice');
-                // 气泡从发送者头顶偏上冒出
-                el.style.left = `${startRect.left + startRect.width/2 - 35}px`; 
-                el.style.top = `${startRect.top - 40}px`;
-                document.body.appendChild(el);
-                setTimeout(() => el.remove(), 2500);
-                return;
+                el.innerText = interaction.from === 'p1' ? '😎就这？' : '😡急了？'; el.classList.add('taunt-voice');
+                el.style.left = `${startRect.left + startRect.width/2 - 35}px`; el.style.top = `${startRect.top - 40}px`;
+                document.body.appendChild(el); setTimeout(() => el.remove(), 2500); return;
             }
 
-            el.classList.add('text-4xl');
-            el.innerText = interaction.type === 'tomato' ? '🍅' : '💣';
-            
-            // 起点设定中心
-            el.style.left = `${startRect.left + startRect.width/2 - 18}px`;
-            el.style.top = `${startRect.top + startRect.height/2 - 18}px`;
-            document.body.appendChild(el);
+            el.classList.add('text-4xl'); el.innerText = interaction.type === 'tomato' ? '🍅' : '💣';
+            el.style.left = `${startRect.left + startRect.width/2 - 18}px`; el.style.top = `${startRect.top + startRect.height/2 - 18}px`;
+            document.body.appendChild(el); void el.offsetWidth; 
 
-            void el.offsetWidth; // 强制刷新CSS布局
-
-            // 目标点设定中心，触发动画
-            el.style.left = `${targetRect.left + targetRect.width/2 - 18}px`;
-            el.style.top = `${targetRect.top + targetRect.height/2 - 18}px`;
+            el.style.left = `${targetRect.left + targetRect.width/2 - 18}px`; el.style.top = `${targetRect.top + targetRect.height/2 - 18}px`;
             el.style.transform = 'rotate(720deg) scale(1.5)';
-
-            setTimeout(() => {
-                el.innerText = '💥';
-                el.style.transform = 'scale(2.5)';
-                setTimeout(() => el.remove(), 300);
-            }, 600); // 必须匹配 CSS 的 0.6s 动画
+            setTimeout(() => { el.innerText = '💥'; el.style.transform = 'scale(2.5)'; setTimeout(() => el.remove(), 300); }, 600); 
         }
 
         window.showToast = function(msg) {
@@ -1311,20 +1244,17 @@
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
             await getRoomRef(currentRoomId).update({
                 status: 'playing',
-                'p1.pieces': [-1,-1,-1,-1], 'p1.aces': [false,false,false,false], 'p1.items':[], 'p1.shield':false, 'p1.bombers':[false,false,false,false],
-                'p2.pieces': [-1,-1,-1,-1], 'p2.aces': [false,false,false,false], 'p2.items':[], 'p2.shield':false, 'p2.bombers':[false,false,false,false],
-                barricades: [], turn: nextTurn, diceValue: null, hasRolled: false, winner: null,
-                weather: {type: 'normal', remainingTurns:0, zone:[]},
+                'p1.pieces': [-1,-1,-1,-1], 'p1.aces': [false,false,false,false], 'p1.items':[], 'p1.shield':false, 'p1.bombers':[false,false,false,false], 'p1.frigates':[false,false,false,false], 'p1.recons':[false,false,false,false],
+                'p2.pieces': [-1,-1,-1,-1], 'p2.aces': [false,false,false,false], 'p2.items':[], 'p2.shield':false, 'p2.bombers':[false,false,false,false], 'p2.frigates':[false,false,false,false], 'p2.recons':[false,false,false,false],
+                barricades: [], turn: nextTurn, diceValue: null, hasRolled: false, winner: null, weather: {type: 'normal', remainingTurns:0, zone:[]},
+                cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(),
                 logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
             });
             closeMsgModal();
         };
 
         window.addEventListener('resize', () => {
-            if (gameState && gameState.status !== 'waiting') {
-                cacheBaseSpotRects(); 
-                setTimeout(() => requestAnimationFrame(updatePlanesPosition), 100); 
-            }
+            if (gameState && gameState.status !== 'waiting') { cacheBaseSpotRects(); setTimeout(() => requestAnimationFrame(updatePlanesPosition), 100); }
         });
 
         initAuth();
