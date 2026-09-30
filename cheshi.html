@@ -3,34 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>生化逃生舱</title>
-    <!-- 引入腾讯云开发 SDK 和 Tailwind -->
+    <title>生化逃生舱：只有一个名额 ☣️</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://static.cloudbase.net">
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #18181b; 
+            background-color: #1a1a2e;
             background-image: 
-                radial-gradient(#3f3f46 2px, transparent 2px),
-                radial-gradient(#3f3f46 2px, transparent 2px);
-            background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
+                linear-gradient(rgba(30, 255, 0, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(30, 255, 0, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
             overflow-x: hidden;
             user-select: none;
+            -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
+            color: #e2e8f0;
         }
 
-        @keyframes alertPulse {
-            0%, 100% { opacity: 0.15; }
-            50% { opacity: 0.4; }
+        @keyframes pulse-red {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
+            50% { box-shadow: 0 0 20px rgba(255, 0, 0, 0.8); }
         }
-        .alert-bg { animation: alertPulse 3s infinite; }
 
-        .entity-transition { 
-            transition: transform 0.3s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.3s ease, top 0.3s ease; 
-            will-change: transform, left, top;
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 1px) }
+            40% { transform: translate(-1px, -1px) }
+            60% { transform: translate(2px, 1px) }
+            80% { transform: translate(1px, -1px) }
+            100% { transform: translate(0) }
         }
 
         #board-container {
@@ -38,9 +44,9 @@
             width: 100%;
             max-width: 400px;
             aspect-ratio: 1 / 1;
-            background: rgba(20, 20, 24, 0.95);
+            background: #0f172a;
             border-radius: 12px;
-            box-shadow: 0 10px 35px rgba(220,38,38,0.2), inset 0 0 0 2px #52525b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), inset 0 0 0 4px #334155;
             padding: 8px;
             margin: 0 auto;
         }
@@ -50,6 +56,8 @@
             width: 100%;
             height: 100%;
             gap: 2px;
+            grid-template-columns: repeat(10, 1fr);
+            grid-template-rows: repeat(10, 1fr);
             position: relative;
         }
 
@@ -59,183 +67,225 @@
             align-items: center;
             justify-content: center;
             position: relative;
-            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.5);
-            transition: background-color 0.3s;
-            cursor: pointer;
+            background-color: #1e293b;
+            box-shadow: inset 0 -2px 0 rgba(0,0,0,0.3);
+            transition: all 0.2s;
+            font-size: 1.2rem;
         }
 
-        .cell-unknown { background-color: #27272a; border: 1px dashed #3f3f46; }
-        .cell-searched { background-color: #3f3f46; }
-        .cell-collapsed { background-color: #000; box-shadow: inset 0 0 10px #7f1d1d; cursor: not-allowed; }
-        .cell-pod { background: radial-gradient(circle, #22c55e 0%, #14532d 100%); box-shadow: 0 0 15px #22c55e; }
+        .cell-collapse {
+            background-color: #000;
+            background-image: repeating-linear-gradient(45deg, #111 25%, transparent 25%, transparent 75%, #111 75%, #111), repeating-linear-gradient(45deg, #111 25%, #000 25%, #000 75%, #111 75%, #111);
+            background-position: 0 0, 10px 10px;
+            background-size: 20px 20px;
+            box-shadow: none;
+            opacity: 0.5;
+        }
+
+        .cell-highlight {
+            background-color: #3b82f6;
+            cursor: pointer;
+            animation: pulse-red 1.5s infinite;
+            border: 2px dashed #93c5fd;
+        }
         
+        .cell-highlight:hover {
+            background-color: #60a5fa;
+            transform: scale(1.05);
+            z-index: 10;
+        }
+
+        .cell-escape {
+            background: radial-gradient(circle, #22c55e 0%, #14532d 100%);
+            border: 2px solid #4ade80;
+            box-shadow: 0 0 15px #22c55e;
+        }
+
         .entity {
             position: absolute;
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            box-shadow: 0 3px 5px rgba(0,0,0,0.5);
-            z-index: 10;
+            font-size: 1.5rem;
+            z-index: 20;
+            transition: all 0.4s cubic-bezier(0.34, 1.3, 0.64, 1);
+            filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5));
+            pointer-events: none;
         }
-        .entity-p1 { background: linear-gradient(135deg, #ef4444, #7f1d1d); border: 2px solid #fca5a5; }
-        .entity-p2 { background: linear-gradient(135deg, #3b82f6, #1e3a8a); border: 2px solid #93c5fd; }
-        .entity-monster { background: linear-gradient(135deg, #8b5cf6, #4c1d95); border: 2px solid #c4b5fd; font-size: 1.4rem; z-index: 15; box-shadow: 0 0 15px #8b5cf6;}
         
+        .entity-alien {
+            font-size: 1.8rem;
+            animation: glitch 0.5s infinite;
+            z-index: 25;
+        }
+
         .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .log-entry { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative text-zinc-100">
-    <div class="fixed inset-0 bg-red-900/10 alert-bg pointer-events-none z-[-1]"></div>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
 
-    <div id="globalLoading" class="fixed inset-0 bg-zinc-900/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-pulse mb-4">🧬</div>
-        <div class="text-red-500 font-bold text-xl flex items-center gap-2">
-            连接中枢系统...
+    <div id="globalLoading" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-pulse mb-4">☢️</div>
+        <div class="text-green-500 font-bold text-xl flex items-center gap-2">
+            <span class="w-3 h-3 rounded-full bg-green-400 animate-ping"></span>
+            连接基地终端...
         </div>
     </div>
 
-    <!-- 弹窗提示 -->
-    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-red-900/90 text-white px-6 py-3 rounded-lg shadow-2xl text-sm font-bold hidden z-[200] border border-red-500 transition-all"></div>
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-red-900/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-red-500/50 transition-all duration-300 opacity-0 translate-y-4"></div>
 
     <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
-        <div class="bg-zinc-800 rounded-xl p-6 w-full max-w-sm shadow-2xl text-center border border-zinc-700" id="msgModalContent">
-            <div id="msgIcon" class="text-6xl mb-4">🚀</div>
-            <h3 class="text-2xl font-bold text-green-500 mb-2" id="msgTitle">结局</h3>
-            <p class="text-zinc-300 mb-6 font-medium" id="msgDesc">描述信息</p>
+        <div class="bg-slate-800 border-2 border-slate-600 rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
+            <div id="msgIcon" class="text-6xl mb-4">💀</div>
+            <h3 class="text-2xl font-bold text-red-500 mb-2" id="msgTitle">结局</h3>
+            <p class="text-gray-300 mb-6 font-medium" id="msgDesc">无人生还。</p>
             <div class="flex gap-3">
-                <button onclick="exitRoom()" class="flex-1 py-3 rounded-lg bg-zinc-700 text-zinc-100 font-bold hover:bg-zinc-600 transition-all">返回大厅</button>
+                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-slate-700 text-gray-300 font-bold hover:bg-slate-600 active:scale-95 transition-all">关闭</button>
+                <button id="modalActionBtn" onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-red-600 to-red-800 text-white font-bold shadow-md hover:opacity-95 active:scale-95 transition-all">重启终端</button>
             </div>
         </div>
     </div>
 
     <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
-        <div class="flex items-center gap-2 bg-zinc-800/80 px-4 py-2 rounded-xl shadow-sm border border-zinc-700">
-            <span class="text-2xl">☣</span>
+        <div class="flex items-center gap-2 bg-slate-800/80 px-4 py-2 rounded-2xl shadow-sm border border-slate-600">
+            <span class="text-3xl">☣️</span>
             <div>
                 <h1 class="text-lg font-bold text-red-500 leading-tight">生化逃生舱</h1>
-                <p class="text-[10px] text-zinc-400 font-medium tracking-wider">只有一个名额</p>
+                <p class="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Bio-Escape Protocol</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="bg-zinc-800/90 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded bg-zinc-600 text-white">加载中</span>
+            <div class="bg-slate-800/90 px-3 py-1.5 rounded-full border border-slate-600 shadow-sm text-xs font-bold text-gray-300 flex items-center gap-1.5">
+                特工: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-slate-600 text-white shadow-inner">加载中</span>
             </div>
+            <span id="syncStatusBadge" class="text-[9px] text-gray-500 mt-1 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-500"></span> 离线
+            </span>
         </div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
         
-        <!-- 大厅视图 -->
+        <!-- Lobby View -->
         <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
-            <div class="bg-zinc-800/90 backdrop-blur-md rounded-xl p-6 border-2 border-red-900/50 shadow-xl flex flex-col items-center text-center">
-                <h2 class="text-2xl font-bold text-red-400 mb-2">生存指令</h2>
-                <p class="text-sm text-zinc-400 mb-6 px-2">建立连接以寻找另外一名幸存者。基地即将坍塌，逃生舱只能容纳一人。</p>
+            <div class="bg-slate-800/90 backdrop-blur-md rounded-3xl p-6 border-2 border-slate-700 shadow-xl flex flex-col items-center text-center">
+                <div class="w-24 h-24 bg-gradient-to-br from-red-900 to-black rounded-full flex items-center justify-center text-5xl mb-4 shadow-[0_0_20px_rgba(255,0,0,0.5)] border-4 border-slate-800">
+                    🦠
+                </div>
+                <h2 class="text-2xl font-bold text-red-500 mb-2">基地即将自毁</h2>
+                <p class="text-sm text-gray-400 mb-6 px-2">邀请同伴，但记住，逃生舱只有一个名额。</p>
                 
                 <div class="w-full space-y-4">
-                    <button onclick="createRoom()" class="w-full py-4 bg-red-700 text-white rounded-lg font-bold text-lg hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(185,28,28,0.5)]">
-                        发起求救信号 (红方)
+                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-600 to-red-800 text-white rounded-2xl font-bold text-lg shadow-[0_0_15px_rgba(255,0,0,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-red-500/50">
+                        <span>📡</span> 建立求生频段 (红方)
                     </button>
+                    
                     <div class="relative flex py-2 items-center">
-                        <div class="flex-grow border-t border-zinc-700"></div>
-                        <span class="flex-shrink-0 mx-4 text-zinc-500 text-xs font-bold">OR</span>
-                        <div class="flex-grow border-t border-zinc-700"></div>
+                        <div class="flex-grow border-t border-slate-600"></div>
+                        <span class="flex-shrink-0 mx-4 text-slate-500 text-xs font-bold uppercase tracking-wider">OR</span>
+                        <div class="flex-grow border-t border-slate-600"></div>
                     </div>
+
                     <div class="flex flex-col gap-3 w-full">
-                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段号" class="w-full px-4 py-3 bg-zinc-900 border border-zinc-700 rounded-lg text-center text-xl font-black text-blue-400 tracking-[0.5em] focus:outline-none focus:border-blue-500">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-blue-700 text-white font-bold text-lg rounded-lg hover:bg-blue-600 transition-all shadow-[0_0_15px_rgba(29,78,216,0.5)]">
-                            响应求救信号 (蓝方)
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位频段码" class="w-full px-4 py-4 bg-slate-900 border-2 border-slate-700 rounded-2xl text-center text-xl font-black text-blue-400 tracking-[0.5em] focus:outline-none focus:border-blue-500 transition-all shadow-inner uppercase">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-600 to-blue-800 text-white font-bold text-lg rounded-2xl shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:scale-[1.02] active:scale-[0.98] transition-all border border-blue-500/50">
+                            接入频段 (蓝方)
                         </button>
                     </div>
                 </div>
             </div>
-            
-            <div class="bg-zinc-800/80 rounded-lg p-4 border border-zinc-700 text-left text-sm text-zinc-400 space-y-2">
-                <p><b class="text-red-400">🚨 异形追击：</b>异形每回合随机狂奔1-3格！但在扑杀前会在你面前停顿1回合（防瞬移秒杀）。单人遭遇必死，双人相邻可将其击退。</p>
-                <p><b class="text-purple-400">📦 探索盲盒：</b>点击未知房间移动，可能找到能开启逃生舱的<b class="text-green-400">密匙</b>，也可能是陷阱。</p>
-                <p><b class="text-yellow-500">💥 倒塌轮盘：</b>每回合结束，随机1-2个房间会永久塌陷，掉入即死。</p>
-                <p><b class="text-zinc-100">🔪 背叛时刻：</b>你可以随时消耗回合点击“暗算”，引爆队友所在的区域。逃命时千万别手软！</p>
+
+            <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 shadow-sm text-left">
+                <h3 class="text-sm font-bold text-red-400 mb-2 flex items-center gap-1"><span>📜</span> 生存法则</h3>
+                <ul class="text-xs text-gray-400 space-y-1.5 pl-4 list-disc opacity-90 font-medium">
+                    <li>掷出步数(1-3)，点击高亮网格移动。</li>
+                    <li>搜刮📦<b class="text-yellow-500">盲盒</b>可获得：🔑逃生密匙、🔫重机枪(抵御1次攻击)、或引爆毒气、惊醒异形！</li>
+                    <li><b class="text-green-500">异形</b>每轮结束追击最近玩家1-3格。遇到落单必杀！<b class="text-blue-400">两名玩家相邻</b>可合力逼退异形。</li>
+                    <li>每轮结束基地随机<b class="text-red-500">坍塌1-2格</b>。</li>
+                    <li>拿到密匙，抵达<b class="text-green-400">中心逃生舱</b>，抛弃队友独赢！</li>
+                </ul>
             </div>
         </div>
 
-        <!-- 游戏视图 -->
         <div id="gameView" class="w-full flex flex-col gap-4 hidden">
-            <div class="w-full bg-zinc-800/90 backdrop-blur-md rounded-lg p-3 border border-zinc-700 flex items-center justify-between">
+            <!-- Top Status Bar -->
+            <div class="w-full bg-slate-800/90 backdrop-blur-md rounded-2xl p-3 border border-slate-700 shadow-sm flex items-center justify-between">
                 <div class="flex flex-col">
-                    <span class="text-[10px] text-zinc-500 font-bold">频段号</span>
-                    <span id="displayRoomCode" class="text-xl font-black text-red-500 tracking-wider">----</span>
+                    <span class="text-[10px] text-gray-500 font-bold uppercase">频段码</span>
+                    <span id="displayRoomCode" class="text-xl font-black text-gray-200 tracking-wider">----</span>
                 </div>
-                <div class="flex items-center gap-3 bg-zinc-900 px-4 py-1.5 rounded border border-zinc-800">
+                
+                <div class="flex items-center gap-3 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
                     <div class="flex flex-col items-center">
-                        <span id="p1NameDisplay" class="text-xs font-black text-red-500">等待</span>
-                        <span id="p1Status" class="text-[10px] text-zinc-400">❤️ 存活</span>
+                        <span class="text-[9px] text-red-500 font-bold">红方</span>
+                        <span id="p1NameDisplay" class="text-xs font-black text-red-400 max-w-[50px] truncate">等待</span>
+                        <div id="p1Items" class="text-[10px] h-3 mt-0.5"></div>
                     </div>
-                    <div class="text-zinc-600 font-black italic text-sm">VS</div>
+                    <div class="text-slate-600 font-black italic text-sm">VS</div>
                     <div class="flex flex-col items-center">
-                        <span id="p2NameDisplay" class="text-xs font-black text-blue-500">等待</span>
-                        <span id="p2Status" class="text-[10px] text-zinc-400">❤️ 存活</span>
+                        <span class="text-[9px] text-blue-500 font-bold">蓝方</span>
+                        <span id="p2NameDisplay" class="text-xs font-black text-blue-400 max-w-[50px] truncate">等待</span>
+                        <div id="p2Items" class="text-[10px] h-3 mt-0.5"></div>
                     </div>
                 </div>
+                
+                <button onclick="exitRoom()" class="w-10 h-10 rounded-full bg-slate-700 text-gray-400 flex items-center justify-center hover:bg-slate-600 transition-colors border border-slate-600 shadow-sm active:scale-90">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                </button>
             </div>
 
-            <div id="turnBanner" class="w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-300 border-l-4 border-zinc-500 shadow-md transition-all">
-                等待幸存者加入...
+            <!-- Turn Banner -->
+            <div id="turnBanner" class="w-full py-2.5 px-4 bg-slate-800 rounded-xl text-center text-sm font-bold text-gray-400 shadow-inner flex items-center justify-center gap-2 transition-all duration-300 border border-slate-700">
+                <span id="turnBannerIcon" class="text-lg">⏳</span>
+                <span id="turnBannerText">等待信号接入...</span>
             </div>
 
-            <!-- 网格地图 -->
+            <!-- Game Board -->
             <div id="board-container">
-                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/40 rounded-xl hidden cursor-not-allowed"></div>
+                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/60 rounded-xl hidden cursor-not-allowed"></div>
                 <div id="board-grid"></div>
-                <!-- 实体层 -->
-                <div id="entities-layer" class="absolute inset-0 pointer-events-none"></div>
+                <!-- Dynamic Entities Layer -->
+                <div id="entities-layer" class="absolute inset-0 pointer-events-none p-2"></div>
             </div>
 
-            <!-- 动作与日志区 -->
-            <div class="w-full flex gap-3 h-32">
-                <!-- 恶意动作区 -->
-                <div class="flex-shrink-0 flex flex-col justify-center gap-2 w-28">
-                    <button id="btnBetray" onclick="handleBetray()" class="w-full py-3 bg-red-900/80 text-white font-bold text-xs rounded border border-red-700 hover:bg-red-800 active:scale-95 transition-all shadow-[0_0_10px_rgba(153,27,27,0.5)]">
-                        🔪 锁死暗算<br><span class="text-[8px] font-normal text-red-300">(消耗本回合)</span>
+            <!-- Action & Log Area -->
+            <div class="w-full bg-slate-800/90 backdrop-blur-md rounded-2xl p-4 border border-slate-700 shadow-lg flex gap-4 h-36">
+                <!-- Dice Area -->
+                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-slate-900 p-3 rounded-xl border border-slate-700 w-24 relative overflow-hidden">
+                    <div id="diceVisual" class="text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black text-white">?</div>
+                    <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-1.5 bg-gradient-to-r from-green-600 to-green-700 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-xs touch-manipulation z-10">
+                        掷点(1-3)
                     </button>
-                    <div class="text-center text-[10px] text-zinc-400 mt-1">点击自己可原地警戒<br>点击相邻进行移动</div>
                 </div>
 
-                <!-- 日志区 -->
-                <div class="flex-1 flex flex-col bg-zinc-900/80 rounded border border-zinc-700 p-2 overflow-hidden relative">
-                    <div class="text-[10px] font-bold text-green-600 mb-1 px-1 border-b border-green-900/50 pb-1 flex justify-between">
-                        <span>📡 基地系统日志</span>
-                        <span class="animate-pulse">REC 🔴</span>
+                <!-- Logs Area -->
+                <div class="flex-1 flex flex-col bg-black/50 rounded-xl border border-slate-700 p-2 overflow-hidden relative">
+                    <div class="text-[10px] font-bold text-green-500/70 mb-1 px-1 border-b border-green-900/50 pb-1 flex justify-between uppercase">
+                        <span>📡 系统日志</span>
+                        <span class="text-red-500 tracking-tighter">SECURE 🔒</span>
                     </div>
-                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-[11px] text-zinc-400 leading-tight">
-                        <div class="text-center py-2 opacity-50">无记录...</div>
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar p-1 text-[11px] font-medium text-gray-400 flex flex-col-reverse">
+                        <div class="text-center text-gray-600 py-2 opacity-50">等待记录...</div>
                     </div>
+                    <div class="absolute top-5 left-0 right-0 h-4 bg-gradient-to-b from-black/50 to-transparent pointer-events-none"></div>
                 </div>
             </div>
+
         </div>
     </main>
 
     <script type="module">
-        // Toast 弹窗函数
-        window.showToast = function(msg) {
-            const toast = document.getElementById('toast');
-            if(!toast) return;
-            toast.innerText = msg;
-            toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 2000);
-        }
-
         const fallbackTimer = setTimeout(() => hideLoading(), 800);
 
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 请替换为您的云开发ID
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";
         const REGION = "ap-shanghai";
-        const ROOM_COLLECTION = "bioEscapeRooms"; 
+        const ROOM_COLLECTION = "aeroplaneRooms"; // Reusing the same collection as requested
 
-        function getRoomRef(code) {
-            return db.collection(ROOM_COLLECTION).doc(String(code));
-        }
+        function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
         function pickDoc(snapshot, code) {
             if (!snapshot) return null;
             const docs = snapshot.docs;
@@ -250,20 +300,20 @@
 
         try {
             app = cloudbase.init({ env: ENV_ID, region: REGION });
-            auth = app.auth({ persistence: 'local' });
+            auth = app.auth;
             db = app.database();
             hasCloudBase = true;
-        } catch(e) { 
-            console.error("CloudBase init failed", e); 
+        } catch(e) {
+            console.error("CloudBase init failed", e);
         }
 
-        let myIdentity = "探险家" + Math.floor(Math.random()*1000); 
+        let myIdentity = "特工" + Math.floor(Math.random()*1000); 
         try {
-            const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
+            const savedIdentity = localStorage.getItem('bioEscape_myIdentity');
             if (savedIdentity) myIdentity = savedIdentity;
-        } catch(e) {
-            console.warn('当前环境禁止访问 localStorage, 使用随机名字');
-        }
+            else localStorage.setItem('bioEscape_myIdentity', myIdentity);
+        } catch(e) {}
+        
         const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
 
@@ -271,66 +321,32 @@
         let unsubscribeRoom = null;
         let gameState = null; 
         let myPlayerId = null;
-
-        const GRID_W = 7;
-        const GRID_H = 7;
-        const POD_POS = 24; 
-
-        function getCoordPercent(index) {
-            const x = index % GRID_W;
-            const y = Math.floor(index / GRID_W);
-            return {
-                x: (x + 0.5) * (100 / GRID_W),
-                y: (y + 0.5) * (100 / GRID_H)
-            };
-        }
-
-        function initBoardGrid() {
-            const grid = document.getElementById('board-grid');
-            grid.innerHTML = '';
-            grid.style.gridTemplateColumns = `repeat(${GRID_W}, 1fr)`;
-            grid.style.gridTemplateRows = `repeat(${GRID_H}, 1fr)`;
-
-            for(let i=0; i < GRID_W * GRID_H; i++) {
-                const div = document.createElement('div');
-                div.id = `cell-${i}`;
-                div.className = `board-cell cell-unknown`;
-                div.onclick = () => handleCellClick(i);
-                
-                if(i === POD_POS) {
-                    div.innerHTML = '<span class="text-xl opacity-20">🚀</span>';
-                }
-                grid.appendChild(div);
-            }
-            initEntitiesDOM();
-        }
-
-        function initEntitiesDOM() {
-            const layer = document.getElementById('entities-layer');
-            layer.innerHTML = `
-                <div id="ent-p1" class="entity entity-p1 entity-transition hidden">1️⃣</div>
-                <div id="ent-p2" class="entity entity-p2 entity-transition hidden">2️⃣</div>
-                <div id="ent-monster" class="entity entity-monster entity-transition hidden">👾</div>
-            `;
-        }
+        
+        // Game Constants
+        const GRID_SIZE = 10;
+        const ESCAPE_POD_POS = {x: 4, y: 4};
+        
+        // Local state for rendering path
+        let currentReachableCells = [];
 
         async function initAuth() {
             if (!hasCloudBase) {
-                showToast("未检测到云环境，转为离线模式");
-                switchToLobby(); 
-                return hideLoading();
+                showToast("未检测到网络，进入离线预览");
+                clearTimeout(fallbackTimer);
+                hideLoading();
+                return;
             }
             try {
-                const loginState = await auth.getLoginState();
-                if (!loginState) {
-                    await auth.signInAnonymously();
-                }
-                currentUser = (await auth.getLoginState())?.user || { uid: 'anonymous' };
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
                 switchToLobby();
             } catch (err) {
-                console.error("Auth error:", err);
-                showToast("连接数据库失败: " + err.message);
-                switchToLobby(); 
+                console.error("Auth Error:", err);
+                showToast("网络异常");
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                switchToLobby();
             } finally {
                 clearTimeout(fallbackTimer);
                 hideLoading();
@@ -347,6 +363,21 @@
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            currentRoomId = null;
+            myPlayerId = null;
+        }
+
+        // Generate initial map elements
+        function generateInitialBoxes() {
+            let boxes = [];
+            while(boxes.length < 8) {
+                let rx = Math.floor(Math.random() * GRID_SIZE);
+                let ry = Math.floor(Math.random() * GRID_SIZE);
+                // Exclude corners (spawn points), alien spawn, and escape pod
+                if ((rx===0 && ry===0) || (rx===9 && ry===9) || (rx===9 && ry===0) || (rx===ESCAPE_POD_POS.x && ry===ESCAPE_POD_POS.y)) continue;
+                if (!boxes.some(b => b.x === rx && b.y === ry)) boxes.push({x: rx, y: ry});
+            }
+            return boxes;
         }
 
         window.createRoom = async function() {
@@ -355,53 +386,64 @@
             
             const initialData = {
                 status: 'waiting', 
-                p1: { name: myName, pos: 0, alive: true, hasGun: false, hasKey: false },
-                p2: { name: null, pos: 48, alive: true, hasGun: false, hasKey: false },
-                monster: { pos: 6 }, 
-                turn: 'p1', 
-                searched: [0, 48],
+                p1: { name: myName, x: 0, y: 0, hasKey: false, hasGun: false, dead: false },
+                p2: { name: null, x: 9, y: 9, hasKey: false, hasGun: false, dead: false },
+                alien: { x: 9, y: 0 },
+                boxes: generateInitialBoxes(),
                 collapsed: [],
-                podActive: false,
-                logs: [`${myName} 进入了科研基地，等待另一名探险家响应...`],
-                winner: null,
-                winReason: ''
+                turn: 'p1', 
+                round: 1,
+                diceValue: null,
+                hasRolled: false,
+                logs: [`[系统] ${myName} 建立了求生频段，等待接入...`],
+                winner: null
             };
 
             try {
                 await getRoomRef(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
-            } catch (e) { showToast("创建失败"); }
+                showToast(`频段 ${code} 建立成功`);
+            } catch (e) {
+                console.error(e);
+                showToast("创建房间失败");
+            }
         };
 
         window.joinRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
-            const code = document.getElementById('roomCodeInput').value.trim();
-            if (code.length !== 4) return showToast("输入4位频段");
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!code || code.length !== 4) return showToast("请输入4位数字频段码");
 
             try {
                 const res = await getRoomRef(code).get();
                 const data = res.data && res.data[0];
-                if (!data) return showToast("信号不存在");
+                if (!data) return showToast("频段不存在");
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
+                    return showToast("战斗已开始或满员");
+                }
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
                     await getRoomRef(code).update({
                         'p2.name': myName,
                         status: 'playing',
-                        logs: [`${myName} 加入！警报拉响，变异体已出笼！红方先走。`, ...data.logs]
+                        logs: [`[系统] ${myName} 接入成功。大逃杀开始！红方先手。`]
                     });
                     myPlayerId = 'p2';
-                } else {
-                    myPlayerId = data.p1.name === myName ? 'p1' : 'p2';
+                } else if (data.p1.name === myName) {
+                    myPlayerId = 'p1';
+                } else if (data.p2.name === myName) {
+                    myPlayerId = 'p2';
                 }
+
                 listenToRoom(code);
-            } catch (e) { showToast("加入失败"); }
+            } catch (e) {
+                console.error(e);
+                showToast("加入失败");
+            }
         };
 
-        window.exitRoom = function() {
-            document.getElementById('msgModal').classList.add('hidden');
-            switchToLobby();
-        };
+        window.exitRoom = function() { switchToLobby(); };
 
         function listenToRoom(code) {
             currentRoomId = code;
@@ -410,6 +452,7 @@
             initBoardGrid();
 
             if (unsubscribeRoom) unsubscribeRoom();
+            
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
@@ -421,335 +464,546 @@
                         switchToLobby();
                     }
                 },
-                onError: () => showToast("同步断开")
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
+                }
             });
             unsubscribeRoom = () => watcher.close();
+        }
+
+        function initBoardGrid() {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+            const fragment = document.createDocumentFragment();
+            for(let y=0; y<GRID_SIZE; y++) {
+                for(let x=0; x<GRID_SIZE; x++) {
+                    const div = document.createElement('div');
+                    div.id = `cell-${x}-${y}`;
+                    div.className = `board-cell`;
+                    // Setup click listener directly on cells for interaction
+                    div.onpointerdown = () => handleCellClick(x, y);
+                    
+                    if (x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y) {
+                        div.classList.add('cell-escape');
+                        div.innerHTML = '<span class="text-xl">🚀</span>';
+                    }
+                    fragment.appendChild(div);
+                }
+            }
+            grid.appendChild(fragment);
+            
+            // Init Entities
+            const layer = document.getElementById('entities-layer');
+            layer.innerHTML = `
+                <div id="ent-p1" class="entity text-red-500">🔴</div>
+                <div id="ent-p2" class="entity text-blue-500">🔵</div>
+                <div id="ent-alien" class="entity entity-alien text-green-500 drop-shadow-[0_0_8px_#22c55e]">👾</div>
+            `;
         }
 
         function renderGameState() {
             if (!gameState) return;
 
+            // Render Header Status
             document.getElementById('displayRoomCode').innerText = currentRoomId;
-            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
-            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
-
-            const updateStatus = (pId, spanId) => {
-                const p = gameState[pId];
-                let txt = p.alive ? '❤️ 存活' : '💀 死亡';
-                if(p.hasKey) txt += ' | 🔑密匙';
-                if(p.hasGun) txt += ' | 🎒急救';
-                document.getElementById(spanId).innerText = txt;
-                document.getElementById(spanId).className = `text-[10px] ${p.alive?'text-green-400':'text-red-500'}`;
-            };
-            if(gameState.p1.name) updateStatus('p1', 'p1Status');
-            if(gameState.p2.name) updateStatus('p2', 'p2Status');
-
-            const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing' && gameState[myPlayerId].alive;
-            const banner = document.getElementById('turnBanner');
-            const overlay = document.getElementById('boardOverlay');
+            document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待';
+            document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待';
             
+            document.getElementById('p1Items').innerHTML = `${gameState.p1.hasKey ? '🔑' : ''}${gameState.p1.hasGun ? '🔫' : ''}${gameState.p1.dead ? '💀' : ''}`;
+            document.getElementById('p2Items').innerHTML = `${gameState.p2.hasKey ? '🔑' : ''}${gameState.p2.hasGun ? '🔫' : ''}${gameState.p2.dead ? '💀' : ''}`;
+
+            const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing' && !gameState[myPlayerId].dead;
+            
+            // Turn Banner & Dice
+            const banner = document.getElementById('turnBanner');
+            const bIcon = document.getElementById('turnBannerIcon');
+            const bText = document.getElementById('turnBannerText');
+            const overlay = document.getElementById('boardOverlay');
+            const btnRoll = document.getElementById('btnRollDice');
+            const diceVis = document.getElementById('diceVisual');
+
             if (gameState.status === 'waiting') {
-                banner.innerText = '等待幸存者加入...'; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-400";
-                overlay.classList.remove('hidden');
+                bIcon.innerText = '⏳'; bText.innerText = '等待对手接入...';
+                overlay.classList.remove('hidden'); btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
-                if (gameState[myPlayerId].alive === false) {
-                    banner.innerText = '你已死亡，正在观战...'; banner.className = "w-full py-2 px-4 bg-red-900/50 rounded-lg text-center text-sm font-bold text-red-500 border border-red-700";
-                    overlay.classList.remove('hidden');
+                if (gameState[myPlayerId].dead) {
+                    bIcon.innerText = '💀'; bText.innerText = '你已死亡，正在观战';
+                    overlay.classList.remove('hidden'); btnRoll.disabled = true;
+                    diceVis.innerText = '-';
                 } else if (isMyTurn) {
-                    banner.innerText = '轮到你了！点击相邻格子或暗算队友！'; banner.className = "w-full py-2 px-4 bg-green-900/40 rounded-lg text-center text-sm font-bold text-green-400 border border-green-700 animate-pulse";
+                    banner.className = `w-full py-2.5 px-4 rounded-xl text-center text-sm font-bold shadow-sm flex items-center justify-center gap-2 ${myPlayerId === 'p1' ? 'bg-red-900/50 text-red-400 border-red-500/50' : 'bg-blue-900/50 text-blue-400 border-blue-500/50'}`;
+                    bIcon.innerText = gameState.hasRolled ? '🎯' : '🎲';
+                    bText.innerText = gameState.hasRolled ? '点击高亮区域移动' : '轮到你了，进行判定';
                     overlay.classList.add('hidden');
+                    btnRoll.disabled = gameState.hasRolled;
                 } else {
+                    banner.className = "w-full py-2.5 px-4 bg-slate-800 rounded-xl text-center text-sm font-bold text-gray-500 flex items-center justify-center gap-2 border border-slate-700";
+                    bIcon.innerText = '👀';
                     const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    banner.innerText = `等待 ${activeName} 行动...`; banner.className = "w-full py-2 px-4 bg-zinc-800 rounded-lg text-center text-sm font-bold text-zinc-400";
+                    bText.innerText = `等待 ${activeName} 行动...`;
                     overlay.classList.remove('hidden');
+                    btnRoll.disabled = true;
                 }
             }
 
-            document.getElementById('btnBetray').disabled = !isMyTurn;
-            document.getElementById('btnBetray').style.opacity = isMyTurn ? 1 : 0.4;
-
-            for(let i=0; i<49; i++) {
-                const cell = document.getElementById(`cell-${i}`);
-                if(gameState.collapsed.includes(i)) {
-                    cell.className = "board-cell cell-collapsed";
-                    cell.innerHTML = '☠️';
-                } else if (i === POD_POS && gameState.podActive) {
-                    cell.className = "board-cell cell-pod";
-                    cell.innerHTML = '<span class="text-2xl animate-bounce">🚀</span>';
-                } else if (gameState.searched.includes(i)) {
-                    cell.className = "board-cell cell-searched";
-                    if(i === POD_POS) cell.innerHTML = '<span class="text-xl opacity-20">🚀</span>';
-                    else cell.innerHTML = '';
-                } else {
-                    cell.className = "board-cell cell-unknown";
-                    cell.innerHTML = '<span class="text-zinc-600/30 text-xs">?</span>';
-                }
+            if (gameState.diceValue) {
+                diceVis.innerText = gameState.diceValue;
+                diceVis.className = `text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black ${gameState.diceValue === 3 ? 'text-red-400 scale-110' : 'text-white'}`;
+            } else {
+                diceVis.innerText = '?';
+                diceVis.className = "text-4xl mb-2 drop-shadow-md transition-transform flex items-center justify-center h-10 font-black text-gray-500";
             }
 
-            const renderEntity = (id, pos, isVisible) => {
-                const el = document.getElementById(id);
-                if(!isVisible || pos < 0) { el.classList.add('hidden'); return; }
-                el.classList.remove('hidden');
-                const coords = getCoordPercent(pos);
-                el.style.left = `calc(${coords.x}% - 16px)`;
-                el.style.top = `calc(${coords.y}% - 16px)`;
-            };
-
-            renderEntity('ent-p1', gameState.p1.pos, gameState.p1.alive);
-            renderEntity('ent-p2', gameState.p2.pos, gameState.p2.alive);
-            renderEntity('ent-monster', gameState.monster.pos, true);
-
+            // Render Logs
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
-                div.className = "border-b border-zinc-700/50 pb-1 w-full";
-                div.innerHTML = log;
+                div.className = "log-entry w-full break-words";
+                let html = log.replace(gameState.p1.name, `<span class="text-red-400 font-bold">${gameState.p1.name}</span>`);
+                if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-400 font-bold">${gameState.p2.name}</span>`);
+                div.innerHTML = html;
                 logBox.appendChild(div);
             });
 
-            if (gameState.status === 'finished') {
+            // Handle Winner/End Game
+            if (gameState.winner) {
                 overlay.classList.remove('hidden');
                 document.getElementById('msgModal').classList.remove('hidden');
-                document.getElementById('msgTitle').innerText = gameState.winner ? `${gameState[gameState.winner].name} 成功逃生！` : '全军覆没';
-                document.getElementById('msgDesc').innerText = gameState.winReason;
-            }
-        }
-
-        function isAdjacent(pos1, pos2) {
-            const x1 = pos1 % GRID_W, y1 = Math.floor(pos1 / GRID_W);
-            const x2 = pos2 % GRID_W, y2 = Math.floor(pos2 / GRID_W);
-            return (Math.abs(x1 - x2) + Math.abs(y1 - y2)) === 1;
-        }
-
-        window.handleCellClick = function(targetPos) {
-            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState[myPlayerId].alive) return;
-            const myPos = gameState[myPlayerId].pos;
-            
-            if (!isAdjacent(myPos, targetPos) && targetPos !== myPos) return showToast("只能移动到相邻房间");
-            if (gameState.collapsed.includes(targetPos)) return showToast("该房间已坍塌！");
-
-            executePlayerTurn(targetPos);
-        };
-
-        window.handleBetray = function() {
-            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
-            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            if (!gameState[oppId].alive) return showToast("对手已死，无需暗算");
-
-            let stateUpdate = { ...gameState };
-            let logs = [...stateUpdate.logs];
-            const oppPos = stateUpdate[oppId].pos;
-
-            let validTraps = [];
-            for(let i=0; i<49; i++) {
-                if(isAdjacent(oppPos, i) && !stateUpdate.collapsed.includes(i) && i !== POD_POS) {
-                    validTraps.push(i);
-                }
-            }
-
-            logs.push(`<span class="text-red-500 font-bold">⚠️ ${myName} 黑入了基地系统！试图封死队友的退路！</span>`);
-            
-            if(validTraps.length > 0) {
-                const trapPos = validTraps[Math.floor(Math.random() * validTraps.length)];
-                stateUpdate.collapsed.push(trapPos);
-                logs.push(`💥 房间 [${trapPos%7},${Math.floor(trapPos/7)}] 被强行引爆坍塌！`);
+                setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
+                const title = document.getElementById('msgTitle');
+                const desc = document.getElementById('msgDesc');
                 
-                if(stateUpdate.monster.pos === trapPos) {
-                    stateUpdate.monster.pos = 0; 
-                    logs.push(`👾 变异体掉入了人工制造的深渊，但在别处重新爬上来了。`);
+                if (gameState.winner === 'alien' || gameState.winner === 'none') {
+                    title.innerText = "无人生还"; title.className = "text-2xl font-bold text-red-500 mb-2";
+                    desc.innerText = "基地已被异形占据或彻底毁灭。";
+                    document.getElementById('msgIcon').innerText = "💀";
+                } else {
+                    const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    title.innerText = `${wName} 成功逃生!`; title.className = "text-2xl font-bold text-green-500 mb-2";
+                    desc.innerText = "但另一个人永远留在了这里...";
+                    document.getElementById('msgIcon').innerText = "🚀";
                 }
-            } else {
-                logs.push(`⚠️ 对手周围没有可供引爆的结构，暗算落空！`);
             }
 
-            finalizeTurn(stateUpdate, logs);
+            renderBoard();
+        }
+
+        function getCollapsedSet() {
+            return new Set(gameState.collapsed.map(c => `${c.x},${c.y}`));
+        }
+
+        // BFS for movement
+        function getReachableCells(startX, startY, maxSteps, collapsedSet) {
+            let queue = [{x: startX, y: startY, dist: 0}];
+            let visited = new Set([`${startX},${startY}`]);
+            let result = [];
+            
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                if(curr.dist > 0 && curr.dist <= maxSteps) {
+                    result.push(curr);
+                }
+                if(curr.dist >= maxSteps) continue;
+
+                let dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+                for(let d of dirs) {
+                    let nx = curr.x + d[0], ny = curr.y + d[1];
+                    let key = `${nx},${ny}`;
+                    // Cannot walk through collapsed or outside bounds
+                    if(nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE && !collapsedSet.has(key) && !visited.has(key)) {
+                        visited.add(key);
+                        queue.push({x: nx, y: ny, dist: curr.dist + 1});
+                    }
+                }
+            }
+            return result;
+        }
+
+        function renderBoard() {
+            const collapsedSet = getCollapsedSet();
+            const boxSet = new Set(gameState.boxes.map(b => `${b.x},${b.y}`));
+            
+            // Calculate current valid moves for the active player
+            currentReachableCells = [];
+            if (gameState.status === 'playing' && gameState.turn === myPlayerId && gameState.hasRolled && !gameState[myPlayerId].dead) {
+                const me = gameState[myPlayerId];
+                currentReachableCells = getReachableCells(me.x, me.y, gameState.diceValue, collapsedSet);
+            }
+            const reachableSet = new Set(currentReachableCells.map(c => `${c.x},${c.y}`));
+
+            // Update cells
+            for(let y=0; y<GRID_SIZE; y++) {
+                for(let x=0; x<GRID_SIZE; x++) {
+                    const cell = document.getElementById(`cell-${x}-${y}`);
+                    if(!cell) continue;
+                    
+                    const key = `${x},${y}`;
+                    
+                    // Reset classes (keep base ones)
+                    cell.className = `board-cell ${x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y ? 'cell-escape' : ''}`;
+                    cell.innerHTML = x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y ? '<span class="text-xl">🚀</span>' : '';
+
+                    if (collapsedSet.has(key)) {
+                        cell.classList.add('cell-collapse');
+                    } else if (boxSet.has(key)) {
+                        cell.innerHTML = '<span class="text-sm drop-shadow-md">📦</span>';
+                    }
+
+                    if (reachableSet.has(key)) {
+                        cell.classList.add('cell-highlight');
+                    }
+                }
+            }
+
+            // Update Entities Position based on grid percentage
+            const placeEntity = (id, obj, displayCond) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (!displayCond) { el.style.display = 'none'; return; }
+                el.style.display = 'flex';
+                el.style.left = `${(obj.x + 0.5) * (100 / GRID_SIZE)}%`;
+                el.style.top = `${(obj.y + 0.5) * (100 / GRID_SIZE)}%`;
+                // Center adjustment
+                el.style.transform = 'translate(-50%, -50%)';
+            };
+
+            placeEntity('ent-p1', gameState.p1, !gameState.p1.dead);
+            placeEntity('ent-p2', gameState.p2, !gameState.p2.dead);
+            placeEntity('ent-alien', gameState.alien, true);
+        }
+
+        function getManhattanDist(a, b) {
+            return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+        }
+
+        window.handleRollDice = function() {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled || gameState[myPlayerId].dead) return;
+            
+            // Random 1 to 3
+            const roll = Math.floor(Math.random() * 3) + 1;
+            
+            const me = gameState[myPlayerId];
+            const collapsedSet = getCollapsedSet();
+            const reachable = getReachableCells(me.x, me.y, roll, collapsedSet);
+
+            const logs = [...gameState.logs];
+            logs.push(`[>] ${myName} 启动引擎，动力充能 [${roll}] 格。`);
+            
+            let nextState = { diceValue: roll, hasRolled: true, logs };
+
+            if (reachable.length === 0) {
+                logs.push(`[!] 警告: ${myName} 被完全困住，跳过回合！`);
+                nextState.hasRolled = false;
+                
+                // If it's P2's turn (or P1 but P2 is dead, triggering round end anyway), we need to trigger round end
+                // To keep it simple, we handle it via a separate flow, or just pass turn and let the next person trigger it if needed.
+                // Best to run roundEnd logic if needed.
+                completePlayerTurn(myPlayerId, nextState);
+            } else {
+                // Optimistic Update
+                gameState = { ...gameState, ...nextState };
+                requestAnimationFrame(renderGameState);
+                getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+            }
         };
 
-        function executePlayerTurn(newPos) {
-            let stateUpdate = JSON.parse(JSON.stringify(gameState)); 
-            let logs = stateUpdate.logs;
-            let me = stateUpdate[myPlayerId];
-            const oldPos = me.pos;
+        window.handleCellClick = function(x, y) {
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || gameState[myPlayerId].dead) return;
             
-            me.pos = newPos;
+            const isReachable = currentReachableCells.some(c => c.x === x && c.y === y);
+            if (!isReachable) return;
 
-            if (oldPos === newPos) {
-                logs.push(`👣 ${myName} 原地警戒，屏住了呼吸。`);
-            } else {
-                logs.push(`👣 ${myName} 移动到了房间 [${newPos%7},${Math.floor(newPos/7)}]`);
+            // Execute Move
+            let stateUpdate = { logs: [...gameState.logs] };
+            let myData = { ...gameState[myPlayerId] };
+            let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+            let oppData = { ...gameState[oppId] };
+            let alienData = { ...gameState.alien };
+            
+            myData.x = x;
+            myData.y = y;
+            stateUpdate.logs.push(`[移动] ${myName} 前往了坐标 (${x},${y})。`);
+
+            // 1. Check Box
+            let boxIdx = gameState.boxes.findIndex(b => b.x === x && b.y === y);
+            if (boxIdx !== -1) {
+                let newBoxes = [...gameState.boxes];
+                newBoxes.splice(boxIdx, 1);
+                stateUpdate.boxes = newBoxes;
+                
+                // Blind Box Events
+                const rand = Math.random();
+                if (rand < 0.25) { // 25% Key
+                    if(!myData.hasKey) {
+                        myData.hasKey = true;
+                        stateUpdate.logs.push(`[!] 幸运！${myName} 找到了 🔑 逃生密匙！`);
+                    } else {
+                        stateUpdate.logs.push(`[📦] 箱子里是空的。`);
+                    }
+                } else if (rand < 0.55) { // 30% Gun
+                    myData.hasGun = true;
+                    stateUpdate.logs.push(`[!] ${myName} 搜刮到了 🔫 脉冲重机枪！`);
+                } else if (rand < 0.80) { // 25% Poison Gas on opponent
+                    stateUpdate.logs.push(`[☣️] 陷阱触发！引爆毒气弹！`);
+                    if(!oppData.dead) {
+                        if (oppData.hasGun) {
+                            oppData.hasGun = false;
+                            stateUpdate.logs.push(`[护盾] ${oppData.name} 消耗了装备抵御毒气。`);
+                        } else {
+                            // Damage opponent, maybe drop key
+                            if (oppData.hasKey) {
+                                oppData.hasKey = false;
+                                stateUpdate.logs.push(`[毒气] ${oppData.name} 剧烈咳嗽，丢掉了密匙！`);
+                            } else {
+                                stateUpdate.logs.push(`[毒气] ${oppData.name} 受到毒气侵袭。`);
+                            }
+                        }
+                    }
+                } else { // 20% Wake Alien
+                    stateUpdate.logs.push(`[💀] 糟了！警报惊醒了异形！它立即行动！`);
+                    // Trigger extra alien move towards THIS player
+                    alienData = processAlienMove(alienData, myData, oppData, stateUpdate.logs, stateUpdate, [myData, oppData]);
+                }
             }
 
-            if (newPos === POD_POS && stateUpdate.podActive) {
-                stateUpdate.status = 'finished';
-                stateUpdate.winner = myPlayerId;
-                stateUpdate.winReason = '唯一的逃生舱已发射，胜者为王，败者化为宇宙尘埃。';
-                logs.push(`🚀 ${myName} 登上了逃生舱！抛弃了队友独自逃生！`);
-                submitUpdate(stateUpdate);
+            // 2. Check Escape Pod
+            if (x === ESCAPE_POD_POS.x && y === ESCAPE_POD_POS.y) {
+                if (myData.hasKey) {
+                    stateUpdate.logs.push(`[🚀] ${myName} 插入密匙，启动了唯一的逃生舱！`);
+                    if (!oppData.dead && oppData.x === x && oppData.y === y) {
+                        // Both in pod? Only the one who clicked and has key wins, kills the other by "closing door"
+                        stateUpdate.logs.push(`[🔪] 极致背叛！${myName} 把 ${oppData.name} 踢出了舱门并锁死！`);
+                    }
+                    stateUpdate.winner = myPlayerId;
+                    stateUpdate.status = 'finished';
+                } else {
+                    stateUpdate.logs.push(`[🔒] 逃生舱已锁定，需要 🔑 密匙！`);
+                }
+            }
+
+            stateUpdate[myPlayerId] = myData;
+            stateUpdate[oppId] = oppData;
+            stateUpdate.alien = alienData;
+
+            if (stateUpdate.winner) {
+                applyAndSendUpdate(stateUpdate);
                 return;
             }
 
-            if (!stateUpdate.searched.includes(newPos)) {
-                stateUpdate.searched.push(newPos);
-                const rand = Math.random();
-                if (rand < 0.2 && !stateUpdate.podActive) {
-                    me.hasKey = true;
-                    stateUpdate.podActive = true;
-                    logs.push(`🔑 <span class="text-green-400">大发现！${myName} 找到了逃生密匙，中心逃生舱已启动！</span>`);
-                } else if (rand < 0.4 && !me.hasGun) {
-                    me.hasGun = true;
-                    logs.push(`🎒 <span class="text-blue-400">${myName} 搜刮到了一个急救包。</span>`);
-                } else if (rand < 0.6) {
-                    let adjCells = [newPos - 1, newPos + 1, newPos - GRID_W, newPos + GRID_W].filter(p => p >= 0 && p < 49 && !stateUpdate.collapsed.includes(p) && Math.abs((p%GRID_W) - (newPos%GRID_W)) <= 1);
-                    if(adjCells.length > 0) {
-                        stateUpdate.monster.pos = adjCells[Math.floor(Math.random() * adjCells.length)];
-                        logs.push(`👾 <span class="text-purple-400">警报！附近的阴影中窜出了变异体！它盯上你了！</span>`);
-                    } else {
-                        logs.push(`📦 房间里阴森森的，但似乎暂时安全。`);
-                    }
-                } else {
-                    logs.push(`📦 房间里空空如也，只有冷风吹过。`);
-                }
-            }
+            // 3. End of Turn Handling
+            completePlayerTurn(myPlayerId, stateUpdate);
+        };
 
-            finalizeTurn(stateUpdate, logs);
-        }
+        function completePlayerTurn(currentPlayerId, stateUpdate) {
+            let nextTurn = currentPlayerId === 'p1' ? 'p2' : 'p1';
+            let oppData = stateUpdate[nextTurn] || gameState[nextTurn];
+            
+            stateUpdate.hasRolled = false;
 
-        function finalizeTurn(stateUpdate, logs) {
-            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            let nextTurn = oppId;
-
-            if (myPlayerId === 'p2' || (myPlayerId === 'p1' && !stateUpdate.p2.alive)) {
-                processWorldEvents(stateUpdate, logs);
-                nextTurn = stateUpdate.p1.alive ? 'p1' : (stateUpdate.p2.alive ? 'p2' : 'p1');
-            } else if (!stateUpdate.p2.alive) {
-                nextTurn = 'p1';
-            }
-
-            if (!stateUpdate.p1.alive && !stateUpdate.p2.alive) {
-                stateUpdate.status = 'finished';
-                stateUpdate.winner = null;
-                stateUpdate.winReason = '所有探险家均已阵亡，科研基地彻底化为死城。';
-            } else {
+            // If opponent is dead, skip their turn and act as if round ended
+            if (oppData.dead) {
+                stateUpdate.turn = currentPlayerId; // give turn back
+                processRoundEnd(stateUpdate);
+            } 
+            // If P2 just finished, round ends
+            else if (currentPlayerId === 'p2') {
+                stateUpdate.turn = 'p1';
+                processRoundEnd(stateUpdate);
+            } 
+            else {
                 stateUpdate.turn = nextTurn;
             }
 
-            stateUpdate.logs = logs;
-            submitUpdate(stateUpdate);
+            applyAndSendUpdate(stateUpdate);
         }
 
-        function processWorldEvents(state, logs) {
-            let targets = [];
-            if(state.p1.alive) targets.push(state.p1.pos);
-            if(state.p2.alive) targets.push(state.p2.pos);
+        function processRoundEnd(stateUpdate) {
+            let logs = stateUpdate.logs;
+            let round = gameState.round + 1;
+            stateUpdate.round = round;
+            logs.push(`--- 第 ${round} 轮开始 ---`);
+
+            let p1Data = stateUpdate.p1 || gameState.p1;
+            let p2Data = stateUpdate.p2 || gameState.p2;
+            let alienData = stateUpdate.alien || gameState.alien;
+
+            // 1. Alien Action (Move 1-3 steps towards nearest player)
+            let alienSteps = Math.floor(Math.random() * 3) + 1;
+            logs.push(`[👾] 异形嗅到了生者的气息，移动了 ${alienSteps} 格...`);
             
-            if(targets.length > 0) {
-                let mPos = state.monster.pos;
-                let steps = Math.floor(Math.random() * 3) + 1; // 随机移动1-3格
-                let movedSteps = 0;
-                let fellIntoTrap = false;
+            for(let s=0; s<alienSteps; s++) {
+                alienData = processAlienMove(alienData, p1Data, p2Data, logs, stateUpdate, [p1Data, p2Data]);
+                if (stateUpdate.winner) break; // Game over during alien move
+            }
+            stateUpdate.alien = alienData;
 
-                for (let s = 0; s < steps; s++) {
-                    let mX = mPos % GRID_W, mY = Math.floor(mPos / GRID_W);
-                    
-                    let minDist = 999, bestTarget = mPos;
-                    targets.forEach(tPos => {
-                        let tX = tPos % GRID_W, tY = Math.floor(tPos / GRID_W);
-                        let dist = Math.abs(tX - mX) + Math.abs(tY - mY);
-                        if(dist < minDist) { minDist = dist; bestTarget = tPos; }
-                    });
+            if (stateUpdate.winner) return;
 
-                    if (minDist === 0) break; 
-                    
-                    // 防瞬移：如果这不是移动的第一步，且异形和玩家只剩1格的距离了，就强行停止移动。
-                    if (minDist === 1 && s > 0) break;
-
-                    let tX = bestTarget % GRID_W, tY = Math.floor(bestTarget / GRID_W);
-                    let nextX = mX, nextY = mY;
-                    
-                    if (mX < tX) nextX++; else if (mX > tX) nextX--;
-                    else if (mY < tY) nextY++; else if (mY > tY) nextY--;
-                    
-                    let nextPos = nextY * GRID_W + nextX;
-                    mPos = nextPos;
-                    movedSteps++;
-
-                    if (state.collapsed.includes(mPos)) {
-                        fellIntoTrap = true;
-                        break;
+            // 2. Map Collapse (1-2 grids)
+            let collapsed = stateUpdate.collapsed ? [...stateUpdate.collapsed] : [...gameState.collapsed];
+            let collapseCount = Math.floor(Math.random() * 2) + 1;
+            
+            let possibleCollapses = [];
+            for(let y=0; y<GRID_SIZE; y++){
+                for(let x=0; x<GRID_SIZE; x++){
+                    if (x===ESCAPE_POD_POS.x && y===ESCAPE_POD_POS.y) continue;
+                    let key = `${x},${y}`;
+                    if (!collapsed.some(c => c.x===x && c.y===y) && 
+                        !(p1Data.x===x && p1Data.y===y && !p1Data.dead) &&
+                        !(p2Data.x===x && p2Data.y===y && !p2Data.dead) &&
+                        !(alienData.x===x && alienData.y===y)) {
+                        possibleCollapses.push({x,y});
                     }
                 }
+            }
 
-                if (fellIntoTrap) {
-                    state.monster.pos = 0;
-                    logs.push(`👾 变异体在狂奔时掉入了坍塌区域，随后在休眠舱重新出现！`);
-                } else if (movedSteps > 0) {
-                    state.monster.pos = mPos;
-                    logs.push(`👾 变异体发出一声嘶吼，快速逼近了 ${movedSteps} 格！`);
+            for(let i=0; i<collapseCount && possibleCollapses.length > 0; i++) {
+                let idx = Math.floor(Math.random() * possibleCollapses.length);
+                let cCell = possibleCollapses.splice(idx, 1)[0];
+                collapsed.push(cCell);
+                logs.push(`[⚠️] 轰隆！坐标 (${cCell.x},${cCell.y}) 发生了坍塌！`);
+            }
+            stateUpdate.collapsed = collapsed;
+        }
+
+        // Alien AI single step calculation
+        function processAlienMove(alien, p1, p2, logs, stateUpdate, players) {
+            let targets = players.filter(p => !p.dead);
+            if (targets.length === 0) {
+                stateUpdate.winner = 'none';
+                return alien;
+            }
+
+            // Find closest target using BFS distance
+            let collapsedSet = new Set((stateUpdate.collapsed || gameState.collapsed).map(c => `${c.x},${c.y}`));
+            
+            let bestTarget = null;
+            let minPath = null;
+
+            targets.forEach(t => {
+                let path = getPathBFS(alien.x, alien.y, t.x, t.y, collapsedSet);
+                if (path && (!minPath || path.length < minPath.length)) {
+                    minPath = path;
+                    bestTarget = t;
                 }
+            });
 
-                let p1Hit = state.p1.alive && state.monster.pos === state.p1.pos;
-                let p2Hit = state.p2.alive && state.monster.pos === state.p2.pos;
-                let isCoop = state.p1.alive && state.p2.alive && (isAdjacent(state.p1.pos, state.p2.pos) || state.p1.pos === state.p2.pos);
-                
-                if (p1Hit || p2Hit) {
-                    if (isCoop) {
-                        logs.push(`🔫 <span class="text-green-500">双人火力交织！变异体被暂时击退回了深渊！</span>`);
-                        state.monster.pos = 0; 
+            if (minPath && minPath.length > 0) {
+                // Move 1 step along the path
+                alien.x = minPath[0].x;
+                alien.y = minPath[0].y;
+            }
+
+            // Check Collision
+            targets.forEach(t => {
+                if (alien.x === t.x && alien.y === t.y) {
+                    // Encounter!
+                    // Check if they are together (distance <= 1)
+                    let p1Alive = !p1.dead;
+                    let p2Alive = !p2.dead;
+                    let isTogether = p1Alive && p2Alive && getManhattanDist(p1, p2) <= 1;
+
+                    if (isTogether) {
+                        logs.push(`[🛡️] 激战！${p1.name} 和 ${p2.name} 互相掩护，合力逼退了异形！`);
+                        // Push alien back (simplified: just stays or moves randomly)
+                    } else if (t.hasGun) {
+                        t.hasGun = false;
+                        logs.push(`[🔫] 惊险！${t.name} 用脉冲重机枪击退了异形，武器耗尽！`);
                     } else {
-                        if (p1Hit) {
-                            if (state.p1.hasGun) { state.p1.hasGun = false; logs.push(`🩸 <span class="text-yellow-500">${state.p1.name} 消耗了急救包，死里逃生！</span>`); }
-                            else { state.p1.alive = false; logs.push(`💀 <span class="text-red-600 font-bold">${state.p1.name} 被变异体无情撕碎！</span>`); }
-                        }
-                        if (p2Hit) {
-                            if (state.p2.hasGun) { state.p2.hasGun = false; logs.push(`🩸 <span class="text-yellow-500">${state.p2.name} 消耗了急救包，死里逃生！</span>`); }
-                            else { state.p2.alive = false; logs.push(`💀 <span class="text-red-600 font-bold">${state.p2.name} 被变异体无情撕碎！</span>`); }
+                        t.dead = true;
+                        logs.push(`[🩸] 惨叫！落单的 ${t.name} 被异形撕碎了！`);
+                        if (t.hasKey) {
+                            t.hasKey = false;
+                            logs.push(`[🔑] 密匙掉落在了血泊中...`);
+                            // Drop key mechanics omitted for simplicity, or treat as lost forever to increase panic
                         }
                     }
                 }
+            });
+
+            if (players.every(p => p.dead)) {
+                stateUpdate.winner = 'alien';
             }
 
-            let availableCells = [];
-            for(let i=0; i<49; i++) {
-                if(!state.collapsed.includes(i) && i !== POD_POS) availableCells.push(i);
-            }
-            if(availableCells.length > 0) {
-                let collapseCount = Math.floor(Math.random() * 2) + 1; 
-                collapseCount = Math.min(collapseCount, availableCells.length); 
-                
-                for (let c = 0; c < collapseCount; c++) {
-                    let randIndex = Math.floor(Math.random() * availableCells.length);
-                    let collapseIdx = availableCells[randIndex];
-                    availableCells.splice(randIndex, 1); 
-                    
-                    state.collapsed.push(collapseIdx);
-                    logs.push(`💥 基地结构老化，区域 [${collapseIdx%7},${Math.floor(collapseIdx/7)}] 发生塌陷！`);
-                    
-                    if(state.p1.alive && state.p1.pos === collapseIdx) {
-                        state.p1.alive = false;
-                        logs.push(`💀 ${state.p1.name} 坠入了无底深渊！`);
-                    }
-                    if(state.p2.alive && state.p2.pos === collapseIdx) {
-                        state.p2.alive = false;
-                        logs.push(`💀 ${state.p2.name} 坠入了无底深渊！`);
-                    }
-                }
-            }
+            return alien;
         }
 
-        function submitUpdate(stateUpdate) {
+        // Simple BFS to find actual path (returns array of next steps)
+        function getPathBFS(startX, startY, targetX, targetY, collapsedSet) {
+            let queue = [{x: startX, y: startY, path: []}];
+            let visited = new Set([`${startX},${startY}`]);
+            
+            while(queue.length > 0) {
+                let curr = queue.shift();
+                if(curr.x === targetX && curr.y === targetY) return curr.path;
+
+                let dirs = [[0,1],[1,0],[0,-1],[-1,0]];
+                for(let d of dirs) {
+                    let nx = curr.x + d[0], ny = curr.y + d[1];
+                    let key = `${nx},${ny}`;
+                    if(nx>=0 && nx<GRID_SIZE && ny>=0 && ny<GRID_SIZE && !collapsedSet.has(key) && !visited.has(key)) {
+                        visited.add(key);
+                        queue.push({x: nx, y: ny, path: [...curr.path, {x: nx, y: ny}]});
+                    }
+                }
+            }
+            return null;
+        }
+
+        function applyAndSendUpdate(stateUpdate) {
+            // Optimistic Update
             gameState = { ...gameState, ...stateUpdate };
+            if (stateUpdate.p1) gameState.p1 = stateUpdate.p1;
+            if (stateUpdate.p2) gameState.p2 = stateUpdate.p2;
+            
             requestAnimationFrame(renderGameState);
-
-            const cloudData = { ...stateUpdate };
-            delete cloudData._id; 
-
-            getRoomRef(currentRoomId).update(cloudData).catch(e => console.error('网络同步失败:', e));
+            // Async send
+            getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error('网络同步失败:', e));
         }
 
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            // Trigger reflow
+            void toast.offsetWidth;
+            toast.classList.remove('opacity-0', 'translate-y-4');
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-4');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        };
+
+        window.closeMsgModal = function() {
+            document.getElementById('msgModalContent').classList.add('scale-95');
+            setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200);
+        };
+
+        window.resetGame = async function() {
+            if (!currentRoomId || !gameState) return;
+            
+            await getRoomRef(currentRoomId).update({
+                status: 'playing',
+                p1: { ...gameState.p1, x: 0, y: 0, hasKey: false, hasGun: false, dead: false },
+                p2: { ...gameState.p2, x: 9, y: 9, hasKey: false, hasGun: false, dead: false },
+                alien: { x: 9, y: 0 },
+                boxes: generateInitialBoxes(),
+                collapsed: [],
+                turn: 'p1',
+                round: 1,
+                diceValue: null,
+                hasRolled: false,
+                winner: null,
+                logs: [`[系统] 终端重启。时间回溯，新的轮回开始了。红方先手。`]
+            });
+            closeMsgModal();
+        };
+
+        // Init App
         initAuth();
     </script>
 </body>
 </html>
-```eof
