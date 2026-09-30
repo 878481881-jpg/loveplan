@@ -200,11 +200,13 @@
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+        /* 嘲讽特效绝对顶层 */
         .taunt-projectile {
             position: fixed;
-            z-index: 200;
+            z-index: 9999;
             pointer-events: none;
             transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+            will-change: transform, left, top;
         }
         @keyframes voicePop {
             0% { transform: scale(0.5); opacity: 0; }
@@ -215,10 +217,12 @@
             animation: voicePop 0.3s forwards;
             background: white;
             border: 2px solid #ddd;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 12px;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            color: #333;
+            font-size: 14px;
+            white-space: nowrap;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
         }
         
         .placing-mode-active {
@@ -227,7 +231,8 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-24">
+<!-- 加大了 pb (底部留白)，防止页面内容被新的悬浮栏遮挡 -->
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-40">
     <!-- 背景云朵 -->
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
@@ -240,7 +245,7 @@
         </div>
     </div>
 
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-sky-400/50"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/95 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-[1000] whitespace-nowrap border border-sky-400/50"></div>
 
     <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
@@ -300,8 +305,8 @@
             <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
                 <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规 (道具拓展版)</h3>
                 <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li><b class="text-green-600">🎒手牌道具</b>：停留 🎁 盲盒可获取主动道具，点击物品栏随时释放扭转战局！</li>
-                    <li><b class="text-yellow-600">👑王牌与赏金</b>：击杀敌机成为王牌，击落王牌可<b class="text-red-500">直接起飞新机</b>！</li>
+                    <li><b class="text-green-600">🎒手牌道具</b>：停留 🎁 盲盒可获取主动道具，随时释放扭转战局！</li>
+                    <li><b class="text-yellow-600">👑王牌与赏金</b>：击杀敌机成为王牌，击落王牌可直接起飞新机！</li>
                     <li><b class="text-purple-500">❓高能盲盒</b>：遭遇黑洞坍塌、洗牌、突发雷电等随机事件！</li>
                 </ul>
             </div>
@@ -380,19 +385,19 @@
         </div>
     </main>
 
-    <!-- 物品栏 -->
-    <div id="inventoryBar" class="fixed bottom-16 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_20px_rgba(0,0,0,0.15)] border border-sky-200 flex gap-3 z-40 hidden w-[90%] max-w-sm overflow-x-auto items-center">
+    <!-- 物品栏 (位置抬高且 z-index 设置最高防止遮挡) -->
+    <div id="inventoryBar" class="fixed bottom-[100px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex gap-3 z-[200] hidden w-[90%] max-w-sm overflow-x-auto items-center">
         <span class="text-xs font-bold text-sky-700 whitespace-nowrap">🎒 物品栏</span>
         <div id="itemsContainer" class="flex gap-2 flex-1 items-center">
             <span class="text-xs text-gray-400 ml-2 italic">踩中 🎁 获取道具</span>
         </div>
     </div>
 
-    <!-- 嘲讽栏 -->
-    <div id="tauntBar" class="fixed bottom-3 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-full shadow-lg border border-gray-100 flex gap-4 z-40 hidden">
-        <button onclick="sendTaunt('tomato')" class="text-2xl hover:scale-125 transition-transform active:scale-90" title="扔番茄">🍅</button>
-        <button onclick="sendTaunt('bomb')" class="text-2xl hover:scale-125 transition-transform active:scale-90" title="扔炸弹">💣</button>
-        <button onclick="sendTaunt('voice')" class="text-2xl hover:scale-125 transition-transform active:scale-90 flex items-center" title="发送文字气泡">💬</button>
+    <!-- 嘲讽栏 (修复移动端底栏遮挡，且增加视觉反馈与最顶层级) -->
+    <div id="tauntBar" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-6 py-2.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-gray-100 flex gap-8 z-[200] hidden">
+        <button onclick="sendTaunt('tomato')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔番茄">🍅</button>
+        <button onclick="sendTaunt('bomb')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md" title="扔炸弹">💣</button>
+        <button onclick="sendTaunt('voice')" class="text-3xl hover:scale-125 active:scale-75 transition-transform outline-none touch-manipulation drop-shadow-md flex items-center" title="发送文字气泡">💬</button>
     </div>
 
     <script type="module">
@@ -433,6 +438,7 @@
         let gameState = null; 
         let myPlayerId = null;
         let lastProcessedInteractionTs = 0; 
+        let isRoomFirstLoad = true;
         
         window.isPlacingBarricade = false;
         window.placingBarricadeItemIndex = -1;
@@ -447,7 +453,6 @@
         const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6} ]; 
         const p2HomeCoords = [ {x: 11, y: 11}, {x: 10, y: 10}, {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7} ]; 
         
-        // 分离恶作剧盲盒和道具盲盒
         const eventCellIndices = [3, 8, 14, 19, 25, 30, 36, 41];
         const itemCellIndices = [5, 12, 17, 23, 28, 34, 39]; 
 
@@ -586,8 +591,7 @@
                 status: 'waiting', 
                 p1: { name: myName, pieces: [-1,-1,-1,-1], aces: [false,false,false,false], bombers:[false,false,false,false], items:[], shield:false },
                 p2: { name: null, pieces: [-1,-1,-1,-1], aces: [false,false,false,false], bombers:[false,false,false,false], items:[], shield:false },
-                barricades: [],
-                turn: 'p1', diceValue: null, hasRolled: false,
+                barricades: [], turn: 'p1', diceValue: null, hasRolled: false,
                 logs: [`${myName} 创建了航班，等待对手...`], winner: null,
                 weather: { type: 'normal', remainingTurns: 0, zone: [] },
                 latestInteraction: null
@@ -623,6 +627,7 @@
 
         function listenToRoom(code) {
             currentRoomId = code;
+            isRoomFirstLoad = true; // 重置进入房间状态
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
             document.getElementById('tauntBar').classList.remove('hidden');
@@ -634,7 +639,12 @@
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        // 兼容检查
+                        // 防止老房间记录在刷新时自动播放历史动画
+                        if (isRoomFirstLoad) {
+                            lastProcessedInteractionTs = Date.now();
+                            isRoomFirstLoad = false;
+                        }
+                        
                         if(!data.p1.bombers) data.p1.bombers = [false,false,false,false];
                         if(!data.p2.bombers) data.p2.bombers = [false,false,false,false];
                         if(!data.p1.items) data.p1.items = []; if(!data.p2.items) data.p2.items = [];
@@ -700,7 +710,6 @@
                 document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
             }
             
-            // 护盾特效
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
@@ -712,7 +721,7 @@
         function renderInventory() {
             const container = document.getElementById('itemsContainer');
             container.innerHTML = '';
-            const myItems = gameState[myPlayerId].items || [];
+            const myItems = gameState[myPlayerId] ? gameState[myPlayerId].items || [] : [];
             
             myItems.forEach((item, idx) => {
                 const btn = document.createElement('button');
@@ -763,7 +772,7 @@
                 window.placingBarricadeItemIndex = idx;
                 showToast("👉 请点击赛道上的任意格子放置路障");
                 document.getElementById('board-container').classList.add('placing-mode-active');
-                return; // 不在此处立刻消耗道具
+                return;
             }
             
             myItems.splice(idx, 1);
@@ -790,14 +799,12 @@
                     let targetIdx = validTargets[0].idx;
                     oppPieces[targetIdx] = -1;
                     stateUpdate[`${oppId}.pieces`] = oppPieces;
-                    logs.push(`🚀 嗖——砰！${myName} 发射了【定向导弹】，精准炸毁了前方的一架敌机！`);
-                } else {
-                    return showToast("前方 6 格内未锁定任何敌机");
-                }
+                    logs.push(`🚀 嗖——砰！${myName} 发射了【定向导弹】，炸毁了前方的一架敌机！`);
+                } else { return showToast("前方 6 格内未锁定任何敌机"); }
             } 
             else if (item === 'shield') {
                 stateUpdate[`${myPlayerId}.shield`] = true;
-                logs.push(`🛡️ ${myName} 开启了【反导护盾】，可抵消一次坠机灾难！`);
+                logs.push(`🛡️ ${myName} 开启了【反导护盾】，可抵挡一次坠机灾难！`);
             }
             else if (item === 'bomber') {
                 let bestIdx = -1, maxPos = -2;
@@ -806,10 +813,8 @@
                     let myBombers = [...gameState[myPlayerId].bombers];
                     myBombers[bestIdx] = true;
                     stateUpdate[`${myPlayerId}.bombers`] = myBombers;
-                    logs.push(`🛸 警告！${myName} 将最前线的战机暴力改装为【轰炸机】！周边3格进入死亡禁区！`);
-                } else {
-                    return showToast("主赛道上没有可改装的战机");
-                }
+                    logs.push(`🛸 警告！${myName} 将前线战机改装为【轰炸机】！周边3格进入死亡禁区！`);
+                } else { return showToast("主赛道上没有可改装的战机"); }
             }
             
             stateUpdate.logs = logs;
@@ -836,7 +841,7 @@
                 document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾 (限速1格)';
                 overlay.classList.add('weather-fog');
             } else if (type === 'thunder') {
-                document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '雷暴 (落雷预警)';
+                document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '雷暴预警';
                 overlay.classList.add('weather-thunder');
                 zone.forEach(pos => {
                     const coord = trackCoords[pos];
@@ -862,11 +867,8 @@
                     planeEl.classList.remove('plane-active');
                     if (aces && aces[i]) planeEl.classList.add('plane-ace'); else planeEl.classList.remove('plane-ace');
                     
-                    if (bombers && bombers[i]) {
-                        planeEl.innerText = '🚀'; planeEl.classList.add('plane-bomber');
-                    } else {
-                        planeEl.innerText = '✈️'; planeEl.classList.remove('plane-bomber');
-                    }
+                    if (bombers && bombers[i]) { planeEl.innerText = '🚀'; planeEl.classList.add('plane-bomber'); }
+                    else { planeEl.innerText = '✈️'; planeEl.classList.remove('plane-bomber'); }
 
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
                         const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
@@ -936,7 +938,7 @@
             const logs = [...gameState.logs]; logs.push(`${myName} 掷出了 ${roll} 点。`);
 
             if (!canMoveAny) {
-                logs.push(`⚠ 没有可起飞/移动的飞机，回合结束。`);
+                logs.push(`⚠ 没有可移动的飞机，回合结束。`);
                 nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
                 updateWeatherTurn(nextState, logs);
             }
@@ -957,11 +959,11 @@
                 const types = ['tailwind', 'thunder', 'fog'];
                 weather.type = types[Math.floor(Math.random() * types.length)];
                 weather.remainingTurns = Math.floor(Math.random() * 3) + 2; 
-                if (weather.type === 'tailwind') logs.push(`🌬️ 塔台预警：遭遇强劲顺风！所有移动 +2 格！`);
-                else if (weather.type === 'fog') logs.push(`🌫️ 塔台预警：大雾弥漫视野受限！飞行距离限制为 1 格！`);
+                if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
+                else if (weather.type === 'fog') logs.push(`🌫️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
                 else if (weather.type === 'thunder') {
                     weather.zone = Array.from({length: 6}, (_, i) => Math.floor(Math.random() * 35) + i);
-                    logs.push(`⚡ 塔台预警：前方出现雷暴区！`);
+                    logs.push(`⚡ 前方出现雷暴区！`);
                 }
             }
             stateUpdate.weather = weather;
@@ -999,21 +1001,19 @@
                 logs.push(`✈ ${myName} 的飞机驶出机库！`);
             } else {
                 let moveSteps = dice;
-                if (gameState.weather.type === 'tailwind') { moveSteps += 2; logs.push(`💨 顺风加持，额外前进 2 格！`); } 
-                else if (gameState.weather.type === 'fog') { moveSteps = 1; logs.push(`🌫️ 浓雾阻挡，只能小心前行 1 格。`); }
+                if (gameState.weather.type === 'tailwind') { moveSteps += 2; logs.push(`💨 顺风额外前进 2 格！`); } 
+                else if (gameState.weather.type === 'fog') { moveSteps = 1; logs.push(`🌫️ 浓雾限制仅前行 1 格。`); }
                 
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, gameState.barricades);
                 newPos = moveResult.pos;
                 if (moveResult.hitBarricadePos !== -1) {
                     hitBarricade = true;
-                    logs.push(`🚧 砰！${myName} 撞上了【强力路障】，被强制逼停！`);
+                    logs.push(`🚧 砰！${myName} 撞上了【强力路障】，被迫停下！`);
                     let remainingBarricades = (gameState.barricades || []).filter(b => b !== moveResult.hitBarricadePos);
-                    stateUpdate.barricades = remainingBarricades;
-                    gameState.barricades = remainingBarricades; 
+                    stateUpdate.barricades = remainingBarricades; gameState.barricades = remainingBarricades; 
                 }
             }
 
-            // 同色跳跃 (被路障拦下则不触发跳跃)
             if (newPos >= 0 && newPos <= 43 && !hitBarricade) {
                 if (getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
                     const path = generateLogicalPath(myPlayerId);
@@ -1023,8 +1023,7 @@
                         let moveResult = calculateDestination(myPlayerId, newPos, 4, gameState.barricades);
                         newPos = moveResult.pos;
                         if(moveResult.hitBarricadePos !== -1) {
-                            hitBarricade = true;
-                            logs.push(`💨 跳跃途中撞上【强力路障】被迫停下！`);
+                            hitBarricade = true; logs.push(`💨 跳跃途中撞上路障！`);
                             let remainingBarricades = (gameState.barricades || []).filter(b => b !== moveResult.hitBarricadePos);
                             stateUpdate.barricades = remainingBarricades; gameState.barricades = remainingBarricades;
                         } else { logs.push(`💨 触发同色跳跃！`); }
@@ -1032,35 +1031,31 @@
                 }
             }
 
-            // 道具空投格判定
             if (newPos >= 0 && newPos <= 43 && itemCellIndices.includes(newPos)) {
                 const types = ['missile', 'barricade', 'shield', 'bomber'];
                 const get = types[Math.floor(Math.random() * types.length)];
                 if (myItems.length < 3) {
                     myItems.push(get);
                     let n = get === 'missile'?'🚀导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡️护盾':'🛸轰炸机';
-                    logs.push(`🎁 ${myName} 拆开盲盒，获得了装备：【${n}】！`);
-                } else {
-                    logs.push(`🎒 ${myName} 的物品栏已满，无法拾取空投。`);
-                }
+                    logs.push(`🎁 拆开盲盒，获得：【${n}】！`);
+                } else { logs.push(`🎒 物品栏已满，无法拾取空投。`); }
             }
 
-            // 恶作剧盲盒
             let randEvent = -1;
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
-                randEvent = Math.floor(Math.random() * 11); // 0-10
+                randEvent = Math.floor(Math.random() * 11);
                 const triggerBadEvent = (action) => {
-                    if (myShield) { logs.push(`🛡️ ${myName} 的【反导护盾】弹开了恶意盲盒的攻击！`); myShield = false; }
+                    if (myShield) { logs.push(`🛡️ 【反导护盾】弹开了恶意盲盒！`); myShield = false; }
                     else { action(); }
                 };
 
                 switch(randEvent) {
-                    case 0: triggerBadEvent(() => { logs.push(`🌪️ 盲盒：高空气流，后退3格！`); newPos = calculateDestination(myPlayerId, newPos, -3, gameState.barricades).pos; }); break;
-                    case 1: logs.push(`🚀 盲盒：完美顺风，前进3格！`); newPos = calculateDestination(myPlayerId, newPos, 3, gameState.barricades).pos; break;
-                    case 2: triggerBadEvent(() => { logs.push(`⚡ 盲盒：被雷电击中，直接坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }); break;
-                    case 3: logs.push(`🎲 盲盒：拾取神秘胶囊，获得额外回合！`); extraTurn = true; break;
+                    case 0: triggerBadEvent(() => { logs.push(`🌪️ 高空气流，后退3格！`); newPos = calculateDestination(myPlayerId, newPos, -3, gameState.barricades).pos; }); break;
+                    case 1: logs.push(`🚀 完美顺风，前进3格！`); newPos = calculateDestination(myPlayerId, newPos, 3, gameState.barricades).pos; break;
+                    case 2: triggerBadEvent(() => { logs.push(`⚡ 被雷电击中，直接坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }); break;
+                    case 3: logs.push(`🎲 拾取神秘胶囊，额外回合！`); extraTurn = true; break;
                     case 4: 
-                        logs.push(`🌈 盲盒：跃迁至下一同色格！`);
+                        logs.push(`🌈 跃迁至下一同色格！`);
                         const path = generateLogicalPath(myPlayerId);
                         const currIdx = path.indexOf(newPos);
                         if (currIdx !== -1) {
@@ -1074,15 +1069,15 @@
                         if(validOpp.length > 0) {
                             const r = validOpp[Math.floor(Math.random() * validOpp.length)];
                             const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; 
-                            logs.push(`🔄 盲盒：空间传送装置！与敌方互换位置！`);
+                            logs.push(`🔄 空间传送！与敌方互换位置！`);
                         }
                         break;
-                    case 6: logs.push(`🛸 盲盒：UFO绑架，随机传送！`); newPos = Math.floor(Math.random() * 44); break;
-                    case 7: triggerBadEvent(() => { logs.push(`💣 盲盒：遭遇鸟击，退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; }); break;
-                    case 8: triggerBadEvent(() => { logs.push(`⛽ 盲盒：燃料泄漏，迫降后退 4 格！`); newPos = calculateDestination(myPlayerId, newPos, -4, gameState.barricades).pos; }); break;
-                    case 9: logs.push(`✈️ 盲盒：引擎过载，冲刺前进 4 格！`); newPos = calculateDestination(myPlayerId, newPos, 4, gameState.barricades).pos; break;
+                    case 6: logs.push(`🛸 UFO绑架，随机传送！`); newPos = Math.floor(Math.random() * 44); break;
+                    case 7: triggerBadEvent(() => { logs.push(`💣 遭遇鸟击，退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; }); break;
+                    case 8: triggerBadEvent(() => { logs.push(`⛽ 燃料泄漏，迫降退 4 格！`); newPos = calculateDestination(myPlayerId, newPos, -4, gameState.barricades).pos; }); break;
+                    case 9: logs.push(`✈️ 引擎过载，冲刺进 4 格！`); newPos = calculateDestination(myPlayerId, newPos, 4, gameState.barricades).pos; break;
                     case 10:
-                        logs.push(`🕳️ 【终极盲盒】黑洞坍塌！所有主赛道战机倒退 2 格！`);
+                        logs.push(`🕳️ 黑洞坍塌！所有主赛道战机倒退 2 格！`);
                         myPieces = myPieces.map(p => (p>=0 && p<=43) ? calculateDestination(myPlayerId, p, -2, gameState.barricades).pos : p);
                         oppPieces = oppPieces.map(p => (p>=0 && p<=43) ? calculateDestination(oppId, p, -2, gameState.barricades).pos : p);
                         newPos = myPieces[pieceIndex]; 
@@ -1090,36 +1085,34 @@
                 }
             }
             
-            // 天气：雷暴
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
-                    if (myShield) { logs.push(`🛡️ 护盾弹开了雷暴！`); myShield = false; }
-                    else { logs.push(`⚡ 轰隆！不幸被雷暴命中坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }
+                    if (myShield) { logs.push(`🛡️️ 护盾弹开了雷暴！`); myShield = false; }
+                    else { logs.push(`⚡ 轰隆！被雷暴击中坠毁！`); newPos = -1; myAces[pieceIndex] = false; myBombers[pieceIndex] = false; }
                 } else { logs.push(`⛈️ 惊险穿过雷暴区。`); }
             }
 
             myPieces[pieceIndex] = newPos;
 
-            // 撞击逻辑
             if (newPos >= 0 && newPos <= 43 && randEvent !== 10) { 
                 let collisionOccurred = false;
                 for(let i=0; i<4; i++) {
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                         if (oppShield) {
-                            logs.push(`🛡️ ${oppName} 的【反导护盾】抵挡了坠毁危机！`);
+                            logs.push(`🛡️ 敌方的【反导护盾】抵挡了坠毁危机！`);
                             oppShield = false;
                         } else {
                             oppPieces[i] = -1;
                             collisionOccurred = true;
-                            logs.push(`💥 ${myName} 强势击落了 ${oppName} 的飞机！`);
+                            logs.push(`💥 ${myName} 击落了 ${oppName} 的飞机！`);
                             if (oppBombers[i]) { logs.push(`⚠️ 击毁了敌方轰炸机！`); oppBombers[i] = false; }
                             
                             if (oppAces[i]) {
-                                logs.push(`💰 赏金触发！击落敌方【王牌】，奖励起飞一架新机并获得额外回合！`);
+                                logs.push(`💰 击落敌方【王牌】，奖励起飞新机！`);
                                 oppAces[i] = false; extraTurn = true;
                                 let idleIdx = myPieces.findIndex(p => p === -1);
-                                if (idleIdx !== -1) { myPieces[idleIdx] = myPlayerId === 'p1' ? 0 : 22; logs.push(`🚀 支援机已自动起飞！`); }
+                                if (idleIdx !== -1) { myPieces[idleIdx] = myPlayerId === 'p1' ? 0 : 22; }
                             }
                         }
                     }
@@ -1129,12 +1122,11 @@
                 }
             }
             
-            // 轰炸机殉爆逻辑
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
                 let bomberCrashed = false;
                 const checkExplosion = (piecesArray, acesArray, bombersArray, ownerId) => {
                     piecesArray.forEach((p, i) => {
-                        if (p >= 0 && p <= 43 && !(ownerId === myPlayerId && i === pieceIndex)) { // 排除自己
+                        if (p >= 0 && p <= 43 && !(ownerId === myPlayerId && i === pieceIndex)) { 
                             let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                             if (Math.min(dist1, dist2) <= 3) {
                                 if ((ownerId === oppId && oppShield) || (ownerId === myPlayerId && myShield)) {
@@ -1142,8 +1134,8 @@
                                     if(ownerId === oppId) oppShield = false; else myShield = false;
                                 } else {
                                     piecesArray[i] = -1; acesArray[i] = false;
-                                    logs.push(`🔥 【轰炸机】引爆！周边一架战机被摧毁！`);
-                                    if (bombersArray[i]) { bomberCrashed = true; logs.push(`⚠️ 轰炸机遇上轰炸机！引发殉爆！`); }
+                                    logs.push(`🔥 【轰炸机】引爆！周边战机被摧毁！`);
+                                    if (bombersArray[i]) { bomberCrashed = true; logs.push(`⚠️ 引发严重殉爆！`); }
                                     bombersArray[i] = false;
                                 }
                             }
@@ -1167,12 +1159,12 @@
             const allFinished = myPieces.every(p => p === 999);
             if (allFinished) {
                 stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished';
-                logs.push(`🏆 恭喜 ${myName} 所有飞机到达终点，获得胜利！`);
+                logs.push(`🏆 恭喜 ${myName} 获得胜利！`);
             }
 
             stateUpdate.hasRolled = false;
             if ((dice === 6 || extraTurn) && !allFinished) {
-                stateUpdate.turn = myPlayerId; logs.push((extraTurn && dice !== 6) ? `🔄 获得额外回合！` : `🎲 掷出 6 点，获得额外回合！`);
+                stateUpdate.turn = myPlayerId; logs.push((extraTurn && dice !== 6) ? `🔄 获得额外回合！` : `🎲 掷出 6 点，额外回合！`);
             } else if (!allFinished) {
                 stateUpdate.turn = oppId; updateWeatherTurn(stateUpdate, logs);
             }
@@ -1181,7 +1173,6 @@
             stateUpdate.logs = logs;
             
             gameState = { ...gameState, ...stateUpdate };
-            // 更新当前对象深层属性以便立即渲染
             gameState[myPlayerId] = {...gameState[myPlayerId], pieces: myPieces, aces: myAces, items: myItems, shield: myShield, bombers: myBombers};
             gameState[oppId] = {...gameState[oppId], pieces: oppPieces, aces: oppAces, shield: oppShield, bombers: oppBombers};
             
@@ -1222,7 +1213,6 @@
                     direction = -direction;
                 }
                 actualPos = path[tempIdx];
-                
                 if (barricades.includes(actualPos) && actualPos >= 0 && actualPos <= 43) {
                     hitBarricadePos = actualPos; break;
                 }
@@ -1230,17 +1220,29 @@
             return { pos: actualPos, hitBarricadePos };
         }
 
+        /* ----- 绝对可靠的嘲讽下发机制 ----- */
         window.sendTaunt = function(type) {
-            if (gameState.status !== 'playing') return;
-            const payload = { type: type, from: myPlayerId, ts: Date.now() };
-            
-            // 气泡文字直接写入日志，确保对方 100% 看到
-            if (type === 'voice') {
-                let logs = [...gameState.logs];
-                logs.push(`💬 ${myName} 嘲讽道: ${myPlayerId === 'p1' ? '😎就这？' : '😡急了？'}`);
-                getRoomRef(currentRoomId).update({ latestInteraction: payload, logs: logs });
-            } else {
-                getRoomRef(currentRoomId).update({ latestInteraction: payload });
+            try {
+                if (myPlayerId !== 'p1' && myPlayerId !== 'p2') return showToast("仅对局双方可互动");
+                if (!gameState || gameState.status !== 'playing') return showToast("游戏进行中才能互动哦");
+                
+                const payload = { type: type, from: myPlayerId, ts: Date.now() };
+                
+                // 1. 本地乐观渲染，点击瞬间保证一定会有反应（修复自己点没反应）
+                gameState.latestInteraction = payload;
+                processInteractions();
+
+                // 2. 将数据推给对方
+                let updateData = { latestInteraction: payload };
+                if (type === 'voice') {
+                    let logs = [...gameState.logs];
+                    logs.push(`💬 ${myName}: ${myPlayerId === 'p1' ? '😎就这？' : '😡急了？'}`);
+                    updateData.logs = logs;
+                }
+                // 云端 update 不会覆盖其他并发操作（因为并非覆盖整个文档）
+                getRoomRef(currentRoomId).update(updateData).catch(e => console.error("交互上传失败:", e));
+            } catch (e) {
+                console.error("互动发生异常", e);
             }
         };
 
@@ -1252,32 +1254,45 @@
             if(!startNode || !targetNode) return;
 
             const el = document.createElement('div');
+            el.className = 'taunt-projectile';
+            
+            const startRect = startNode.getBoundingClientRect();
+            const targetRect = targetNode.getBoundingClientRect();
+
+            // 如果头像节点因滚动不可见，则安全跳过不弹报错，正常情况下页面锁死不允许大滚动
+            if (startRect.width === 0) return;
+
             if (interaction.type === 'voice') {
                 el.innerText = interaction.from === 'p1' ? '😎就这？' : '😡急了？';
-                el.className = 'taunt-projectile taunt-voice';
-                const rect = startNode.getBoundingClientRect(); // 在发送者头上弹气泡更合理
-                el.style.left = `${rect.left - 10}px`; el.style.top = `${rect.top - 35}px`;
+                el.classList.add('taunt-voice');
+                // 气泡从发送者头顶偏上冒出
+                el.style.left = `${startRect.left + startRect.width/2 - 35}px`; 
+                el.style.top = `${startRect.top - 40}px`;
                 document.body.appendChild(el);
                 setTimeout(() => el.remove(), 2500);
                 return;
             }
 
-            el.className = 'taunt-projectile text-4xl';
+            el.classList.add('text-4xl');
             el.innerText = interaction.type === 'tomato' ? '🍅' : '💣';
             
-            const startRect = startNode.getBoundingClientRect();
-            const targetRect = targetNode.getBoundingClientRect();
-            el.style.left = `${startRect.left}px`; el.style.top = `${startRect.top}px`;
+            // 起点设定中心
+            el.style.left = `${startRect.left + startRect.width/2 - 18}px`;
+            el.style.top = `${startRect.top + startRect.height/2 - 18}px`;
             document.body.appendChild(el);
-            void el.offsetWidth; 
 
-            el.style.left = `${targetRect.left + 5}px`; el.style.top = `${targetRect.top + 5}px`;
+            void el.offsetWidth; // 强制刷新CSS布局
+
+            // 目标点设定中心，触发动画
+            el.style.left = `${targetRect.left + targetRect.width/2 - 18}px`;
+            el.style.top = `${targetRect.top + targetRect.height/2 - 18}px`;
             el.style.transform = 'rotate(720deg) scale(1.5)';
 
             setTimeout(() => {
-                el.innerText = '💥'; el.style.transform = 'scale(2)';
+                el.innerText = '💥';
+                el.style.transform = 'scale(2.5)';
                 setTimeout(() => el.remove(), 300);
-            }, 600);
+            }, 600); // 必须匹配 CSS 的 0.6s 动画
         }
 
         window.showToast = function(msg) {
