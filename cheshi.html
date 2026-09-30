@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗影猫鼠 🕵️🐭</title>
+    <title>暗影猫鼠 🕵️🐭cs</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.cloudbase.net">
@@ -26,11 +26,6 @@
             touch-action: manipulation;
         }
 
-        @keyframes float {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
-        }
-        
         @keyframes flyBounce {
             0%, 100% { transform: scale(1) translateY(0); }
             50% { transform: scale(1.15) translateY(-5px); }
@@ -153,7 +148,6 @@
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
-        
         <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
             <div class="bg-slate-800/80 backdrop-blur-md rounded-3xl p-6 border border-slate-700 shadow-xl flex flex-col items-center text-center">
                 <div class="w-24 h-24 bg-gradient-to-br from-slate-700 to-slate-900 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-slate-600">
@@ -229,7 +223,6 @@
             </div>
 
             <div class="w-full bg-slate-800/90 backdrop-blur-md rounded-2xl p-3 border border-slate-700 flex gap-3 h-32">
-                <!-- 动态注入的操作面板 -->
                 <div class="flex-shrink-0 flex flex-col items-center justify-center bg-slate-900 p-2 rounded-xl border border-slate-700 w-[120px] gap-1.5 relative" id="actionPanel">
                     <div class="text-xs text-slate-500">连接中...</div>
                 </div>
@@ -243,17 +236,18 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </main>
 
     <script type="module">
+        // 强制兜底，防止网络彻底卡死白屏
         const fallbackTimer = setTimeout(() => hideLoading(), 800);
 
         // ===== 腾讯云开发 CloudBase 配置 =====
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";             // TODO: 换成你的云开发环境ID
+        // 注意：请务必替换为您自己的环境ID，并确保在腾讯云后台开启了“匿名登录”！
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";             
         const REGION = "ap-shanghai";             
-        const ROOM_COLLECTION = "aeroplaneRooms"; // 复用原集合结构进行逻辑适配
+        const ROOM_COLLECTION = "aeroplaneRooms"; 
 
         function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
         function pickDoc(snapshot, code) {
@@ -278,11 +272,10 @@
 
         let currentRoomId = null, unsubscribeRoom = null, gameState = null, myPlayerId = null;
 
-        // --- 游戏核心参数 ---
         const GRID_SIZE = 8;
         const ESCAPE_POINTS = [{x: 0, y: 7}, {x: 7, y: 0}];
         const TRAPS = [{x: 2, y: 2}, {x: 2, y: 5}, {x: 5, y: 2}, {x: 5, y: 5}, {x: 3, y: 4}, {x: 4, y: 3}, {x: 1, y: 6}];
-        const MAX_TURNS = 30; // 追踪者有 30 个回合抓人
+        const MAX_TURNS = 30;
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -297,7 +290,6 @@
                     div.className = `board-cell`;
                     div.onpointerdown = () => handleCellClick(x, y);
 
-                    // 渲染终点
                     if (ESCAPE_POINTS.some(p => p.x === x && p.y === y)) {
                         div.classList.add('cell-escape');
                         div.innerHTML = '<span class="text-[9px] font-black text-green-300 drop-shadow-md">撤离</span>';
@@ -319,7 +311,7 @@
                 switchToLobby();
             } catch (err) {
                 console.error("Auth Error:", err);
-                showToast("暗网通信异常，请检查连接");
+                showToast("暗网通信异常，请检查环境配置");
                 switchToLobby();
             } finally { clearTimeout(fallbackTimer); hideLoading(); }
         }
@@ -343,8 +335,8 @@
             
             const initialData = {
                 status: 'waiting', 
-                p1: { name: myName, pos: {x: 0, y: 0} },       // Tracker
-                p2: { name: null, pos: {x: 7, y: 7}, fakeLogs: 3 }, // Prowler
+                p1: { name: myName, pos: {x: 0, y: 0} },
+                p2: { name: null, pos: {x: 7, y: 7}, fakeLogs: 3 },
                 turn: 'p1', 
                 logs: [`🔴 追踪者 [${myName}] 封锁了区域，等待目标落网...`],
                 winner: null,
@@ -355,7 +347,7 @@
             };
 
             try {
-                await getRoomRef(code).set(initialData);[cite: 1]
+                await getRoomRef(code).set(initialData);
                 myPlayerId = 'p1';
                 listenToRoom(code);
                 showToast(`区域码 ${code} 创建成功`);
@@ -374,7 +366,7 @@
                 if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) return showToast("区域已满");
 
                 if (data.status === 'waiting' && data.p1.name !== myName) {
-                    await getRoomRef(code).update({[cite: 1]
+                    await getRoomRef(code).update({
                         'p2.name': myName,
                         status: 'playing',
                         logs: [`🔵 潜行者 [${myName}] 已潜入，猎杀开始！`]
@@ -396,7 +388,7 @@
             initBoardGrid();
 
             if (unsubscribeRoom) unsubscribeRoom();
-            const watcher = getRoomRef(code).watch({[cite: 1]
+            const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
@@ -420,8 +412,6 @@
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
-            
-            // Turn Banner & Overlay
             const banner = document.getElementById('turnBanner');
             const bIcon = document.getElementById('turnBannerIcon');
             const bText = document.getElementById('turnBannerText');
@@ -443,7 +433,7 @@
                     banner.className = "w-full py-2.5 px-4 bg-slate-800 rounded-xl text-center text-sm font-bold text-slate-400 shadow-inner flex items-center justify-center gap-2 border border-slate-700";
                     bIcon.innerText = '👀';
                     const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    bText.innerText = `等待 ${activeName} 行动... (剩余回合: ${turnsLeft})`;
+                    bText.innerText = `等待 ${activeName} 行动... (剩余: ${turnsLeft})`;
                     overlay.classList.remove('hidden');
                 }
             }
@@ -453,7 +443,6 @@
             updateBoardCells(isMyTurn);
             updatePlanesPosition();
 
-            // Win Condition Check
             if (gameState.winner) {
                 overlay.classList.remove('hidden');
                 document.getElementById('msgModal').classList.remove('hidden');
@@ -516,16 +505,11 @@
                 for(let x=0; x<GRID_SIZE; x++) {
                     const cell = document.getElementById(`cell-${x}-${y}`);
                     if(!cell) continue;
-
-                    // 清理状态
                     cell.classList.remove('ring-2', 'ring-yellow-400/80', 'cursor-pointer', 'z-10', 'cell-trap-prowler');
 
-                    // 仅向潜行者展示陷阱
                     if (myPlayerId === 'p2' && TRAPS.some(t => t.x===x && t.y===y)) {
                         cell.classList.add('cell-trap-prowler');
                     }
-
-                    // 高亮可移动格子 (曼哈顿距离为 1)
                     if (isMyTurn) {
                         const dist = Math.abs(myPos.x - x) + Math.abs(myPos.y - y);
                         if (dist === 1) cell.classList.add('ring-2', 'ring-yellow-400/80', 'cursor-pointer', 'z-10');
@@ -564,14 +548,12 @@
             prowlerEl.style.top = `calc(${getCoordPercent(p2Pos.y)}% - 15px)`;
             prowlerEl.classList.toggle('plane-active', gameState.turn === 'p2' && gameState.status === 'playing');
 
-            // 核心隐藏机制：追踪者视角下，如果未暴露且未结束，则隐藏潜行者[cite: 1]
             if (myPlayerId === 'p1' && !gameState.prowlerRevealed && gameState.status === 'playing') {
                 prowlerEl.style.display = 'none';
             } else {
                 prowlerEl.style.display = 'flex';
             }
 
-            // 渲染探测仪
             document.querySelectorAll('.detector-icon').forEach(e => e.remove());
             gameState.detectors.forEach(d => {
                 const det = document.createElement('div');
@@ -591,7 +573,7 @@
             const myPos = gameState[myPlayerId].pos;
             const dist = Math.abs(myPos.x - x) + Math.abs(myPos.y - y);
 
-            if (dist !== 1) return; // 只能点相邻
+            if (dist !== 1) return; 
 
             let nextState = {};
             const logs = [...gameState.logs];
@@ -599,7 +581,7 @@
             let revealed = gameState.prowlerRevealed;
 
             if (myPlayerId === 'p2') {
-                revealed = false; // 默认重置暴露状态
+                revealed = false; 
                 const isTrap = TRAPS.some(t => t.x === newPos.x && t.y === newPos.y);
                 if (isTrap) {
                     if (Math.random() < 0.5) {
@@ -615,7 +597,6 @@
 
                 logs.push(`👣 潜行者已移动。`);
                 
-                // 触发已有探测仪[cite: 1]
                 gameState.detectors.forEach(d => {
                     if (Math.abs(d.x - newPos.x) <= 1 && Math.abs(d.y - newPos.y) <= 1) {
                         logs.push(`📡 探测仪异响：在 (${d.x}, ${d.y}) 周围1格内检测到生物源！`);
@@ -624,13 +605,12 @@
 
                 nextState['p2.pos'] = newPos;
                 nextState.prowlerRevealed = revealed;
-                nextState.turnCount = gameState.turnCount + 1; // P2 移动代表完整回合结束
+                nextState.turnCount = gameState.turnCount + 1; 
             } else {
                 logs.push(`🚁 追踪者已向 (${x}, ${y}) 推进。`);
                 nextState['p1.pos'] = newPos;
             }
 
-            // 判断胜负逻辑[cite: 1]
             const p1Pos = myPlayerId === 'p1' ? newPos : gameState.p1.pos;
             const p2Pos = myPlayerId === 'p2' ? newPos : gameState.p2.pos;
             let winner = null;
@@ -646,7 +626,7 @@
             if (winner) {
                 nextState.winner = winner;
                 nextState.status = 'finished';
-                nextState.prowlerRevealed = true; // 游戏结束时全亮
+                nextState.prowlerRevealed = true; 
             } else {
                 nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
                 if ((nextState.turnCount || gameState.turnCount) >= gameState.maxTurns) {
@@ -659,7 +639,6 @@
 
             nextState.logs = logs;
 
-            // 【乐观更新机制】无缝连贯体验[cite: 1]
             gameState = { ...gameState, ...nextState };
             if (nextState['p1.pos']) gameState.p1.pos = nextState['p1.pos'];
             if (nextState['p2.pos']) gameState.p2.pos = nextState['p2.pos'];
@@ -698,7 +677,7 @@
             };
 
             gameState = { ...gameState, ...nextState };
-            gameState.p2.fakeLogs = nextState['p2.fakeLogs']; // 嵌套属性乐观更新补偿
+            gameState.p2.fakeLogs = nextState['p2.fakeLogs']; 
             requestAnimationFrame(renderGameState);
             getRoomRef(currentRoomId).update(nextState);
         };
@@ -719,7 +698,7 @@
         window.resetGame = async function() {
             if (!currentRoomId || !gameState) return;
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
-            await getRoomRef(currentRoomId).update({[cite: 1]
+            await getRoomRef(currentRoomId).update({
                 status: 'playing',
                 'p1.pos': {x: 0, y: 0},
                 'p2.pos': {x: 7, y: 7},
@@ -734,7 +713,7 @@
             closeMsgModal();
         };
 
-        initAuth();[cite: 1]
+        initAuth();
     </script>
 </body>
 </html>
