@@ -3,33 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋 ✈️☁️ 终极对战版</title>
+    <title>云端飞行棋 ✈️☁️</title>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://static.cloudbase.net">
+    
     <!-- 腾讯云开发 CloudBase Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+    
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
             background-color: #e0f2fe;
-            background-image: radial-gradient(#bae6fd 2px, transparent 2px), radial-gradient(#bae6fd 2px, transparent 2px);
+            background-image: 
+                radial-gradient(#bae6fd 2px, transparent 2px),
+                radial-gradient(#bae6fd 2px, transparent 2px);
             background-size: 40px 40px;
             background-position: 0 0, 20px 20px;
             overflow-x: hidden;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
             touch-action: manipulation;
-            transition: background-color 1s ease;
+            -webkit-overflow-scrolling: touch;
         }
 
-        /* 天气背景变化 */
-        body.weather-storm { background-color: #94a3b8; background-image: radial-gradient(#cbd5e1 2px, transparent 2px); }
-        body.weather-tailwind { background-color: #dcfce7; background-image: radial-gradient(#bbf7d0 2px, transparent 2px); }
-
-        @keyframes float { 0%, 100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-10px) translateX(5px); } }
+        /* 基础动画 */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) translateX(0); }
+            50% { transform: translateY(-10px) translateX(5px); }
+        }
         .cloud { animation: float 6s ease-in-out infinite; }
         .cloud-delayed { animation: float 7s ease-in-out 2s infinite; }
 
@@ -46,29 +51,35 @@
             0%, 100% { transform: scale(1) translateY(0); }
             50% { transform: scale(1.15) translateY(-5px); }
         }
-        .plane-active { animation: flyBounce 1s infinite; z-index: 25 !important; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3)); }
+        .plane-active { 
+            animation: flyBounce 1s infinite; 
+            z-index: 20;
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
         
         .plane-transition { 
             transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1); 
-            will-change: transform, left, top; transform: translateZ(0); -webkit-backface-visibility: hidden;
+            will-change: transform, left, top;
+            transform: translateZ(0);
+            -webkit-backface-visibility: hidden;
         }
 
-        /* 护盾特效 */
-        .shielded {
-            position: relative;
-        }
-        .shielded::after {
-            content: '';
+        /* 新增：王牌特效 */
+        .plane-ace::after {
+            content: '👑';
             position: absolute;
-            inset: -4px;
-            border-radius: 50%;
-            border: 2px solid #38bdf8;
-            box-shadow: 0 0 8px #38bdf8, inset 0 0 4px #38bdf8;
-            animation: pulse-shield 1.5s infinite alternate;
-            pointer-events: none;
+            top: -12px;
+            right: -8px;
+            font-size: 14px;
+            filter: drop-shadow(0 0 2px rgba(255, 215, 0, 0.8));
+            animation: float 2s infinite;
         }
-        @keyframes pulse-shield { from { opacity: 0.6; transform: scale(1); } to { opacity: 1; transform: scale(1.1); } }
+        .plane-ace {
+            box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.8), inset 0 -2px 0 rgba(0,0,0,0.2) !important;
+            border-color: #fbbf24 !important;
+        }
 
+        /* 棋盘与格子样式 */
         #board-container {
             position: relative;
             width: 100%;
@@ -79,6 +90,7 @@
             box-shadow: 0 10px 25px rgba(0,0,0,0.05), inset 0 0 0 2px #fff;
             padding: 10px;
             margin: 0 auto;
+            overflow: hidden; /* 为了限制天气特效范围 */
         }
         
         #board-grid {
@@ -96,6 +108,7 @@
             justify-content: center;
             position: relative;
             box-shadow: inset 0 -2px 0 rgba(0,0,0,0.08);
+            transition: background-color 0.3s;
         }
 
         .cell-color-0 { background-color: #fca5a5; }
@@ -106,6 +119,47 @@
         .cell-home-blue { background-color: #e0f2fe; border: 1px dashed #93c5fd; }
         .cell-win { background: radial-gradient(circle, #fbbf24 0%, #f59e0b 100%); box-shadow: 0 0 10px #fbbf24; }
         .cell-empty { background-color: transparent; box-shadow: none; }
+
+        /* 新增：天气特效 */
+        @keyframes pulseRed {
+            0%, 100% { background-color: rgba(239, 68, 68, 0.2); }
+            50% { background-color: rgba(239, 68, 68, 0.7); box-shadow: 0 0 10px red inset; }
+        }
+        .thunder-zone {
+            animation: pulseRed 1s infinite !important;
+            border: 1px solid red;
+        }
+
+        .weather-overlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 25;
+            transition: all 1s ease;
+            border-radius: 20px;
+        }
+        .weather-fog {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(3px);
+        }
+        @keyframes flashLightning {
+            0%, 95%, 100% { background: transparent; }
+            96%, 98% { background: rgba(255, 255, 255, 0.8); }
+        }
+        .weather-thunder {
+            animation: flashLightning 5s infinite;
+            background: rgba(15, 23, 42, 0.3);
+        }
+        @keyframes windBlow {
+            from { background-position: 0 0; }
+            to { background-position: 400px 400px; }
+        }
+        .weather-tailwind {
+            background-image: radial-gradient(rgba(255,255,255,0.8) 1px, transparent 1px);
+            background-size: 30px 30px;
+            animation: windBlow 2s linear infinite;
+            opacity: 0.5;
+        }
 
         .plane {
             position: absolute;
@@ -139,55 +193,43 @@
         }
         .base-red { top: 0; left: 0; border-color: #fca5a5; }
         .base-blue { bottom: 0; right: 0; border-color: #93c5fd; }
+        .base-spot { width: 100%; height: 100%; border-radius: 50%; background: rgba(0,0,0,0.04); }
 
-        .base-spot { width: 100%; height: 100%; border-radius: 50%; background: rgba(0,0,0,0.04); display: flex; align-items: center; justify-content: center; position: relative; }
-
-        /* 虫洞特效 */
-        .portal-cell::after {
-            content: '🌌';
-            position: absolute;
-            font-size: 1.2rem;
-            animation: spin 4s linear infinite;
-            z-index: 5;
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            10% { opacity: 1; transform: translate(-50%, 0); }
+            90% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
         }
-        /* 地雷特效 */
-        .trap-cell::after {
-            content: '💣';
-            position: absolute;
-            font-size: 1rem;
-            animation: pulse-trap 1s infinite alternate;
-            z-index: 5;
-        }
-        
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        @keyframes pulse-trap { from { transform: scale(1); } to { transform: scale(1.2); } }
-
-        @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
-        
-        /* 嘲讽表情动画 */
-        @keyframes floatUpEmoji {
-            0% { opacity: 0; transform: translateY(20px) scale(0.5); }
-            20% { opacity: 1; transform: translateY(-20px) scale(1.5); }
-            80% { opacity: 1; transform: translateY(-80px) scale(1.5); }
-            100% { opacity: 0; transform: translateY(-100px) scale(1); }
-        }
-        .taunt-emoji {
-            position: fixed;
-            left: 50%;
-            top: 40%;
-            margin-left: -25px;
-            font-size: 50px;
-            z-index: 200;
-            pointer-events: none;
-            animation: floatUpEmoji 2s ease-out forwards;
-        }
-
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 互动动画样式 */
+        .taunt-projectile {
+            position: fixed;
+            z-index: 200;
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        @keyframes voicePop {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .taunt-voice {
+            animation: voicePop 0.3s forwards;
+            background: white;
+            border: 2px solid #ddd;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative">
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-20">
+    <!-- 背景云朵 -->
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️</div>
@@ -195,13 +237,14 @@
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">✈️</div>
         <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
-            <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span> 连接塔台中...
+            <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span>
+            连接塔台中...
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-sky-900/95 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold hidden z-50 whitespace-nowrap border border-sky-400/50"></div>
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap border border-sky-400/50"></div>
 
-    <div id="msgModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
+    <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
             <div id="msgIcon" class="text-6xl mb-4 animate-bounce">🏆</div>
             <h3 class="text-2xl font-bold text-sky-600 mb-2" id="msgTitle">游戏结束</h3>
@@ -213,84 +256,97 @@
         </div>
     </div>
 
-    <header class="w-full max-w-md flex flex-col gap-2 mb-2 z-10 px-2">
-        <div class="flex justify-between items-center bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
-            <div class="flex items-center gap-2">
-                <span class="text-3xl" onclick="initAudio()">✈️</span>
-                <div>
-                    <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-orange-500 bg-orange-100 px-1 rounded">PRO</span></h1>
-                    <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Aero Chess Battle</p>
-                </div>
-            </div>
-            <div class="flex flex-col items-end">
-                <div class="bg-white/90 px-3 py-1.5 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
-                    <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
-                </div>
-                <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
-                </span>
+    <!-- 顶栏状态 -->
+    <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
+        <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
+            <span class="text-3xl">✈️</span>
+            <div>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋</h1>
+                <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Aero Chess Battle</p>
             </div>
         </div>
-        
-        <!-- 全局天气与情报栏 -->
-        <div id="weatherBanner" class="hidden bg-gradient-to-r from-blue-100 to-sky-100 rounded-xl px-3 py-2 flex items-center justify-between border border-blue-200/50 shadow-sm transition-all duration-500">
-            <div class="flex items-center gap-2">
-                <span id="weatherIcon" class="text-xl animate-pulse">☀️</span>
-                <span id="weatherText" class="text-sm font-bold text-blue-700">晴空万里 (无特殊效果)</span>
+        <div class="flex flex-col items-end">
+            <div class="bg-white/90 px-3 py-1.5 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
             </div>
-            <span id="turnCounterText" class="text-xs font-bold text-blue-500/70">第 1 轮</span>
+            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            </span>
         </div>
     </header>
 
-    <main class="w-full max-w-md flex flex-col items-center gap-3 relative z-10">
+    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
         
         <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
+            <!-- 大厅容器 -->
             <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 border-2 border-sky-100 shadow-xl flex flex-col items-center text-center">
+                <div class="w-24 h-24 bg-gradient-to-br from-sky-100 to-blue-100 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner border-4 border-white">🌍</div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">准备起飞</h2>
-                <div class="w-full space-y-4 mt-2">
-                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                <p class="text-sm text-gray-500 mb-6 px-2">创建房间邀请对手，或输入航班号加入对战。</p>
+                <div class="w-full space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-lg shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
                         <span>✨</span> 创建对战房间 (红方)
                     </button>
-                    <div class="flex flex-col gap-2 w-full mt-4">
-                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位航班号" class="w-full px-4 py-3 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400">
-                        <button onclick="joinRoom()" class="w-full py-3 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg active:scale-[0.98] transition-all">
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold uppercase tracking-wider">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+                    <div class="flex flex-col gap-3 w-full">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位航班号" class="w-full px-4 py-4 bg-white border-2 border-sky-100 rounded-2xl text-center text-xl font-black text-sky-700 tracking-[0.5em] focus:outline-none focus:border-sky-400 focus:ring-4 focus:ring-sky-100 uppercase transition-all shadow-inner" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-lg rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
                             加入对战 (蓝方)
                         </button>
                     </div>
                 </div>
             </div>
-            
-            <div class="bg-white/90 rounded-2xl p-4 border border-white shadow-md text-left">
-                <h3 class="text-sm font-bold text-sky-800 mb-3 flex items-center gap-1"><span>🎖️</span> 专属战机编队 (按顺序出战)</h3>
-                <div class="grid grid-cols-2 gap-2 text-xs font-medium text-gray-700">
-                    <div class="bg-sky-50 p-2 rounded-lg border border-sky-100"><span class="text-base">🛩️</span> <b>侦察机:</b> 4,5,6点即可起飞。</div>
-                    <div class="bg-sky-50 p-2 rounded-lg border border-sky-100"><span class="text-base">✈️</span> <b>战斗机:</b> 同色跳跃时额外进1格。</div>
-                    <div class="bg-sky-50 p-2 rounded-lg border border-sky-100"><span class="text-base">🚀</span> <b>轰炸机:</b> 击落敌机额外前进3格。</div>
-                    <div class="bg-sky-50 p-2 rounded-lg border border-sky-100"><span class="text-base">🛸</span> <b>护卫舰:</b> 自带护盾抵御一次伤害。</div>
-                </div>
+            <!-- 规则说明 -->
+            <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
+                <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 航班管制新规 (全新拓展)</h3>
+                <ul class="text-xs text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
+                    <li><b class="text-yellow-600">👑王牌与赏金</b>：击杀敌机即可成为王牌，击落王牌者可<b class="text-red-500">直接起飞一架新战机</b>！</li>
+                    <li><b class="text-blue-500">🌪全局天气</b>：塔台随机发布雷暴/顺风/大雾天气，改变赛场规则。</li>
+                    <li><b class="text-purple-500">❓高能盲盒</b>：新增【时光倒流】【全盘洗牌】等终极逆转事件！</li>
+                    <li>同色跳跃、冲刺折返等经典规则保持不变。</li>
+                </ul>
             </div>
         </div>
 
-        <div id="gameView" class="w-full flex flex-col gap-3 hidden">
-            <!-- 房间信息栏 -->
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-2 border border-sky-100 shadow-sm flex items-center justify-between px-3">
+        <div id="gameView" class="w-full flex flex-col gap-4 hidden">
+            <!-- 头部信息 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border-2 border-sky-100 shadow-sm flex items-center justify-between relative">
                 <div class="flex flex-col">
-                    <span class="text-[9px] text-gray-400 font-bold uppercase">航班号</span>
-                    <span id="displayRoomCode" class="text-lg font-black text-sky-600 tracking-wider">----</span>
+                    <span class="text-[10px] text-gray-400 font-bold uppercase">航班号</span>
+                    <span id="displayRoomCode" class="text-xl font-black text-sky-600 tracking-wider">----</span>
                 </div>
-                <div class="flex items-center gap-3 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                    <span id="p1NameDisplay" class="text-xs font-black text-red-500">等待</span>
-                    <span class="text-gray-300 font-black italic text-xs">VS</span>
-                    <span id="p2NameDisplay" class="text-xs font-black text-blue-500">等待</span>
+                
+                <div class="flex items-center gap-4 bg-gray-50 px-4 py-1.5 rounded-full border border-gray-100">
+                    <div class="flex flex-col items-center relative" id="p1AvatarArea">
+                        <span class="text-[9px] text-red-400 font-bold">红方</span>
+                        <span id="p1NameDisplay" class="text-xs font-black text-red-600">等待</span>
+                    </div>
+                    <div class="text-gray-300 font-black italic text-sm">VS</div>
+                    <div class="flex flex-col items-center relative" id="p2AvatarArea">
+                        <span class="text-[9px] text-blue-400 font-bold">蓝方</span>
+                        <span id="p2NameDisplay" class="text-xs font-black text-blue-600">等待</span>
+                    </div>
                 </div>
-                <button onclick="exitRoom()" class="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 shadow-sm active:scale-90">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                
+                <button onclick="exitRoom()" class="w-10 h-10 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 transition-colors border border-red-100 shadow-sm active:scale-90">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                 </button>
             </div>
 
-            <!-- 棋盘容器 -->
+            <!-- 天气播报条 -->
+            <div id="weatherBanner" class="w-full py-1 px-4 bg-sky-100 rounded-lg text-center text-xs font-bold text-sky-700 shadow-inner flex items-center justify-center gap-2 hidden transition-all duration-300">
+                <span id="weatherIcon">☀️</span> 当前天气：<span id="weatherText">晴空万里</span> (剩<span id="weatherTurns">0</span>回合)
+            </div>
+
+            <!-- 棋盘区 -->
             <div id="board-container">
                 <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/5 rounded-2xl hidden cursor-not-allowed"></div>
+                <div id="weatherOverlay" class="weather-overlay"></div>
+                
                 <div id="board-grid"></div>
 
                 <div class="base-area base-red" id="base-p1">
@@ -305,62 +361,54 @@
                 <div id="planes-layer" class="absolute inset-0 pointer-events-none"></div>
             </div>
 
-            <!-- 控制台区域（道具、嘲讽、骰子、日志） -->
-            <div class="w-full flex gap-2">
-                <!-- 左侧功能区 -->
-                <div class="flex flex-col gap-2 w-20 flex-shrink-0">
-                    <button id="btnItem" onclick="useItem()" class="h-10 bg-gray-200 text-gray-400 rounded-lg font-bold text-xs shadow-inner flex items-center justify-center transition-all disabled:opacity-50" disabled>
-                        无道具
-                    </button>
-                    <!-- 嘲讽表情栏 -->
-                    <div class="grid grid-cols-2 gap-1 h-full bg-white rounded-lg p-1 border border-gray-100 shadow-sm">
-                        <button onclick="sendTaunt('😎')" class="hover:bg-gray-100 rounded text-lg active:scale-90 transition-transform">😎</button>
-                        <button onclick="sendTaunt('😡')" class="hover:bg-gray-100 rounded text-lg active:scale-90 transition-transform">😡</button>
-                        <button onclick="sendTaunt('😭')" class="hover:bg-gray-100 rounded text-lg active:scale-90 transition-transform">😭</button>
-                        <button onclick="sendTaunt('🏳️')" class="hover:bg-gray-100 rounded text-lg active:scale-90 transition-transform">🏳️</button>
-                    </div>
-                </div>
-
-                <!-- 骰子区 -->
-                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-white p-2 rounded-xl border border-gray-100 w-24 shadow-sm relative">
-                    <div id="diceVisual" class="text-4xl mb-1 drop-shadow-md transition-transform relative z-10">🎲</div>
-                    <!-- 骰子附加状态（如天气加成） -->
-                    <div id="diceModifier" class="absolute top-1 right-1 text-[10px] font-black text-green-500 hidden">+1</div>
-                    <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 text-xs touch-manipulation">
+            <!-- 控制与日志区 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-4 border border-white shadow-lg flex gap-4">
+                <div class="flex-shrink-0 flex flex-col items-center justify-center bg-gray-50 p-3 rounded-xl border border-gray-100 w-28">
+                    <div id="diceVisual" class="text-5xl mb-2 drop-shadow-md transition-transform">🎲</div>
+                    <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-sm touch-manipulation">
                         掷骰子
                     </button>
                 </div>
 
-                <!-- 日志区 -->
-                <div class="flex-1 flex flex-col bg-white rounded-xl border border-sky-100 p-2 overflow-hidden relative shadow-sm">
-                    <div id="turnBanner" class="w-full py-1 mb-1 bg-gray-100 rounded text-center text-[10px] font-bold text-gray-500 flex items-center justify-center gap-1 transition-all">
-                        <span id="turnBannerIcon">⏳</span><span id="turnBannerText">等待对手...</span>
+                <div class="flex-1 flex flex-col bg-sky-50/50 rounded-xl border border-sky-100 p-2 overflow-hidden relative">
+                    <div class="text-[10px] font-bold text-sky-600/70 mb-1 px-1 border-b border-sky-200/50 pb-1 flex justify-between items-center">
+                        <span>📡 塔台通讯日志</span>
+                        <div id="turnIndicator" class="text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500">等待中</div>
                     </div>
-                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar p-1 text-[10px] sm:text-xs font-medium text-gray-600">
-                        <div class="text-center text-gray-400 py-2 opacity-50">等待通讯...</div>
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-[11px] sm:text-xs font-medium text-gray-600">
+                        <div class="text-center text-gray-400 py-4 opacity-50">等待通讯...</div>
                     </div>
-                    <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-white to-transparent pointer-events-none"></div>
+                    <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
                 </div>
             </div>
+
         </div>
     </main>
 
-    <!-- 用于播放嘲讽表情的容器 -->
-    <div id="tauntContainer"></div>
+    <div id="tauntBar" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-[0_10px_20px_rgba(0,0,0,0.1)] border border-gray-100 flex gap-4 z-40 hidden">
+        <button onclick="sendTaunt('tomato')" class="text-2xl hover:scale-125 transition-transform active:scale-90" title="扔番茄">🍅</button>
+        <button onclick="sendTaunt('bomb')" class="text-2xl hover:scale-125 transition-transform active:scale-90" title="扔炸弹">💣</button>
+        <button onclick="sendTaunt('voice')" class="text-2xl hover:scale-125 transition-transform active:scale-90 flex items-center" title="发送文字气泡">💬</button>
+    </div>
 
     <script type="module">
-        const fallbackTimer = setTimeout(() => hideLoading(), 800);
+        const fallbackTimer = setTimeout(() => { hideLoading(); }, 800);
 
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; 
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 保持用户的环境ID
         const REGION = "ap-shanghai";             
-        const ROOM_COLLECTION = "aeroplaneRooms";
+        const ROOM_COLLECTION = "aeroplaneRooms"; 
 
-        function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
+        function getRoomRef(code) {
+            return db.collection(ROOM_COLLECTION).doc(String(code));
+        }
+
         function pickDoc(snapshot, code) {
             if (!snapshot) return null;
             const docs = snapshot.docs;
             if (Array.isArray(docs)) return docs[0] || null;
-            if (docs && typeof docs === 'object') return docs[code] || (docs._id ? docs : null);
+            if (docs && typeof docs === 'object') {
+                return docs[code] || (docs._id ? docs : null);
+            }
             return null;
         }
 
@@ -374,7 +422,9 @@
             auth = app.auth;      
             db = app.database();
             hasCloudBase = true;
-        } catch(e) { console.error("CloudBase init failed", e); }
+        } catch(e) {
+            console.error("CloudBase init failed", e);
+        }
 
         let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
         try {
@@ -382,16 +432,16 @@
             if (savedIdentity) myIdentity = savedIdentity;
         } catch(e) {}
         
-        document.getElementById('currentRoleDisplay').innerText = myIdentity;
+        const myName = myIdentity; 
+        document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null;
         let unsubscribeRoom = null;
         let gameState = null; 
         let myPlayerId = null;
-        let audioEnabled = false;
+        let lastProcessedInteractionTs = 0; // 用于追踪嘲讽动画防重播
 
         const GRID_SIZE = 14;
-        
         const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
         for(let y=2; y<=12; y++) trackCoords.push({x: 12, y});
@@ -400,57 +450,10 @@
 
         const p1HomeCoords = [ {x: 2, y: 2}, {x: 3, y: 3}, {x: 4, y: 4}, {x: 5, y: 5}, {x: 6, y: 6} ]; 
         const p2HomeCoords = [ {x: 11, y: 11}, {x: 10, y: 10}, {x: 9, y: 9}, {x: 8, y: 8}, {x: 7, y: 7} ]; 
-
         const eventCellIndices = [3, 5, 8, 10, 14, 16, 19, 21, 25, 27, 30, 32, 36, 38, 41, 43];
-        const planeIcons = ['🛩️', '✈️', '🚀', '🛸']; // 侦察机、战斗机、轰炸机、护卫舰
+        const WEATHERS = ['normal', 'tailwind', 'thunder', 'fog'];
 
         function getCellColor(index) { return index % 4; }
-
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        window.initAudio = function() {
-            if(audioCtx.state === 'suspended') audioCtx.resume();
-            audioEnabled = true;
-        };
-
-        function playSound(type) {
-            if (!audioEnabled || audioCtx.state === 'suspended') return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            const now = audioCtx.currentTime;
-            if (type === 'dice') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(400, now);
-                osc.frequency.exponentialRampToValueAtTime(800, now + 0.1);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
-                osc.start(now); osc.stop(now + 0.1);
-            } else if (type === 'takeoff') {
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(300, now);
-                osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now); osc.stop(now + 0.3);
-            } else if (type === 'hit') {
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(100, now);
-                osc.frequency.exponentialRampToValueAtTime(40, now + 0.3);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-                osc.start(now); osc.stop(now + 0.3);
-            } else if (type === 'win') {
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.setValueAtTime(554, now + 0.1);
-                osc.frequency.setValueAtTime(659, now + 0.2);
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.linearRampToValueAtTime(0, now + 0.5);
-                osc.start(now); osc.stop(now + 0.5);
-            }
-        }
 
         function initBoardGrid() {
             const grid = document.getElementById('board-grid');
@@ -464,21 +467,20 @@
                 cellMap[`${c.x},${c.y}`] = `cell-color-${getCellColor(idx)}`;
                 if(eventCellIndices.includes(idx)) eventMap[`${c.x},${c.y}`] = true;
             });
-            p1HomeCoords.forEach((c, i) => cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-red');
-            p2HomeCoords.forEach((c, i) => cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue');
+            p1HomeCoords.forEach((c, i) => { cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-red'; });
+            p2HomeCoords.forEach((c, i) => { cellMap[`${c.x},${c.y}`] = i === 4 ? 'cell-win' : 'cell-home-blue'; });
             
             const fragment = document.createDocumentFragment();
             for(let y=0; y<GRID_SIZE; y++) {
                 for(let x=0; x<GRID_SIZE; x++) {
                     const div = document.createElement('div');
                     const key = `${x},${y}`;
-                    // 给网格添加唯一的ID以便后续添加虫洞/地雷样式
-                    div.id = `grid-cell-${x}-${y}`; 
+                    div.id = `cell-${x}-${y}`;
                     div.className = `board-cell ${cellMap[key] || 'cell-empty'}`;
                     
-                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] font-black text-red-700/60">起飞</span>';
-                    else if(x === 12 && y === 12) div.innerHTML = '<span class="text-[8px] font-black text-blue-700/60">起飞</span>';
-                    else if (eventMap[key]) div.innerHTML = '<span class="text-xs animate-pulse opacity-80 drop-shadow-md">❓</span>';
+                    if(x === 1 && y === 1) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-red-700/60">起飞</span>';
+                    else if(x === 12 && y === 12) div.innerHTML = '<span class="text-[8px] sm:text-[10px] font-black text-blue-700/60">起飞</span>';
+                    else if (eventMap[key]) div.innerHTML = '<span class="text-xs sm:text-sm animate-pulse drop-shadow-md">❓</span>';
                     
                     fragment.appendChild(div);
                 }
@@ -490,7 +492,9 @@
 
         function cacheBaseSpotRects() {
             cachedBaseSpots = {};
-            const containerRect = document.getElementById('board-container').getBoundingClientRect();
+            const container = document.getElementById('board-container');
+            if(!container) return;
+            const containerRect = container.getBoundingClientRect();
             if (containerRect.width === 0) return;
 
             ['p1', 'p2'].forEach(player => {
@@ -510,17 +514,18 @@
         function initPlanesDOM() {
             const layer = document.getElementById('planes-layer');
             layer.innerHTML = '';
-            
             const createPlane = (player, i) => {
                 const el = document.createElement('div');
                 el.id = `plane-${player}-${i}`;
                 el.className = `plane plane-transition pointer-events-auto ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
-                el.innerText = planeIcons[i]; // 应用专属机型图标
-                el.onpointerdown = () => { initAudio(); handlePieceClick(player, i); };
+                el.innerText = '✈️';
+                el.onpointerdown = () => handlePieceClick(player, i);
                 layer.appendChild(el);
             };
-
-            for(let i=0; i<4; i++) { createPlane('p1', i); createPlane('p2', i); }
+            for(let i=0; i<4; i++) {
+                createPlane('p1', i);
+                createPlane('p2', i);
+            }
         }
 
         function getCoordPercent(gridVal) { return (gridVal + 0.5) * (100 / GRID_SIZE); }
@@ -528,20 +533,24 @@
         async function initAuth() {
             if (!hasCloudBase) {
                 showToast("未检测到网络配置，进入离线预览");
-                hideLoading(); return;
+                clearTimeout(fallbackTimer);
+                hideLoading();
+                return;
             }
             try {
                 const res = await auth.signInAnonymously();
                 if (res && res.error) throw res.error;
                 currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线 <span class="text-green-500 ml-1">12ms</span>';
                 switchToLobby();
             } catch (err) {
+                console.error("Auth Error:", err);
                 showToast("网络通信异常，请检查连接");
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
                 switchToLobby();
             } finally {
-                clearTimeout(fallbackTimer); hideLoading();
+                clearTimeout(fallbackTimer);
+                hideLoading();
             }
         }
 
@@ -554,65 +563,71 @@
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            document.getElementById('weatherBanner').classList.add('hidden');
+            document.getElementById('tauntBar').classList.add('hidden');
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            currentRoomId = null; myPlayerId = null;
-        }
-
-        // 生成初始随机虫洞（避开起点和终点区）
-        function generatePortals() {
-            let p1 = Math.floor(Math.random() * 40) + 2; 
-            let p2 = Math.floor(Math.random() * 40) + 2;
-            while(Math.abs(p1 - p2) < 5) p2 = Math.floor(Math.random() * 40) + 2; // 确保有一定距离
-            return [p1, p2];
+            currentRoomId = null;
+            myPlayerId = null;
         }
 
         window.createRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            initAudio();
+            
             const initialData = {
                 status: 'waiting', 
-                turnCount: 1,
-                weather: 'sunny', // sunny, tailwind, storm
-                portals: generatePortals(),
-                traps: {}, 
-                taunt: null, // 用于存储瞬时嘲讽表情
-                p1: { name: myIdentity, pieces: [-1, -1, -1, -1], shields: [false, false, false, true], item: null },
-                p2: { name: null, pieces: [-1, -1, -1, -1], shields: [false, false, false, true], item: null },
-                turn: 'p1', diceValue: null, hasRolled: false, logs: [`${myIdentity} 创建了航班，等待对手...`], winner: null
+                p1: { name: myName, pieces: [-1, -1, -1, -1], aces: [false,false,false,false] },
+                p2: { name: null, pieces: [-1, -1, -1, -1], aces: [false,false,false,false] },
+                turn: 'p1', 
+                diceValue: null,
+                hasRolled: false,
+                logs: [`${myName} 创建了航班，等待对手...`],
+                winner: null,
+                weather: { type: 'normal', remainingTurns: 0, zone: [] },
+                history: { p1: [-1,-1,-1,-1], p2: [-1,-1,-1,-1] }, // 时光倒流用
+                latestInteraction: null
             };
 
             try {
                 await getRoomRef(code).set(initialData);
-                myPlayerId = 'p1'; listenToRoom(code);
+                myPlayerId = 'p1';
+                listenToRoom(code);
                 showToast(`航班号 ${code} 创建成功`);
-            } catch (e) { showToast("创建房间失败"); }
+            } catch (e) {
+                console.error(e);
+                showToast("创建房间失败");
+            }
         };
 
         window.joinRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!code || code.length !== 4) return showToast("请输入4位数字航班号");
-            initAudio();
 
             try {
                 const res = await getRoomRef(code).get();
                 const data = res.data && res.data[0];
                 if (!data) return showToast("航班不存在");
-                
-                if (data.status === 'waiting' && data.p1.name !== myIdentity) {
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
+                    return showToast("对战已开始或人员已满");
+                }
+
+                if (data.status === 'waiting' && data.p1.name !== myName) {
                     await getRoomRef(code).update({
-                        'p2.name': myIdentity, status: 'playing',
-                        logs: [`${myIdentity} 加入对战，游戏开始！红方先手。`]
+                        'p2.name': myName,
+                        status: 'playing',
+                        logs: [`${myName} 加入对战，游戏开始！红方先手。`]
                     });
                     myPlayerId = 'p2';
-                } else if (data.p1.name === myIdentity) myPlayerId = 'p1';
-                else if (data.p2.name === myIdentity) myPlayerId = 'p2';
-                else return showToast("对战已开始或人员已满");
-
+                } else if (data.p1.name === myName) {
+                    myPlayerId = 'p1';
+                } else if (data.p2.name === myName) {
+                    myPlayerId = 'p2';
+                }
                 listenToRoom(code);
-            } catch (e) { showToast("加入房间失败"); }
+            } catch (e) {
+                console.error(e);
+                showToast("加入房间失败");
+            }
         };
 
         window.exitRoom = function() { switchToLobby(); };
@@ -621,7 +636,7 @@
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
-            document.getElementById('weatherBanner').classList.remove('hidden');
+            document.getElementById('tauntBar').classList.remove('hidden');
             initBoardGrid();
 
             if (unsubscribeRoom) unsubscribeRoom();
@@ -629,15 +644,23 @@
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        // 检查是否有新的嘲讽
-                        if (data.taunt && (!gameState || gameState.taunt?.ts !== data.taunt.ts)) {
-                            renderTaunt(data.taunt.emoji);
-                        }
+                        // 兼容旧房间数据结构
+                        if(!data.p1.aces) data.p1.aces = [false,false,false,false];
+                        if(!data.p2.aces) data.p2.aces = [false,false,false,false];
+                        if(!data.weather) data.weather = {type:'normal', remainingTurns:0, zone:[]};
+                        if(!data.history) data.history = {p1:[-1,-1,-1,-1], p2:[-1,-1,-1,-1]};
+                        
                         gameState = data;
                         requestAnimationFrame(renderGameState);
-                    } else { showToast("房间已解散"); switchToLobby(); }
+                    } else {
+                        showToast("房间已解散");
+                        switchToLobby();
+                    }
                 },
-                onError: (err) => showToast("同步断开")
+                onError: (err) => {
+                    console.error(err);
+                    showToast("同步断开");
+                }
             });
             unsubscribeRoom = () => watcher.close();
         }
@@ -653,104 +676,44 @@
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
             
-            // 渲染控制台UI
-            const banner = document.getElementById('turnBanner');
-            const bIcon = document.getElementById('turnBannerIcon');
-            const bText = document.getElementById('turnBannerText');
             const overlay = document.getElementById('boardOverlay');
             const btnRoll = document.getElementById('btnRollDice');
-            const btnItem = document.getElementById('btnItem');
             const diceVis = document.getElementById('diceVisual');
-            const diceMod = document.getElementById('diceModifier');
-
-            // 道具UI更新
-            const myData = gameState[myPlayerId] || {};
-            if (myData.item === 'mine') {
-                btnItem.className = "h-10 bg-red-100 text-red-600 border border-red-300 rounded-lg font-bold text-xs shadow hover:bg-red-200 active:scale-95 transition-all";
-                btnItem.innerText = "💣 部署地雷";
-                btnItem.disabled = !isMyTurn || gameState.hasRolled; // 只能在掷骰子前用
-            } else {
-                btnItem.className = "h-10 bg-gray-100 text-gray-400 rounded-lg font-bold text-xs shadow-inner flex items-center justify-center transition-all disabled:opacity-50";
-                btnItem.innerText = "无道具";
-                btnItem.disabled = true;
-            }
+            const turnInd = document.getElementById('turnIndicator');
 
             if (gameState.status === 'waiting') {
-                banner.className = "w-full py-1 mb-1 bg-gray-100 rounded text-center text-[10px] font-bold text-gray-500";
-                bIcon.innerText = '⏳'; bText.innerText = '等待对手...';
-                overlay.classList.remove('hidden'); btnRoll.disabled = true;
+                turnInd.innerText = '等待中...';
+                turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500';
+                overlay.classList.remove('hidden');
+                btnRoll.disabled = true;
+                document.getElementById('weatherBanner').classList.add('hidden');
             } else if (gameState.status === 'playing') {
                 if (isMyTurn) {
-                    banner.className = `w-full py-1 mb-1 rounded text-center text-[10px] font-bold ${myPlayerId === 'p1' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'}`;
-                    bIcon.innerText = gameState.hasRolled ? '✈️' : '🎲';
-                    bText.innerText = gameState.hasRolled ? '请选择飞机起飞/移动' : '轮到你了，掷骰子！';
-                    overlay.classList.add('hidden'); btnRoll.disabled = gameState.hasRolled;
+                    turnInd.innerText = gameState.hasRolled ? '👉 待移动' : '🎲 待掷骰';
+                    turnInd.className = `text-[9px] px-2 py-0.5 rounded ${myPlayerId === 'p1' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'} font-bold animate-pulse`;
+                    overlay.classList.add('hidden');
+                    btnRoll.disabled = gameState.hasRolled;
                 } else {
-                    banner.className = "w-full py-1 mb-1 bg-gray-100 rounded text-center text-[10px] font-bold text-gray-500";
-                    bIcon.innerText = '👀';
                     const activeName = gameState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    bText.innerText = `等待 ${activeName}`;
-                    overlay.classList.remove('hidden'); btnRoll.disabled = true;
+                    turnInd.innerText = `👀 等待对手`;
+                    turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600';
+                    overlay.classList.remove('hidden');
+                    btnRoll.disabled = true;
                 }
+                renderWeatherSystem();
             }
 
             diceVis.innerText = gameState.diceValue ? diceIcons[gameState.diceValue] : '🎲';
             if (gameState.diceValue === 6) diceVis.classList.add('text-red-500', 'animate-pulse');
             else diceVis.classList.remove('text-red-500', 'animate-pulse');
 
-            // 天气渲染
-            const body = document.body;
-            body.classList.remove('weather-storm', 'weather-tailwind');
-            const wIcon = document.getElementById('weatherIcon');
-            const wText = document.getElementById('weatherText');
-            document.getElementById('turnCounterText').innerText = `第 ${gameState.turnCount} 轮`;
-            
-            if (gameState.weather === 'tailwind') {
-                body.classList.add('weather-tailwind');
-                wIcon.innerText = '💨'; wText.innerText = '顺风 (移动步数+1)';
-                diceMod.classList.remove('hidden');
-            } else if (gameState.weather === 'storm') {
-                body.classList.add('weather-storm');
-                wIcon.innerText = '🌩️'; wText.innerText = '雷暴 (禁止同色跳跃)';
-                diceMod.classList.add('hidden');
-            } else {
-                wIcon.innerText = '☀️'; wText.innerText = '晴空 (无特殊效果)';
-                diceMod.classList.add('hidden');
-            }
-
-            // 渲染网格特效（虫洞、地雷）
-            document.querySelectorAll('.board-cell').forEach(cell => {
-                cell.classList.remove('portal-cell', 'trap-cell');
-            });
-            
-            if (gameState.portals) {
-                gameState.portals.forEach(pIndex => {
-                    const coord = trackCoords[pIndex];
-                    if(coord) {
-                        const cell = document.getElementById(`grid-cell-${coord.x}-${coord.y}`);
-                        if(cell) cell.classList.add('portal-cell');
-                    }
-                });
-            }
-            if (gameState.traps) {
-                Object.keys(gameState.traps).forEach(pIndex => {
-                    const coord = trackCoords[pIndex];
-                    if(coord) {
-                        const cell = document.getElementById(`grid-cell-${coord.x}-${coord.y}`);
-                        if(cell) cell.classList.add('trap-cell');
-                    }
-                });
-            }
-
-            // 日志渲染
             const logBox = document.getElementById('eventLogs');
             logBox.innerHTML = '';
-            const logsToRender = (gameState.logs || []).slice().reverse().slice(0, 8);
-            
+            const logsToRender = gameState.logs.slice().reverse().slice(0, 15);
             const logFragment = document.createDocumentFragment();
             logsToRender.forEach(log => {
                 const div = document.createElement('div');
-                div.className = "border-b border-gray-100 pb-1 w-full text-left truncate";
+                div.className = "border-b border-sky-100/50 pb-1 w-full text-left leading-snug";
                 let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
                 if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
                 div.innerHTML = html;
@@ -760,42 +723,94 @@
 
             if (gameState.winner) {
                 overlay.classList.remove('hidden');
-                playSound('win');
                 document.getElementById('msgModal').classList.remove('hidden');
                 setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
                 const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
                 document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
-                document.getElementById('msgDesc').innerText = '4架飞机全部抵达终点！🏆';
             }
 
             updatePlanesPosition();
+            processInteractions();
+        }
+
+        // 渲染天气UI
+        function renderWeatherSystem() {
+            const banner = document.getElementById('weatherBanner');
+            const overlay = document.getElementById('weatherOverlay');
+            const { type, remainingTurns, zone } = gameState.weather;
+
+            if (type === 'normal' || remainingTurns <= 0) {
+                banner.classList.add('hidden');
+                overlay.className = 'weather-overlay';
+                document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
+                return;
+            }
+
+            banner.classList.remove('hidden');
+            document.getElementById('weatherTurns').innerText = remainingTurns;
+            
+            overlay.className = 'weather-overlay'; 
+            document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
+
+            if (type === 'tailwind') {
+                document.getElementById('weatherIcon').innerText = '🌬️';
+                document.getElementById('weatherText').innerText = '顺风 (移动+2)';
+                overlay.classList.add('weather-tailwind');
+            } else if (type === 'fog') {
+                document.getElementById('weatherIcon').innerText = '🌫️';
+                document.getElementById('weatherText').innerText = '大雾 (限速1格)';
+                overlay.classList.add('weather-fog');
+            } else if (type === 'thunder') {
+                document.getElementById('weatherIcon').innerText = '⚡';
+                document.getElementById('weatherText').innerText = '雷暴 (落雷预警)';
+                overlay.classList.add('weather-thunder');
+                zone.forEach(pos => {
+                    const coord = trackCoords[pos];
+                    if(coord) {
+                        const cell = document.getElementById(`cell-${coord.x}-${coord.y}`);
+                        if(cell) cell.classList.add('thunder-zone');
+                    }
+                });
+            }
+        }
+
+        // 嘲讽动画处理
+        function processInteractions() {
+            const interact = gameState.latestInteraction;
+            if (interact && interact.ts > lastProcessedInteractionTs) {
+                lastProcessedInteractionTs = interact.ts;
+                playInteractionAnim(interact);
+            }
         }
 
         function updatePlanesPosition() {
-            const renderPlayerPlanes = (player, pieces, shields) => {
+            const renderPlayerPlanes = (player, pieces, aces) => {
                 pieces.forEach((pos, i) => {
                     const planeEl = document.getElementById(`plane-${player}-${i}`);
                     if (!planeEl) return;
                     
-                    planeEl.classList.remove('plane-active', 'shielded');
-                    if (shields && shields[i]) planeEl.classList.add('shielded');
+                    planeEl.classList.remove('plane-active');
+                    if (aces && aces[i]) planeEl.classList.add('plane-ace');
+                    else planeEl.classList.remove('plane-ace');
 
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled) {
-                        // 判定是否可起飞：0号侦察机(4,5,6)，其他(1,6)
-                        const dice = gameState.diceValue;
-                        const canTakeoff = (i === 0 && dice >= 4) || (dice === 6 || dice === 1);
-                        const canMove = (pos === -1 && canTakeoff) || (pos !== -1 && pos !== 999);
+                        const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
                         if (canMove) planeEl.classList.add('plane-active');
                     }
 
-                    if (pos === 999) { planeEl.style.display = 'none'; return; } 
-                    else planeEl.style.display = 'flex';
+                    if (pos === 999) {
+                        planeEl.style.display = 'none';
+                        return;
+                    } else {
+                        planeEl.style.display = 'flex';
+                    }
 
                     let targetX_pct, targetY_pct;
-
                     if (pos === -1) {
                         const cache = cachedBaseSpots[`${player}-${i}`];
-                        if (cache) { targetX_pct = cache.x; targetY_pct = cache.y; }
+                        if (cache) {
+                            targetX_pct = cache.x; targetY_pct = cache.y;
+                        }
                     } else {
                         let gridCoord = {x:0, y:0};
                         if (pos >= 0 && pos <= 43) gridCoord = trackCoords[pos];
@@ -805,7 +820,6 @@
                         targetX_pct = getCoordPercent(gridCoord.x);
                         targetY_pct = getCoordPercent(gridCoord.y);
 
-                        // 重叠偏移处理
                         let countOnSpot = 0; let myIndexOnSpot = 0;
                         const allPieces = [...gameState.p1.pieces.map(p=>({p, pId:'p1'})), ...gameState.p2.pieces.map(p=>({p, pId:'p2'}))];
                         allPieces.forEach((item, globalIdx) => {
@@ -831,48 +845,38 @@
                 });
             };
 
-            renderPlayerPlanes('p1', gameState.p1.pieces, gameState.p1.shields);
-            renderPlayerPlanes('p2', gameState.p2.pieces, gameState.p2.shields);
+            renderPlayerPlanes('p1', gameState.p1.pieces, gameState.p1.aces);
+            renderPlayerPlanes('p2', gameState.p2.pieces, gameState.p2.aces);
         }
 
         window.handleRollDice = function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
-            initAudio(); playSound('dice');
-
+            
             const diceVis = document.getElementById('diceVisual');
             diceVis.classList.remove('dice-rolling');
             void diceVis.offsetWidth;
             diceVis.classList.add('dice-rolling');
 
             const roll = Math.floor(Math.random() * 6) + 1;
-            
             const pieces = gameState[myPlayerId].pieces;
             let canMoveAny = false;
-            pieces.forEach((p, i) => {
-                const canTakeoff = (i === 0 && roll >= 4) || (roll === 6 || roll === 1);
-                if (p === -1 && canTakeoff) canMoveAny = true;
+            pieces.forEach(p => {
+                if (p === -1 && (roll === 6 || roll === 1)) canMoveAny = true;
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
 
             let nextState = { diceValue: roll, hasRolled: true };
             const logs = [...gameState.logs];
-            logs.push(`${myIdentity} 掷出了 ${roll} 点。`);
+            logs.push(`${myName} 掷出了 ${roll} 点。`);
+
+            // 为时光倒流保存回合初始状态
+            nextState.history = { p1: [...gameState.p1.pieces], p2: [...gameState.p2.pieces] };
 
             if (!canMoveAny) {
-                logs.push(`⚠️ 无飞机可移动，回合结束。`);
+                logs.push(`⚠️️ 没有可起飞/移动的飞机，回合结束。`);
                 nextState.hasRolled = false;
                 nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
-                
-                // 推进回合与天气
-                if(nextState.turn === 'p1') {
-                    nextState.turnCount = gameState.turnCount + 1;
-                    if(nextState.turnCount % 3 === 0) {
-                        const weathers = ['sunny', 'tailwind', 'storm'];
-                        nextState.weather = weathers[Math.floor(Math.random()*3)];
-                        nextState.portals = generatePortals(); // 刷新虫洞
-                        logs.push(`🌍 环境异变！当前天气：${nextState.weather==='storm'?'雷暴':'顺风'}，虫洞已重置。`);
-                    }
-                }
+                updateWeatherTurn(nextState, logs);
             }
 
             nextState.logs = logs;
@@ -881,240 +885,212 @@
             getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
         };
 
+        // 天气轮转系统
+        function updateWeatherTurn(stateUpdate, logs) {
+            let weather = stateUpdate.weather || gameState.weather;
+            if (weather.remainingTurns > 0) {
+                weather.remainingTurns--;
+                if (weather.remainingTurns === 0) {
+                    logs.push(`🌤️ 天气恢复正常。`);
+                    weather.type = 'normal';
+                }
+            }
+            
+            // 20%概率在正常天气下触发新天气
+            if (weather.type === 'normal' && Math.random() < 0.2) {
+                const types = ['tailwind', 'thunder', 'fog'];
+                weather.type = types[Math.floor(Math.random() * types.length)];
+                weather.remainingTurns = Math.floor(Math.random() * 3) + 2; // 2-4回合
+                
+                if (weather.type === 'tailwind') logs.push(`🌬️ 塔台预警：遭遇强劲顺风！所有移动 +2 格！（持续${weather.remainingTurns}回合）`);
+                else if (weather.type === 'fog') logs.push(`🌫️ 塔台预警：大雾弥漫视野受限！飞行距离限制为 1 格！（持续${weather.remainingTurns}回合）`);
+                else if (weather.type === 'thunder') {
+                    // 生成一片雷暴区（5-8个连续格子）
+                    const startPos = Math.floor(Math.random() * 35);
+                    weather.zone = Array.from({length: 6}, (_, i) => startPos + i);
+                    logs.push(`⚡ 塔台预警：前方出现雷暴区！停留在红色预警区有概率坠毁！（持续${weather.remainingTurns}回合）`);
+                }
+            }
+            stateUpdate.weather = weather;
+        }
+
         window.handlePieceClick = function(player, pieceIndex) {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
 
             const currentPos = gameState[myPlayerId].pieces[pieceIndex];
             const dice = gameState.diceValue;
             
-            const canTakeoff = (pieceIndex === 0 && dice >= 4) || (dice === 6 || dice === 1);
-            if (currentPos === -1 && !canTakeoff) return;
+            if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
             const logs = [...gameState.logs];
             let newPos = currentPos;
             let extraTurn = false;
             let stateUpdate = {};
-            const myPieces = [...gameState[myPlayerId].pieces];
-            const myShields = [...(gameState[myPlayerId].shields || [false,false,false,false])];
 
-            if (currentPos === -1 && canTakeoff) {
+            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+            let myPieces = [...gameState[myPlayerId].pieces];
+            let myAces = [...gameState[myPlayerId].aces];
+            let oppPieces = [...gameState[oppId].pieces];
+            let oppAces = [...gameState[oppId].aces];
+
+            // 1. 起飞与基础移动计算
+            if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
-                playSound('takeoff');
-                logs.push(`✈️ ${myIdentity} 的 ${planeIcons[pieceIndex]} 驶出机库！`);
+                logs.push(`✈️️ ${myName} 的飞机驶出机库！`);
             } else {
-                let steps = dice;
-                if (gameState.weather === 'tailwind') steps += 1;
-                newPos = calculateDestination(myPlayerId, currentPos, steps);
+                // 受天气影响的移动距离
+                let moveSteps = dice;
+                if (gameState.weather.type === 'tailwind') {
+                    moveSteps += 2;
+                    logs.push(`💨 顺风加持，额外前进 2 格！`);
+                } else if (gameState.weather.type === 'fog') {
+                    moveSteps = 1;
+                    logs.push(`🌫️ 浓雾阻挡，只能小心前行 1 格。`);
+                }
+                newPos = calculateDestination(myPlayerId, currentPos, moveSteps);
             }
 
-            // 检查虫洞传送 (仅在主赛道)
-            if (newPos >= 0 && newPos <= 43 && gameState.portals.includes(newPos)) {
-                newPos = gameState.portals[0] === newPos ? gameState.portals[1] : gameState.portals[0];
-                logs.push(`🌌 触发虫洞！飞机被瞬间传送到了另一侧！`);
-            }
-
-            // 检查同色跳跃 (非雷暴天气)
-            if (gameState.weather !== 'storm' && newPos >= 0 && newPos <= 43) {
-                const colorCode = getCellColor(newPos);
-                const myColorCode = myPlayerId === 'p1' ? 0 : 2;
-                
-                if (colorCode === myColorCode) {
+            // 2. 同色跳跃
+            if (newPos >= 0 && newPos <= 43) {
+                if (getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
                     const path = generateLogicalPath(myPlayerId);
                     const currPathIndex = path.indexOf(newPos);
-                    let jumpSteps = 4;
-                    if (pieceIndex === 1) jumpSteps = 5; // 战斗机特权：跳跃额外进1
-                    
-                    const jumpPathIndex = currPathIndex + jumpSteps;
+                    const jumpPathIndex = currPathIndex + 4;
                     if (jumpPathIndex < 44) { 
                         newPos = path[jumpPathIndex];
-                        logs.push(`💨 触发同色跳跃！${pieceIndex === 1 ? '(战斗机超加速)' : ''}`);
+                        logs.push(`💨 触发同色跳跃！`);
                     }
                 }
             }
 
-            // 检查地雷 (踩中触发)
-            const currentTraps = { ...gameState.traps };
-            if (newPos >= 0 && newPos <= 43 && currentTraps[newPos]) {
-                playSound('hit');
-                if (myShields[pieceIndex]) {
-                    myShields[pieceIndex] = false;
-                    logs.push(`🛡️ 踩中地雷！护盾抵消了爆炸伤害！`);
-                } else {
-                    newPos = -1; // 炸回老家
-                    logs.push(`💥 轰隆！飞机不慎踩中地雷，被炸回了机场！`);
-                }
-                delete currentTraps[newPos]; // 消耗地雷
-                stateUpdate.traps = currentTraps;
-            }
-
-            // 检查盲盒 (仅当未被炸回且不是起飞时)
-            if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos) && currentPos !== -1) {
+            // 3. 盲盒触发 (含时光倒流、全盘洗牌)
+            if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 const randEvent = Math.floor(Math.random() * 12);
                 switch(randEvent) {
-                    case 0: case 1:
-                        logs.push(`🌪️ 触发盲盒：高空气流，后退3格！`);
-                        newPos = calculateDestination(myPlayerId, newPos, -3); break;
-                    case 2:
-                        logs.push(`🚀 触发盲盒：顺风飞行，前进3格！`);
-                        newPos = calculateDestination(myPlayerId, newPos, 3); break;
-                    case 3:
-                        if(myShields[pieceIndex]){ myShields[pieceIndex]=false; logs.push(`⚡ 雷电击中！护盾救了一命！`); }
-                        else { logs.push(`⚡ 雷电击中，直接坠毁！`); newPos = -1; playSound('hit'); }
+                    case 0: logs.push(`🌪️ 盲盒：高空气流，后退3格！`); newPos = calculateDestination(myPlayerId, newPos, -3); break;
+                    case 1: logs.push(`🚀 盲盒：完美顺风，前进3格！`); newPos = calculateDestination(myPlayerId, newPos, 3); break;
+                    case 2: logs.push(`⚡ 盲盒：被雷电击中，直接坠毁！`); newPos = -1; myAces[pieceIndex] = false; break;
+                    case 3: logs.push(`🎁 盲盒：拾取空投，额外回合！`); extraTurn = true; break;
+                    case 4: 
+                        logs.push(`🌈 盲盒：跃迁至下一同色格！`);
+                        const path = generateLogicalPath(myPlayerId);
+                        const currPathIndex = path.indexOf(newPos);
+                        if (currPathIndex !== -1) {
+                            let nextSameColorIdx = currPathIndex + 1;
+                            while (nextSameColorIdx < 44 && getCellColor(path[nextSameColorIdx]) !== getCellColor(newPos)) nextSameColorIdx++;
+                            if (nextSameColorIdx < 44) newPos = path[nextSameColorIdx];
+                        }
                         break;
-                    case 4:
-                        logs.push(`🎁 触发盲盒：空投补给，额外一回合！`); extraTurn = true; break;
                     case 5:
-                        const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                        const oppPieces = [...gameState[oppId].pieces];
-                        let validOppIndices = oppPieces.map((p,idx)=> p>=0 && p<=43 ? idx : -1).filter(idx=>idx!==-1);
+                        let validOppIndices = oppPieces.map((p,idx) => (p>=0 && p<=43)?idx:-1).filter(i=>i!==-1);
                         if(validOppIndices.length > 0) {
-                            const randOppIdx = validOppIndices[Math.floor(Math.random() * validOppIndices.length)];
-                            const oppPos = oppPieces[randOppIdx];
-                            oppPieces[randOppIdx] = newPos; newPos = oppPos; 
-                            stateUpdate[`${oppId}.pieces`] = oppPieces;
-                            logs.push(`🔄 空间传送启动！与敌机互换了位置！`);
-                        } break;
-                    case 6:
-                        logs.push(`🛸 触发盲盒：被UFO随机传送！`); newPos = Math.floor(Math.random() * 44); break;
-                    case 7:
-                        if(myShields[pieceIndex]){ myShields[pieceIndex]=false; logs.push(`🛡️ 遭遇鸟击，护盾启动防御！`); }
-                        else { logs.push(`💣 遭遇鸟击，退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; playSound('hit'); }
+                            const randIdx = validOppIndices[Math.floor(Math.random() * validOppIndices.length)];
+                            const oppPos = oppPieces[randIdx];
+                            oppPieces[randIdx] = newPos; newPos = oppPos; 
+                            logs.push(`🔄 盲盒：空间传送装置！与敌方交换位置！`);
+                        }
                         break;
-                    case 8:
-                        logs.push(`⛽ 燃料泄漏，迫降后退2格！`); newPos = calculateDestination(myPlayerId, newPos, -2); break;
-                    case 9:
-                        logs.push(`✈️ 引擎过载，强制冲刺前进4格！`); newPos = calculateDestination(myPlayerId, newPos, 4); break;
+                    case 6: logs.push(`🛸 盲盒：UFO绑架，随机传送！`); newPos = Math.floor(Math.random() * 44); break;
+                    case 7: logs.push(`💣 盲盒：遭遇鸟击，退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; break;
+                    case 8: logs.push(`⛽ 盲盒：燃料泄漏，迫降后退 4 格！`); newPos = calculateDestination(myPlayerId, newPos, -4); break;
+                    case 9: logs.push(`✈️ 盲盒：引擎过载，冲刺前进 4 格！`); newPos = calculateDestination(myPlayerId, newPos, 4); break;
                     case 10:
-                        logs.push(`📦 搜刮残骸：获得道具【💣 地雷】！`); 
-                        stateUpdate[`${myPlayerId}.item`] = 'mine'; break;
+                        logs.push(`⏳ 【终极盲盒】时光倒流！场上战机退回上一回合！`);
+                        myPieces = [...gameState.history[myPlayerId]];
+                        oppPieces = [...gameState.history[oppId]];
+                        newPos = myPieces[pieceIndex]; // 覆盖newPos，防止后续重写
+                        break;
                     case 11:
-                        logs.push(`🛡️ 获得全队护盾充能！`); 
-                        myShields.fill(true); break;
+                        logs.push(`🌀 【终极盲盒】全盘洗牌！主赛道战机位置随机重组！`);
+                        let spots = Array.from({length:44}, (_,i)=>i).sort(()=>Math.random()-0.5);
+                        let sIdx = 0;
+                        const shuffle = arr => arr.map(p => (p>=0 && p<=43) ? spots[sIdx++] : p);
+                        myPieces = shuffle(myPieces);
+                        oppPieces = shuffle(oppPieces);
+                        newPos = myPieces[pieceIndex];
+                        break;
+                }
+            }
+            
+            // 天气：雷暴判定
+            if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
+                if (Math.random() < 0.5) {
+                    logs.push(`⚡ 轰隆！不幸被雷暴命中，战机坠毁！`);
+                    newPos = -1;
+                    myAces[pieceIndex] = false;
+                } else {
+                    logs.push(`⛈️ 惊险！成功穿越了雷暴区。`);
                 }
             }
 
-            // 最终位置确定
             myPieces[pieceIndex] = newPos;
 
-            // 碰撞/击落检测
-            if (newPos >= 0 && newPos <= 43) {
-                const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                const currentOppPieces = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
-                const currentOppShields = stateUpdate[`${oppId}.shields`] || [...(gameState[oppId].shields||[false,false,false,false])];
+            // 4. 王牌与击落判定
+            if (newPos >= 0 && newPos <= 43 && randEvent !== 10 && randEvent !== 11) { 
+                // 非时光倒流和洗牌才判定撞击
                 let collisionOccurred = false;
-
                 for(let i=0; i<4; i++) {
-                    if (currentOppPieces[i] === newPos) {
-                        playSound('hit');
-                        if(currentOppShields[i]) {
-                            currentOppShields[i] = false; // 打破敌方护盾
-                            logs.push(`🛡️ 攻击被敌方护盾挡下！`);
-                        } else {
-                            currentOppPieces[i] = -1; // 击落
-                            collisionOccurred = true;
+                    if (oppPieces[i] === newPos) {
+                        oppPieces[i] = -1;
+                        collisionOccurred = true;
+                        
+                        const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
+                        logs.push(`💥 ${myName} 强势击落了 ${oppName} 的飞机！`);
+                        
+                        // 赏金系统
+                        if (oppAces[i]) {
+                            logs.push(`💰 赏金触发！击落敌方【王牌】，奖励起飞一架新机并获得额外回合！`);
+                            oppAces[i] = false;
+                            extraTurn = true;
+                            // 寻找未起飞飞机并起飞
+                            let idleIdx = myPieces.findIndex(p => p === -1);
+                            if (idleIdx !== -1) {
+                                myPieces[idleIdx] = myPlayerId === 'p1' ? 0 : 22;
+                                logs.push(`🚀 赏金生效，支援机已起飞！`);
+                            }
                         }
                     }
                 }
-                if (collisionOccurred) {
-                    stateUpdate[`${oppId}.pieces`] = currentOppPieces;
-                    logs.push(`💥 ${myIdentity} 强势击落了敌机！`);
-                    // 轰炸机特权：击落后额外前进
-                    if (pieceIndex === 2) {
-                        logs.push(`🚀 轰炸机发动追击，额外推进 3 格！`);
-                        myPieces[pieceIndex] = calculateDestination(myPlayerId, newPos, 3);
-                    }
+                // 晋升王牌
+                if (collisionOccurred && !myAces[pieceIndex]) {
+                    myAces[pieceIndex] = true;
+                    logs.push(`👑 战绩赫赫！${myName} 的战机晋升为【王牌】！`);
                 }
-                stateUpdate[`${oppId}.shields`] = currentOppShields;
             }
 
             stateUpdate[`${myPlayerId}.pieces`] = myPieces;
-            stateUpdate[`${myPlayerId}.shields`] = myShields;
+            stateUpdate[`${myPlayerId}.aces`] = myAces;
+            stateUpdate[`${oppId}.pieces`] = oppPieces;
+            stateUpdate[`${oppId}.aces`] = oppAces;
 
-            // 胜利检测
             const allFinished = myPieces.every(p => p === 999);
             if (allFinished) {
-                stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished';
-                logs.push(`🏆 恭喜 ${myIdentity} 所有战机抵达终点，获得胜利！`);
+                stateUpdate.winner = myPlayerId;
+                stateUpdate.status = 'finished';
+                logs.push(`🏆 恭喜 ${myName} 所有飞机到达终点，获得胜利！`);
             }
 
-            // 推进回合逻辑
             stateUpdate.hasRolled = false;
             if ((dice === 6 || extraTurn) && !allFinished) {
                 stateUpdate.turn = myPlayerId;
-                logs.push(extraTurn && dice!==6 ? `🔄 触发战备补给，获得连掷机会！` : `🎲 掷出 6 点，获得额外回合！`);
+                logs.push((extraTurn && dice !== 6) ? `🔄 获得额外回合！` : `🎲 掷出 6 点，获得额外回合！`);
             } else if (!allFinished) {
-                stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
-                
-                // 环境回合切换
-                if(stateUpdate.turn === 'p1') {
-                    stateUpdate.turnCount = gameState.turnCount + 1;
-                    if(stateUpdate.turnCount % 3 === 0) {
-                        const weathers = ['sunny', 'tailwind', 'storm'];
-                        stateUpdate.weather = weathers[Math.floor(Math.random()*3)];
-                        stateUpdate.portals = generatePortals();
-                        logs.push(`🌍 环境异变！当前天气：${stateUpdate.weather==='storm'?'雷暴':'顺风'}`);
-                    }
-                }
+                stateUpdate.turn = oppId;
+                updateWeatherTurn(stateUpdate, logs);
             }
 
-            if(myPieces[pieceIndex] === 999 && currentPos !== 999) logs.push(`🎉 一架战机成功完成任务！`);
+            if(newPos === 999) logs.push(`🎉 一架战机成功抵达终点！`);
             stateUpdate.logs = logs;
             
-            // 乐观更新 & 提交
             gameState = { ...gameState, ...stateUpdate };
+            // 更新当前对象深层属性以便立即渲染
+            gameState[myPlayerId].pieces = myPieces; gameState[myPlayerId].aces = myAces;
+            gameState[oppId].pieces = oppPieces; gameState[oppId].aces = oppAces;
+            
             requestAnimationFrame(renderGameState);
             getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
         };
-
-        window.useItem = function() {
-            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
-            const myData = gameState[myPlayerId];
-            if (myData.item === 'mine') {
-                // 在领头飞机前方3格放置，若无飞机则放随机格
-                const activePieces = myData.pieces.filter(p => p>=0 && p<=43);
-                let targetPos = Math.floor(Math.random()*44);
-                if (activePieces.length > 0) {
-                    const leadPos = Math.max(...activePieces);
-                    targetPos = calculateDestination(myPlayerId, leadPos, 3);
-                    if (targetPos > 43) targetPos = 43;
-                }
-                
-                const currentTraps = { ...gameState.traps };
-                currentTraps[targetPos] = myPlayerId;
-
-                const logs = [...gameState.logs];
-                logs.push(`💣 ${myIdentity} 巧妙地部署了一颗地雷！`);
-
-                const stateUpdate = {
-                    traps: currentTraps,
-                    [`${myPlayerId}.item`]: null,
-                    logs: logs
-                };
-
-                gameState = { ...gameState, ...stateUpdate };
-                requestAnimationFrame(renderGameState);
-                getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
-            }
-        };
-
-        // 嘲讽功能：向数据库写入短暂的瞬时数据
-        window.sendTaunt = function(emoji) {
-            if (!currentRoomId) return;
-            getRoomRef(currentRoomId).update({
-                taunt: { emoji: emoji, ts: Date.now() },
-                logs: [...gameState.logs, `💬 ${myIdentity}: ${emoji}`]
-            }).catch(e => {});
-        };
-
-        function renderTaunt(emoji) {
-            const container = document.getElementById('tauntContainer');
-            const el = document.createElement('div');
-            el.className = 'taunt-emoji';
-            el.innerText = emoji;
-            container.appendChild(el);
-            setTimeout(() => el.remove(), 2000);
-        }
 
         function generateLogicalPath(player) {
             let path = [];
@@ -1136,10 +1112,70 @@
 
             let targetIdx = currIdx + steps;
             if (targetIdx < 0) targetIdx = 0; 
-            if (targetIdx >= path.length) targetIdx = (path.length - 1) - (targetIdx - (path.length - 1));
+            if (targetIdx >= path.length) {
+                const overshoot = targetIdx - (path.length - 1);
+                targetIdx = (path.length - 1) - overshoot;
+            }
             return path[targetIdx];
         }
 
+        window.sendTaunt = function(type) {
+            if (gameState.status !== 'playing') return;
+            const payload = {
+                type: type,
+                from: myPlayerId,
+                ts: Date.now()
+            };
+            getRoomRef(currentRoomId).update({ latestInteraction: payload }).catch(e=>console.error(e));
+            // 乐观渲染
+            gameState.latestInteraction = payload;
+            processInteractions();
+        };
+
+        function playInteractionAnim(interaction) {
+            const startId = interaction.from === 'p1' ? 'p1AvatarArea' : 'p2AvatarArea';
+            const targetId = interaction.from === 'p1' ? 'p2AvatarArea' : 'p1AvatarArea';
+            const startNode = document.getElementById(startId);
+            const targetNode = document.getElementById(targetId);
+            if(!startNode || !targetNode) return;
+
+            const el = document.createElement('div');
+            
+            if (interaction.type === 'voice') {
+                el.innerText = interaction.from === myPlayerId ? '😎就这？' : '😡急了？';
+                el.className = 'taunt-projectile taunt-voice';
+                const rect = targetNode.getBoundingClientRect();
+                el.style.left = `${rect.left - 10}px`;
+                el.style.top = `${rect.top - 35}px`;
+                document.body.appendChild(el);
+                setTimeout(() => el.remove(), 2500);
+                return;
+            }
+
+            el.className = 'taunt-projectile text-4xl';
+            el.innerText = interaction.type === 'tomato' ? '🍅' : '💣';
+            
+            const startRect = startNode.getBoundingClientRect();
+            const targetRect = targetNode.getBoundingClientRect();
+
+            el.style.left = `${startRect.left}px`;
+            el.style.top = `${startRect.top}px`;
+            document.body.appendChild(el);
+
+            void el.offsetWidth; // force reflow
+
+            el.style.left = `${targetRect.left + 5}px`;
+            el.style.top = `${targetRect.top + 5}px`;
+            el.style.transform = 'rotate(720deg) scale(1.5)';
+
+            setTimeout(() => {
+                el.innerText = '💥';
+                el.style.transform = 'scale(2)';
+                setTimeout(() => el.remove(), 300);
+            }, 600);
+        }
+
+        // 工具与重置
         window.showToast = function(msg) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
@@ -1158,11 +1194,12 @@
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
             await getRoomRef(currentRoomId).update({
                 status: 'playing',
-                turnCount: 1, weather: 'sunny', portals: generatePortals(), traps: {},
-                'p1.pieces': [-1, -1, -1, -1], 'p1.shields': [false,false,false,true], 'p1.item': null,
-                'p2.pieces': [-1, -1, -1, -1], 'p2.shields': [false,false,false,true], 'p2.item': null,
+                'p1.pieces': [-1, -1, -1, -1], 'p1.aces': [false,false,false,false],
+                'p2.pieces': [-1, -1, -1, -1], 'p2.aces': [false,false,false,false],
                 turn: nextTurn, diceValue: null, hasRolled: false, winner: null,
-                logs: [`🔄 重新开始！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
+                weather: {type: 'normal', remainingTurns:0, zone:[]},
+                history: {p1:[-1,-1,-1,-1], p2:[-1,-1,-1,-1]},
+                logs: [`🔄 重新开始游戏！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。`]
             });
             closeMsgModal();
         };
