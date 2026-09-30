@@ -60,11 +60,24 @@
 
         /* 棋盘格子基础样式 */
         .board-tile {
-            transition: transform 0.1s, filter 0.2s;
-            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.1), 0 2px 4px rgba(0,0,0,0.05);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            transition: all 0.2s cubic-bezier(0.34, 1.3, 0.64, 1);
+            box-shadow: inset 0 -3px 0 rgba(0,0,0,0.15), 0 2px 4px rgba(0,0,0,0.05);
             cursor: pointer;
+            z-index: 0;
         }
-        .board-tile:active { transform: scale(0.95); }
+        .board-tile:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+        }
+        .board-tile:active { 
+            transform: scale(0.9) translateY(2px); 
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.15), 0 0 0 rgba(0,0,0,0.05);
+        }
         
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -239,10 +252,10 @@
             </div>
 
             <!-- 棋盘主区域 -->
-            <div id="board-container" class="relative w-full aspect-square max-w-[550px] bg-white rounded-3xl p-1 sm:p-1.5 shadow-2xl border-[3px] border-green-100 mx-auto">
-                <div id="boardOverlay" class="absolute inset-0 z-40 bg-black/10 rounded-2xl hidden cursor-not-allowed"></div>
+            <div id="board-container" class="relative w-full aspect-square max-w-[550px] bg-white/85 backdrop-blur-md rounded-[24px] p-2 sm:p-3 shadow-[0_10px_25px_rgba(0,0,0,0.08),inset_0_0_0_2px_#fff] mx-auto overflow-hidden">
+                <div id="boardOverlay" class="absolute inset-0 z-40 bg-black/10 rounded-[24px] hidden cursor-not-allowed"></div>
                 
-                <div id="board-grid" class="grid grid-cols-10 grid-rows-10 gap-[2px] w-full h-full relative">
+                <div id="board-grid" class="grid grid-cols-10 grid-rows-10 gap-[3px] sm:gap-1 w-full h-full relative">
                     <!-- 动态生成格子 -->
                     
                     <!-- 玩家棋子层 -->
@@ -252,7 +265,7 @@
                     </div>
 
                     <!-- 中心交互与信息区 -->
-                    <div class="col-start-2 col-span-8 row-start-2 row-span-8 bg-gray-50/95 rounded-xl shadow-inner border border-green-50 flex flex-col overflow-hidden relative z-10 m-[2px]">
+                    <div class="col-start-2 col-span-8 row-start-2 row-span-8 bg-white/80 backdrop-blur-md rounded-2xl shadow-inner border-2 border-white flex flex-col overflow-hidden relative z-10 m-1">
                         
                         <!-- 顶部回合状态 -->
                         <div class="flex justify-between items-center w-full px-3 py-1 bg-white border-b border-gray-100 shadow-sm">
@@ -391,13 +404,13 @@
                 const tile = BOARD_TILES[index];
                 const el = document.createElement('div');
                 el.id = `tile-${index}`;
-                el.className = `board-tile flex flex-col items-center justify-center p-0.5 rounded-sm sm:rounded-md text-center relative shadow-[inset_0_-2px_0_rgba(0,0,0,0.08)] z-0`;
+                el.className = `board-tile`;
                 el.style.gridColumnStart = coord.c;
                 el.style.gridRowStart = coord.r;
                 el.style.backgroundColor = tile.color;
 
-                let contentHtml = `<span class="text-[12px] sm:text-[14px] drop-shadow-sm leading-none mt-0.5">${tile.icon}</span>`;
-                contentHtml += `<span class="text-[6px] sm:text-[7px] font-bold text-gray-800 leading-tight w-full truncate mt-0.5 tracking-tighter">${tile.name}</span>`;
+                // 移除原有的繁杂小文字，只保留放大的精美图标（与 fxq 类似风格）
+                let contentHtml = `<span class="text-[18px] sm:text-[24px] drop-shadow-md">${tile.icon}</span>`;
                 
                 el.innerHTML = contentHtml;
                 el.onclick = () => showTileDetails(index); // 添加点击查看详情
@@ -676,7 +689,7 @@
                 // 渲染路障
                 if ((gameState.barricades || []).includes(i)) {
                     const b = document.createElement('div');
-                    b.className = 'barricade-icon absolute z-20 text-lg animate-pulse';
+                    b.className = 'barricade-icon absolute z-20 text-lg animate-pulse drop-shadow-md';
                     b.innerText = '🚧';
                     el.appendChild(b);
                 }
@@ -687,17 +700,17 @@
                         const owner = propData.owner || propData; // 兼容老数据结构
                         const level = propData.level || 1;
                         const badge = document.createElement('div');
-                        badge.className = `owner-badge absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full border-2 border-white shadow-sm flex items-center justify-center text-[8px] text-white font-black z-10 ${owner === 'p1' ? 'bg-red-500' : 'bg-blue-500'}`;
+                        badge.className = `owner-badge absolute -top-1.5 -right-1.5 sm:-top-2 sm:-right-2 w-4 h-4 sm:w-5 sm:h-5 rounded-full border-2 border-white shadow-md flex items-center justify-center text-[8px] sm:text-[10px] text-white font-black z-10 ${owner === 'p1' ? 'bg-red-500' : 'bg-blue-500'}`;
                         badge.innerText = owner === 'p1' ? '🚗' : '🏃';
                         el.appendChild(badge);
                         
                         const lvlIcons = ['🏠', '🏘️', '🏬', '🗼'];
                         const lvlBadge = document.createElement('div');
-                        lvlBadge.className = `level-badge absolute -bottom-1 -right-1 text-[12px] drop-shadow-md z-10`;
+                        lvlBadge.className = `level-badge absolute -bottom-1 -right-1 sm:-bottom-1.5 sm:-right-1.5 text-[14px] sm:text-[18px] drop-shadow-lg z-10`;
                         lvlBadge.innerText = lvlIcons[level - 1] || '🏠';
                         el.appendChild(lvlBadge);
 
-                        el.style.opacity = '0.9'; 
+                        el.style.opacity = '1'; 
                     } else {
                         el.style.opacity = '1';
                     }
