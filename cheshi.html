@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端飞行棋1</title>
+    <title>云端飞行棋</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -114,7 +114,6 @@
             80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
             100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; }
         }
-        /* 优化点1：加快弹窗速度，时长缩短至0.8s */
         @keyframes splashPop {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
             15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
@@ -395,7 +394,6 @@
             else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
         }
 
-        // 优化点1：加快全局文字弹窗停留时长，duration默认从1500降为800
         window.playSplashAnim = function(text, duration = 800) {
             playSound('alert');
             const splashEl = document.createElement('div');
@@ -855,7 +853,6 @@
             setTimeout(() => { if(centerEl.parentNode) centerEl.remove(); }, 1500);
         }
 
-        // 优化点1：缩短对决动画的延迟时间，整体提速
         function playDuelAnim(duel) {
             const modal = document.getElementById('duelModal'); const content = document.getElementById('duelModalContent');
             const atkName = document.getElementById('duelAttackerName'); const defName = document.getElementById('duelDefenderName');
@@ -883,7 +880,6 @@
             }, 800);
         }
 
-        // 优化点1：大幅加快战机移动和弹窗展现时间
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
@@ -1348,7 +1344,7 @@
                 let moveSteps = dice;
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; 
                 else if (gameState.weather.type === 'fog') {
-                    if (isRecon) { animKeyframes.push(`🛩️ 侦察机无视大雾！`); logs.push(`🛩️ 侦察机雷达全开，无视大雾影响！`); } 
+                    if (isRecon) { animKeyframes.push(`🛩️ 侦察机无视大雾！`); logs.push(`🛩️️ 侦察机雷达全开，无视大雾影响！`); } 
                     else { moveSteps = 1; }
                 }
                 
@@ -1362,10 +1358,10 @@
                 }
             }
 
-            // 优化点2：核心修复，使用While循环实现“连锁触发”检测（最多循环15次防死循环）
             let processingFeatures = true;
             let visitCount = 0;
-            let visitedEvents = []; // 避免由于未移动导致在同一格上反复拾取和触发
+            let visitedEvents = []; 
+            let hasSameColorJumped = false; // 核心修复：添加同色跳跃限制标志
 
             while (processingFeatures && visitCount < 15 && newPos >= 0 && newPos <= 43) {
                 processingFeatures = false;
@@ -1442,9 +1438,11 @@
                         else if(env.type === 'calm') { animKeyframes.push(`🛑 陷入无风带，无法进行同色跳跃！`); logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
                     }
                     
-                    if (newPos === initialPos && canJump && getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
+                    // 核心修复：在此处加上 !hasSameColorJumped 约束
+                    if (newPos === initialPos && canJump && !hasSameColorJumped && getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
                         const path = generateLogicalPath(myPlayerId); const currPathIndex = path.indexOf(newPos);
                         if (currPathIndex !== -1 && currPathIndex + 4 < 44) { 
+                            hasSameColorJumped = true; // 锁定标志，保证本回合只能触发一次同色跳跃
                             animKeyframes.push(`💨 引擎轰鸣，触发同色跳跃！`); logs.push(`💨 引擎轰鸣，触发同色跳跃！`);
                             let jmpRes = calculateDestination(myPlayerId, newPos, 4, currentBarricades); newPos = jmpRes.pos; animKeyframes.push(...jmpRes.path);
                             if(jmpRes.hitBarricadePos !== -1) { animKeyframes.push(`💨 跳跃中撞上路障被迫停下！`); logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); } 
@@ -1488,7 +1486,6 @@
                     processingFeatures = true; 
                 }
             }
-            // ================== 结束触发检测 ==================
 
             myPieces[pieceIndex] = newPos;
 
