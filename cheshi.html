@@ -79,7 +79,7 @@
         .base-spot { width: 100%; height: 100%; border-radius: 50%; background: rgba(0,0,0,0.04); }
 
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
-        .toast-animate { animation: slideUpFade 3s forwards; }
+        .toast-animate { animation: slideUpFade 1.5s forwards; }
         .no-scrollbar::-webkit-scrollbar { display: none; } .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
         .placing-mode-active { box-shadow: 0 0 15px 5px rgba(251, 191, 36, 0.6) !important; animation: pulseRed 1.5s infinite !important; }
@@ -151,7 +151,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.01</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.0</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -394,7 +394,8 @@
             else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
         }
 
-        window.playSplashAnim = function(text, duration = 500) {
+        // 优化1：允许动态调整弹窗存在的时间，默认变短
+        window.playSplashAnim = function(text, duration = 400) {
             playSound('alert');
             const splashEl = document.createElement('div');
             splashEl.innerHTML = text;
@@ -432,10 +433,10 @@
                 background: ${bgColor}; border: 4px solid white; border-radius: 30px;
                 padding: 30px 50px; z-index: 9999; pointer-events: none; opacity: 0;
                 box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-                animation: dicePop 1s ease-out forwards;
+                animation: dicePop 0.5s ease-out forwards;
             `;
             document.body.appendChild(splashEl);
-            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, 1000);
+            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, 500);
         };
 
         const GRID_SIZE = 14; const trackCoords = [];
@@ -798,7 +799,7 @@
                 
                 window.addAnimLock();
                 renderGameState(); 
-                setTimeout(window.removeAnimLock, 1000); 
+                setTimeout(window.removeAnimLock, 500); 
             }
             
             if (gameState.latestMove && gameState.latestMove.ts > lastProcessedMoveTs) {
@@ -878,17 +879,18 @@
                 else if (duel.result === 'lose') { resultText.innerHTML = `<span class="${duel.defenderColor === 'red' ? 'text-red-500' : 'text-blue-500'}">💥 ${duel.defenderName} 胜出！</span>`; playSound('boom'); } 
                 else { resultText.innerHTML = `<span class="text-gray-500">⚔️ 势均力敌，各退两格！</span>`; playSound('alert'); }
                 resultText.style.opacity = '1';
-                setTimeout(() => { content.classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 300); }, 2500);
-            }, 1500);
+                setTimeout(() => { content.classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 300); }, 1000);
+            }, 800);
         }
 
+        // 优化2：移动逻辑间隙变短，让连环动作更加紧密不拖沓
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
             if (!planeEl) return;
 
             activeAnimations[planeId] = true; let stepIdx = 0;
-            planeEl.style.transition = 'transform 0.2s linear, left 0.2s linear, top 0.2s linear';
+            planeEl.style.transition = 'transform 0.25s linear, left 0.25s linear, top 0.25s linear';
             
             window.addAnimLock();
 
@@ -903,13 +905,13 @@
                 let stepData = moveData.path[stepIdx];
                 
                 if (typeof stepData === 'string') {
-                    window.playSplashAnim(stepData, 500);
+                    window.playSplashAnim(stepData, 400);
                     stepIdx++;
-                    setTimeout(nextStep, 350); 
+                    setTimeout(nextStep, 350); // 文字消失稍微超前一点，紧接着执行下一个动作
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
                     playDuelAnim(stepData.data);
                     stepIdx++;
-                    setTimeout(nextStep, 2000); 
+                    setTimeout(nextStep, 1500);
                 } else {
                     let pos = stepData; 
                     let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
@@ -918,7 +920,7 @@
                         planeEl.style.top = `calc(${coords.y}% - 13px)`; 
                     }
                     stepIdx++; 
-                    setTimeout(nextStep, 150); 
+                    setTimeout(nextStep, 250); // 移动停顿缩短为0.25秒
                 }
             }
             nextStep();
@@ -1275,7 +1277,7 @@
                     let roleName = "";
                     if (window.isSelectingPlaneFor === 'bomber') { b[pieceIndex] = true; roleName = '【轰炸机】🚀'; }
                     if (window.isSelectingPlaneFor === 'frigate') { f[pieceIndex] = true; roleName = '【护卫舰】🛸'; }
-                    if (window.isSelectingPlaneFor === 'recon') { r[pieceIndex] = true; roleName = '【侦察机】🛩️️'; }
+                    if (window.isSelectingPlaneFor === 'recon') { r[pieceIndex] = true; roleName = '【侦察机】🛩️'; }
                     
                     stateUpdate[`${myPlayerId}.bombers`] = b; stateUpdate[`${myPlayerId}.frigates`] = f; stateUpdate[`${myPlayerId}.recons`] = r;
                     let logs = [...gameState.logs]; logs.push(`🔧 ${myName} 成功改装战机为 ${roleName}！`); stateUpdate.logs = logs;
@@ -1332,21 +1334,18 @@
             }
 
             // 【核心优化点：连环触发状态机】
+            // 只要没撞墙且在主赛道内，循环判定事件。如果某一事件导致降落点再次改变，就会触发新格子的判定。
             let resolvingPos = true;
             let resolveLoops = 0;
 
-            // 移除 while 条件中的 !hitBarricade，确保哪怕被路障逼停也能触发脚下格子的道具/盲盒
-            while (resolvingPos && resolveLoops < 6 && newPos >= 0 && newPos <= 43) {
+            while (resolvingPos && resolveLoops < 6 && newPos >= 0 && newPos <= 43 && !hitBarricade) {
                 resolvingPos = false; // 默认跳出循环，除非中途改变了 newPos
                 resolveLoops++;
                 let loopStartPos = newPos;
 
-                // 1. 道具补给判定 (到达即触发，确保防呆容错)
+                // 1. 道具补给判定
                 if (!isWingman && itemCellIndices.includes(newPos)) {
-                    let get = myCellItems[newPos];
-                    // 防御性补底：即使云端同步键值偶发为空，既然踩到了道具格，必须给一个！
-                    if (!get) get = itemPool[Math.floor(Math.random() * itemPool.length)]; 
-                    
+                    const get = myCellItems[newPos]; 
                     if (get) {
                         myItems.push(get);
                         let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
@@ -1359,9 +1358,7 @@
                 // 2. 盲盒事件判定
                 if (eventCellIndices.includes(newPos)) {
                     let randEvent = myCellEvents[newPos]; 
-                    if (randEvent === undefined) randEvent = Math.floor(Math.random() * 11);
                     myCellEvents[newPos] = Math.floor(Math.random() * 11);
-                    
                     const triggerBad = (action) => { 
                         if (myShield) { 
                             animKeyframes.push(`🛡️ 护盾抵消异常！`); logs.push(`🛡 护盾弹开了盲盒恶意效果！`); myShield = false; 
@@ -1404,8 +1401,8 @@
                     }
                 }
 
-                // 3. 洋流与同色跳跃判定 (路障逼停后不可跳跃)
-                if (newPos === loopStartPos && !hitBarricade) {
+                // 3. 洋流与同色跳跃判定 (需确保盲盒没有触发空间位移，如果在原位才接着跳跃)
+                if (newPos === loopStartPos) {
                     let env = gameState.envZone; let canJump = true;
                     if(env && env.indices.includes(newPos)) {
                         if(env.type === 'westwind') { animKeyframes.push(`🌊 洋流顺势滑行！`); logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); newPos = calculateDestination(myPlayerId, newPos, 2, []).pos; animKeyframes.push(newPos); }
@@ -1422,12 +1419,12 @@
                 }
 
                 // 4. 时空虫洞判定
-                if (newPos === loopStartPos && !hitBarricade && gameState.wormholes && gameState.wormholes.length === 2) {
+                if (newPos === loopStartPos && gameState.wormholes && gameState.wormholes.length === 2) {
                     if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
                     else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
                 }
                 
-                // 5. 隐形水雷判定 (无论有没有路障，停在水雷上一定炸)
+                // 5. 隐形水雷判定
                 if (newPos === loopStartPos && oppMines.includes(newPos)) {
                     oppMines = oppMines.filter(m => m !== newPos);
                     if (isRecon) {
@@ -1439,8 +1436,8 @@
                     }
                 }
 
-                // 只要位置发生了改变，就必须进行下一次判定触发
-                if (newPos !== loopStartPos && newPos >= 0 && newPos <= 43) {
+                // 关键点：如果经过这一轮结算，战机的位置变了，且仍处在主赛道，那就再来一轮触发！
+                if (newPos !== loopStartPos && newPos >= 0 && newPos <= 43 && !hitBarricade) {
                     resolvingPos = true;
                 }
             } // 连环判定结束
@@ -1465,7 +1462,7 @@
                         else if (isProtectedByFrigate(oppId, newPos)) { animKeyframes.push(`🛸 敌方免疫接触战！`); logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
                         else {
                             let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
-                            logs.push(`⚔️️ 警告！两机同格遭遇，触发空中对峙！`);
+                            logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
                             let duelPayload = { attackerName: myName, defenderName: oppName, attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue', attackerRoll: myRoll, defenderRoll: oppRoll, result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'), ts: Date.now() };
                             animKeyframes.push({ type: 'duel', data: duelPayload });
@@ -1566,7 +1563,7 @@
             return { pos: actualPos, hitBarricadePos, path };
         }
 
-        window.showToast = function(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate'); setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 3000); };
+        window.showToast = function(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate'); setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 1500); };
         window.closeMsgModal = function() { document.getElementById('msgModalContent').classList.add('scale-95'); setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200); };
 
         window.resetGame = async function() {
