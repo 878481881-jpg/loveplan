@@ -151,7 +151,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.01</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.0</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -364,7 +364,6 @@
         window.isSelectingPlaneFor = null;
         window.selectingItemType = null;
 
-        // 全局动画锁机制：只要 > 0，就会冻结 UI 自动刷新并阻止用户点击
         window.animLockCount = 0;
         window.addAnimLock = function() { 
             window.animLockCount++; 
@@ -395,7 +394,8 @@
             else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
         }
 
-        window.playSplashAnim = function(text, duration = 1500) {
+        // 优化1：允许动态调整弹窗存在的时间，默认变短
+        window.playSplashAnim = function(text, duration = 800) {
             playSound('alert');
             const splashEl = document.createElement('div');
             splashEl.innerHTML = text;
@@ -403,6 +403,8 @@
             let bgColor = 'rgba(14, 165, 233, 0.9)'; 
             if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞')) bgColor = 'rgba(239, 68, 68, 0.95)'; 
             if(text.includes('🚀') || text.includes('🎁') || text.includes('🎲') || text.includes('💨') || text.includes('进')) bgColor = 'rgba(34, 197, 94, 0.95)'; 
+
+            const durationSec = duration / 1000;
 
             splashEl.style.cssText = `
                 position: fixed; top: 40%; left: 50%;
@@ -412,7 +414,7 @@
                 border: 3px solid #fff; padding: 15px 25px; border-radius: 20px;
                 white-space: nowrap; z-index: 9999; pointer-events: none; opacity: 0;
                 box-shadow: 0 10px 30px rgba(0,0,0,0.4);
-                animation: splashPop 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+                animation: splashPop ${durationSec}s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
             `;
             document.body.appendChild(splashEl);
             setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, duration);
@@ -431,10 +433,10 @@
                 background: ${bgColor}; border: 4px solid white; border-radius: 30px;
                 padding: 30px 50px; z-index: 9999; pointer-events: none; opacity: 0;
                 box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-                animation: dicePop 1.5s ease-out forwards;
+                animation: dicePop 1s ease-out forwards;
             `;
             document.body.appendChild(splashEl);
-            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, 1500);
+            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, 1000);
         };
 
         const GRID_SIZE = 14; const trackCoords = [];
@@ -693,13 +695,9 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            // 【核心修复点 1】：将 processInteractions 提前。
-            // 只要有新动画触发，就会立刻加上动画锁，从而阻止紧随其后的 updatePlanesPosition 产生瞬移。
             processInteractions();
-
             updateBoardDecorations(); 
             
-            // 只有当没有任何动画正在锁定时，才允许更新战机的位置坐标。
             if (!window.isGameAnimating()) {
                 updatePlanesPosition();
             }
@@ -752,7 +750,7 @@
             if(myStats.kills >= 3) titles.push("🎯 王牌击坠王");
             if(myStats.pacifist && gameState.winner === myPlayerId) titles.push("🕊️ 和平主义者");
             if(myStats.thunderHits >= 2) titles.push("⚡ 气象灾民");
-            if(myStats.duelsWon >= 2) titles.push("⚔️️ 决斗大师");
+            if(myStats.duelsWon >= 2) titles.push("⚔️ 决斗大师");
             if(titles.length === 0) titles.push("🌟 优秀飞行员");
 
             statsBox.innerHTML = `
@@ -801,7 +799,7 @@
                 
                 window.addAnimLock();
                 renderGameState(); 
-                setTimeout(window.removeAnimLock, 1500); 
+                setTimeout(window.removeAnimLock, 1000); 
             }
             
             if (gameState.latestMove && gameState.latestMove.ts > lastProcessedMoveTs) {
@@ -885,6 +883,7 @@
             }, 1500);
         }
 
+        // 优化2：移动逻辑间隙变短，让连环动作更加紧密不拖沓
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
@@ -906,13 +905,13 @@
                 let stepData = moveData.path[stepIdx];
                 
                 if (typeof stepData === 'string') {
-                    window.playSplashAnim(stepData);
+                    window.playSplashAnim(stepData, 800);
                     stepIdx++;
-                    setTimeout(nextStep, 1500);
+                    setTimeout(nextStep, 750); // 文字消失稍微超前一点，紧接着执行下一个动作
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
                     playDuelAnim(stepData.data);
                     stepIdx++;
-                    setTimeout(nextStep, 2600);
+                    setTimeout(nextStep, 2500);
                 } else {
                     let pos = stepData; 
                     let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
@@ -921,7 +920,7 @@
                         planeEl.style.top = `calc(${coords.y}% - 13px)`; 
                     }
                     stepIdx++; 
-                    setTimeout(nextStep, 300); 
+                    setTimeout(nextStep, 250); // 移动停顿缩短为0.25秒
                 }
             }
             nextStep();
@@ -1181,12 +1180,7 @@
         }
 
         window.handleRollDice = function() {
-            // 【核心修复点 2】：战场动画未结束前，严禁掷骰子
-            if (window.isGameAnimating()) {
-                showToast("请等待上一轮战术动作结算完毕");
-                return;
-            }
-
+            if (window.isGameAnimating()) { showToast("请等待上一轮战术动作结算完毕"); return; }
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             if (window.isPlacingBarricade || window.isPlacingMine) return showToast("请先完成部署");
             
@@ -1269,30 +1263,7 @@
             }
         }
 
-        function renderWeatherSystem() {
-            const banner = document.getElementById('weatherBanner'); const overlay = document.getElementById('weatherOverlay'); const envText = document.getElementById('envText');
-            const { type, remainingTurns, zone } = gameState.weather;
-            
-            if (type === 'normal' || remainingTurns <= 0) {
-                banner.classList.add('hidden'); overlay.className = 'weather-overlay'; envText.classList.add('hidden');
-                document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone')); return;
-            }
-            banner.classList.remove('hidden'); document.getElementById('weatherTurns').innerText = remainingTurns;
-            overlay.className = 'weather-overlay'; document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
-            
-            if (type === 'tailwind') { document.getElementById('weatherIcon').innerText = '🌬️'; document.getElementById('weatherText').innerText = '强顺风 (移动+2)'; overlay.classList.add('weather-tailwind'); } 
-            else if (type === 'fog') { document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾视阻 (限速1格)'; overlay.classList.add('weather-fog'); } 
-            else if (type === 'thunder') {
-                document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '极光雷暴预警'; overlay.classList.add('weather-thunder');
-                zone.forEach(pos => { const coord = trackCoords[pos]; if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); } });
-            }
-            if(gameState.envZone && gameState.envZone.type) {
-                envText.classList.remove('hidden'); envText.innerText = gameState.envZone.type === 'westwind' ? '🌊 航道局部存在【盛行洋流】' : '🛑 航道局部存在【无风带】';
-            } else { envText.classList.add('hidden'); }
-        }
-
         window.handlePieceClick = function(player, pieceIndex) {
-            // 【核心修复点 3】：如果当前场上有战机或事件正在做动画演出，严禁点击战机
             if (window.isGameAnimating()) return;
 
             if (window.isSelectingPlaneFor && player === myPlayerId) {
@@ -1323,7 +1294,6 @@
             if (currentPos === 999) return;
 
             const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
-            
             let animKeyframes = []; 
             
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
@@ -1336,7 +1306,6 @@
             let oppMines = [...gameState[oppId].mines]; let oppStats = gameState[oppId].stats;
             
             const isRecon = myRecons[pieceIndex];
-
             let myCellEvents = {...gameState.cellEvents}; let myCellItems = {...gameState.cellItems};
             let currentBarricades = [...(gameState.barricades || [])]; let hitBarricade = false;
 
@@ -1353,111 +1322,133 @@
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; 
                 else if (gameState.weather.type === 'fog') {
                     if (isRecon) {
-                        animKeyframes.push(`🛩️ 侦察机无视大雾！`); 
+                        animKeyframes.push(`🛩️️ 侦察机无视大雾！`); 
                         logs.push(`🛩️ 侦察机雷达全开，无视大雾影响！`);
-                    } else {
-                        moveSteps = 1;
-                    }
+                    } else { moveSteps = 1; }
                 }
                 
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, currentBarricades); newPos = moveResult.pos; animKeyframes.push(...moveResult.path);
                 if (moveResult.hitBarricadePos !== -1) { 
-                    hitBarricade = true; 
-                    animKeyframes.push(`🚧 撞上【强力路障】被逼停！`);
-                    logs.push(`🚧 砰！${myName} 撞上【强力路障】被逼停！`); consumeBarricade(moveResult.hitBarricadePos); 
+                    hitBarricade = true; animKeyframes.push(`🚧 撞上路障被逼停！`); logs.push(`🚧 砰！${myName} 撞上【强力路障】被逼停！`); consumeBarricade(moveResult.hitBarricadePos); 
                 }
             }
 
-            if (!isWingman && newPos >= 0 && newPos <= 43 && itemCellIndices.includes(newPos)) {
-                const get = myCellItems[newPos]; myItems.push(get);
-                let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
-                animKeyframes.push(`🎁 获得物资：【${n}】`);
-                logs.push(`🎁 获取战略物资：【${n}】！`); myCellItems[newPos] = itemPool[Math.floor(Math.random() * itemPool.length)]; 
-            }
+            // 【核心优化点：连环触发状态机】
+            // 只要没撞墙且在主赛道内，循环判定事件。如果某一事件导致降落点再次改变，就会触发新格子的判定。
+            let resolvingPos = true;
+            let resolveLoops = 0;
 
-            if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
-                let randEvent = myCellEvents[newPos]; myCellEvents[newPos] = Math.floor(Math.random() * 11);
-                const triggerBad = (action) => { 
-                    if (myShield) { 
-                        animKeyframes.push(`🛡️ 护盾弹开了恶意效果！`); 
-                        logs.push(`🛡️️ 护盾弹开了盲盒恶意效果！`); 
-                        myShield = false; 
-                    } else { action(); } 
-                };
-                const applyMove = (steps) => { 
-                    let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; animKeyframes.push(...res.path);
-                    if (res.hitBarricadePos !== -1) { 
-                        animKeyframes.push(`🚧 撞上路障！`); 
-                        logs.push(`🚧 撞上路障！`); consumeBarricade(res.hitBarricadePos); 
-                    } 
-                };
+            while (resolvingPos && resolveLoops < 6 && newPos >= 0 && newPos <= 43 && !hitBarricade) {
+                resolvingPos = false; // 默认跳出循环，除非中途改变了 newPos
+                resolveLoops++;
+                let loopStartPos = newPos;
 
-                switch(randEvent) {
-                    case 0: triggerBad(() => { animKeyframes.push(`🌪️ 高空气流，后退3格！`); logs.push(`🌪️ 高空气流，后退3格！`); applyMove(-3); }); break;
-                    case 1: animKeyframes.push(`🚀 完美气流，前进3格！`); logs.push(`🚀 完美气流，前进3格！`); applyMove(3); break;
-                    case 2: triggerBad(() => { 
-                        if (isProtectedByFrigate(myPlayerId, newPos)) {
-                            animKeyframes.push(`🛸 护卫舰免受闪电直击！`); logs.push(`🛸 护卫舰立场抵御了闪电直击！`);
-                        } else {
-                            animKeyframes.push(`⚡ 被闪电直击坠毁！`); logs.push(`⚡ 被闪电直击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(-1); 
-                        }
-                    }); break;
-                    case 3: animKeyframes.push(`🎲 获得胶囊，额外回合！`); logs.push(`🎲 获得胶囊，额外回合！`); extraTurn = true; break;
-                    case 4: animKeyframes.push(`🌈 跃迁至下一同色格！`); logs.push(`🌈 跃迁至下一同色格！`);
-                        const path = generateLogicalPath(myPlayerId); const currIdx = path.indexOf(newPos);
-                        if (currIdx !== -1) { let nextSame = currIdx + 1; while (nextSame < 44 && getCellColor(path[nextSame]) !== getCellColor(newPos)) nextSame++; if (nextSame < 44) { newPos = path[nextSame]; animKeyframes.push(newPos); } } break;
-                    case 5:
-                        let validOpp = oppPieces.slice(0,4).map((p,i) => (p>=0 && p<=43)?i:-1).filter(i=>i!==-1);
-                        if(validOpp.length > 0) { const r = validOpp[Math.floor(Math.random() * validOpp.length)]; const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; animKeyframes.push(`🔄 空间传送！互换位置！`); animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`); } break;
-                    case 6: animKeyframes.push(`🛸 被UFO绑架随机传送！`); logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); animKeyframes.push(newPos); break;
-                    case 7: triggerBad(() => { animKeyframes.push(`💣 遭遇严重鸟击退回起点！`); logs.push(`💣 遭遇严重鸟击退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; animKeyframes.push(newPos); }); break;
-                    case 8: triggerBad(() => { animKeyframes.push(`⛽ 燃料泄漏，退 4 格！`); logs.push(`⛽ 燃料泄漏，退 4 格！`); applyMove(-4); }); break;
-                    case 9: animKeyframes.push(`✈️ 引擎过载，冲刺 4 格！`); logs.push(`✈️ 引擎过载，冲刺 4 格！`); applyMove(4); break;
-                    case 10:
-                        animKeyframes.push(`🕳️ 引发局部坍塌，退 2 格！`); logs.push(`🕳️ 引发局部坍塌，赛道战机倒退 2 格！`);
-                        myPieces = myPieces.map(p => (p>=0 && p<=43) ? calculateDestination(myPlayerId, p, -2, []).pos : p); oppPieces = oppPieces.map(p => (p>=0 && p<=43) ? calculateDestination(oppId, p, -2, []).pos : p);
-                        newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); break;
-                }
-            }
-
-            if (newPos >= 0 && newPos <= 43 && !hitBarricade) {
-                let env = gameState.envZone; let canJump = true;
-                if(env && env.indices.includes(newPos)) {
-                    if(env.type === 'westwind') { animKeyframes.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); newPos = calculateDestination(myPlayerId, newPos, 2, []).pos; animKeyframes.push(newPos); }
-                    else if(env.type === 'calm') { animKeyframes.push(`🛑 陷入无风带，无法进行同色跳跃！`); logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
-                }
-                if (canJump && getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
-                    const path = generateLogicalPath(myPlayerId); const currPathIndex = path.indexOf(newPos);
-                    if (currPathIndex !== -1 && currPathIndex + 4 < 44) { 
-                        animKeyframes.push(`💨 引擎轰鸣，触发同色跳跃！`); logs.push(`💨 引擎轰鸣，触发同色跳跃！`);
-                        let jmpRes = calculateDestination(myPlayerId, newPos, 4, currentBarricades); newPos = jmpRes.pos; animKeyframes.push(...jmpRes.path);
-                        if(jmpRes.hitBarricadePos !== -1) { animKeyframes.push(`💨 跳跃中撞上路障被迫停下！`); logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); } 
+                // 1. 道具补给判定
+                if (!isWingman && itemCellIndices.includes(newPos)) {
+                    const get = myCellItems[newPos]; 
+                    if (get) {
+                        myItems.push(get);
+                        let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
+                        animKeyframes.push(`🎁 获得物资：【${n}】`);
+                        logs.push(`🎁 获取战略物资：【${n}】！`); 
+                        myCellItems[newPos] = itemPool[Math.floor(Math.random() * itemPool.length)]; 
                     }
                 }
-            }
 
-            if (newPos >= 0 && newPos <= 43 && gameState.wormholes && gameState.wormholes.length === 2) {
-                if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
-                else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
-            }
-            
+                // 2. 盲盒事件判定
+                if (eventCellIndices.includes(newPos)) {
+                    let randEvent = myCellEvents[newPos]; 
+                    myCellEvents[newPos] = Math.floor(Math.random() * 11);
+                    const triggerBad = (action) => { 
+                        if (myShield) { 
+                            animKeyframes.push(`🛡️ 护盾抵消异常！`); logs.push(`🛡 护盾弹开了盲盒恶意效果！`); myShield = false; 
+                        } else { action(); } 
+                    };
+                    const applyMove = (steps) => { 
+                        let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); 
+                        newPos = res.pos; animKeyframes.push(...res.path);
+                        if (res.hitBarricadePos !== -1) { 
+                            animKeyframes.push(`🚧 撞上路障！`); logs.push(`🚧 撞上路障！`); 
+                            consumeBarricade(res.hitBarricadePos); hitBarricade = true;
+                        } 
+                    };
+
+                    switch(randEvent) {
+                        case 0: triggerBad(() => { animKeyframes.push(`🌪️ 高空气流，后退3格！`); logs.push(`🌪️ 高空气流，后退3格！`); applyMove(-3); }); break;
+                        case 1: animKeyframes.push(`🚀 完美气流，前进3格！`); logs.push(`🚀 完美气流，前进3格！`); applyMove(3); break;
+                        case 2: triggerBad(() => { 
+                            if (isProtectedByFrigate(myPlayerId, newPos)) {
+                                animKeyframes.push(`🛸 护卫舰免受闪电直击！`); logs.push(`🛸 护卫舰立场抵御了闪电直击！`);
+                            } else {
+                                animKeyframes.push(`⚡ 被闪电直击坠毁！`); logs.push(`⚡ 被闪电直击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(-1); 
+                            }
+                        }); break;
+                        case 3: animKeyframes.push(`🎲 获得胶囊，额外回合！`); logs.push(`🎲 获得胶囊，额外回合！`); extraTurn = true; break;
+                        case 4: animKeyframes.push(`🌈 跃迁至下一同色格！`); logs.push(`🌈 跃迁至下一同色格！`);
+                            const path = generateLogicalPath(myPlayerId); const currIdx = path.indexOf(newPos);
+                            if (currIdx !== -1) { let nextSame = currIdx + 1; while (nextSame < 44 && getCellColor(path[nextSame]) !== getCellColor(newPos)) nextSame++; if (nextSame < 44) { newPos = path[nextSame]; animKeyframes.push(newPos); } } break;
+                        case 5:
+                            let validOpp = oppPieces.slice(0,4).map((p,i) => (p>=0 && p<=43)?i:-1).filter(i=>i!==-1);
+                            if(validOpp.length > 0) { const r = validOpp[Math.floor(Math.random() * validOpp.length)]; const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; animKeyframes.push(`🔄 空间传送互换位置！`); animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`); } break;
+                        case 6: animKeyframes.push(`🛸 UFO绑架随机传送！`); logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); animKeyframes.push(newPos); break;
+                        case 7: triggerBad(() => { animKeyframes.push(`💣 遭遇鸟击退回起点！`); logs.push(`💣 遭遇严重鸟击退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; animKeyframes.push(newPos); }); break;
+                        case 8: triggerBad(() => { animKeyframes.push(`⛽ 燃料泄漏，退4格！`); logs.push(`⛽ 燃料泄漏，退 4 格！`); applyMove(-4); }); break;
+                        case 9: animKeyframes.push(`✈️ 引擎过载，冲刺4格！`); logs.push(`✈️ 引擎过载，冲刺 4 格！`); applyMove(4); break;
+                        case 10:
+                            animKeyframes.push(`🕳️ 引发局部坍塌，退2格！`); logs.push(`🕳️ 引发局部坍塌，赛道战机倒退 2 格！`);
+                            myPieces = myPieces.map(p => (p>=0 && p<=43) ? calculateDestination(myPlayerId, p, -2, []).pos : p); oppPieces = oppPieces.map(p => (p>=0 && p<=43) ? calculateDestination(oppId, p, -2, []).pos : p);
+                            newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); break;
+                    }
+                }
+
+                // 3. 洋流与同色跳跃判定 (需确保盲盒没有触发空间位移，如果在原位才接着跳跃)
+                if (newPos === loopStartPos) {
+                    let env = gameState.envZone; let canJump = true;
+                    if(env && env.indices.includes(newPos)) {
+                        if(env.type === 'westwind') { animKeyframes.push(`🌊 洋流顺势滑行！`); logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); newPos = calculateDestination(myPlayerId, newPos, 2, []).pos; animKeyframes.push(newPos); }
+                        else if(env.type === 'calm') { animKeyframes.push(`🛑 无风带！`); logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
+                    }
+                    if (newPos === loopStartPos && canJump && getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
+                        const path = generateLogicalPath(myPlayerId); const currPathIndex = path.indexOf(newPos);
+                        if (currPathIndex !== -1 && currPathIndex + 4 < 44) { 
+                            animKeyframes.push(`💨 引擎轰鸣同色跳跃！`); logs.push(`💨 引擎轰鸣，触发同色跳跃！`);
+                            let jmpRes = calculateDestination(myPlayerId, newPos, 4, currentBarricades); newPos = jmpRes.pos; animKeyframes.push(...jmpRes.path);
+                            if(jmpRes.hitBarricadePos !== -1) { animKeyframes.push(`🚧 撞上路障被迫停下！`); logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); hitBarricade = true; } 
+                        }
+                    }
+                }
+
+                // 4. 时空虫洞判定
+                if (newPos === loopStartPos && gameState.wormholes && gameState.wormholes.length === 2) {
+                    if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
+                    else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
+                }
+                
+                // 5. 隐形水雷判定
+                if (newPos === loopStartPos && oppMines.includes(newPos)) {
+                    oppMines = oppMines.filter(m => m !== newPos);
+                    if (isRecon) {
+                        animKeyframes.push(`🛩️ 排雷成功！`); logs.push(`🛩️ ${myName} 的侦察机安全排除了隐形水雷！`);
+                    } else {
+                        animKeyframes.push(`💣 踩中水雷退后！`); logs.push(`💣 轰隆！踩中水雷，退后 3 格并遭受严重【致盲】3回合！`); playSound('boom');
+                        let mineRes = calculateDestination(myPlayerId, newPos, -3, []); newPos = mineRes.pos; animKeyframes.push(...mineRes.path);
+                        stateUpdate[`${myPlayerId}.blindTurns`] = 3; myStats.minesTriggered++;
+                    }
+                }
+
+                // 关键点：如果经过这一轮结算，战机的位置变了，且仍处在主赛道，那就再来一轮触发！
+                if (newPos !== loopStartPos && newPos >= 0 && newPos <= 43 && !hitBarricade) {
+                    resolvingPos = true;
+                }
+            } // 连环判定结束
+
+            // 最终的雷暴与决斗结算（保证在落脚点最终完全确定后触发，不再进行链式位移）
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
                     if (myShield) { animKeyframes.push(`🛡️ 护盾弹开了雷击！`); logs.push(`🛡 护盾弹开了雷击！`); myShield = false; } 
                     else if (isProtectedByFrigate(myPlayerId, newPos)) { animKeyframes.push(`🛸 护卫舰抵御了雷暴轰击！`); logs.push(`🛸 护卫舰立场抵御了雷暴轰击！`); }
                     else { animKeyframes.push(`⚡ 轰隆！不幸遭雷击坠毁！`); logs.push(`⚡ 轰隆！不幸遭雷击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(newPos); myStats.thunderHits++; }
                 } else { animKeyframes.push(`⛈️ 惊险穿过雷暴区。`); logs.push(`⛈️ 惊险穿过雷暴区。`); }
-            }
-
-            if (newPos >= 0 && newPos <= 43 && oppMines.includes(newPos)) {
-                oppMines = oppMines.filter(m => m !== newPos);
-                if (isRecon) {
-                    animKeyframes.push(`🛩️ 侦察机排除了水雷！`); logs.push(`🛩️ ${myName} 的侦察机看破并安全排除了隐形水雷！`);
-                } else {
-                    animKeyframes.push(`💣 踩中水雷，致盲并退后 3 格！`); logs.push(`💣 轰隆！踩中水雷，退后 3 格，并遭受严重【致盲】3回合！`); playSound('boom');
-                    let mineRes = calculateDestination(myPlayerId, newPos, -3, []); newPos = mineRes.pos; animKeyframes.push(...mineRes.path);
-                    stateUpdate[`${myPlayerId}.blindTurns`] = 3; myStats.minesTriggered++;
-                }
             }
 
             myPieces[pieceIndex] = newPos;
@@ -1467,8 +1458,8 @@
                 for(let i=0; i<5; i++) { 
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                        if (oppShield) { animKeyframes.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
-                        else if (isProtectedByFrigate(oppId, newPos)) { animKeyframes.push(`🛸 敌方受【护卫舰】庇护，免疫接触战！`); logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
+                        if (oppShield) { animKeyframes.push(`🛡️ 敌方护盾抵挡了冲撞！`); logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
+                        else if (isProtectedByFrigate(oppId, newPos)) { animKeyframes.push(`🛸 敌方免疫接触战！`); logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
                         else {
                             let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
                             logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
@@ -1493,7 +1484,7 @@
                         }
                     }
                 }
-                if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 战绩赫赫！晋升为【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
+                if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 晋升【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
             
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
@@ -1503,10 +1494,10 @@
                         let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                         if (Math.min(dist1, dist2) <= 3) {
                             if (oppShield) { animKeyframes.push(`🛡️ 护盾保住了敌机！`); logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
-                            else if (isProtectedByFrigate(oppId, p)) { animKeyframes.push(`🛸 敌方力场拦截了轰炸！`); logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
+                            else if (isProtectedByFrigate(oppId, p)) { animKeyframes.push(`🛸 敌机免疫轰炸！`); logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
                             else {
                                 let wasBomber = oppBombers[i]; killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                                animKeyframes.push(`🔥 【轰炸机】摧毁了范围内敌机！`); logs.push(`🔥 【轰炸机】摧毁了范围内敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false;
+                                animKeyframes.push(`🔥 轰炸摧毁敌机！`); logs.push(`🔥 【轰炸机】摧毁了范围内敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false;
                                 if (wasBomber) { enemyBomberHit = true; }
                             }
                         }
