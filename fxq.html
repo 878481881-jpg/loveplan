@@ -107,7 +107,7 @@
             100% { transform: translate(calc(-40px + 80px * var(--sway)), -120vh) scale(1.5) rotate(30deg); opacity: 0; }
         }
 
-        /* --- 新增大屏溅射动画 --- */
+        /* 大屏提示动画 */
         @keyframes dicePop {
             0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
             20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
@@ -124,7 +124,7 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-40">
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
-    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
+    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️️</div>
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
@@ -149,9 +149,9 @@
 
     <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
-            <span class="text-3xl">✈️️</span>
+            <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.02</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.0</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -363,6 +363,19 @@
         window.isPlacingMine = false;
         window.isSelectingPlaneFor = null;
         window.selectingItemType = null;
+
+        // 全局动画锁机制：只要 > 0，就会冻结 UI 自动刷新并阻止用户点击
+        window.animLockCount = 0;
+        window.addAnimLock = function() { 
+            window.animLockCount++; 
+            const overlay = document.getElementById('boardOverlay');
+            if (overlay) overlay.classList.remove('hidden'); 
+        };
+        window.removeAnimLock = function() { 
+            window.animLockCount = Math.max(0, window.animLockCount - 1); 
+            if(window.animLockCount === 0) renderGameState(); 
+        };
+        window.isGameAnimating = function() { return window.animLockCount > 0; };
 
         async function initAudioContext() {
             if(isAudioInited) return;
@@ -639,7 +652,11 @@
                 turnInd.innerText = '等待中...'; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500';
                 overlay.classList.remove('hidden'); btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
-                if (isMyTurn) {
+                // 如果当前正处于任意动画锁中，必须锁定玩家界面的点击！
+                if (window.isGameAnimating()) {
+                    overlay.classList.remove('hidden');
+                    btnRoll.disabled = true;
+                } else if (isMyTurn) {
                     turnInd.innerText = gameState.hasRolled ? '👉 待移动' : '🎲 待掷骰';
                     turnInd.className = `text-[9px] px-2 py-0.5 rounded ${myPlayerId === 'p1' ? 'bg-red-500 text-white' : 'bg-blue-500 text-white'} font-bold animate-pulse`;
                     overlay.classList.add('hidden'); btnRoll.disabled = gameState.hasRolled;
@@ -677,7 +694,11 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            updateBoardDecorations(); updatePlanesPosition();
+            updateBoardDecorations(); 
+            // 核心：若正在播放排队动画，不要更新战机的最终位置，等动画结束释放锁后再更新
+            if (!window.isGameAnimating()) {
+                updatePlanesPosition();
+            }
             processInteractions();
         }
 
@@ -769,14 +790,24 @@
 
         function processInteractions() {
             if (!gameState) return;
+            
+            // 掷骰子动画触发时，锁定界面并在中央爆出骰子数字
             if (gameState.latestRoll && gameState.latestRoll.ts > lastProcessedRollTs) {
                 lastProcessedRollTs = gameState.latestRoll.ts;
                 let pName = gameState.latestRoll.p === 'p1' ? gameState.p1.name : gameState.p2.name;
                 playDiceSplashAnim(gameState.latestRoll.roll, pName, gameState.latestRoll.p);
+                
+                window.addAnimLock();
+                renderGameState(); // 立刻执行一次，确保黑障遮罩出现阻止点击
+                setTimeout(window.removeAnimLock, 1500); // 弹窗消失后解除锁定，此时玩家才能点击战机移动
             }
+            
+            // 收到新的行动轨迹，触发移动序列动画
             if (gameState.latestMove && gameState.latestMove.ts > lastProcessedMoveTs) {
-                lastProcessedMoveTs = gameState.latestMove.ts; playMoveAnim(gameState.latestMove);
+                lastProcessedMoveTs = gameState.latestMove.ts; 
+                playMoveAnim(gameState.latestMove);
             }
+            
             if (gameState.latestTaunt && gameState.latestTaunt.ts > lastProcessedTauntTs) {
                 lastProcessedTauntTs = gameState.latestTaunt.ts; playTauntAnim(gameState.latestTaunt);
             }
@@ -853,6 +884,7 @@
             }, 1500);
         }
 
+        // 核心改造：战机移动动画引擎，能够支持 阻塞式地弹出文字、执行决斗、移动坐标
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
@@ -860,25 +892,33 @@
 
             activeAnimations[planeId] = true; let stepIdx = 0;
             planeEl.style.transition = 'transform 0.25s linear, left 0.25s linear, top 0.25s linear';
+            
+            // 锁定游戏界面，确保所有动画完成前不发生瞬移刷新
+            window.addAnimLock();
 
             function nextStep() {
                 if (stepIdx >= moveData.path.length) {
                     delete activeAnimations[planeId];
                     planeEl.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1)';
-                    updatePlanesPosition(); return;
+                    // 动画全部结束，释放锁，这将触发 renderGameState 将所有飞机的最终位置进行瞬间同步（如有战损或对换）
+                    window.removeAnimLock();
+                    return;
                 }
                 
                 let stepData = moveData.path[stepIdx];
                 
                 if (typeof stepData === 'string') {
-                    playSplashAnim(stepData);
+                    // 如果遇到文本，证明发生特殊事件。播放大屏溅射文字，停留1.5秒后再执行下一步
+                    window.playSplashAnim(stepData);
                     stepIdx++;
                     setTimeout(nextStep, 1500);
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
+                    // 触发对决弹窗，等待2.6秒播完结果再行动
                     playDuelAnim(stepData.data);
                     stepIdx++;
                     setTimeout(nextStep, 2600);
                 } else {
+                    // 遇到普通坐标，让飞机移动过去，等0.3秒
                     let pos = stepData; 
                     let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
                     if (coords.x !== undefined && coords.y !== undefined) { 
@@ -987,7 +1027,6 @@
                     validTargets.sort((a,b) => a.dist - b.dist); let targetIdx = validTargets[0].idx;
                     let oppFrigates = [...gameState[oppId].frigates];
                     if (gameState[oppId].shield) { logs.push(`🛡 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; } 
-                    // 修正护卫舰判定：移除 !oppFrigates 的限制，使其可以保护自身
                     else if (isProtectedByFrigate(oppId, oppPieces[targetIdx])) { logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`); } 
                     else {
                         killPlane(targetIdx, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, oppFrigates, gameState[oppId].recons);
@@ -1133,7 +1172,7 @@
 
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled && !window.isSelectingPlaneFor) {
                         const canMove = (pos === -1 && (gameState.diceValue === 6 || gameState.diceValue === 1)) || (pos !== -1 && pos !== 999);
-                        if (canMove) planeEl.classList.add('plane-active');
+                        if (canMove && !window.isGameAnimating()) planeEl.classList.add('plane-active');
                     }
                     
                     if (activeAnimations[planeId]) return;
@@ -1280,7 +1319,10 @@
             if (currentPos === 999) return;
 
             const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
+            
+            // 核心动画序列：放入 字符串=弹窗 / 数字=移动 / 对象=决斗
             let animKeyframes = []; 
+            
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
 
             let myPieces = [...gameState[myPlayerId].pieces]; let myAces = [...gameState[myPlayerId].aces]; let myBombers = [...gameState[myPlayerId].bombers];
@@ -1290,7 +1332,6 @@
             let oppFrigates = [...gameState[oppId].frigates]; let oppRecons = [...gameState[oppId].recons]; let oppShield = gameState[oppId].shield;
             let oppMines = [...gameState[oppId].mines]; let oppStats = gameState[oppId].stats;
             
-            // 提取当前是不是侦察机
             const isRecon = myRecons[pieceIndex];
 
             let myCellEvents = {...gameState.cellEvents}; let myCellItems = {...gameState.cellItems};
@@ -1300,14 +1341,18 @@
             const isWingman = (pieceIndex === 4);
 
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
-                newPos = myPlayerId === 'p1' ? 0 : 22; animKeyframes.push(newPos);
+                newPos = myPlayerId === 'p1' ? 0 : 22; 
+                // 起飞播报
+                animKeyframes.push(isWingman ? '🚁 无人僚机出击！' : '✈️ 战机出击！');
+                animKeyframes.push(newPos);
                 logs.push(isWingman ? `🚁 无人僚机离陆！` : `✈ ${myName} 的战机驶出机库！`);
             } else {
                 let moveSteps = dice;
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; 
                 else if (gameState.weather.type === 'fog') {
                     if (isRecon) {
-                        animKeyframes.push(`🛩️ 侦察机无视大雾！`); logs.push(`🛩️ 侦察机雷达全开，无视大雾影响！`);
+                        animKeyframes.push(`🛩️ 侦察机无视大雾！`); 
+                        logs.push(`🛩️ 侦察机雷达全开，无视大雾影响！`);
                     } else {
                         moveSteps = 1;
                     }
@@ -1330,10 +1375,19 @@
 
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 let randEvent = myCellEvents[newPos]; myCellEvents[newPos] = Math.floor(Math.random() * 11);
-                const triggerBad = (action) => { if (myShield) { animKeyframes.push(`🛡️ 护盾弹开了恶意效果！`); logs.push(`🛡️ 护盾弹开了盲盒恶意效果！`); myShield = false; } else { action(); } };
+                const triggerBad = (action) => { 
+                    if (myShield) { 
+                        animKeyframes.push(`🛡️ 护盾弹开了恶意效果！`); 
+                        logs.push(`🛡️ 护盾弹开了盲盒恶意效果！`); 
+                        myShield = false; 
+                    } else { action(); } 
+                };
                 const applyMove = (steps) => { 
                     let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; animKeyframes.push(...res.path);
-                    if (res.hitBarricadePos !== -1) { animKeyframes.push(`🚧 撞上路障！`); logs.push(`🚧 撞上路障！`); consumeBarricade(res.hitBarricadePos); } 
+                    if (res.hitBarricadePos !== -1) { 
+                        animKeyframes.push(`🚧 撞上路障！`); 
+                        logs.push(`🚧 撞上路障！`); consumeBarricade(res.hitBarricadePos); 
+                    } 
                 };
 
                 switch(randEvent) {
@@ -1387,7 +1441,7 @@
             
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
-                    if (myShield) { animKeyframes.push(`🛡 护盾弹开了雷击！`); logs.push(`🛡 护盾弹开了雷击！`); myShield = false; } 
+                    if (myShield) { animKeyframes.push(`🛡️ 护盾弹开了雷击！`); logs.push(`🛡 护盾弹开了雷击！`); myShield = false; } 
                     else if (isProtectedByFrigate(myPlayerId, newPos)) { animKeyframes.push(`🛸 护卫舰抵御了雷暴轰击！`); logs.push(`🛸 护卫舰立场抵御了雷暴轰击！`); }
                     else { animKeyframes.push(`⚡ 轰隆！不幸遭雷击坠毁！`); logs.push(`⚡ 轰隆！不幸遭雷击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(newPos); myStats.thunderHits++; }
                 } else { animKeyframes.push(`⛈️ 惊险穿过雷暴区。`); logs.push(`⛈️ 惊险穿过雷暴区。`); }
@@ -1411,14 +1465,14 @@
                 for(let i=0; i<5; i++) { 
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                        if (oppShield) { animKeyframes.push(`🛡️️ 敌方护盾抵挡了碰撞冲击！`); logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
-                        // 修正护卫舰判定：移除 !oppFrigates 限制
+                        if (oppShield) { animKeyframes.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
                         else if (isProtectedByFrigate(oppId, newPos)) { animKeyframes.push(`🛸 敌方受【护卫舰】庇护，免疫接触战！`); logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
                         else {
                             let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
                             logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
                             let duelPayload = { attackerName: myName, defenderName: oppName, attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue', attackerRoll: myRoll, defenderRoll: oppRoll, result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'), ts: Date.now() };
+                            // 将决斗事件也压入动画队列中进行序列化播放
                             animKeyframes.push({ type: 'duel', data: duelPayload });
                             
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
@@ -1448,7 +1502,6 @@
                         let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                         if (Math.min(dist1, dist2) <= 3) {
                             if (oppShield) { animKeyframes.push(`🛡️ 护盾保住了敌机！`); logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
-                            // 修正护卫舰判定：移除 !oppFrigates 限制
                             else if (isProtectedByFrigate(oppId, p)) { animKeyframes.push(`🛸 敌方力场拦截了轰炸！`); logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
                             else {
                                 let wasBomber = oppBombers[i]; killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
@@ -1483,6 +1536,8 @@
 
             if(newPos === 999 && !isWingman) logs.push(`🎉 一架战机成功抵达终点！`);
             if(newPos === 999 && isWingman) logs.push(`🚁 僚机抵达终点报废。`);
+            
+            // 提交最新的移动和动画队列
             stateUpdate.logs = logs; stateUpdate.latestMove = { p: myPlayerId, i: pieceIndex, path: animKeyframes, ts: Date.now() };
             
             gameState = { ...gameState, ...stateUpdate };
