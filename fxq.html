@@ -124,7 +124,7 @@
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-40">
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
-    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️️</div>
+    <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁</div>
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
@@ -151,7 +151,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.0</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.0.01</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -364,15 +364,18 @@
         window.isSelectingPlaneFor = null;
         window.selectingItemType = null;
 
-        // 全局动画锁机制：只要 > 0，就会冻结 UI 自动刷新并阻止用户点击
+        // 全局动画锁引擎：强制拦截状态突变
         window.animLockCount = 0;
         window.addAnimLock = function() { 
             window.animLockCount++; 
             const overlay = document.getElementById('boardOverlay');
             if (overlay) overlay.classList.remove('hidden'); 
+            const btnRoll = document.getElementById('btnRollDice');
+            if (btnRoll) btnRoll.disabled = true;
         };
         window.removeAnimLock = function() { 
             window.animLockCount = Math.max(0, window.animLockCount - 1); 
+            // 当所有动画序列播完后，重新触发渲染来展示最终状态并解开交互
             if(window.animLockCount === 0) renderGameState(); 
         };
         window.isGameAnimating = function() { return window.animLockCount > 0; };
@@ -535,8 +538,6 @@
             for(let i=0; i<5; i++) { createPlane('p1', i); createPlane('p2', i); }
         }
 
-        function getCoordPercent(gridVal) { return (gridVal + 0.5) * (100 / GRID_SIZE); }
-
         async function initAuth() {
             if (!hasCloudBase) { hideLoading(); return; }
             try {
@@ -633,6 +634,10 @@
 
         function renderGameState() {
             if (!gameState) return;
+
+            // 1. 核心渲染调整：在进行任何 UI 和棋盘位置更新之前，必须先将新数据推入动画锁引擎进行判定
+            processInteractions();
+
             document.getElementById('displayRoomCode').innerText = currentRoomId;
             document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
@@ -652,7 +657,7 @@
                 turnInd.innerText = '等待中...'; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500';
                 overlay.classList.remove('hidden'); btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
-                // 如果当前正处于任意动画锁中，必须锁定玩家界面的点击！
+                // 如果当前正处于任意动画锁中，强制锁定遮罩并禁用掷骰子，直到所有大屏文字和行动播完
                 if (window.isGameAnimating()) {
                     overlay.classList.remove('hidden');
                     btnRoll.disabled = true;
@@ -694,12 +699,11 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            updateBoardDecorations(); 
-            // 核心：若正在播放排队动画，不要更新战机的最终位置，等动画结束释放锁后再更新
+            // 核心渲染调整2：如果正在播放动画，直接跳过棋盘位置和道具的刷新，保留在原点，从而完美消除瞬移Bug
             if (!window.isGameAnimating()) {
+                updateBoardDecorations();
                 updatePlanesPosition();
             }
-            processInteractions();
         }
 
         window.toggleTauntBar = function() {
@@ -791,18 +795,15 @@
         function processInteractions() {
             if (!gameState) return;
             
-            // 掷骰子动画触发时，锁定界面并在中央爆出骰子数字
             if (gameState.latestRoll && gameState.latestRoll.ts > lastProcessedRollTs) {
                 lastProcessedRollTs = gameState.latestRoll.ts;
                 let pName = gameState.latestRoll.p === 'p1' ? gameState.p1.name : gameState.p2.name;
                 playDiceSplashAnim(gameState.latestRoll.roll, pName, gameState.latestRoll.p);
                 
                 window.addAnimLock();
-                renderGameState(); // 立刻执行一次，确保黑障遮罩出现阻止点击
-                setTimeout(window.removeAnimLock, 1500); // 弹窗消失后解除锁定，此时玩家才能点击战机移动
+                setTimeout(window.removeAnimLock, 1500); 
             }
             
-            // 收到新的行动轨迹，触发移动序列动画
             if (gameState.latestMove && gameState.latestMove.ts > lastProcessedMoveTs) {
                 lastProcessedMoveTs = gameState.latestMove.ts; 
                 playMoveAnim(gameState.latestMove);
@@ -884,23 +885,27 @@
             }, 1500);
         }
 
-        // 核心改造：战机移动动画引擎，能够支持 阻塞式地弹出文字、执行决斗、移动坐标
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
-            const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
-            if (!planeEl) return;
-
-            activeAnimations[planeId] = true; let stepIdx = 0;
-            planeEl.style.transition = 'transform 0.25s linear, left 0.25s linear, top 0.25s linear';
+            const planeId = `${moveData.p}-${moveData.i}`; 
+            const planeEl = document.getElementById(`plane-${planeId}`);
             
-            // 锁定游戏界面，确保所有动画完成前不发生瞬移刷新
+            // 加入全局动画锁，拦截玩家在动画期间进行任何骚操作和提前刷新的UI
             window.addAnimLock();
+            let stepIdx = 0;
+
+            if (planeEl) {
+                activeAnimations[planeId] = true;
+                planeEl.style.transition = 'transform 0.25s linear, left 0.25s linear, top 0.25s linear';
+            }
 
             function nextStep() {
                 if (stepIdx >= moveData.path.length) {
-                    delete activeAnimations[planeId];
-                    planeEl.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1)';
-                    // 动画全部结束，释放锁，这将触发 renderGameState 将所有飞机的最终位置进行瞬间同步（如有战损或对换）
+                    if (planeEl) {
+                        delete activeAnimations[planeId];
+                        planeEl.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1)';
+                    }
+                    // 彻底走完，释放引擎锁，这会瞬间将棋盘刷新为最终状态（如空间换位此时敌军才会过去）
                     window.removeAnimLock();
                     return;
                 }
@@ -908,22 +913,24 @@
                 let stepData = moveData.path[stepIdx];
                 
                 if (typeof stepData === 'string') {
-                    // 如果遇到文本，证明发生特殊事件。播放大屏溅射文字，停留1.5秒后再执行下一步
+                    // 若数组内嵌了字符串说明遭遇事件，立即大屏播报，挂起并强行等待1.5s
                     window.playSplashAnim(stepData);
                     stepIdx++;
                     setTimeout(nextStep, 1500);
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
-                    // 触发对决弹窗，等待2.6秒播完结果再行动
+                    // 遭遇空战对决，弹窗且等待结果
                     playDuelAnim(stepData.data);
                     stepIdx++;
                     setTimeout(nextStep, 2600);
                 } else {
-                    // 遇到普通坐标，让飞机移动过去，等0.3秒
-                    let pos = stepData; 
-                    let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
-                    if (coords.x !== undefined && coords.y !== undefined) { 
-                        planeEl.style.left = `calc(${coords.x}% - 13px)`; 
-                        planeEl.style.top = `calc(${coords.y}% - 13px)`; 
+                    // 普通数值坐标，战机飞过去
+                    if (planeEl) {
+                        let pos = stepData; 
+                        let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
+                        if (coords.x !== undefined && coords.y !== undefined) { 
+                            planeEl.style.left = `calc(${coords.x}% - 13px)`; 
+                            planeEl.style.top = `calc(${coords.y}% - 13px)`; 
+                        }
                     }
                     stepIdx++; 
                     setTimeout(nextStep, 300); 
@@ -1001,7 +1008,10 @@
             myItems.splice(idx, 1); stateUpdate[`${myPlayerId}.items`] = myItems;
             let myPieces = [...gameState[myPlayerId].pieces]; let oppPieces = [...gameState[oppId].pieces];
             
-            if (itemType === 'stealth') { stateUpdate[`${myPlayerId}.stealthTurns`] = 3; logs.push(`👻 ${myName} 启动了【光学迷彩】，战机隐形 3 回合！`); }
+            if (itemType === 'stealth') { 
+                stateUpdate[`${myPlayerId}.stealthTurns`] = 3; logs.push(`👻 ${myName} 启动了【光学迷彩】，战机隐形 3 回合！`); 
+                stateUpdate.latestMove = { p: myPlayerId, i: 99, path: ['👻 开启光学迷彩，隐身 3 回合！'], ts: Date.now() };
+            }
             else if (itemType === 'hook') {
                 let oppItems = [...gameState[oppId].items];
                 if(oppItems.length > 0) {
@@ -1009,7 +1019,11 @@
                     myItems.push(stolen); stateUpdate[`${oppId}.items`] = oppItems;
                     let n = stolen==='missile'?'🎯导弹':stolen==='magic_dice'?'🎲指定骰':stolen==='hook'?'🧲钩爪':stolen==='stealth'?'👻迷彩':stolen==='mine'?'💣水雷':'📦物资';
                     logs.push(`🧲 咻！${myName} 发射电磁钩爪，从对方背包偷走了【${n}】！`);
-                } else { logs.push(`🧲 钩爪放空，对方背包空空如也！`); }
+                    stateUpdate.latestMove = { p: myPlayerId, i: 99, path: [`🧲 偷取成功：获得【${n}】！`], ts: Date.now() };
+                } else { 
+                    logs.push(`🧲 钩爪放空，对方背包空空如也！`); 
+                    stateUpdate.latestMove = { p: myPlayerId, i: 99, path: [`🧲 敌方背包空空如也！`], ts: Date.now() };
+                }
             }
             else if (itemType === 'missile') {
                 let validTargets = [];
@@ -1026,17 +1040,23 @@
                 if(validTargets.length > 0) {
                     validTargets.sort((a,b) => a.dist - b.dist); let targetIdx = validTargets[0].idx;
                     let oppFrigates = [...gameState[oppId].frigates];
-                    if (gameState[oppId].shield) { logs.push(`🛡 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; } 
-                    else if (isProtectedByFrigate(oppId, oppPieces[targetIdx])) { logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`); } 
+                    let animLog = '';
+                    if (gameState[oppId].shield) { logs.push(`🛡 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; animLog = '🛡️ 敌方反导护盾拦截了导弹！'; } 
+                    else if (isProtectedByFrigate(oppId, oppPieces[targetIdx])) { logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`); animLog = '🛸 敌方护卫舰立场拦截了导弹！'; } 
                     else {
                         killPlane(targetIdx, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, oppFrigates, gameState[oppId].recons);
                         stateUpdate[`${oppId}.pieces`] = oppPieces; stateUpdate[`${oppId}.aces`] = gameState[oppId].aces;
                         stateUpdate[`${oppId}.bombers`] = gameState[oppId].bombers; stateUpdate[`${oppId}.frigates`] = oppFrigates; stateUpdate[`${oppId}.recons`] = gameState[oppId].recons;
                         logs.push(`🚀 砰！${myName} 的【定向导弹】炸毁了前方敌机！`); playSound('boom');
+                        animLog = '🚀 导弹出击，精准命中目标！';
                     }
+                    stateUpdate.latestMove = { p: myPlayerId, i: 99, path: [animLog], ts: Date.now() };
                 } else { return showToast("前方 6 格内未锁定敌机"); }
             } 
-            else if (itemType === 'shield') { stateUpdate[`${myPlayerId}.shield`] = true; logs.push(`🛡️ ${myName} 开启了【反导护盾】！`); }
+            else if (itemType === 'shield') { 
+                stateUpdate[`${myPlayerId}.shield`] = true; logs.push(`🛡️ ${myName} 开启了【反导护盾】！`); 
+                stateUpdate.latestMove = { p: myPlayerId, i: 99, path: ['🛡️ 开启反导护盾！'], ts: Date.now() };
+            }
             
             stateUpdate.logs = logs; getRoomRef(currentRoomId).update(stateUpdate);
         };
@@ -1209,8 +1229,11 @@
                 
                 if (missCount >= 3 && pieces[4] === 999) {
                     logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
-                    let newPieces = [...pieces]; newPieces[4] = myPlayerId === 'p1' ? 0 : 22;
+                    let newPieces = [...pieces]; 
+                    let startPos = myPlayerId === 'p1' ? 0 : 22;
+                    newPieces[4] = startPos;
                     nextState[`${myPlayerId}.pieces`] = newPieces; missCount = 0;
+                    nextState.latestMove = { p: myPlayerId, i: 4, path: ['🚁 塔台空投无人僚机！', startPos], ts: Date.now() };
                 } else { logs.push(`⚠ 没有可移动的单位，回合结束。`); }
                 
                 nextState[`${myPlayerId}.missCount`] = missCount; nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
@@ -1252,6 +1275,9 @@
             let eng = stateUpdate.energyLevel || gameState.energyLevel;
             if(eng >= 100) {
                 playSound('boom'); logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
+                if (!stateUpdate.latestMove) stateUpdate.latestMove = { p: myPlayerId, i: 99, path: [], ts: Date.now() };
+                stateUpdate.latestMove.path.push('💥 磁暴能量爆表！全图空间洗牌！');
+
                 let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
                 let oppId = myPlayerId === 'p1' ? 'p2' : 'p1'; let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
                 
@@ -1320,7 +1346,7 @@
 
             const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
             
-            // 核心动画序列：放入 字符串=弹窗 / 数字=移动 / 对象=决斗
+            // 核心动画序列：队列化的动作引擎（放入 字符串=弹窗并阻塞1.5秒 / 数字=移动并等待0.3秒 / 对象=决斗阻塞2.6秒）
             let animKeyframes = []; 
             
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
@@ -1342,7 +1368,6 @@
 
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
-                // 起飞播报
                 animKeyframes.push(isWingman ? '🚁 无人僚机出击！' : '✈️ 战机出击！');
                 animKeyframes.push(newPos);
                 logs.push(isWingman ? `🚁 无人僚机离陆！` : `✈ ${myName} 的战机驶出机库！`);
@@ -1472,7 +1497,6 @@
                             logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
                             let duelPayload = { attackerName: myName, defenderName: oppName, attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue', attackerRoll: myRoll, defenderRoll: oppRoll, result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'), ts: Date.now() };
-                            // 将决斗事件也压入动画队列中进行序列化播放
                             animKeyframes.push({ type: 'duel', data: duelPayload });
                             
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
@@ -1537,9 +1561,10 @@
             if(newPos === 999 && !isWingman) logs.push(`🎉 一架战机成功抵达终点！`);
             if(newPos === 999 && isWingman) logs.push(`🚁 僚机抵达终点报废。`);
             
-            // 提交最新的移动和动画队列
             stateUpdate.logs = logs; stateUpdate.latestMove = { p: myPlayerId, i: pieceIndex, path: animKeyframes, ts: Date.now() };
             
+            // 先加锁再提交，利用锁拦截接下来的瞬时渲染
+            window.addAnimLock();
             gameState = { ...gameState, ...stateUpdate };
             ['pieces','aces','items','shield','bombers','frigates','recons','mines','stats'].forEach(k => {
                 if(stateUpdate[`${myPlayerId}.${k}`] !== undefined) gameState[myPlayerId][k] = stateUpdate[`${myPlayerId}.${k}`];
