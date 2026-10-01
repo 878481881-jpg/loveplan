@@ -364,7 +364,7 @@
         window.isSelectingPlaneFor = null;
         window.selectingItemType = null;
 
-        // 全局动画锁引擎：强制拦截状态突变
+        // 全局动画锁引擎：强制拦截状态突变，确保一切操作都在串行执行中
         window.animLockCount = 0;
         window.addAnimLock = function() { 
             window.animLockCount++; 
@@ -623,7 +623,8 @@
                         });
                         if(!data.energyLevel) data.energyLevel = 0; if(!data.wormholes) data.wormholes = []; if(!data.envZone) data.envZone = {type:null, indices:[]};
                         
-                        gameState = data; requestAnimationFrame(renderGameState);
+                        gameState = data; 
+                        requestAnimationFrame(renderGameState);
                     } else { showToast("房间已解散"); switchToLobby(); }
                 }, onError: (err) => { showToast("同步断开"); }
             });
@@ -635,7 +636,7 @@
         function renderGameState() {
             if (!gameState) return;
 
-            // 1. 核心渲染调整：在进行任何 UI 和棋盘位置更新之前，必须先将新数据推入动画锁引擎进行判定
+            // 1. 核心修复：在渲染任何UI或静态坐标之前，先处理新进来的动画和数据并强制上锁！
             processInteractions();
 
             document.getElementById('displayRoomCode').innerText = currentRoomId;
@@ -657,7 +658,7 @@
                 turnInd.innerText = '等待中...'; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500';
                 overlay.classList.remove('hidden'); btnRoll.disabled = true;
             } else if (gameState.status === 'playing') {
-                // 如果当前正处于任意动画锁中，强制锁定遮罩并禁用掷骰子，直到所有大屏文字和行动播完
+                // 如果当前处于全屏动画锁中，彻底冻结所有玩家的操控界面
                 if (window.isGameAnimating()) {
                     overlay.classList.remove('hidden');
                     btnRoll.disabled = true;
@@ -699,7 +700,7 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            // 核心渲染调整2：如果正在播放动画，直接跳过棋盘位置和道具的刷新，保留在原点，从而完美消除瞬移Bug
+            // 核心修复2：如果正在播放动画，完全跳过最终状态的位置刷新，保留在原点，消灭瞬移 Bug！
             if (!window.isGameAnimating()) {
                 updateBoardDecorations();
                 updatePlanesPosition();
@@ -1346,7 +1347,7 @@
 
             const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
             
-            // 核心动画序列：队列化的动作引擎（放入 字符串=弹窗并阻塞1.5秒 / 数字=移动并等待0.3秒 / 对象=决斗阻塞2.6秒）
+            // 核心动画序列：队列化的动作引擎
             let animKeyframes = []; 
             
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
@@ -1376,7 +1377,7 @@
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; 
                 else if (gameState.weather.type === 'fog') {
                     if (isRecon) {
-                        animKeyframes.push(`🛩️ 侦察机无视大雾！`); 
+                        animKeyframes.push(`🛩️️ 侦察机无视大雾！`); 
                         logs.push(`🛩️ 侦察机雷达全开，无视大雾影响！`);
                     } else {
                         moveSteps = 1;
@@ -1497,6 +1498,7 @@
                             logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
                             let duelPayload = { attackerName: myName, defenderName: oppName, attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue', attackerRoll: myRoll, defenderRoll: oppRoll, result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'), ts: Date.now() };
+                            // 将决斗事件也压入动画队列中进行序列化播放
                             animKeyframes.push({ type: 'duel', data: duelPayload });
                             
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
@@ -1563,15 +1565,15 @@
             
             stateUpdate.logs = logs; stateUpdate.latestMove = { p: myPlayerId, i: pieceIndex, path: animKeyframes, ts: Date.now() };
             
-            // 先加锁再提交，利用锁拦截接下来的瞬时渲染
-            window.addAnimLock();
             gameState = { ...gameState, ...stateUpdate };
             ['pieces','aces','items','shield','bombers','frigates','recons','mines','stats'].forEach(k => {
                 if(stateUpdate[`${myPlayerId}.${k}`] !== undefined) gameState[myPlayerId][k] = stateUpdate[`${myPlayerId}.${k}`];
                 if(stateUpdate[`${oppId}.${k}`] !== undefined) gameState[oppId][k] = stateUpdate[`${oppId}.${k}`];
             });
 
-            requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
+            // 核心修复3：直接请求渲染触发处理逻辑，不要在这里手动加多余的死锁！
+            requestAnimationFrame(renderGameState); 
+            getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
         };
 
         function generateLogicalPath(player) {
