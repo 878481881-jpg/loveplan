@@ -294,7 +294,7 @@
     </div>
 
     <script type="module">
-        const fallbackTimer = setTimeout(() => { hideLoading(); }, 800);
+        const fallbackTimer = setTimeout(() => { hideLoading(); document.getElementById('lobbyView').classList.remove('hidden'); }, 2000);
         const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; 
         const REGION = "ap-shanghai";             
         const ROOM_COLLECTION = "aeroplaneTactics"; 
@@ -451,7 +451,7 @@
         function getCoordPercent(gridVal) { return (gridVal + 0.5) * (100 / GRID_SIZE); }
 
         async function initAuth() {
-            if (!hasCloudBase) { hideLoading(); return; }
+            if (!hasCloudBase) { hideLoading(); switchToLobby(); return; }
             try {
                 const res = await auth.signInAnonymously();
                 currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
@@ -1309,54 +1309,34 @@
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                         if (oppShield) { logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
-                else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
-                else {
-                    let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
-                    logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
-                    
-                    let duelPayload = {
-                        attackerName: myName, defenderName: oppName,
-                        attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue',
-                        attackerRoll: myRoll, defenderRoll: oppRoll,
-                        result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'),
-                        ts: Date.now()
-                    };
-                    stateUpdate.latestDuel = duelPayload;
-                    
-                    logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
-                    if(myRoll > oppRoll) {
-                        killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                        logs.push(`💥 决斗胜出！成功击坠敌机！`); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
-                        if(oppAces[i]) { logs.push(`💰 击落【王牌】！`); extraTurn = true; }
-                    } else if (myRoll < oppRoll) {
-                        killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons);
-                        logs.push(`💥 决斗败北！遗憾坠毁！`); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
-                    } else {
-                        logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                        let duelRes = calculateDestination(myPlayerId, newPos, -2, []);
-                        newPos = duelRes.pos; 
-                        animKeyframes.push(...duelRes.path);
-                        myPieces[pieceIndex] = newPos;
-                        oppPieces[i] = calculateDestination(oppId, oppPieces[i], -2, []).pos;
-                    }
-                    duelOccurred = true; break; // 每次移动只触发一次决斗
-                }
-                                
-                                // 由于这是异步延后的，为了简单起见，我们直接在原同步流里推送，不使用 setTimeout
-                            }, 0);
+                        else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
+                        else {
+                            let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
+                            logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
-                            // 同步执行决斗结果
+                            let duelPayload = {
+                                attackerName: myName, defenderName: oppName,
+                                attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue',
+                                attackerRoll: myRoll, defenderRoll: oppRoll,
+                                result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'),
+                                ts: Date.now()
+                            };
+                            stateUpdate.latestDuel = duelPayload;
+                            
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
                             if(myRoll > oppRoll) {
                                 killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                                logs.push(`💥 决斗胜出！成功击坠敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
+                                logs.push(`💥 决斗胜出！成功击坠敌机！`); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
                                 if(oppAces[i]) { logs.push(`💰 击落【王牌】！`); extraTurn = true; }
                             } else if (myRoll < oppRoll) {
                                 killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons);
-                                logs.push(`💥 决斗败北！遗憾坠毁！`); playSound('boom'); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
+                                logs.push(`💥 决斗败北！遗憾坠毁！`); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
                             } else {
                                 logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                                newPos = calculateDestination(myPlayerId, newPos, -2, []).pos; myPieces[pieceIndex] = newPos;
+                                let duelRes = calculateDestination(myPlayerId, newPos, -2, []);
+                                newPos = duelRes.pos; 
+                                animKeyframes.push(...duelRes.path);
+                                myPieces[pieceIndex] = newPos;
                                 oppPieces[i] = calculateDestination(oppId, oppPieces[i], -2, []).pos;
                             }
                             duelOccurred = true; break; // 每次移动只触发一次决斗
