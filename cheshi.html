@@ -94,7 +94,7 @@
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6 relative pb-40">
     <div class="fixed top-10 left-4 text-4xl cloud opacity-50 z-[-1]">☁️</div>
     <div class="fixed top-32 right-8 text-5xl cloud-delayed opacity-50 z-[-1]">☁️</div>
-    <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁️️</div>
+    <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">✈️</div>
@@ -240,7 +240,8 @@
                         <span>📡 战术通讯日志</span>
                         <div id="turnIndicator" class="text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-500">等待中</div>
                     </div>
-                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 no-scrollbar p-1 text-[11px] sm:text-xs font-medium text-gray-600">
+                    <!-- 修改处 1：去除了 no-scrollbar 并增加了 style="max-height: 100px;"，防止无限变长 -->
+                    <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1.5 p-1 text-[11px] sm:text-xs font-medium text-gray-600" style="max-height: 100px;">
                         <div class="text-center text-gray-400 py-4 opacity-50">等待通讯...</div>
                     </div>
                     <div class="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-sky-50 to-transparent pointer-events-none"></div>
@@ -337,7 +338,6 @@
             synths.alert = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
             isAudioInited = true;
         }
-        // 监听多种用户交互事件，确保音频引擎在任何首次操作时顺畅解锁，不阻塞 UI
         ['click', 'touchstart', 'pointerdown'].forEach(evt => document.body.addEventListener(evt, initAudioContext, { once: true }));
 
         function playSound(type) {
@@ -359,7 +359,6 @@
         
         const eventCellIndices = [3, 8, 14, 19, 25, 30, 36, 41];
         const itemCellIndices = [5, 12, 17, 23, 28, 34, 39]; 
-        // 扩充道具池
         const itemPool = ['missile', 'barricade', 'shield', 'bomber', 'frigate', 'recon', 'magic_dice', 'mine', 'hook', 'stealth'];
 
         function getCellColor(index) { return index % 4; }
@@ -438,7 +437,6 @@
 
         function initPlanesDOM() {
             const layer = document.getElementById('planes-layer'); layer.innerHTML = '';
-            // 支持第5架飞机（僚机）
             const createPlane = (player, i) => {
                 const el = document.createElement('div'); el.id = `plane-${player}-${i}`;
                 el.className = `plane plane-transition pointer-events-auto ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
@@ -471,7 +469,7 @@
         }
 
         const getDefP = (name) => ({ 
-            name: name, pieces: [-1,-1,-1,-1, 999], // 第5个为僚机，999默认隐藏
+            name: name, pieces: [-1,-1,-1,-1, 999],
             aces: [false,false,false,false, false], bombers:[false,false,false,false, false],
             frigates:[false,false,false,false, false], recons:[false,false,false,false, false],
             items:[], mines:[], shield:false, missCount: 0, 
@@ -519,7 +517,6 @@
                     if (data) {
                         if (isRoomFirstLoad) { isRoomFirstLoad = false; }
                         
-                        // 数据兼容保护
                         ['p1','p2'].forEach(p => {
                             if(!data[p].pieces || data[p].pieces.length<5) data[p].pieces = (data[p].pieces||[-1,-1,-1,-1]).concat([999]);
                             if(!data[p].mines) data[p].mines = []; if(!data[p].stats) data[p].stats = { kills:0, thunderHits:0, pacifist:true, minesTriggered:0, duelsWon:0 };
@@ -544,19 +541,14 @@
             document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
             
-            // 渲染能量条
             let eng = gameState.energyLevel || 0;
             document.getElementById('energyText').innerText = `${eng}/50`;
             const fill = document.getElementById('energyFill'); fill.style.width = `${Math.min(100, (eng/50)*100)}%`;
             if(eng >= 40) fill.classList.add('energy-max'); else fill.classList.remove('energy-max');
             
-            // 致盲遮罩控制
             const blindOverlay = document.getElementById('blindnessOverlay');
-            if(gameState[myPlayerId] && gameState[myPlayerId].blindTurns > 0) {
-                blindOverlay.classList.remove('hidden');
-            } else {
-                blindOverlay.classList.add('hidden');
-            }
+            if(gameState[myPlayerId] && gameState[myPlayerId].blindTurns > 0) { blindOverlay.classList.remove('hidden'); } 
+            else { blindOverlay.classList.add('hidden'); }
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
             const overlay = document.getElementById('boardOverlay'); const btnRoll = document.getElementById('btnRollDice'); const turnInd = document.getElementById('turnIndicator');
@@ -574,7 +566,6 @@
                     overlay.classList.remove('hidden'); btnRoll.disabled = true;
                 }
                 
-                // 更新连黑角标
                 let myMiss = gameState[myPlayerId] ? gameState[myPlayerId].missCount : 0;
                 let bdg = document.getElementById('missCountBadge');
                 if(myMiss > 0) { bdg.innerText = `连黑:${myMiss}`; bdg.classList.remove('hidden'); } else { bdg.classList.add('hidden'); }
@@ -604,8 +595,9 @@
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
-            updateBoardDecorations(); updatePlanesPosition();
-            processInteractions();
+            // 修改处 2：优先处理交互与动画标记，再依据标记延迟渲染目标坐标以防止瞬移
+            processInteractions(); 
+            updatePlanesPosition();
         }
 
         function generateStatsReport() {
@@ -616,7 +608,7 @@
             
             let titles = [];
             if(myStats.kills >= 3) titles.push("🎯 王牌击坠王");
-            if(myStats.pacifist && gameState.winner === myPlayerId) titles.push("🕊️ 和平主义者");
+            if(myStats.pacifist && gameState.winner === myPlayerId) titles.push("🕊️️ 和平主义者");
             if(myStats.thunderHits >= 2) titles.push("⚡ 气象灾民");
             if(myStats.duelsWon >= 2) titles.push("⚔️ 决斗大师");
             if(titles.length === 0) titles.push("🌟 优秀飞行员");
@@ -727,7 +719,6 @@
 
             activeAnimations[planeId] = true;
             let stepIdx = 0;
-            // 短暂修改过渡时间让连续方格移动更流畅
             planeEl.style.transition = 'transform 0.25s linear, left 0.25s linear, top 0.25s linear';
 
             function nextStep() {
@@ -880,7 +871,6 @@
             };
             
             closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
-            // 这里我们设置了 hasRolled，依赖 handlePieceClick 来移动
         };
 
         function isProtectedByFrigate(ownerId, pos) {
@@ -894,7 +884,6 @@
             return false;
         }
 
-        // 辅助状态扣减函数
         function decrementStatuses(playerId, stateUpdate, logs) {
             let pData = gameState[playerId] || {};
             let stealth = stateUpdate[`${playerId}.stealthTurns`] !== undefined ? stateUpdate[`${playerId}.stealthTurns`] : (pData.stealthTurns || 0);
@@ -922,11 +911,9 @@
                     
                     planeEl.classList.remove('plane-active', 'plane-bomber', 'plane-frigate', 'plane-recon', 'selecting-mode-plane', 'plane-wingman');
                     
-                    // 基础样式还原
                     planeEl.style.display = 'flex'; planeEl.style.opacity = '1'; planeEl.style.zIndex = '10';
                     
                     if(i === 4) {
-                        // 僚机专属渲染
                         if (pos === 999) { planeEl.style.display = 'none'; return; }
                         planeEl.innerText = '🚁'; planeEl.classList.add('plane-wingman');
                     } else {
@@ -940,21 +927,19 @@
                         if (pos === 999) { planeEl.style.display = 'none'; return; }
                     }
 
-                    // 新增：视野受阻逻辑 (致盲时自身战机浮现于黑屏之上)
                     let amIBlind = gameState[myPlayerId] && gameState[myPlayerId].blindTurns > 0;
                     if (amIBlind && player === myPlayerId) {
                         planeEl.style.zIndex = '50';
                     } else if (amIBlind && player !== myPlayerId) {
-                        planeEl.style.zIndex = '10'; // 隐匿在黑屏(z:25)之下
+                        planeEl.style.zIndex = '10';
                     }
 
-                    // 新增：光学迷彩逻辑
                     let isStealth = player === 'p1' ? (gameState.p1.stealthTurns > 0) : (gameState.p2.stealthTurns > 0);
                     if (isStealth && pos >= 0 && pos <= 43) {
                         if (player === myPlayerId) {
-                            planeEl.style.opacity = '0.5'; // 自己看是半透明的
+                            planeEl.style.opacity = '0.5'; 
                         } else {
-                            planeEl.style.display = 'none'; // 敌方完全看不见
+                            planeEl.style.display = 'none'; 
                         }
                     }
 
@@ -996,22 +981,19 @@
             const logs = [...gameState.logs]; logs.push(`${myName} 掷出了 ${roll} 点。`);
             let nextState = { diceValue: roll, hasRolled: true };
             
-            // 能量累加
             let energy = (gameState.energyLevel || 0) + roll;
             nextState.energyLevel = energy;
 
             if (!canMoveAny) {
-                // 连黑补偿判定
                 let missCount = (gameState[myPlayerId].missCount || 0) + 1;
-                // 检查是否主力机全在家 (前4架)
                 let allMainHome = pieces.slice(0,4).every(p => p === -1);
                 
                 if (allMainHome && missCount >= 3 && pieces[4] === 999) {
                     logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
                     let newPieces = [...pieces];
-                    newPieces[4] = myPlayerId === 'p1' ? 0 : 22; // 僚机起飞
+                    newPieces[4] = myPlayerId === 'p1' ? 0 : 22;
                     nextState[`${myPlayerId}.pieces`] = newPieces;
-                    missCount = 0; // 重置
+                    missCount = 0;
                 } else {
                     logs.push(`⚠ 没有可移动的单位，回合结束。`);
                 }
@@ -1021,7 +1003,7 @@
                 updateWeatherTurn(nextState, logs);
                 checkCatastrophe(nextState, logs);
             } else {
-                nextState[`${myPlayerId}.missCount`] = 0; // 能走就清零
+                nextState[`${myPlayerId}.missCount`] = 0;
             }
 
             nextState.logs = logs; gameState = { ...gameState, ...nextState };
@@ -1047,7 +1029,6 @@
                     logs.push(`⚡ 前方出现雷暴区！`); 
                 }
                 
-                // 伴随天气产生局部洋流与虫洞
                 if(Math.random() < 0.6) {
                     const startIdx = Math.floor(Math.random() * 38);
                     env.type = Math.random() < 0.5 ? 'westwind' : 'calm';
@@ -1064,14 +1045,12 @@
             stateUpdate.weather = weather; stateUpdate.envZone = env;
         }
 
-        // 磁暴强制洗牌
         function checkCatastrophe(stateUpdate, logs) {
             let eng = stateUpdate.energyLevel || gameState.energyLevel;
             if(eng >= 50) {
                 playSound('boom');
                 logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
                 
-                // 将所有在主赛道且无护盾的飞机打乱
                 let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
                 let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
                 let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
@@ -1091,10 +1070,10 @@
                 stateUpdate[`${myPlayerId}.pieces`] = shuffle(myP, mS);
                 stateUpdate[`${oppId}.pieces`] = shuffle(oppP, oS);
                 
-                if(mS) { logs.push(`🛡️️ ${myName} 的护盾抵抗了磁暴！`); stateUpdate[`${myPlayerId}.shield`] = false; }
+                if(mS) { logs.push(`🛡 ${myName} 的护盾抵抗了磁暴！`); stateUpdate[`${myPlayerId}.shield`] = false; }
                 if(oS) { logs.push(`🛡️ 敌方的护盾抵抗了磁暴！`); stateUpdate[`${oppId}.shield`] = false; }
                 
-                stateUpdate.energyLevel = 0; // 清零
+                stateUpdate.energyLevel = 0; 
             }
         }
 
@@ -1127,7 +1106,7 @@
         window.handlePieceClick = function(player, pieceIndex) {
             if (window.isSelectingPlaneFor && player === myPlayerId) {
                 const pos = gameState[myPlayerId].pieces[pieceIndex];
-                if (pos >= 0 && pos <= 43 && pieceIndex !== 4) { // 僚机不能改装
+                if (pos >= 0 && pos <= 43 && pieceIndex !== 4) { 
                     let myItems = [...gameState[myPlayerId].items]; 
                     let idx = myItems.indexOf(window.selectingItemType);
                     if(idx !== -1) myItems.splice(idx, 1);
@@ -1179,7 +1158,6 @@
 
             const isWingman = (pieceIndex === 4);
 
-            // 1. 基础移动
             if (currentPos === -1 && (dice === 6 || dice === 1)) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
                 animKeyframes.push(newPos);
@@ -1198,16 +1176,14 @@
                 }
             }
 
-            // 2. 拾取道具
             if (!isWingman && newPos >= 0 && newPos <= 43 && itemCellIndices.includes(newPos)) {
                 const get = myCellItems[newPos];
                 myItems.push(get);
-                let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡️️护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
+                let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
                 logs.push(`🎁 获取战略物资：【${n}】！`);
                 myCellItems[newPos] = itemPool[Math.floor(Math.random() * itemPool.length)]; 
             }
 
-            // 3. 事件盲盒
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 let randEvent = myCellEvents[newPos];
                 myCellEvents[newPos] = Math.floor(Math.random() * 11);
@@ -1254,7 +1230,6 @@
                 }
             }
 
-            // 4. 同色跳跃 & 环境叠加 (洋流与无风)
             if (newPos >= 0 && newPos <= 43 && !hitBarricade) {
                 let env = gameState.envZone;
                 let canJump = true;
@@ -1275,13 +1250,11 @@
                 }
             }
 
-            // 5. 虫洞传送
             if (newPos >= 0 && newPos <= 43 && gameState.wormholes && gameState.wormholes.length === 2) {
                 if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
                 else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
             }
             
-            // 6. 天气雷暴
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
                     if (myShield) { logs.push(`🛡 护盾弹开了雷击！`); myShield = false; }
@@ -1289,7 +1262,6 @@
                 } else { logs.push(`⛈️ 惊险穿过雷暴区。`); }
             }
 
-            // 7. 踩中隐形水雷
             if (newPos >= 0 && newPos <= 43 && oppMines.includes(newPos)) {
                 logs.push(`💣 轰隆！踩中水雷，退后 3 格，并遭受严重【致盲】3回合！`); playSound('boom');
                 oppMines = oppMines.filter(m => m !== newPos);
@@ -1302,78 +1274,57 @@
 
             myPieces[pieceIndex] = newPos;
 
-            // 8. 核心机制：撞击与【空中对峙决斗】
+            // 修改处 3：修复语法错误区块，恢复碰撞决斗与动画触发
             if (newPos >= 0 && newPos <= 43) { 
                 let duelOccurred = false;
-                for(let i=0; i<5; i++) { // 包含检查对方僚机
+                for(let i=0; i<5; i++) { 
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
                         if (oppShield) { logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
-                else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
-                else {
-                    let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
-                    logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
-                    
-                    let duelPayload = {
-                        attackerName: myName, defenderName: oppName,
-                        attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue',
-                        attackerRoll: myRoll, defenderRoll: oppRoll,
-                        result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'),
-                        ts: Date.now()
-                    };
-                    stateUpdate.latestDuel = duelPayload;
-                    
-                    logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
-                    if(myRoll > oppRoll) {
-                        killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                        logs.push(`💥 决斗胜出！成功击坠敌机！`); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
-                        if(oppAces[i]) { logs.push(`💰 击落【王牌】！`); extraTurn = true; }
-                    } else if (myRoll < oppRoll) {
-                        killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons);
-                        logs.push(`💥 决斗败北！遗憾坠毁！`); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
-                    } else {
-                        logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                        let duelRes = calculateDestination(myPlayerId, newPos, -2, []);
-                        newPos = duelRes.pos; 
-                        animKeyframes.push(...duelRes.path);
-                        myPieces[pieceIndex] = newPos;
-                        oppPieces[i] = calculateDestination(oppId, oppPieces[i], -2, []).pos;
-                    }
-                    duelOccurred = true; break; // 每次移动只触发一次决斗
-                }
-                                
-                                // 由于这是异步延后的，为了简单起见，我们直接在原同步流里推送，不使用 setTimeout
-                            }, 0);
+                        else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
+                        else {
+                            let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
+                            logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
-                            // 同步执行决斗结果
+                            let duelPayload = {
+                                attackerName: myName, defenderName: oppName,
+                                attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue',
+                                attackerRoll: myRoll, defenderRoll: oppRoll,
+                                result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'),
+                                ts: Date.now()
+                            };
+                            stateUpdate.latestDuel = duelPayload;
+                            
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
                             if(myRoll > oppRoll) {
                                 killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                                logs.push(`💥 决斗胜出！成功击坠敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
+                                logs.push(`💥 决斗胜出！成功击坠敌机！`); myStats.kills++; oppStats.pacifist = false; myStats.duelsWon++;
                                 if(oppAces[i]) { logs.push(`💰 击落【王牌】！`); extraTurn = true; }
                             } else if (myRoll < oppRoll) {
                                 killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons);
-                                logs.push(`💥 决斗败北！遗憾坠毁！`); playSound('boom'); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
+                                logs.push(`💥 决斗败北！遗憾坠毁！`); newPos = -1; myPieces[pieceIndex] = -1; oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
                             } else {
                                 logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                                newPos = calculateDestination(myPlayerId, newPos, -2, []).pos; myPieces[pieceIndex] = newPos;
+                                let duelRes = calculateDestination(myPlayerId, newPos, -2, []);
+                                newPos = duelRes.pos; 
+                                animKeyframes.push(...duelRes.path);
+                                myPieces[pieceIndex] = newPos;
                                 oppPieces[i] = calculateDestination(oppId, oppPieces[i], -2, []).pos;
                             }
-                            duelOccurred = true; break; // 每次移动只触发一次决斗
+                            duelOccurred = true; break; 
                         }
                     }
                 }
                 if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
             
-            // 9. 轰炸机结界引爆
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
                 let enemyBomberHit = false;
-                oppPieces.slice(0,4).forEach((p, i) => { // 轰炸不影响僚机
+                oppPieces.slice(0,4).forEach((p, i) => { 
                     if (p >= 0 && p <= 43) { 
                         let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                         if (Math.min(dist1, dist2) <= 3) {
-                            if (oppShield) { logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
+                            if (oppShield) { logs.push(`🛡️️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
                             else if (!oppFrigates[i] && isProtectedByFrigate(oppId, p)) { logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
                             else {
                                 let wasBomber = oppBombers[i];
@@ -1387,7 +1338,6 @@
                 if (enemyBomberHit) { killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); }
             }
 
-            // 数据打包
             stateUpdate[`${myPlayerId}.pieces`] = myPieces; stateUpdate[`${myPlayerId}.aces`] = myAces; stateUpdate[`${myPlayerId}.items`] = myItems; 
             stateUpdate[`${myPlayerId}.shield`] = myShield; stateUpdate[`${myPlayerId}.bombers`] = myBombers; stateUpdate[`${myPlayerId}.frigates`] = myFrigates; 
             stateUpdate[`${myPlayerId}.recons`] = myRecons; stateUpdate[`${myPlayerId}.mines`] = myMines; stateUpdate[`${myPlayerId}.stats`] = myStats;
@@ -1398,7 +1348,6 @@
             
             stateUpdate.cellEvents = myCellEvents; stateUpdate.cellItems = myCellItems;
             
-            // 胜利判定（仅考虑前4架主力）
             const allFinished = myPieces.slice(0,4).every(p => p === 999);
             if (allFinished) { stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished'; logs.push(`🏆 恭喜 ${myName} 获得胜利！`); }
 
@@ -1419,7 +1368,6 @@
             stateUpdate.latestMove = { p: myPlayerId, i: pieceIndex, path: animKeyframes, ts: Date.now() };
             
             gameState = { ...gameState, ...stateUpdate };
-            // 更新本地快照
             ['pieces','aces','items','shield','bombers','frigates','recons','mines','stats'].forEach(k => {
                 if(stateUpdate[`${myPlayerId}.${k}`] !== undefined) gameState[myPlayerId][k] = stateUpdate[`${myPlayerId}.${k}`];
                 if(stateUpdate[`${oppId}.${k}`] !== undefined) gameState[oppId][k] = stateUpdate[`${oppId}.${k}`];
