@@ -790,6 +790,13 @@
             if (gameState.hasRolled) return showToast("掷骰子后不能使用道具");
             playSound('alert');
             
+            // 新增：再次点击已选中的道具即为取消使用
+            if (window.selectingItemType === itemType && (window.isPlacingBarricade || window.isPlacingMine || window.isSelectingPlaneFor)) {
+                window.isPlacingBarricade = false; window.isPlacingMine = false; window.isSelectingPlaneFor = null; window.selectingItemType = null;
+                document.getElementById('board-container').classList.remove('placing-mode-active'); document.body.classList.remove('selecting-mode');
+                return showToast("已取消道具使用");
+            }
+
             const idx = gameState[myPlayerId].items.indexOf(itemType);
             if (idx === -1) return;
 
@@ -797,20 +804,24 @@
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             
             if (itemType === 'barricade') {
-                window.isPlacingBarricade = true; window.isPlacingMine = false; window.selectingItemType = itemType;
-                showToast("👉 点击赛道格子放置路障"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
+                window.isPlacingBarricade = true; window.isPlacingMine = false; window.isSelectingPlaneFor = null; window.selectingItemType = itemType;
+                showToast("👉 点击赛道格子放置路障 (再次点击道具可取消)"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
             }
             if (itemType === 'mine') {
-                window.isPlacingMine = true; window.isPlacingBarricade = false; window.selectingItemType = itemType;
-                showToast("👉 点击赛道暗中布置水雷(仅己方可见)"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
+                window.isPlacingMine = true; window.isPlacingBarricade = false; window.isSelectingPlaneFor = null; window.selectingItemType = itemType;
+                showToast("👉 点击赛道布置隐形水雷 (再次点击道具可取消)"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
             }
             if (['bomber', 'frigate', 'recon'].includes(itemType)) {
-                window.isSelectingPlaneFor = itemType; window.selectingItemType = itemType;
+                // 新增防卡死校验：如果没有可以改装的飞机，直接阻断
+                let validPlanes = gameState[myPlayerId].pieces.slice(0,4).filter(p => p >= 0 && p <= 43);
+                if (validPlanes.length === 0) return showToast("⚠️ 赛道上没有可供改装的主力战机");
+
+                window.isSelectingPlaneFor = itemType; window.isPlacingBarricade = false; window.isPlacingMine = false; window.selectingItemType = itemType;
                 let t = itemType === 'bomber' ? '轰炸机' : itemType === 'frigate' ? '护卫舰' : '侦察机';
-                showToast(`👉 请点击【主赛道上的己方战机】改装为${t}`); document.body.classList.add('selecting-mode'); return;
+                showToast(`👉 请点击主赛道上的战机改装为${t} (再次点击道具取消)`); document.body.classList.add('selecting-mode'); return;
             }
             if (itemType === 'magic_dice') {
-                window.selectingItemType = itemType;
+                window.isPlacingBarricade = false; window.isPlacingMine = false; window.isSelectingPlaneFor = null; window.selectingItemType = itemType;
                 document.getElementById('diceSelectModal').classList.remove('hidden');
                 setTimeout(()=> document.getElementById('diceModalContent').classList.remove('scale-95'), 10);
                 return;
@@ -875,12 +886,40 @@
             let logs = [...gameState.logs]; logs.push(`🎲 ${myName} 使用【指定骰】，精准控制点数为 ${val}！`);
             let energy = (gameState.energyLevel || 0) + val;
             
-            let stateUpdate = {
+            let nextState = {
                 [`${myPlayerId}.items`]: myItems, diceValue: val, hasRolled: true, logs: logs, energyLevel: energy
             };
             
-            closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
-            // 这里我们设置了 hasRolled，依赖 handlePieceClick 来移动
+            // 新增防卡死：如果指定点数后依然无路可走，应当自动结束回合
+            let pieces = gameState[myPlayerId].pieces;
+            let canMoveAny = false;
+            pieces.forEach((p) => {
+                if (p === -1 && (val === 6 || val === 1)) canMoveAny = true;
+                if (p !== -1 && p !== 999) canMoveAny = true;
+            });
+
+            if (!canMoveAny) {
+                let missCount = (gameState[myPlayerId].missCount || 0) + 1;
+                let allMainHome = pieces.slice(0,4).every(p => p === -1);
+                if (allMainHome && missCount >= 3 && pieces[4] === 999) {
+                    logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
+                    let newPieces = [...pieces];
+                    newPieces[4] = myPlayerId === 'p1' ? 0 : 22; // 僚机起飞
+                    nextState[`${myPlayerId}.pieces`] = newPieces;
+                    missCount = 0; // 重置
+                } else {
+                    logs.push(`⚠ 虽使用了指定骰，但没有可移动的单位，回合结束。`);
+                }
+                nextState[`${myPlayerId}.missCount`] = missCount;
+                nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
+                decrementStatuses(myPlayerId, nextState, logs);
+                updateWeatherTurn(nextState, logs);
+                checkCatastrophe(nextState, logs);
+            } else {
+                nextState[`${myPlayerId}.missCount`] = 0;
+            }
+            
+            closeDiceModal(); getRoomRef(currentRoomId).update(nextState);
         };
 
         function isProtectedByFrigate(ownerId, pos) {
@@ -979,7 +1018,13 @@
 
         window.handleRollDice = function() {
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
-            if (window.isPlacingBarricade || window.isPlacingMine) return showToast("请先完成部署");
+            
+            // 新增防卡死：如果此时处于任意道具部署状态，掷骰子自动取消部署，放行操作
+            if (window.isPlacingBarricade || window.isPlacingMine || window.isSelectingPlaneFor) {
+                window.isPlacingBarricade = false; window.isPlacingMine = false; window.isSelectingPlaneFor = null; window.selectingItemType = null;
+                document.getElementById('board-container').classList.remove('placing-mode-active'); document.body.classList.remove('selecting-mode');
+                showToast("已自动取消未完成的道具部署");
+            }
             
             playSound('dice');
             const diceVis = document.getElementById('diceVisual');
