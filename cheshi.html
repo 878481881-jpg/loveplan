@@ -3,10 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端植物大战僵尸 - 实时对战版 🌻🧟</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://static.cloudbase.net">
+    <title>云端植物大战僵尸 🌱🧟</title>
     <!-- 腾讯云开发 CloudBase Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -14,436 +11,582 @@
     <style>
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
-            background-color: #f0fdf4;
-            background-image: radial-gradient(#bbf7d0 2px, transparent 2px), radial-gradient(#bbf7d0 2px, transparent 2px);
-            background-size: 40px 40px; background-position: 0 0, 20px 20px;
-            overflow-x: hidden; user-select: none; -webkit-tap-highlight-color: transparent;
+            background-color: #e0f2fe;
+            background-image: 
+                radial-gradient(#bae6fd 2px, transparent 2px),
+                radial-gradient(#bae6fd 2px, transparent 2px);
+            background-size: 40px 40px;
+            background-position: 0 0, 20px 20px;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
-        
-        /* 增加豌豆射击和平滑移动的过渡效果 */
-        .entity-transition { transition: all 0.2s linear; }
-        .pea-shoot { animation: shoot 0.4s linear forwards; }
-        @keyframes shoot { from { transform: translateX(0); } to { transform: translateX(100%); } }
-
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        #gameCanvas {
+            background-color: #4ade80;
+            background-image: linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px);
+            background-size: 11.11% 20%;
+            border: 4px solid #166534;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            image-rendering: pixelated;
+        }
+        .toolbar-btn {
+            transition: all 0.2s;
+        }
+        .toolbar-btn.active {
+            transform: scale(1.1);
+            border-color: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+        .toolbar-btn:disabled {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-6 relative">
-    <div id="globalLoading" class="fixed inset-0 bg-green-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-bounce mb-4">🌱</div>
-        <div class="text-green-600 font-bold text-xl">连接花园中...</div>
-    </div>
+    
+    <!-- 加载与提示 -->
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap"></div>
 
-    <div id="toast" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap"></div>
-
-    <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center" id="msgModalContent">
-            <h3 class="text-2xl font-bold text-green-600 mb-2" id="msgTitle">战斗结束</h3>
-            <p class="text-gray-600 mb-6 font-medium" id="msgDesc">胜负已分！</p>
-            <button onclick="exitRoom()" class="w-full py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200">返回大厅</button>
-        </div>
-    </div>
-
-    <header class="w-full max-w-md flex justify-between items-center mb-4 z-10 px-2">
+    <header class="w-full max-w-3xl flex justify-between items-center mb-4 z-10 px-2">
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
-            <span class="text-2xl">🌻</span>
+            <span class="text-3xl">🌱</span>
             <div>
-                <h1 class="text-lg font-bold text-green-600 leading-tight">植物保卫战 - 实时版</h1>
+                <h1 class="text-xl font-bold text-green-600 leading-tight">云端防线</h1>
+                <p class="text-[10px] text-green-500 font-medium tracking-wider">PVZ BATTLE</p>
             </div>
         </div>
-        <div class="bg-white/90 px-3 py-1.5 rounded-full border border-green-100 shadow-sm text-xs font-bold text-gray-600">
-            玩家: <span id="currentRoleDisplay" class="text-green-500">加载中</span>
+        <div class="flex flex-col items-end">
+            <div class="bg-white/90 px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
+                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-green-500 text-white">加载中</span>
+            </div>
+            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
+            </span>
         </div>
     </header>
 
-    <main class="w-full max-w-md flex flex-col items-center gap-4 relative z-10">
+    <main class="w-full max-w-3xl flex flex-col items-center gap-4 relative z-10">
         
         <!-- 大厅视图 -->
-        <div id="lobbyView" class="w-full flex flex-col gap-4 hidden">
+        <div id="lobbyView" class="w-full max-w-md flex flex-col gap-4">
             <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl flex flex-col items-center text-center">
-                <button onclick="createRoom()" class="w-full py-4 mb-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all">
-                    <span>🌻</span> 创建房间 (植物方)
-                </button>
-                <div class="flex flex-col gap-3 w-full">
-                    <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间号" class="w-full px-4 py-4 bg-gray-50 border-2 border-green-100 rounded-2xl text-center text-xl font-black text-purple-700 tracking-[0.5em] uppercase outline-none">
-                    <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-all">
-                        加入突袭 (僵尸方)
+                <div class="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner">
+                    🧠
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">准备对决</h2>
+                
+                <div class="w-full space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all">
+                        🌱 创建房间 (扮演植物方)
                     </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="mx-4 text-gray-400 text-xs font-bold uppercase">OR</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <div class="flex flex-col gap-3 w-full">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间号" class="w-full px-4 py-4 bg-white border-2 border-emerald-100 rounded-2xl text-center text-xl font-black text-gray-700 tracking-[0.5em] focus:outline-none focus:border-green-400">
+                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-purple-400 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-all">
+                            🧟 加入房间 (扮演僵尸方)
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- 游戏视图 -->
-        <div id="gameView" class="w-full flex flex-col gap-3 hidden">
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 shadow-sm flex items-center justify-between">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-gray-400 font-bold">房间号</span>
-                    <span id="displayRoomCode" class="text-xl font-black text-green-600 tracking-wider">----</span>
-                </div>
-                <div class="flex gap-4 items-center">
-                    <div class="flex flex-col items-center">
-                        <span class="text-[10px] text-green-500 font-bold">植物方 🌻</span>
-                        <span id="p1Energy" class="text-sm font-black text-yellow-500">☀️ 0</span>
+        <div id="gameView" class="w-full flex flex-col gap-2 hidden">
+            <!-- 房间信息与资源栏 -->
+            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border-2 border-green-100 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-4">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] text-gray-400 font-bold">房间号</span>
+                        <span id="displayRoomCode" class="text-xl font-black text-green-600">----</span>
                     </div>
-                    <div class="text-gray-300 font-black italic">VS</div>
-                    <div class="flex flex-col items-center">
-                        <span class="text-[10px] text-purple-500 font-bold">僵尸方 🧟</span>
-                        <span id="p2Energy" class="text-sm font-black text-red-400">🧠 0</span>
+                    <div class="h-8 w-px bg-gray-200"></div>
+                    <!-- 玩家资源显示 -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl drop-shadow-md">☀️</span>
+                        <span id="res-p1" class="text-xl font-black text-amber-500 w-12">150</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl drop-shadow-md">⚡</span>
+                        <span id="res-p2" class="text-xl font-black text-purple-500 w-12">150</span>
                     </div>
                 </div>
+                
+                <button onclick="exitRoom()" class="px-4 py-2 bg-red-100 text-red-600 font-bold rounded-xl active:scale-95 transition-transform">
+                    撤退
+                </button>
             </div>
 
-            <!-- 棋盘区域 -->
-            <div id="board-container" class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-1 shadow-sm overflow-hidden relative">
-                <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/40 rounded-2xl hidden flex items-center justify-center">
-                    <span class="text-white font-bold text-lg animate-pulse">等待对手加入...</span>
-                </div>
-                <div id="board-grid" class="grid gap-[2px] rounded-xl bg-green-700/50 p-[2px] min-w-[320px]"></div>
+            <!-- 等待遮罩 / 结算提示 -->
+            <div id="gameOverlay" class="w-full py-2 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner">
+                ⏳ 等待对手加入...
             </div>
 
-            <!-- 手牌区 -->
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 shadow-lg">
-                <div id="hand-container" class="flex gap-2 w-full overflow-x-auto justify-center pb-1"></div>
+            <!-- 游戏画布 -->
+            <div class="relative w-full overflow-hidden flex justify-center">
+                <canvas id="gameCanvas" width="900" height="500" class="w-full max-w-4xl touch-none"></canvas>
+            </div>
+
+            <!-- 操作栏 (根据身份动态显示) -->
+            <div class="w-full bg-white/90 rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-4 justify-center" id="toolbar">
+                <!-- 植物方工具栏 -->
+                <div id="plantsToolbar" class="flex gap-4 hidden">
+                    <button class="toolbar-btn bg-green-50 p-2 rounded-xl border-2 border-green-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('peashooter')">
+                        <span class="text-3xl">🟢</span>
+                        <span class="text-xs font-bold text-green-700 mt-1">豌豆射手</span>
+                        <span class="text-[10px] font-black text-amber-500">☀️ 50</span>
+                    </button>
+                    <button class="toolbar-btn bg-orange-50 p-2 rounded-xl border-2 border-orange-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('wallnut')">
+                        <span class="text-3xl">🥔</span>
+                        <span class="text-xs font-bold text-orange-700 mt-1">坚果墙</span>
+                        <span class="text-[10px] font-black text-amber-500">☀️ 50</span>
+                    </button>
+                </div>
+                <!-- 僵尸方工具栏 -->
+                <div id="zombiesToolbar" class="flex gap-4 hidden">
+                    <button class="toolbar-btn bg-purple-50 p-2 rounded-xl border-2 border-purple-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('basic_zombie')">
+                        <span class="text-3xl">🧟</span>
+                        <span class="text-xs font-bold text-purple-700 mt-1">普通僵尸</span>
+                        <span class="text-[10px] font-black text-purple-500">⚡ 50</span>
+                    </button>
+                    <!-- 操作说明 -->
+                    <div class="flex items-center text-xs font-bold text-purple-400 ml-4">
+                        点击画面右侧任意行投放僵尸
+                    </div>
+                </div>
             </div>
         </div>
     </main>
 
     <script type="module">
-        // ===== 腾讯云开发配置（完全沿用原文件逻辑）=====
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 请替换为实际环境ID
-        const REGION = "ap-shanghai";             
-        const ROOM_COLLECTION = "pvzRealtimeRooms"; 
+        // ================= 云端配置 =================
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 替换为你的环境ID
+        const REGION = "ap-shanghai";
+        const ROOM_COLLECTION = "pvzRooms";
+
+        let app, auth, db;
+        let currentUser = null;
+        let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
+        let myPlayerId = null; // 'p1' (植物) 或 'p2' (僵尸)
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+
+        document.getElementById('currentRoleDisplay').innerText = myIdentity;
+
+        try {
+            app = cloudbase.init({ env: ENV_ID, region: REGION });
+            auth = app.auth;
+            db = app.database();
+            auth.signInAnonymously().then((res) => {
+                currentUser = res.user || { uid: 'anonymous' };
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 在线';
+            }).catch(e => showToast("云端连接异常"));
+        } catch(e) { console.error(e); }
 
         function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
         
-        let app, auth, db, currentUser = null, hasCloudBase = false;
-        try {
-            app = cloudbase.init({ env: ENV_ID, region: REGION });
-            auth = app.auth; db = app.database(); hasCloudBase = true;
-        } catch(e) {}
-
-        const myName = "玩家" + Math.floor(Math.random()*1000); 
-        document.getElementById('currentRoleDisplay').innerText = myName;
-
-        let currentRoomId = null, unsubscribeRoom = null, myPlayerId = null;
-        let selectedCard = null;
-
-        // --- 实时游戏核心状态（完全本地化） ---
-        const COLS = 8; const ROWS = 5;
-        let localEntities = [];       // 本地渲染的实体库
-        let localEnergies = { p1: 150, p2: 150 }; // 本地模拟的双方能量
-        let actionsProcessed = 0;     // 已处理的云端指令数
-        let gameLoopTimer = null;
-        let tickCount = 0;            // 时钟滴答计数器
-        let isGameRunning = false;
-
-        // 单位数据表（支持实时化）
-        const CARDS = {
-            sunflower: { cost: 50, hp: 4, icon: '🌻', name: '向日葵' },
-            peashooter: { cost: 100, hp: 4, icon: '🌱', name: '豌豆' },
-            wallnut: { cost: 50, hp: 12, icon: '🥔', name: '坚果' },
-            zombie: { cost: 50, hp: 6, icon: '🧟', name: '普通僵尸' },
-            conehead: { cost: 100, hp: 12, icon: '🍦', name: '路障僵尸' }
-        };
-
-        function initBoardGrid() {
-            const grid = document.getElementById('board-grid');
-            grid.innerHTML = '';
-            grid.style.gridTemplateColumns = `30px repeat(${COLS}, 1fr)`;
-            grid.style.gridTemplateRows = `repeat(${ROWS}, 1fr)`;
-
-            for (let y = 0; y < ROWS; y++) {
-                let brainCell = document.createElement('div');
-                brainCell.className = "flex items-center justify-center bg-pink-100 rounded-l-md border-r-2 border-green-700/50";
-                brainCell.innerHTML = '<span class="text-xl">🧠</span>';
-                grid.appendChild(brainCell);
-
-                for (let x = 0; x < COLS; x++) {
-                    let cell = document.createElement('div');
-                    let isDark = (x + y) % 2 === 0;
-                    cell.className = `field-cell ${isDark ? 'bg-green-500' : 'bg-green-400'} h-10 sm:h-12 flex items-center justify-center relative cursor-pointer`;
-                    if(x === COLS - 1) cell.classList.add('rounded-r-md');
-                    cell.onclick = () => handleCellClick(x, y);
-                    cell.id = `cell-${x}-${y}`;
-                    grid.appendChild(cell);
-                }
-            }
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 3000);
         }
-
-        async function initAuth() {
-            if (!hasCloudBase) return hideLoading();
-            try {
-                await auth.signInAnonymously();
-                switchToLobby();
-            } catch (err) { switchToLobby(); }
-            hideLoading();
-        }
-        function hideLoading() { document.getElementById('globalLoading').classList.add('hidden'); }
 
         function switchToLobby() {
             document.getElementById('lobbyView').classList.remove('hidden');
             document.getElementById('gameView').classList.add('hidden');
-            if(unsubscribeRoom) unsubscribeRoom();
-            stopGameLoop();
+            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            cancelAnimationFrame(gameLoopId);
         }
 
+        // ================= 房间与同步逻辑 =================
         window.createRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            // 云端只保存状态和行动队列
-            const initialData = { status: 'waiting', p1_name: myName, actions: [] };
-            await getRoomRef(code).set(initialData);
-            myPlayerId = 'p1'; listenToRoom(code);
+            
+            const initialData = {
+                status: 'waiting', 
+                p1: myIdentity, p2: null,
+                actions: [], // 存储所有玩家的操作指令
+                winner: null
+            };
+            try {
+                await getRoomRef(code).set(initialData);
+                myPlayerId = 'p1';
+                listenToRoom(code);
+                showToast(`房间 ${code} 创建成功，等待僵尸加入`);
+            } catch (e) { showToast("创建房间失败"); }
         };
 
         window.joinRoom = async function() {
-            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if(code.length !== 4) return showToast("请输入4位房间号");
-            const res = await getRoomRef(code).get();
-            const data = res.data && res.data[0];
-            if (!data || data.status !== 'waiting') return showToast("房间不可加入");
-            
-            await getRoomRef(code).update({ status: 'playing', p2_name: myName });
-            myPlayerId = 'p2'; listenToRoom(code);
+            if (!currentUser) return showToast("未连接服务器");
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if (code.length !== 4) return showToast("请输入4位房间号");
+
+            try {
+                const res = await getRoomRef(code).get();
+                const data = res.data && res.data[0];
+                if (!data) return showToast("房间不存在");
+                if (data.status !== 'waiting' && data.p1 !== myIdentity && data.p2 !== myIdentity) {
+                    return showToast("对战已开始");
+                }
+                if (data.status === 'waiting' && data.p1 !== myIdentity) {
+                    await getRoomRef(code).update({ p2: myIdentity, status: 'playing' });
+                    myPlayerId = 'p2';
+                } else if (data.p1 === myIdentity) { myPlayerId = 'p1'; } 
+                else if (data.p2 === myIdentity) { myPlayerId = 'p2'; }
+                listenToRoom(code);
+            } catch (e) { showToast("加入房间失败"); }
         };
+
+        window.exitRoom = function() { switchToLobby(); };
+
+        let syncedActionCount = 0;
 
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
-            initBoardGrid();
-            document.getElementById('displayRoomCode').innerText = code;
+            
+            // 界面配置
+            document.getElementById('plantsToolbar').classList.toggle('hidden', myPlayerId !== 'p1');
+            document.getElementById('zombiesToolbar').classList.toggle('hidden', myPlayerId !== 'p2');
+            
+            initGameEngine();
 
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
-                    const data = snapshot.docs[0] || snapshot.docs;
-                    if (!data) return;
+                    const data = snapshot.docs && snapshot.docs[0];
+                    if (!data) return switchToLobby();
                     
-                    if (data.status === 'playing' && !isGameRunning) {
-                        document.getElementById('boardOverlay').classList.add('hidden');
-                        startGameLoop();
+                    document.getElementById('displayRoomCode').innerText = code;
+                    
+                    if (data.status === 'waiting') {
+                        document.getElementById('gameOverlay').innerText = "⏳ 等待僵尸玩家加入...";
+                    } else if (data.status === 'playing') {
+                        document.getElementById('gameOverlay').classList.add('hidden');
+                        if (!gameRunning) startGameLoop();
+                    } else if (data.status === 'finished') {
+                        document.getElementById('gameOverlay').classList.remove('hidden');
+                        document.getElementById('gameOverlay').innerText = `🏆 游戏结束！${data.winner==='p1'?'植物':'僵尸'}方获胜！`;
+                        gameRunning = false;
                     }
-                    // 解析云端最新动作队列 
-                    if (data.actions && data.actions.length > actionsProcessed) {
-                        for (let i = actionsProcessed; i < data.actions.length; i++) {
-                            processCloudAction(data.actions[i]);
-                        }
-                        actionsProcessed = data.actions.length;
+
+                    // 核心：同步并执行云端下发的操作指令
+                    if (data.actions && data.actions.length > syncedActionCount) {
+                        const newActions = data.actions.slice(syncedActionCount);
+                        newActions.forEach(action => applyActionLocally(action));
+                        syncedActionCount = data.actions.length;
                     }
                 },
-                onError: () => showToast("连接中断")
+                onError: (err) => console.error(err)
             });
             unsubscribeRoom = () => watcher.close();
         }
 
-        // ================= 本地核心实时引擎 =================
+        // 玩家下发操作指令 (事件源)
+        function sendAction(actionObj) {
+            actionObj.id = Date.now() + Math.random().toString(36).substr(2, 5);
+            actionObj.by = myPlayerId;
+            // 乐观更新（本地直接先执行，做到0延迟）
+            applyActionLocally(actionObj);
+            syncedActionCount++;
+            
+            // 使用云开发数据库的数组追加功能推送指令
+            const _ = db.command;
+            getRoomRef(currentRoomId).update({
+                actions: _.push([actionObj])
+            }).catch(e => console.error("同步失败", e));
+        }
+
+        function endGame(winner) {
+            if(!gameRunning) return;
+            gameRunning = false;
+            if(myPlayerId === 'p1') {
+                getRoomRef(currentRoomId).update({ status: 'finished', winner: winner });
+            }
+        }
+
+        // ================= 本地游戏引擎引擎 =================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const ROWS = 5;
+        const COLS = 9;
+        const CELL_W = 100;
+        const CELL_H = 100;
+        
+        let gameLoopId;
+        let gameRunning = false;
+        let lastTime = 0;
+        let resTimer = 0;
+
+        let state = {
+            resP1: 150, resP2: 150,
+            plants: [], zombies: [], projectiles: [], brains: []
+        };
+        let selectedUnit = null;
+
+        function initGameEngine() {
+            state = { resP1: 150, resP2: 150, plants: [], zombies: [], projectiles: [], brains: [] };
+            for(let r=0; r<ROWS; r++) {
+                state.brains.push({ row: r, col: 0, hp: 1 }); // 每行最左边一个大脑
+            }
+            syncedActionCount = 0;
+            updateResUI();
+            drawGrid(); // 初始静态绘制
+        }
+
+        window.selectUnit = function(type) {
+            selectedUnit = type;
+            document.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        };
+
+        // 处理点击：放置植物或释放僵尸
+        canvas.addEventListener('pointerdown', (e) => {
+            if (!gameRunning || !selectedUnit) return;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            const x = (e.clientX - rect.left) * scaleX;
+            const y = (e.clientY - rect.top) * scaleY;
+
+            const col = Math.floor(x / CELL_W);
+            const row = Math.floor(y / CELL_H);
+
+            if (row < 0 || row >= ROWS) return;
+
+            if (myPlayerId === 'p1') {
+                // 植物只能种在 1-8 列，且不能重叠
+                if (col < 1 || col >= COLS) return;
+                const cost = 50;
+                if (state.resP1 < cost) return showToast("阳光不足！");
+                if (state.plants.some(p => p.row === row && p.col === col)) return showToast("这里已经有植物了");
+                
+                state.resP1 -= cost;
+                sendAction({ type: 'spawn_plant', unit: selectedUnit, row, col });
+                
+            } else if (myPlayerId === 'p2') {
+                // 僵尸只能释放在最后一列
+                const cost = 50;
+                if (state.resP2 < cost) return showToast("能量不足！");
+                
+                state.resP2 -= cost;
+                sendAction({ type: 'spawn_zombie', unit: selectedUnit, row, col: 9 });
+            }
+            
+            selectedUnit = null;
+            document.querySelectorAll('.toolbar-btn').forEach(b => b.classList.remove('active'));
+            updateResUI();
+        });
+
+        // 将同步过来的指令应用到本地状态机
+        function applyActionLocally(action) {
+            if (action.type === 'spawn_plant') {
+                const hp = action.unit === 'wallnut' ? 400 : 100;
+                state.plants.push({
+                    id: action.id, type: action.unit, row: action.row, col: action.col,
+                    hp: hp, maxHp: hp, lastShoot: 0,
+                    x: action.col * CELL_W + CELL_W/2, y: action.row * CELL_H + CELL_H/2
+                });
+                if(action.by !== myPlayerId) { state.resP1 -= 50; updateResUI(); }
+            } 
+            else if (action.type === 'spawn_zombie') {
+                state.zombies.push({
+                    id: action.id, type: action.unit, row: action.row, 
+                    hp: 150, maxHp: 150, speed: 20, damage: 20, isEating: false,
+                    x: COLS * CELL_W, y: action.row * CELL_H + CELL_H/2
+                });
+                if(action.by !== myPlayerId) { state.resP2 -= 50; updateResUI(); }
+            }
+        }
+
+        function updateResUI() {
+            document.getElementById('res-p1').innerText = state.resP1;
+            document.getElementById('res-p2').innerText = state.resP2;
+        }
+
         function startGameLoop() {
-            isGameRunning = true;
-            localEntities = [];
-            localEnergies = { p1: 150, p2: 150 };
-            tickCount = 0;
-            // 每400ms执行一次物理计算（本地零延迟推演）
-            gameLoopTimer = setInterval(gameTick, 400); 
-            renderHand();
+            gameRunning = true;
+            lastTime = performance.now();
+            requestAnimationFrame(update);
         }
 
-        function stopGameLoop() {
-            isGameRunning = false;
-            clearInterval(gameLoopTimer);
-        }
+        // 核心游戏循环 (本地实时计算与碰撞)
+        function update(timestamp) {
+            if(!gameRunning) return;
+            const dt = (timestamp - lastTime) / 1000;
+            lastTime = timestamp;
 
-        function gameTick() {
-            tickCount++;
+            // 资源自动增长
+            resTimer += dt;
+            if (resTimer >= 2.0) {
+                state.resP1 += 25;
+                state.resP2 += 25;
+                resTimer = 0;
+                updateResUI();
+            }
 
-            // 1. 豌豆子弹飞行与碰撞
-            localEntities.filter(e => e.type === 'pea').forEach(pea => {
-                pea.x += 0.5; // 每tick飞半格
-                let hitZombies = localEntities.filter(z => z.owner === 'p2' && Math.floor(z.x) === Math.floor(pea.x) && z.hp > 0 && z.y === pea.y);
-                if (hitZombies.length > 0) {
-                    hitZombies[0].hp -= 1;
-                    pea.hp = 0; // 子弹销毁
+            // 1. 植物逻辑 (射击)
+            state.plants.forEach(p => {
+                if (p.type === 'peashooter') {
+                    p.lastShoot += dt;
+                    // 检测这一行前方是否有僵尸
+                    const hasZombie = state.zombies.some(z => z.row === p.row && z.x > p.x);
+                    if (hasZombie && p.lastShoot >= 1.5) {
+                        p.lastShoot = 0;
+                        state.projectiles.push({
+                            x: p.x + 20, y: p.y, row: p.row, speed: 300, damage: 25
+                        });
+                    }
                 }
             });
 
-            // 2. 僵尸移动与啃咬
-            localEntities.filter(e => e.owner === 'p2' && e.hp > 0).forEach(z => {
-                let blockPlant = localEntities.find(p => p.owner === 'p1' && Math.floor(p.x) === Math.floor(z.x - 0.5) && p.y === z.y && p.hp > 0);
-                if (blockPlant) {
-                    if (tickCount % 2 === 0) blockPlant.hp -= 1; // 每800ms攻击一次
+            // 2. 子弹逻辑 (飞行与碰撞)
+            for (let i = state.projectiles.length - 1; i >= 0; i--) {
+                const proj = state.projectiles[i];
+                proj.x += proj.speed * dt;
+                
+                // 碰撞检测：找第一个遇到的僵尸
+                let hitZombie = null;
+                for (let z of state.zombies) {
+                    if (z.row === proj.row && Math.abs(z.x - proj.x) < 30) {
+                        hitZombie = z;
+                        break;
+                    }
+                }
+
+                if (hitZombie) {
+                    hitZombie.hp -= proj.damage;
+                    state.projectiles.splice(i, 1);
+                } else if (proj.x > canvas.width) {
+                    state.projectiles.splice(i, 1);
+                }
+            }
+
+            // 3. 僵尸逻辑 (移动与啃食)
+            for (let i = state.zombies.length - 1; i >= 0; i--) {
+                const z = state.zombies[i];
+                z.isEating = false;
+                
+                if (z.hp <= 0) {
+                    state.zombies.splice(i, 1);
+                    continue;
+                }
+
+                // 吃植物检测
+                let hitPlant = null;
+                for (let p of state.plants) {
+                    if (p.row === z.row && Math.abs(p.x - z.x) < 40) {
+                        hitPlant = p; break;
+                    }
+                }
+
+                if (hitPlant) {
+                    z.isEating = true;
+                    hitPlant.hp -= z.damage * dt;
                 } else {
-                    if (tickCount % 3 === 0) z.x -= 1; // 每1.2秒走1格
-                    if (z.x < 0) triggerGameOver('p2'); // 触及大脑，僵尸胜利
+                    z.x -= z.speed * dt; // 向左走
                 }
-            });
 
-            // 3. 植物攻击
-            localEntities.filter(e => e.type === 'peashooter' && e.hp > 0).forEach(p => {
-                let hasZombie = localEntities.find(z => z.owner === 'p2' && z.y === p.y && z.x > p.x && z.hp > 0);
-                if (hasZombie && tickCount % 4 === 0) {
-                    // 发射豌豆
-                    localEntities.push({ type: 'pea', owner: 'p1', x: p.x + 0.5, y: p.y, hp: 1, maxHp: 1 });
+                // 吃大脑检测 (游戏结束判定)
+                if (z.x < CELL_W / 2) {
+                    const brainIdx = state.brains.findIndex(b => b.row === z.row);
+                    if (brainIdx > -1) {
+                        state.brains.splice(brainIdx, 1);
+                        endGame('p2'); // 僵尸获胜
+                    }
                 }
-            });
-
-            // 4. 自然回能与向日葵产出
-            if (tickCount % 5 === 0) { // 每2秒
-                localEnergies.p1 += 10; 
-                localEnergies.p2 += 15; // 僵尸方自然回能稍快弥补没有生产单位
-                localEntities.filter(e => e.type === 'sunflower' && e.hp > 0).forEach(() => {
-                    localEnergies.p1 += 10; 
-                });
             }
 
-            // 5. 清理死亡实体
-            localEntities = localEntities.filter(e => e.hp > 0 && e.x < COLS + 1);
+            // 移除死亡植物
+            state.plants = state.plants.filter(p => p.hp > 0);
 
-            renderBoard();
-            updateUI();
-        }
-
-        // ================= 操作指令的上传与执行 =================
-        window.selectCard = function(type) {
-            if (!isGameRunning) return;
-            selectedCard = type;
-            renderHand();
-        }
-
-        window.handleCellClick = async function(x, y) {
-            if (!isGameRunning || !selectedCard) return;
-            let cost = CARDS[selectedCard].cost;
+            drawGrid();
+            drawEntities();
             
-            // 1. 本地合法性校验
-            if (localEnergies[myPlayerId] < cost) return showToast("能量不足");
-            if (myPlayerId === 'p1' && x > 3) return showToast("植物只能种在己方前4列");
-            if (myPlayerId === 'p2' && x < 6) return showToast("僵尸只能从最后2列出击");
-            if (localEntities.find(e => e.x === x && e.y === y && e.type !== 'pea')) return showToast("位置被占用");
-
-            // 2. 构造行动指令并上传云端（云端纯转发）
-            const newAction = {
-                id: Math.random().toString(36).substring(2),
-                type: 'place', owner: myPlayerId, card: selectedCard, x, y
-            };
-            
-            // 为了防止等待服务器回调卡顿，采用乐观隐藏选卡状态
-            selectedCard = null; 
-            renderHand();
-
-            try {
-                // 读取旧队列并追加（简单实现高并发排队）
-                const snap = await getRoomRef(currentRoomId).get();
-                const currentActions = snap.data[0].actions || [];
-                currentActions.push(newAction);
-                await getRoomRef(currentRoomId).update({ actions: currentActions });
-            } catch(e) { showToast("网络指令发送失败"); }
+            if(gameRunning) gameLoopId = requestAnimationFrame(update);
         }
 
-        // 本地引擎处理从云端同步下来的指令
-        function processCloudAction(action) {
-            if (action.type === 'place') {
-                const card = CARDS[action.card];
-                // 扣除能量
-                localEnergies[action.owner] -= card.cost;
-                // 生成实体到本地
-                localEntities.push({
-                    id: action.id, type: action.card, owner: action.owner,
-                    x: action.x, y: action.y, hp: card.hp, maxHp: card.hp
-                });
-            }
-        }
-
-        // ================= UI 渲染逻辑 =================
-        function updateUI() {
-            document.getElementById('p1Energy').innerText = `☀️ ${localEnergies.p1}`;
-            document.getElementById('p2Energy').innerText = `🧠 ${localEnergies.p2}`;
-        }
-
-        function renderHand() {
-            const hand = document.getElementById('hand-container');
-            hand.innerHTML = '';
-            const myCards = myPlayerId === 'p1' ? ['sunflower', 'peashooter', 'wallnut'] : ['zombie', 'conehead'];
-            const eIcon = myPlayerId === 'p1' ? '☀️' : '🧠';
-
-            myCards.forEach(type => {
-                const card = CARDS[type];
-                const canAfford = localEnergies[myPlayerId] >= card.cost;
-                const isSelected = selectedCard === type;
-                
-                let div = document.createElement('div');
-                div.className = `flex flex-col items-center p-2 rounded-xl border-2 cursor-pointer w-16
-                    ${isSelected ? 'border-green-400 bg-green-50 scale-105' : 'border-gray-200 bg-white'} 
-                    ${!canAfford ? 'opacity-40 grayscale' : 'hover:shadow-md'} entity-transition`;
-                div.onclick = () => canAfford && window.selectCard(type);
-                
-                div.innerHTML = `
-                    <span class="text-2xl">${card.icon}</span>
-                    <span class="text-[10px] font-bold text-gray-700">${card.name}</span>
-                    <span class="text-[10px] font-black">${eIcon} ${card.cost}</span>
-                `;
-                hand.appendChild(div);
-            });
-        }
-
-        function renderBoard() {
-            // 清理原有实体
-            for (let y = 0; y < ROWS; y++) {
-                for (let x = 0; x < COLS; x++) {
-                    const cell = document.getElementById(`cell-${x}-${y}`);
-                    if (cell) cell.innerHTML = '';
+        // ================= 渲染层 =================
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            // 绘制地砖交替色
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.1)';
+                    ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W, CELL_H);
+                    
+                    // 第一列是大脑防线区
+                    if (c === 0) {
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; // 红色警示带
+                        ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W, CELL_H);
+                    }
                 }
             }
+        }
 
-            // 重新挂载实体（根据 x 坐标小数平滑挂载）
-            localEntities.forEach(e => {
-                const drawX = Math.floor(e.x);
-                if (drawX < 0 || drawX >= COLS) return;
-                const cell = document.getElementById(`cell-${drawX}-${e.y}`);
-                if (!cell) return;
-                
-                let icon = '';
-                if (e.type === 'pea') {
-                    icon = '<div class="w-3 h-3 bg-green-200 rounded-full shadow-md"></div>';
+        function drawEntities() {
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            // 绘制大脑
+            state.brains.forEach(b => {
+                ctx.font = '50px sans-serif';
+                ctx.fillText('🧠', b.col * CELL_W + CELL_W/2, b.row * CELL_H + CELL_H/2 + 5);
+            });
+
+            // 绘制植物
+            state.plants.forEach(p => {
+                ctx.font = '50px sans-serif';
+                ctx.fillText(p.type === 'peashooter' ? '🟢' : '🥔', p.x, p.y + 5);
+                drawHpBar(p.x, p.y - 30, p.hp, p.maxHp);
+            });
+
+            // 绘制子弹
+            state.projectiles.forEach(proj => {
+                ctx.beginPath();
+                ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = '#84cc16'; // 豌豆绿
+                ctx.fill();
+                ctx.strokeStyle = '#4d7c0f';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+
+            // 绘制僵尸
+            state.zombies.forEach(z => {
+                ctx.font = '50px sans-serif';
+                // 啃食时摇摆动画
+                if(z.isEating) {
+                    ctx.save();
+                    ctx.translate(z.x, z.y);
+                    ctx.rotate(Math.sin(performance.now()/50) * 0.1);
+                    ctx.fillText('🧟', 0, 5);
+                    ctx.restore();
                 } else {
-                    icon = CARDS[e.type].icon;
+                    ctx.fillText('🧟', z.x, z.y + 5);
                 }
-
-                // 计算格子内的偏移以实现平滑移动
-                const offsetX = (e.x - drawX) * 100;
-
-                const el = document.createElement('div');
-                el.className = "absolute flex items-center justify-center w-full h-full entity-transition";
-                // 如果是僵尸，脸朝左并且移动平滑
-                if (e.owner === 'p2') el.style.transform = `translateX(${offsetX}%) scaleX(-1)`;
-                else el.style.transform = `translateX(${offsetX}%)`;
-
-                el.innerHTML = `
-                    <span class="text-2xl drop-shadow-md ${e.type==='pea'?'':'animate-bounce'}">${icon}</span>
-                    ${e.type !== 'pea' ? `
-                    <div class="absolute bottom-0 w-3/4 left-1/8 h-1 bg-black/40 rounded-full">
-                        <div class="bg-${e.owner==='p1'?'green':'red'}-400 h-1 rounded-full" style="width: ${(e.hp/e.maxHp)*100}%"></div>
-                    </div>` : ''}
-                `;
-                cell.appendChild(el);
+                drawHpBar(z.x, z.y - 35, z.hp, z.maxHp);
             });
         }
 
-        function triggerGameOver(winnerId) {
-            stopGameLoop();
-            document.getElementById('msgModal').classList.remove('hidden');
-            const role = winnerId === myPlayerId ? '你' : '对手';
-            document.getElementById('msgDesc').innerText = winnerId === 'p1' ? '防守成功！🌻' : '僵尸吃掉了你的脑子！🧠';
+        function drawHpBar(x, y, hp, maxHp) {
+            const w = 40; const h = 6;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(x - w/2, y, w, h);
+            ctx.fillStyle = hp > maxHp*0.3 ? '#22c55e' : '#ef4444';
+            ctx.fillRect(x - w/2, y, w * (hp/maxHp), h);
         }
-
-        window.exitRoom = function() {
-            location.reload(); 
-        };
-
-        window.showToast = function(msg) {
-            const toast = document.getElementById('toast');
-            toast.innerText = msg; toast.classList.remove('hidden');
-            setTimeout(() => toast.classList.add('hidden'), 2000);
-        };
-
-        initAuth();
     </script>
 </body>
 </html>
