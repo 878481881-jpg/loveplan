@@ -84,7 +84,6 @@
 
         .placing-mode-active { box-shadow: 0 0 15px 5px rgba(251, 191, 36, 0.6) !important; animation: pulseRed 1.5s infinite !important; }
 
-        /* 能量槽 */
         .energy-bar-wrap { width: 100%; height: 6px; background: #e5e7eb; border-radius: 4px; overflow: hidden; margin-top: 4px; position: relative; }
         .energy-bar-fill { height: 100%; background: linear-gradient(90deg, #f59e0b, #ef4444); transition: width 0.3s ease; width: 0%; box-shadow: 0 0 8px #f59e0b; }
         @keyframes energyShake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-2px); } 75% { transform: translateX(2px); } }
@@ -100,13 +99,26 @@
             100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
         }
         
-        /* 强化版摇曳上升动画 */
         @keyframes floatUp {
             0% { transform: translate(0, 0) scale(0.5) rotate(0deg); opacity: 0; }
             15% { opacity: 1; transform: translate(calc(-20px + 40px * var(--sway)), -20vh) scale(1.1) rotate(15deg); }
             50% { opacity: 1; transform: translate(calc(30px - 60px * var(--sway)), -60vh) scale(1) rotate(-15deg); }
             80% { opacity: 0.8; }
             100% { transform: translate(calc(-40px + 80px * var(--sway)), -120vh) scale(1.5) rotate(30deg); opacity: 0; }
+        }
+
+        /* --- 新增大屏溅射动画 --- */
+        @keyframes dicePop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            20% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            80% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.3); opacity: 0; }
+        }
+        @keyframes splashPop {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            15% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            85% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
         }
     </style>
 </head>
@@ -122,15 +134,12 @@
 
     <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/95 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-[1000] whitespace-nowrap border border-sky-400/50"></div>
 
-    <!-- 结算模态框 (包含成就数据) -->
     <div id="msgModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[120] hidden flex items-center justify-center p-4 transition-opacity">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl transform scale-95 transition-transform text-center" id="msgModalContent">
             <div id="msgIcon" class="text-6xl mb-4 animate-bounce">🏆</div>
             <h3 class="text-2xl font-bold text-sky-600 mb-2" id="msgTitle">游戏结束</h3>
             <p class="text-gray-600 mb-2 font-medium" id="msgDesc">恭喜玩家获胜！</p>
-            <div id="statsBox" class="bg-gray-50 rounded-xl p-3 mb-6 text-xs text-gray-600 text-left space-y-1 border border-gray-200">
-                <!-- 数据统计将在这里渲染 -->
-            </div>
+            <div id="statsBox" class="bg-gray-50 rounded-xl p-3 mb-6 text-xs text-gray-600 text-left space-y-1 border border-gray-200"></div>
             <div class="flex gap-3">
                 <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-gray-100 text-gray-600 font-bold hover:bg-gray-200 active:scale-95 transition-all">关闭</button>
                 <button id="modalActionBtn" onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-500 text-white font-bold shadow-md hover:opacity-95 active:scale-95 transition-all">再来一局</button>
@@ -179,7 +188,6 @@
                 <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 极限战术更新简报</h3>
                 <ul class="text-[11px] text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
                     <li><b class="text-purple-600">⚔️ 对峙决斗</b>：相遇同格触发拼点，胜者存活败者坠毁！平局各退2格。</li>
-                    <!-- 修改为 100 点 -->
                     <li><b class="text-rose-600">⚡ 磁暴灾变</b>：掷骰累积能量，满100点触发全图强制空间洗牌！</li>
                     <li><b class="text-indigo-600">🚁 僚机救援</b>：连续3次无法起飞且场上没有你的战机，塔台将空投保底AI僚机帮你扫雷！</li>
                     <li>新增道具：🎲指定骰、💣隐形水雷、🧲电磁钩爪。背包可放置两排道具，长文本战术表情可霸屏！</li>
@@ -188,7 +196,6 @@
         </div>
 
         <div id="gameView" class="w-full flex flex-col gap-4 hidden">
-            <!-- 头部对战信息与能量条 -->
             <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border-2 border-sky-100 shadow-sm flex flex-col relative">
                 <div class="flex items-center justify-between">
                     <div class="flex flex-col">
@@ -211,23 +218,19 @@
                     </button>
                 </div>
                 <div class="mt-2 w-full">
-                    <!-- 修改能量显示文本上限 -->
                     <div class="flex justify-between text-[9px] font-bold text-gray-500 mb-0.5"><span class="text-purple-600">⚡ 全局磁暴能量</span><span id="energyText">0/100</span></div>
                     <div class="energy-bar-wrap" id="energyBarWrap"><div class="energy-bar-fill" id="energyFill"></div></div>
                 </div>
             </div>
 
-            <!-- 天气与环境播报 -->
             <div id="weatherBanner" class="w-full py-1 px-4 bg-sky-100 rounded-lg text-center text-xs font-bold text-sky-700 shadow-inner flex flex-col items-center justify-center gap-1 hidden transition-all duration-300">
                 <div class="flex items-center gap-2"><span id="weatherIcon">☀️</span> <span id="weatherText">晴空万里</span> (剩<span id="weatherTurns">0</span>回合)</div>
                 <div id="envText" class="text-[10px] text-purple-600 hidden">局部异像侦测...</div>
             </div>
 
-            <!-- 棋盘主区域 -->
             <div id="board-container">
                 <div id="boardOverlay" class="absolute inset-0 z-30 bg-black/5 rounded-2xl hidden cursor-not-allowed"></div>
                 <div id="weatherOverlay" class="weather-overlay"></div>
-                <!-- 视野受阻遮罩层 -->
                 <div id="blindnessOverlay" class="absolute inset-0 bg-black/95 z-[25] hidden rounded-2xl pointer-events-none transition-opacity duration-500"></div>
                 
                 <div id="board-grid"></div>
@@ -250,7 +253,6 @@
                     <button id="btnRollDice" onpointerdown="handleRollDice()" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white font-black rounded-lg shadow-md hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:grayscale disabled:scale-100 disabled:cursor-not-allowed text-sm touch-manipulation">
                         掷骰子
                     </button>
-                    <!-- 连败补偿提示 -->
                     <div id="missCountBadge" class="absolute top-1 right-1 text-[8px] bg-red-100 text-red-600 px-1 rounded border border-red-200 hidden">连黑: 0</div>
                 </div>
 
@@ -268,7 +270,6 @@
         </div>
     </main>
 
-    <!-- 物品栏：优化为支持两行的Flex-wrap布局 -->
     <div id="inventoryBar" class="fixed bottom-[100px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex flex-col sm:flex-row gap-2 sm:gap-3 z-[200] hidden w-[90%] max-w-sm max-h-[160px] overflow-y-auto items-start sm:items-center">
         <span class="text-xs font-bold text-sky-700 whitespace-nowrap mt-1 sm:mt-0">🎒 战术背包</span>
         <div id="itemsContainer" class="flex gap-2 flex-1 items-center flex-wrap">
@@ -276,11 +277,9 @@
         </div>
     </div>
 
-    <!-- 交互表情/嘲讽栏 -->
     <button id="btnToggleTaunt" onclick="toggleTauntBar()" class="fixed right-4 bottom-[100px] bg-white border border-sky-200 text-xl w-10 h-10 rounded-full shadow-lg z-[210] hidden flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
         💬
     </button>
-    <!-- 修改嘲讽栏：支持文字输入 -->
     <div id="tauntBar" class="fixed right-16 bottom-[100px] bg-white/95 backdrop-blur-md px-3 py-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex flex-col gap-2 z-[200] hidden transition-all duration-300 opacity-0 scale-95 origin-bottom-right min-w-[220px]">
         <div class="flex gap-2 justify-around pb-2 border-b border-gray-100/50">
             <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('🤣')">🤣</button>
@@ -294,7 +293,6 @@
         </div>
     </div>
 
-    <!-- 指定骰子弹窗 -->
     <div id="diceSelectModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250] hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-xs shadow-2xl text-center transform transition-transform scale-95" id="diceModalContent">
             <h3 class="text-xl font-bold text-amber-600 mb-4">🎲 战略指定：请选择步数</h3>
@@ -310,7 +308,6 @@
         </div>
     </div>
 
-    <!-- 决斗动画弹窗 -->
     <div id="duelModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[300] hidden flex flex-col items-center justify-center p-4">
         <div class="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl text-center transform scale-95 transition-transform duration-300" id="duelModalContent">
             <h3 class="text-2xl font-black text-rose-600 mb-2">⚔️ 空中对峙 ⚔️</h3>
@@ -356,7 +353,8 @@
 
         let currentRoomId = null, unsubscribeRoom = null, gameState = null, myPlayerId = null;
         let isRoomFirstLoad = true;
-        let lastProcessedDuelTs = 0;
+        
+        let lastProcessedRollTs = 0; // 新增用于掷骰子动画记录
         let lastProcessedMoveTs = 0;
         let lastProcessedTauntTs = 0;
         let activeAnimations = {};
@@ -383,6 +381,50 @@
             else if (type === 'alert') synths.alert.triggerAttackRelease("A4", "16n");
             else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
         }
+
+        // --- 新增：大屏幕提示函数 ---
+        window.playSplashAnim = function(text, duration = 1500) {
+            playSound('alert');
+            const splashEl = document.createElement('div');
+            splashEl.innerHTML = text;
+            
+            // 根据文字情绪分配背景色
+            let bgColor = 'rgba(14, 165, 233, 0.9)'; // 默认蓝色
+            if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞')) bgColor = 'rgba(239, 68, 68, 0.95)'; // 红色负面
+            if(text.includes('🚀') || text.includes('🎁') || text.includes('🎲') || text.includes('💨') || text.includes('进')) bgColor = 'rgba(34, 197, 94, 0.95)'; // 绿色正面
+
+            splashEl.style.cssText = `
+                position: fixed; top: 40%; left: 50%;
+                transform: translate(-50%, -50%) scale(0.5);
+                font-size: 1.5rem; font-weight: 900; color: #fff;
+                text-shadow: 0 4px 10px rgba(0,0,0,0.5); background: ${bgColor};
+                border: 3px solid #fff; padding: 15px 25px; border-radius: 20px;
+                white-space: nowrap; z-index: 9999; pointer-events: none; opacity: 0;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                animation: splashPop 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            `;
+            document.body.appendChild(splashEl);
+            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, duration);
+        };
+
+        window.playDiceSplashAnim = function(roll, pName, colorId) {
+            playSound('dice');
+            const splashEl = document.createElement('div');
+            const diceIcon = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][roll];
+            splashEl.innerHTML = `<div class="text-xl mb-2 text-white/90 drop-shadow">${pName} 掷出了</div><div class="text-8xl drop-shadow-lg leading-none">${diceIcon}</div>`;
+            const bgColor = colorId === 'p1' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(59, 130, 246, 0.95)';
+            splashEl.style.cssText = `
+                position: fixed; top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                background: ${bgColor}; border: 4px solid white; border-radius: 30px;
+                padding: 30px 50px; z-index: 9999; pointer-events: none; opacity: 0;
+                box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+                animation: dicePop 1.5s ease-out forwards;
+            `;
+            document.body.appendChild(splashEl);
+            setTimeout(() => { if (splashEl.parentNode) splashEl.remove(); }, 1500);
+        };
 
         const GRID_SIZE = 14; const trackCoords = [];
         for(let x=1; x<=12; x++) trackCoords.push({x, y: 1}); 
@@ -585,10 +627,8 @@
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
             
             let eng = gameState.energyLevel || 0;
-            // 修改显示的上限为 100
             document.getElementById('energyText').innerText = `${eng}/100`;
             const fill = document.getElementById('energyFill'); fill.style.width = `${Math.min(100, eng)}%`;
-            // 修改预警震动阈值为 80
             if(eng >= 80) fill.classList.add('energy-max'); else fill.classList.remove('energy-max');
             
             const blindOverlay = document.getElementById('blindnessOverlay');
@@ -729,13 +769,16 @@
             });
         }
 
+        // --- 交互处理器调整：监听掷骰子的大屏展示 ---
         function processInteractions() {
             if (!gameState) return;
+            if (gameState.latestRoll && gameState.latestRoll.ts > lastProcessedRollTs) {
+                lastProcessedRollTs = gameState.latestRoll.ts;
+                let pName = gameState.latestRoll.p === 'p1' ? gameState.p1.name : gameState.p2.name;
+                playDiceSplashAnim(gameState.latestRoll.roll, pName, gameState.latestRoll.p);
+            }
             if (gameState.latestMove && gameState.latestMove.ts > lastProcessedMoveTs) {
                 lastProcessedMoveTs = gameState.latestMove.ts; playMoveAnim(gameState.latestMove);
-            }
-            if (gameState.latestDuel && gameState.latestDuel.ts > lastProcessedDuelTs) {
-                lastProcessedDuelTs = gameState.latestDuel.ts; playDuelAnim(gameState.latestDuel);
             }
             if (gameState.latestTaunt && gameState.latestTaunt.ts > lastProcessedTauntTs) {
                 lastProcessedTauntTs = gameState.latestTaunt.ts; playTauntAnim(gameState.latestTaunt);
@@ -762,45 +805,28 @@
                 const sway = Math.random();
                 
                 emojiEl.style.cssText = `
-                    position: fixed;
-                    left: ${left}vw;
-                    bottom: -10vh;
-                    font-size: ${baseSize * randomScale}rem;
-                    font-weight: bold;
-                    white-space: nowrap;
+                    position: fixed; left: ${left}vw; bottom: -10vh;
+                    font-size: ${baseSize * randomScale}rem; font-weight: bold; white-space: nowrap;
                     ${isText ? 'color: #000000; text-shadow: 0 2px 5px rgba(255,255,255,0.8), 0 0 2px white;' : 'filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));'}
-                    pointer-events: none;
-                    z-index: 1000;
-                    --sway: ${sway};
+                    pointer-events: none; z-index: 1000; --sway: ${sway};
                     animation: floatUp ${animDuration}s ease-in-out forwards ${delay}s;
                 `;
                 document.body.appendChild(emojiEl);
-                
-                setTimeout(() => {
-                    if(emojiEl.parentNode) emojiEl.remove();
-                }, (animDuration + delay) * 1000 + 100);
+                setTimeout(() => { if(emojiEl.parentNode) emojiEl.remove(); }, (animDuration + delay) * 1000 + 100);
             }
             
             const centerEl = document.createElement('div');
             centerEl.innerText = textContent;
             centerEl.style.cssText = `
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-size: ${centerSize};
-                font-weight: 900;
-                white-space: nowrap;
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                font-size: ${centerSize}; font-weight: 900; white-space: nowrap;
                 ${isText ? 'color: #000000; -webkit-text-stroke: 2px white;' : ''}
-                pointer-events: none;
-                z-index: 1001;
+                pointer-events: none; z-index: 1001;
                 animation: tauntPop 1.5s cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
                 filter: drop-shadow(0 15px 35px rgba(0,0,0,0.5));
             `;
             document.body.appendChild(centerEl);
-            setTimeout(() => {
-                if(centerEl.parentNode) centerEl.remove();
-            }, 1500);
+            setTimeout(() => { if(centerEl.parentNode) centerEl.remove(); }, 1500);
         }
 
         function playDuelAnim(duel) {
@@ -830,6 +856,7 @@
             }, 1500);
         }
 
+        // --- 核心优化：让战机移动动画支持混合列队串行执行（移动 -> 文字 -> 移动 -> 决斗） ---
         function playMoveAnim(moveData) {
             if (!moveData || !moveData.path || moveData.path.length === 0) return;
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
@@ -844,9 +871,30 @@
                     planeEl.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1)';
                     updatePlanesPosition(); return;
                 }
-                let pos = moveData.path[stepIdx]; let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
-                if (coords.x !== undefined && coords.y !== undefined) { planeEl.style.left = `calc(${coords.x}% - 13px)`; planeEl.style.top = `calc(${coords.y}% - 13px)`; }
-                stepIdx++; setTimeout(nextStep, 250); 
+                
+                let stepData = moveData.path[stepIdx];
+                
+                if (typeof stepData === 'string') {
+                    // 若是文字，大屏显示并停顿 1.5 秒
+                    playSplashAnim(stepData);
+                    stepIdx++;
+                    setTimeout(nextStep, 1500);
+                } else if (typeof stepData === 'object' && stepData.type === 'duel') {
+                    // 若是对峙事件，弹窗并停顿 2.6 秒
+                    playDuelAnim(stepData.data);
+                    stepIdx++;
+                    setTimeout(nextStep, 2600);
+                } else {
+                    // 若是坐标数字，直接移动并停顿 0.3 秒
+                    let pos = stepData; 
+                    let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
+                    if (coords.x !== undefined && coords.y !== undefined) { 
+                        planeEl.style.left = `calc(${coords.x}% - 13px)`; 
+                        planeEl.style.top = `calc(${coords.y}% - 13px)`; 
+                    }
+                    stepIdx++; 
+                    setTimeout(nextStep, 300); 
+                }
             }
             nextStep();
         }
@@ -970,7 +1018,7 @@
             let idx = myItems.indexOf(window.selectingItemType); if(idx !== -1) myItems.splice(idx, 1);
             let logs = [...gameState.logs]; logs.push(`🎲 ${myName} 使用【指定骰】，精准控制点数为 ${val}！`);
             let energy = (gameState.energyLevel || 0) + val;
-            let stateUpdate = { [`${myPlayerId}.items`]: myItems, diceValue: val, hasRolled: true, logs: logs, energyLevel: energy };
+            let stateUpdate = { [`${myPlayerId}.items`]: myItems, diceValue: val, hasRolled: true, logs: logs, energyLevel: energy, latestRoll: { p: myPlayerId, roll: val, ts: Date.now() } };
             closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
         };
 
@@ -1005,9 +1053,7 @@
 
         function updateBoardDecorations() {
             if (!gameState) return;
-            
             document.querySelectorAll('.board-prop').forEach(el => el.remove());
-
             document.querySelectorAll('.cell-wormhole, .cell-env-wind, .cell-env-calm').forEach(el => {
                 el.classList.remove('cell-wormhole', 'cell-env-wind', 'cell-env-calm');
             });
@@ -1020,9 +1066,7 @@
                     if (cell) {
                         const prop = document.createElement('div');
                         prop.className = 'board-prop absolute inset-0 flex items-center justify-center text-xl pointer-events-none';
-                        prop.style.zIndex = '5';
-                        prop.innerText = '🚧';
-                        cell.appendChild(prop);
+                        prop.style.zIndex = '5'; prop.innerText = '🚧'; cell.appendChild(prop);
                     }
                 }
             });
@@ -1035,9 +1079,7 @@
                         if (cell) {
                             const prop = document.createElement('div');
                             prop.className = 'board-prop absolute inset-0 flex items-center justify-center text-xl pointer-events-none opacity-80';
-                            prop.style.zIndex = '5';
-                            prop.innerText = '💣';
-                            cell.appendChild(prop);
+                            prop.style.zIndex = '5'; prop.innerText = '💣'; cell.appendChild(prop);
                         }
                     }
                 });
@@ -1046,10 +1088,7 @@
             if (gameState.wormholes && gameState.wormholes.length > 0) {
                 gameState.wormholes.forEach(pos => {
                     const coord = trackCoords[pos];
-                    if (coord) {
-                        const cell = document.getElementById(`cell-${coord.x}-${coord.y}`);
-                        if (cell) cell.classList.add('cell-wormhole');
-                    }
+                    if (coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if (cell) cell.classList.add('cell-wormhole'); }
                 });
             }
 
@@ -1059,11 +1098,8 @@
                     if (coord) {
                         const cell = document.getElementById(`cell-${coord.x}-${coord.y}`);
                         if (cell) {
-                            if (gameState.envZone.type === 'westwind') {
-                                cell.classList.add('cell-env-wind');
-                            } else if (gameState.envZone.type === 'calm') {
-                                cell.classList.add('cell-env-calm');
-                            }
+                            if (gameState.envZone.type === 'westwind') { cell.classList.add('cell-env-wind'); } 
+                            else if (gameState.envZone.type === 'calm') { cell.classList.add('cell-env-calm'); }
                         }
                     }
                 });
@@ -1132,7 +1168,8 @@
             });
 
             const logs = [...gameState.logs]; logs.push(`${myName} 掷出了 ${roll} 点。`);
-            let nextState = { diceValue: roll, hasRolled: true };
+            // --- 记录掷骰子事件 ---
+            let nextState = { diceValue: roll, hasRolled: true, latestRoll: { p: myPlayerId, roll: roll, ts: Date.now() } };
             let energy = (gameState.energyLevel || 0) + roll; nextState.energyLevel = energy;
 
             if (!canMoveAny) {
@@ -1181,7 +1218,6 @@
 
         function checkCatastrophe(stateUpdate, logs) {
             let eng = stateUpdate.energyLevel || gameState.energyLevel;
-            // 磁暴触发阈值修改为 100
             if(eng >= 100) {
                 playSound('boom'); logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
                 let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
@@ -1250,7 +1286,8 @@
             if (currentPos === -1 && dice !== 6 && dice !== 1) return;
             if (currentPos === 999) return;
 
-            const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; let animKeyframes = [];
+            const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
+            let animKeyframes = []; // 核心：支持插入字符串的大屏动画序列
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
 
             let myPieces = [...gameState[myPlayerId].pieces]; let myAces = [...gameState[myPlayerId].aces]; let myBombers = [...gameState[myPlayerId].bombers];
@@ -1273,40 +1310,45 @@
                 let moveSteps = dice;
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; else if (gameState.weather.type === 'fog') moveSteps = 1;
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, currentBarricades); newPos = moveResult.pos; animKeyframes.push(...moveResult.path);
-                if (moveResult.hitBarricadePos !== -1) { hitBarricade = true; logs.push(`🚧 砰！${myName} 撞上【强力路障】被逼停！`); consumeBarricade(moveResult.hitBarricadePos); }
+                if (moveResult.hitBarricadePos !== -1) { 
+                    hitBarricade = true; 
+                    animKeyframes.push(`🚧 撞上【强力路障】被逼停！`);
+                    logs.push(`🚧 砰！${myName} 撞上【强力路障】被逼停！`); consumeBarricade(moveResult.hitBarricadePos); 
+                }
             }
 
             if (!isWingman && newPos >= 0 && newPos <= 43 && itemCellIndices.includes(newPos)) {
                 const get = myCellItems[newPos]; myItems.push(get);
                 let n = get==='missile'?'🎯导弹':get==='barricade'?'🚧路障':get==='shield'?'🛡护盾':get==='bomber'?'🚀轰炸机':get==='frigate'?'🛸护卫舰':get==='recon'?'🛩️侦察机':get==='magic_dice'?'🎲指定骰':get==='mine'?'💣水雷':get==='stealth'?'👻迷彩':'🧲钩爪';
+                animKeyframes.push(`🎁 获得物资：【${n}】`);
                 logs.push(`🎁 获取战略物资：【${n}】！`); myCellItems[newPos] = itemPool[Math.floor(Math.random() * itemPool.length)]; 
             }
 
             if (newPos >= 0 && newPos <= 43 && eventCellIndices.includes(newPos)) {
                 let randEvent = myCellEvents[newPos]; myCellEvents[newPos] = Math.floor(Math.random() * 11);
-                const triggerBad = (action) => { if (myShield) { logs.push(`🛡️ 护盾弹开了盲盒恶意效果！`); myShield = false; } else { action(); } };
+                const triggerBad = (action) => { if (myShield) { animKeyframes.push(`🛡️ 护盾弹开了恶意效果！`); logs.push(`🛡️ 护盾弹开了盲盒恶意效果！`); myShield = false; } else { action(); } };
                 const applyMove = (steps) => { 
                     let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; animKeyframes.push(...res.path);
-                    if (res.hitBarricadePos !== -1) { logs.push(`🚧 撞上路障！`); consumeBarricade(res.hitBarricadePos); } 
+                    if (res.hitBarricadePos !== -1) { animKeyframes.push(`🚧 撞上路障！`); logs.push(`🚧 撞上路障！`); consumeBarricade(res.hitBarricadePos); } 
                 };
 
                 switch(randEvent) {
-                    case 0: triggerBad(() => { logs.push(`🌪️ 高空气流，后退3格！`); applyMove(-3); }); break;
-                    case 1: logs.push(`🚀 完美气流，前进3格！`); applyMove(3); break;
-                    case 2: triggerBad(() => { logs.push(`⚡ 被闪电直击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; }); break;
-                    case 3: logs.push(`🎲 获得胶囊，额外回合！`); extraTurn = true; break;
-                    case 4: logs.push(`🌈 跃迁至下一同色格！`);
+                    case 0: triggerBad(() => { animKeyframes.push(`🌪️ 高空气流，后退3格！`); logs.push(`🌪️ 高空气流，后退3格！`); applyMove(-3); }); break;
+                    case 1: animKeyframes.push(`🚀 完美气流，前进3格！`); logs.push(`🚀 完美气流，前进3格！`); applyMove(3); break;
+                    case 2: triggerBad(() => { animKeyframes.push(`⚡ 被闪电直击坠毁！`); logs.push(`⚡ 被闪电直击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(-1); }); break;
+                    case 3: animKeyframes.push(`🎲 获得胶囊，额外回合！`); logs.push(`🎲 获得胶囊，额外回合！`); extraTurn = true; break;
+                    case 4: animKeyframes.push(`🌈 跃迁至下一同色格！`); logs.push(`🌈 跃迁至下一同色格！`);
                         const path = generateLogicalPath(myPlayerId); const currIdx = path.indexOf(newPos);
                         if (currIdx !== -1) { let nextSame = currIdx + 1; while (nextSame < 44 && getCellColor(path[nextSame]) !== getCellColor(newPos)) nextSame++; if (nextSame < 44) { newPos = path[nextSame]; animKeyframes.push(newPos); } } break;
                     case 5:
                         let validOpp = oppPieces.slice(0,4).map((p,i) => (p>=0 && p<=43)?i:-1).filter(i=>i!==-1);
-                        if(validOpp.length > 0) { const r = validOpp[Math.floor(Math.random() * validOpp.length)]; const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`); } break;
-                    case 6: logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); animKeyframes.push(newPos); break;
-                    case 7: triggerBad(() => { logs.push(`💣 遭遇严重鸟击退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; animKeyframes.push(newPos); }); break;
-                    case 8: triggerBad(() => { logs.push(`⛽ 燃料泄漏，退 4 格！`); applyMove(-4); }); break;
-                    case 9: logs.push(`✈️ 引擎过载，冲刺 4 格！`); applyMove(4); break;
+                        if(validOpp.length > 0) { const r = validOpp[Math.floor(Math.random() * validOpp.length)]; const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; animKeyframes.push(`🔄 空间传送！互换位置！`); animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`); } break;
+                    case 6: animKeyframes.push(`🛸 被UFO绑架随机传送！`); logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); animKeyframes.push(newPos); break;
+                    case 7: triggerBad(() => { animKeyframes.push(`💣 遭遇严重鸟击退回起点！`); logs.push(`💣 遭遇严重鸟击退回起点！`); newPos = myPlayerId === 'p1' ? 0 : 22; animKeyframes.push(newPos); }); break;
+                    case 8: triggerBad(() => { animKeyframes.push(`⛽ 燃料泄漏，退 4 格！`); logs.push(`⛽ 燃料泄漏，退 4 格！`); applyMove(-4); }); break;
+                    case 9: animKeyframes.push(`✈️ 引擎过载，冲刺 4 格！`); logs.push(`✈️ 引擎过载，冲刺 4 格！`); applyMove(4); break;
                     case 10:
-                        logs.push(`🕳️ 引发局部坍塌，赛道战机倒退 2 格！`);
+                        animKeyframes.push(`🕳️ 引发局部坍塌，退 2 格！`); logs.push(`🕳️ 引发局部坍塌，赛道战机倒退 2 格！`);
                         myPieces = myPieces.map(p => (p>=0 && p<=43) ? calculateDestination(myPlayerId, p, -2, []).pos : p); oppPieces = oppPieces.map(p => (p>=0 && p<=43) ? calculateDestination(oppId, p, -2, []).pos : p);
                         newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); break;
                 }
@@ -1315,31 +1357,33 @@
             if (newPos >= 0 && newPos <= 43 && !hitBarricade) {
                 let env = gameState.envZone; let canJump = true;
                 if(env && env.indices.includes(newPos)) {
-                    if(env.type === 'westwind') { logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); newPos = calculateDestination(myPlayerId, newPos, 2, []).pos; }
-                    else if(env.type === 'calm') { logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
+                    if(env.type === 'westwind') { animKeyframes.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); newPos = calculateDestination(myPlayerId, newPos, 2, []).pos; animKeyframes.push(newPos); }
+                    else if(env.type === 'calm') { animKeyframes.push(`🛑 陷入无风带，无法进行同色跳跃！`); logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
                 }
                 if (canJump && getCellColor(newPos) === (myPlayerId === 'p1' ? 0 : 2)) {
                     const path = generateLogicalPath(myPlayerId); const currPathIndex = path.indexOf(newPos);
                     if (currPathIndex !== -1 && currPathIndex + 4 < 44) { 
+                        animKeyframes.push(`💨 引擎轰鸣，触发同色跳跃！`); logs.push(`💨 引擎轰鸣，触发同色跳跃！`);
                         let jmpRes = calculateDestination(myPlayerId, newPos, 4, currentBarricades); newPos = jmpRes.pos; animKeyframes.push(...jmpRes.path);
-                        if(jmpRes.hitBarricadePos !== -1) { logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); } else { logs.push(`💨 引擎轰鸣，触发同色跳跃！`); }
+                        if(jmpRes.hitBarricadePos !== -1) { animKeyframes.push(`💨 跳跃中撞上路障被迫停下！`); logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); } 
                     }
                 }
             }
 
             if (newPos >= 0 && newPos <= 43 && gameState.wormholes && gameState.wormholes.length === 2) {
-                if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
-                else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
+                if(newPos === gameState.wormholes[0]) { newPos = gameState.wormholes[1]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
+                else if(newPos === gameState.wormholes[1]) { newPos = gameState.wormholes[0]; animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); }
             }
             
             if (newPos >= 0 && newPos <= 43 && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                 if (Math.random() < 0.5) {
-                    if (myShield) { logs.push(`🛡 护盾弹开了雷击！`); myShield = false; } else { logs.push(`⚡ 轰隆！不幸遭雷击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; myStats.thunderHits++; }
-                } else { logs.push(`⛈️ 惊险穿过雷暴区。`); }
+                    if (myShield) { animKeyframes.push(`🛡 护盾弹开了雷击！`); logs.push(`🛡 护盾弹开了雷击！`); myShield = false; } 
+                    else { animKeyframes.push(`⚡ 轰隆！不幸遭雷击坠毁！`); logs.push(`⚡ 轰隆！不幸遭雷击坠毁！`); killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); newPos = -1; animKeyframes.push(newPos); myStats.thunderHits++; }
+                } else { animKeyframes.push(`⛈️ 惊险穿过雷暴区。`); logs.push(`⛈️ 惊险穿过雷暴区。`); }
             }
 
             if (newPos >= 0 && newPos <= 43 && oppMines.includes(newPos)) {
-                logs.push(`💣 轰隆！踩中水雷，退后 3 格，并遭受严重【致盲】3回合！`); playSound('boom');
+                animKeyframes.push(`💣 踩中水雷，致盲并退后 3 格！`); logs.push(`💣 轰隆！踩中水雷，退后 3 格，并遭受严重【致盲】3回合！`); playSound('boom');
                 oppMines = oppMines.filter(m => m !== newPos);
                 let mineRes = calculateDestination(myPlayerId, newPos, -3, []); newPos = mineRes.pos; animKeyframes.push(...mineRes.path);
                 stateUpdate[`${myPlayerId}.blindTurns`] = 3; myStats.minesTriggered++;
@@ -1352,14 +1396,15 @@
                 for(let i=0; i<5; i++) { 
                     if (oppPieces[i] === newPos) {
                         const oppName = oppId === 'p1' ? gameState.p1.name : gameState.p2.name;
-                        if (oppShield) { logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
-                        else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
+                        if (oppShield) { animKeyframes.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); logs.push(`🛡️ 敌方护盾抵挡了碰撞冲击！`); oppShield = false; } 
+                        else if (!oppFrigates[i] && isProtectedByFrigate(oppId, newPos)) { animKeyframes.push(`🛸 敌方受【护卫舰】庇护，免疫接触战！`); logs.push(`🛸 敌方受【护卫舰】庇护，免疫了接触战！`); } 
                         else {
                             let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
                             logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                             
                             let duelPayload = { attackerName: myName, defenderName: oppName, attackerColor: myPlayerId === 'p1' ? 'red' : 'blue', defenderColor: oppId === 'p1' ? 'red' : 'blue', attackerRoll: myRoll, defenderRoll: oppRoll, result: myRoll > oppRoll ? 'win' : (myRoll < oppRoll ? 'lose' : 'draw'), ts: Date.now() };
-                            stateUpdate.latestDuel = duelPayload;
+                            // 将决斗事件直接插入动画队列！
+                            animKeyframes.push({ type: 'duel', data: duelPayload });
                             
                             logs.push(`🎲 ${myName}掷出[${myRoll}] vs 敌方掷出[${oppRoll}]。`);
                             if(myRoll > oppRoll) {
@@ -1378,7 +1423,7 @@
                         }
                     }
                 }
-                if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
+                if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 战绩赫赫！晋升为【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
             
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
@@ -1387,17 +1432,17 @@
                     if (p >= 0 && p <= 43) { 
                         let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                         if (Math.min(dist1, dist2) <= 3) {
-                            if (oppShield) { logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
-                            else if (!oppFrigates[i] && isProtectedByFrigate(oppId, p)) { logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
+                            if (oppShield) { animKeyframes.push(`🛡️ 护盾保住了敌机！`); logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
+                            else if (!oppFrigates[i] && isProtectedByFrigate(oppId, p)) { animKeyframes.push(`🛸 敌方力场拦截了轰炸！`); logs.push(`🛸 敌机被力场保护，免受轰炸！`); } 
                             else {
                                 let wasBomber = oppBombers[i]; killPlane(i, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons);
-                                logs.push(`🔥 【轰炸机】摧毁了范围内敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false;
+                                animKeyframes.push(`🔥 【轰炸机】摧毁了范围内敌机！`); logs.push(`🔥 【轰炸机】摧毁了范围内敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false;
                                 if (wasBomber) { enemyBomberHit = true; }
                             }
                         }
                     }
                 });
-                if (enemyBomberHit) { killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); }
+                if (enemyBomberHit) { killPlane(pieceIndex, myPieces, myAces, myBombers, myFrigates, myRecons); animKeyframes.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); }
             }
 
             stateUpdate[`${myPlayerId}.pieces`] = myPieces; stateUpdate[`${myPlayerId}.aces`] = myAces; stateUpdate[`${myPlayerId}.items`] = myItems; 
