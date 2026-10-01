@@ -178,8 +178,8 @@
                 <ul class="text-[11px] text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
                     <li><b class="text-purple-600">⚔️ 对峙决斗</b>：相遇同格触发拼点，胜者存活败者坠毁！平局各退2格。</li>
                     <li><b class="text-rose-600">⚡ 磁暴灾变</b>：掷骰累积能量，满50点触发全图强制空间洗牌！</li>
-                    <li><b class="text-indigo-600">🚁 僚机救援</b>：连续3次无法起飞，塔台空投保底AI僚机帮你扫雷！</li>
-                    <li>新增道具：🎲指定骰、💣隐形水雷、🧲电磁钩爪。</li>
+                    <li><b class="text-indigo-600">🚁 僚机救援</b>：连续3次无法起飞且场上没有你的战机，塔台将空投保底AI僚机帮你扫雷！</li>
+                    <li>新增道具：🎲指定骰、💣隐形水雷、🧲电磁钩爪。背包可放置两排道具，长文本战术表情可霸屏！</li>
                 </ul>
             </div>
         </div>
@@ -264,10 +264,10 @@
         </div>
     </main>
 
-    <!-- 物品栏 -->
-    <div id="inventoryBar" class="fixed bottom-[100px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex gap-3 z-[200] hidden w-[90%] max-w-sm overflow-x-auto items-center">
-        <span class="text-xs font-bold text-sky-700 whitespace-nowrap">🎒 战术背包</span>
-        <div id="itemsContainer" class="flex gap-2 flex-1 items-center">
+    <!-- 物品栏：优化为支持两行的Flex-wrap布局 -->
+    <div id="inventoryBar" class="fixed bottom-[100px] left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex flex-col sm:flex-row gap-2 sm:gap-3 z-[200] hidden w-[90%] max-w-sm max-h-[160px] overflow-y-auto items-start sm:items-center">
+        <span class="text-xs font-bold text-sky-700 whitespace-nowrap mt-1 sm:mt-0">🎒 战术背包</span>
+        <div id="itemsContainer" class="flex gap-2 flex-1 items-center flex-wrap">
             <span class="text-xs text-gray-400 ml-2 italic">踩中 🎁 获取补给</span>
         </div>
     </div>
@@ -276,11 +276,18 @@
     <button id="btnToggleTaunt" onclick="toggleTauntBar()" class="fixed right-4 bottom-[100px] bg-white border border-sky-200 text-xl w-10 h-10 rounded-full shadow-lg z-[210] hidden flex items-center justify-center hover:scale-110 active:scale-95 transition-all">
         💬
     </button>
-    <div id="tauntBar" class="fixed right-16 bottom-[100px] bg-white/95 backdrop-blur-md px-3 py-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex gap-2 z-[200] hidden transition-all duration-300 opacity-0 scale-95 origin-right">
-        <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('🤣')">🤣</button>
-        <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('😡')">😡</button>
-        <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('👍')">👍</button>
-        <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('👎')">👎</button>
+    <!-- 修改嘲讽栏：支持文字输入 -->
+    <div id="tauntBar" class="fixed right-16 bottom-[100px] bg-white/95 backdrop-blur-md px-3 py-2 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.15)] border border-sky-200 flex flex-col gap-2 z-[200] hidden transition-all duration-300 opacity-0 scale-95 origin-bottom-right min-w-[220px]">
+        <div class="flex gap-2 justify-around pb-2 border-b border-gray-100/50">
+            <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('🤣')">🤣</button>
+            <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('😡')">😡</button>
+            <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('👍')">👍</button>
+            <button class="text-xl hover:scale-125 active:scale-90 transition-transform" onclick="sendTaunt('👎')">👎</button>
+        </div>
+        <div class="flex gap-2 items-center">
+            <input type="text" id="customTauntInput" maxlength="15" placeholder="输入文字或表情" onkeypress="if(event.key==='Enter') sendCustomTaunt()" class="flex-1 px-2 py-1 text-xs border border-sky-200 rounded-lg focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-300 shadow-inner">
+            <button onclick="sendCustomTaunt()" class="px-3 py-1.5 bg-gradient-to-r from-sky-400 to-blue-500 text-white text-xs font-bold rounded-lg shadow hover:opacity-90 active:scale-95 transition-all">发送</button>
+        </div>
     </div>
 
     <!-- 指定骰子弹窗 -->
@@ -647,10 +654,20 @@
             }
         };
 
+        window.sendCustomTaunt = function() {
+            const input = document.getElementById('customTauntInput');
+            if(!input) return;
+            const val = input.value.trim();
+            if(val) {
+                sendTaunt(val);
+                input.value = '';
+            }
+        };
+
         window.sendTaunt = function(emoji) {
             if (!gameState || gameState.status !== 'playing') return;
             const logs = [...gameState.logs];
-            logs.push(`💬 ${myName} 发送了战术嘲讽：<span class="text-xl">${emoji}</span>`);
+            logs.push(`💬 ${myName} 发送了战术通讯：<span class="font-bold text-sky-600">${emoji}</span>`);
             
             // 将表情事件更新到云端 latestTaunt，从而触发双方全屏特效
             getRoomRef(currentRoomId).update({ 
@@ -722,20 +739,28 @@
 
         function playTauntAnim(taunt) {
             playSound('alert');
-            // 生成散落上升的小表情
-            for(let i = 0; i < 15; i++) {
+            const textContent = taunt.emoji;
+            const isText = Array.from(textContent).length > 2;
+            const baseSize = isText ? 1.5 : 2;
+            const centerSize = isText ? 'min(4rem, 15vw)' : '8rem';
+
+            // 生成散落上升的小表情/文字
+            for(let i = 0; i < (isText ? 6 : 15); i++) {
                 const emojiEl = document.createElement('div');
-                emojiEl.innerText = taunt.emoji;
+                emojiEl.innerText = textContent;
                 
-                const left = Math.random() * 100;
-                const animDuration = 1 + Math.random();
-                const delay = Math.random() * 0.3;
+                const left = Math.random() * 80 + 10;
+                const animDuration = 1 + Math.random() * 1.5;
+                const delay = Math.random() * 0.4;
                 
                 emojiEl.style.cssText = `
                     position: fixed;
                     left: ${left}vw;
                     bottom: -10vh;
-                    font-size: ${2 + Math.random() * 3}rem;
+                    font-size: ${baseSize + Math.random()}rem;
+                    font-weight: bold;
+                    white-space: nowrap;
+                    ${isText ? 'color: #38bdf8; text-shadow: 0 2px 5px rgba(0,0,0,0.2), 0 0 2px white;' : ''}
                     pointer-events: none;
                     z-index: 1000;
                     animation: floatUp ${animDuration}s ease-in forwards ${delay}s;
@@ -747,15 +772,18 @@
                 }, (animDuration + delay) * 1000 + 100);
             }
             
-            // 生成中心放大强调的大表情
+            // 生成中心放大强调的大表情/文字
             const centerEl = document.createElement('div');
-            centerEl.innerText = taunt.emoji;
+            centerEl.innerText = textContent;
             centerEl.style.cssText = `
                 position: fixed;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                font-size: 8rem;
+                font-size: ${centerSize};
+                font-weight: 900;
+                white-space: nowrap;
+                ${isText ? 'color: #0284c7; -webkit-text-stroke: 2px white;' : ''}
                 pointer-events: none;
                 z-index: 1001;
                 animation: tauntPop 1.5s cubic-bezier(0.34, 1.3, 0.64, 1) forwards;
@@ -909,7 +937,7 @@
                 if(validTargets.length > 0) {
                     validTargets.sort((a,b) => a.dist - b.dist); let targetIdx = validTargets[0].idx;
                     let oppFrigates = [...gameState[oppId].frigates];
-                    if (gameState[oppId].shield) { logs.push(`🛡️️ 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; } 
+                    if (gameState[oppId].shield) { logs.push(`🛡 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; } 
                     else if (!oppFrigates[targetIdx] && isProtectedByFrigate(oppId, oppPieces[targetIdx])) { logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`); } 
                     else {
                         killPlane(targetIdx, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, oppFrigates, gameState[oppId].recons);
@@ -1074,9 +1102,9 @@
 
             if (!canMoveAny) {
                 let missCount = (gameState[myPlayerId].missCount || 0) + 1;
-                let allMainHome = pieces.slice(0,4).every(p => p === -1);
                 
-                if (allMainHome && missCount >= 3 && pieces[4] === 999) {
+                // 放宽僚机支援条件：只要没有飞机能移动（被憋在基地，且场上没自己飞机）且连黑三次
+                if (missCount >= 3 && pieces[4] === 999) {
                     logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
                     let newPieces = [...pieces]; newPieces[4] = myPlayerId === 'p1' ? 0 : 22;
                     nextState[`${myPlayerId}.pieces`] = newPieces; missCount = 0;
