@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>云端植物大战僵尸 🌱🧟</title>
+    <title>云端防线：激战升级 🌱🛒🧟</title>
     <!-- 腾讯云开发 CloudBase Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -12,11 +12,8 @@
         body {
             font-family: 'ZCOOL KuaiLe', cursive, sans-serif;
             background-color: #e0f2fe;
-            background-image: 
-                radial-gradient(#bae6fd 2px, transparent 2px),
-                radial-gradient(#bae6fd 2px, transparent 2px);
+            background-image: radial-gradient(#bae6fd 2px, transparent 2px);
             background-size: 40px 40px;
-            background-position: 0 0, 20px 20px;
             overflow-x: hidden;
             user-select: none;
             -webkit-tap-highlight-color: transparent;
@@ -25,143 +22,117 @@
             background-color: #4ade80;
             background-image: linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px);
-            background-size: 11.11% 20%;
+            background-size: 10% 20%;
             border: 4px solid #166534;
             border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
             image-rendering: pixelated;
         }
-        .toolbar-btn {
-            transition: all 0.2s;
-        }
-        .toolbar-btn.active {
-            transform: scale(1.1);
-            border-color: #f59e0b;
-            box-shadow: 0 0 10px #f59e0b;
-        }
-        .toolbar-btn:disabled {
-            filter: grayscale(100%);
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
+        .toolbar-btn { transition: transform 0.2s, filter 0.2s; flex-shrink: 0; }
+        .toolbar-btn.active { transform: scale(1.1); box-shadow: 0 0 0 3px #f59e0b; }
+        .toolbar-btn:disabled { filter: grayscale(100%); opacity: 0.5; cursor: not-allowed; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-6 relative">
-    
-    <!-- 加载与提示 -->
-    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-sky-800/90 text-white px-6 py-3 rounded-full shadow-xl text-sm font-bold hidden z-50 whitespace-nowrap"></div>
+<body class="min-h-screen flex flex-col items-center justify-start py-4 px-2 sm:px-6">
 
-    <header class="w-full max-w-3xl flex justify-between items-center mb-4 z-10 px-2">
-        <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
-            <span class="text-3xl">🌱</span>
+    <div id="toast" class="fixed top-10 z-[100] bg-sky-900/90 text-white px-6 py-3 rounded-full shadow-2xl text-sm font-bold hidden transition-all"></div>
+
+    <header class="w-full max-w-4xl flex justify-between items-center mb-2 z-10 px-2">
+        <div class="flex items-center gap-2 bg-white/90 px-4 py-2 rounded-2xl shadow-sm">
+            <span class="text-3xl">🛒</span>
             <div>
-                <h1 class="text-xl font-bold text-green-600 leading-tight">云端防线</h1>
-                <p class="text-[10px] text-green-500 font-medium tracking-wider">PVZ BATTLE</p>
+                <h1 class="text-xl font-bold text-green-700 leading-tight">云端防线 2.0</h1>
+                <p class="text-[10px] text-green-600 font-bold tracking-wider">激战升级版</p>
             </div>
         </div>
         <div class="flex flex-col items-end">
-            <div class="bg-white/90 px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1.5">
-                身份: <span id="currentRoleDisplay" class="px-2 py-0.5 rounded-full bg-green-500 text-white">加载中</span>
+            <div class="bg-white/90 px-3 py-1.5 rounded-full shadow-sm text-xs font-bold text-gray-700">
+                身份: <span id="currentRoleDisplay" class="text-green-600">加载中</span>
             </div>
-            <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-1 flex items-center gap-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
-            </span>
         </div>
     </header>
 
-    <main class="w-full max-w-3xl flex flex-col items-center gap-4 relative z-10">
-        
-        <!-- 大厅视图 -->
-        <div id="lobbyView" class="w-full max-w-md flex flex-col gap-4">
-            <div class="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-xl flex flex-col items-center text-center">
-                <div class="w-24 h-24 bg-gradient-to-br from-green-100 to-emerald-200 rounded-full flex items-center justify-center text-5xl mb-4 shadow-inner">
-                    🧠
-                </div>
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">准备对决</h2>
-                
-                <div class="w-full space-y-4">
-                    <button onclick="createRoom()" class="w-full py-4 bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-2xl font-bold text-lg shadow-lg active:scale-95 transition-all">
-                        🌱 创建房间 (扮演植物方)
-                    </button>
-                    
-                    <div class="relative flex py-2 items-center">
-                        <div class="flex-grow border-t border-gray-200"></div>
-                        <span class="mx-4 text-gray-400 text-xs font-bold uppercase">OR</span>
-                        <div class="flex-grow border-t border-gray-200"></div>
-                    </div>
-
-                    <div class="flex flex-col gap-3 w-full">
-                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间号" class="w-full px-4 py-4 bg-white border-2 border-emerald-100 rounded-2xl text-center text-xl font-black text-gray-700 tracking-[0.5em] focus:outline-none focus:border-green-400">
-                        <button onclick="joinRoom()" class="w-full py-4 bg-gradient-to-r from-purple-400 to-purple-600 text-white font-bold text-lg rounded-2xl shadow-lg active:scale-95 transition-all">
-                            🧟 加入房间 (扮演僵尸方)
-                        </button>
-                    </div>
+    <main class="w-full max-w-4xl flex flex-col gap-2 relative z-10">
+        <!-- 大厅 -->
+        <div id="lobbyView" class="w-full max-w-md mx-auto mt-10 flex flex-col gap-4">
+            <div class="bg-white/90 backdrop-blur-md rounded-3xl p-6 shadow-2xl text-center border-4 border-green-100">
+                <div class="text-6xl mb-4 animate-bounce">⚔️</div>
+                <h2 class="text-2xl font-black text-gray-800 mb-6">联机对战</h2>
+                <div class="space-y-4">
+                    <button onclick="createRoom()" class="w-full py-4 bg-green-500 text-white rounded-2xl font-black text-lg shadow-lg active:scale-95 transition-all">🌱 创建防线 (植物方)</button>
+                    <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间号" class="w-full px-4 py-3 bg-gray-50 border-2 border-gray-200 rounded-xl text-center text-xl font-black tracking-[0.5em]">
+                    <button onclick="joinRoom()" class="w-full py-4 bg-purple-600 text-white font-black text-lg rounded-2xl shadow-lg active:scale-95 transition-all">🧟 入侵防线 (僵尸方)</button>
                 </div>
             </div>
         </div>
 
-        <!-- 游戏视图 -->
+        <!-- 游戏界面 -->
         <div id="gameView" class="w-full flex flex-col gap-2 hidden">
-            <!-- 房间信息与资源栏 -->
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border-2 border-green-100 flex items-center justify-between shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="flex flex-col">
-                        <span class="text-[10px] text-gray-400 font-bold">房间号</span>
-                        <span id="displayRoomCode" class="text-xl font-black text-green-600">----</span>
+            <!-- 计分与资源板 -->
+            <div class="w-full bg-white/95 rounded-2xl p-2 border-2 border-gray-200 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="bg-gray-100 px-3 py-1 rounded-lg">
+                        <span class="text-[10px] text-gray-400 font-bold block">航班号</span>
+                        <span id="displayRoomCode" class="text-lg font-black text-gray-700">----</span>
                     </div>
-                    <div class="h-8 w-px bg-gray-200"></div>
-                    <!-- 玩家资源显示 -->
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl drop-shadow-md">☀️</span>
-                        <span id="res-p1" class="text-xl font-black text-amber-500 w-12">150</span>
+                    <div class="flex items-center gap-1 bg-amber-50 px-3 py-1 rounded-lg border border-amber-200">
+                        <span class="text-xl">☀️</span>
+                        <span id="res-p1" class="text-xl font-black text-amber-500 w-12 text-center">200</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-2xl drop-shadow-md">⚡</span>
-                        <span id="res-p2" class="text-xl font-black text-purple-500 w-12">150</span>
+                    <div class="flex items-center gap-1 bg-purple-50 px-3 py-1 rounded-lg border border-purple-200">
+                        <span class="text-xl">⚡</span>
+                        <span id="res-p2" class="text-xl font-black text-purple-600 w-12 text-center">200</span>
                     </div>
                 </div>
-                
-                <button onclick="exitRoom()" class="px-4 py-2 bg-red-100 text-red-600 font-bold rounded-xl active:scale-95 transition-transform">
-                    撤退
-                </button>
+                <button onclick="exitRoom()" class="px-3 py-2 bg-red-100 text-red-600 font-bold rounded-lg active:scale-95">撤</button>
             </div>
 
-            <!-- 等待遮罩 / 结算提示 -->
-            <div id="gameOverlay" class="w-full py-2 bg-gray-100 rounded-xl text-center text-sm font-bold text-gray-500 shadow-inner">
-                ⏳ 等待对手加入...
+            <!-- 画布 -->
+            <div class="relative w-full overflow-hidden flex justify-center bg-gray-900 rounded-xl p-1 shadow-inner">
+                <canvas id="gameCanvas" width="1000" height="500" class="w-full max-w-full touch-none rounded-lg"></canvas>
             </div>
 
-            <!-- 游戏画布 -->
-            <div class="relative w-full overflow-hidden flex justify-center">
-                <canvas id="gameCanvas" width="900" height="500" class="w-full max-w-4xl touch-none"></canvas>
-            </div>
-
-            <!-- 操作栏 (根据身份动态显示) -->
-            <div class="w-full bg-white/90 rounded-2xl p-3 shadow-sm border border-gray-100 flex gap-4 justify-center" id="toolbar">
+            <!-- 操作栏（动态渲染） -->
+            <div class="w-full bg-white/95 rounded-2xl p-2 shadow-sm border border-gray-200 overflow-x-auto no-scrollbar flex gap-2" id="toolbar">
                 <!-- 植物方工具栏 -->
-                <div id="plantsToolbar" class="flex gap-4 hidden">
-                    <button class="toolbar-btn bg-green-50 p-2 rounded-xl border-2 border-green-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('peashooter')">
-                        <span class="text-3xl">🟢</span>
-                        <span class="text-xs font-bold text-green-700 mt-1">豌豆射手</span>
-                        <span class="text-[10px] font-black text-amber-500">☀️ 50</span>
+                <div id="plantsToolbar" class="flex gap-2 hidden">
+                    <button class="toolbar-btn bg-yellow-50 p-2 rounded-xl border-2 border-yellow-200 w-20" onclick="selectUnit('sunflower')">
+                        <div class="text-3xl">🌻</div><div class="text-[10px] font-bold text-green-700 mt-1">向日葵</div><div class="text-[10px] font-black text-amber-500">☀️ 50</div>
                     </button>
-                    <button class="toolbar-btn bg-orange-50 p-2 rounded-xl border-2 border-orange-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('wallnut')">
-                        <span class="text-3xl">🥔</span>
-                        <span class="text-xs font-bold text-orange-700 mt-1">坚果墙</span>
-                        <span class="text-[10px] font-black text-amber-500">☀️ 50</span>
+                    <button class="toolbar-btn bg-green-50 p-2 rounded-xl border-2 border-green-200 w-20" onclick="selectUnit('peashooter')">
+                        <div class="text-3xl">🟢</div><div class="text-[10px] font-bold text-green-700 mt-1">豌豆</div><div class="text-[10px] font-black text-amber-500">☀️ 100</div>
                     </button>
+                    <button class="toolbar-btn bg-cyan-50 p-2 rounded-xl border-2 border-cyan-200 w-20" onclick="selectUnit('snowpea')">
+                        <div class="text-3xl">❄️️</div><div class="text-[10px] font-bold text-green-700 mt-1">寒冰</div><div class="text-[10px] font-black text-amber-500">☀️ 150</div>
+                    </button>
+                    <button class="toolbar-btn bg-orange-50 p-2 rounded-xl border-2 border-orange-200 w-20" onclick="selectUnit('wallnut')">
+                        <div class="text-3xl">🥔</div><div class="text-[10px] font-bold text-green-700 mt-1">坚果</div><div class="text-[10px] font-black text-amber-500">☀️ 50</div>
+                    </button>
+                    <button class="toolbar-btn bg-red-50 p-2 rounded-xl border-2 border-red-200 w-20" onclick="selectUnit('cherry')">
+                        <div class="text-3xl">🍒</div><div class="text-[10px] font-bold text-red-700 mt-1">炸弹</div><div class="text-[10px] font-black text-amber-500">☀️ 150</div>
+                    </button>
+                    <div class="flex items-center text-[10px] font-bold text-green-500 ml-2">提示: 点击第1列购物车可发车清屏</div>
                 </div>
+
                 <!-- 僵尸方工具栏 -->
-                <div id="zombiesToolbar" class="flex gap-4 hidden">
-                    <button class="toolbar-btn bg-purple-50 p-2 rounded-xl border-2 border-purple-200 flex flex-col items-center min-w-[80px]" onclick="selectUnit('basic_zombie')">
-                        <span class="text-3xl">🧟</span>
-                        <span class="text-xs font-bold text-purple-700 mt-1">普通僵尸</span>
-                        <span class="text-[10px] font-black text-purple-500">⚡ 50</span>
+                <div id="zombiesToolbar" class="flex gap-2 hidden">
+                    <button class="toolbar-btn bg-gray-50 p-2 rounded-xl border-2 border-gray-200 w-20" onclick="selectUnit('basic')">
+                        <div class="text-3xl">🧟</div><div class="text-[10px] font-bold text-gray-700 mt-1">普通</div><div class="text-[10px] font-black text-purple-600">⚡ 50</div>
                     </button>
-                    <!-- 操作说明 -->
-                    <div class="flex items-center text-xs font-bold text-purple-400 ml-4">
-                        点击画面右侧任意行投放僵尸
-                    </div>
+                    <button class="toolbar-btn bg-blue-50 p-2 rounded-xl border-2 border-blue-200 w-20" onclick="selectUnit('fast')">
+                        <div class="text-3xl">🏃</div><div class="text-[10px] font-bold text-gray-700 mt-1">迅捷</div><div class="text-[10px] font-black text-purple-600">⚡ 75</div>
+                    </button>
+                    <button class="toolbar-btn bg-stone-50 p-2 rounded-xl border-2 border-stone-300 w-20" onclick="selectUnit('cone')">
+                        <div class="text-3xl">🪖</div><div class="text-[10px] font-bold text-gray-700 mt-1">铁桶</div><div class="text-[10px] font-black text-purple-600">⚡ 125</div>
+                    </button>
+                    <button class="toolbar-btn bg-red-50 p-2 rounded-xl border-2 border-red-200 w-20" onclick="selectUnit('football')">
+                        <div class="text-3xl">🏈</div><div class="text-[10px] font-bold text-gray-700 mt-1">橄榄球</div><div class="text-[10px] font-black text-purple-600">⚡ 175</div>
+                    </button>
+                    <button class="toolbar-btn bg-orange-50 p-2 rounded-xl border-2 border-orange-200 w-20" onclick="selectUnit('bomb_zombie')">
+                        <div class="text-3xl">🧨</div><div class="text-[10px] font-bold text-gray-700 mt-1">自爆</div><div class="text-[10px] font-black text-purple-600">⚡ 150</div>
+                    </button>
+                    <div class="flex items-center text-[10px] font-bold text-purple-500 ml-2">提示: 点击最右侧投放，抢夺盲盒！</div>
                 </div>
             </div>
         </div>
@@ -169,95 +140,60 @@
 
     <script type="module">
         // ================= 云端配置 =================
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 替换为你的环境ID
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 您的环境ID
         const REGION = "ap-shanghai";
-        const ROOM_COLLECTION = "pvzRooms";
-
         let app, auth, db;
-        let currentUser = null;
-        let myIdentity = "玩家" + Math.floor(Math.random()*1000); 
-        let myPlayerId = null; // 'p1' (植物) 或 'p2' (僵尸)
-        let currentRoomId = null;
-        let unsubscribeRoom = null;
-
-        document.getElementById('currentRoleDisplay').innerText = myIdentity;
+        let currentUser = null, myPlayerId = null, currentRoomId = null, unsubscribeRoom = null;
+        let syncedActionIds = new Set(); // 核心：用于动作去重
 
         try {
             app = cloudbase.init({ env: ENV_ID, region: REGION });
             auth = app.auth;
             db = app.database();
-            auth.signInAnonymously().then((res) => {
-                currentUser = res.user || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 在线';
-            }).catch(e => showToast("云端连接异常"));
+            auth.signInAnonymously().then(res => { currentUser = res.user || {}; });
         } catch(e) { console.error(e); }
 
-        function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
-        
+        function getRoomRef(code) { return db.collection("pvzRooms").doc(String(code)); }
         function showToast(msg) {
             const el = document.getElementById('toast');
-            el.innerText = msg;
-            el.classList.remove('hidden');
-            setTimeout(() => el.classList.add('hidden'), 3000);
+            el.innerText = msg; el.classList.remove('hidden');
+            setTimeout(() => el.classList.add('hidden'), 2500);
         }
 
-        function switchToLobby() {
-            document.getElementById('lobbyView').classList.remove('hidden');
-            document.getElementById('gameView').classList.add('hidden');
-            if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            cancelAnimationFrame(gameLoopId);
-        }
-
-        // ================= 房间与同步逻辑 =================
+        // ================= 房间逻辑 =================
         window.createRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            
-            const initialData = {
-                status: 'waiting', 
-                p1: myIdentity, p2: null,
-                actions: [], // 存储所有玩家的操作指令
-                winner: null
-            };
             try {
-                await getRoomRef(code).set(initialData);
+                await getRoomRef(code).set({ status: 'waiting', p1: 'host', actions: [], winner: null });
                 myPlayerId = 'p1';
                 listenToRoom(code);
-                showToast(`房间 ${code} 创建成功，等待僵尸加入`);
-            } catch (e) { showToast("创建房间失败"); }
+                showToast(`创建成功！房间号：${code}`);
+            } catch (e) { showToast("创建失败"); }
         };
 
         window.joinRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim();
-            if (code.length !== 4) return showToast("请输入4位房间号");
-
+            if(code.length !== 4) return showToast("输入4位房间号");
             try {
                 const res = await getRoomRef(code).get();
-                const data = res.data && res.data[0];
-                if (!data) return showToast("房间不存在");
-                if (data.status !== 'waiting' && data.p1 !== myIdentity && data.p2 !== myIdentity) {
-                    return showToast("对战已开始");
-                }
-                if (data.status === 'waiting' && data.p1 !== myIdentity) {
-                    await getRoomRef(code).update({ p2: myIdentity, status: 'playing' });
-                    myPlayerId = 'p2';
-                } else if (data.p1 === myIdentity) { myPlayerId = 'p1'; } 
-                else if (data.p2 === myIdentity) { myPlayerId = 'p2'; }
+                if(!res.data[0]) return showToast("房间不存在");
+                await getRoomRef(code).update({ p2: 'guest', status: 'playing' });
+                myPlayerId = 'p2';
                 listenToRoom(code);
-            } catch (e) { showToast("加入房间失败"); }
+            } catch (e) { showToast("加入失败"); }
         };
 
-        window.exitRoom = function() { switchToLobby(); };
-
-        let syncedActionCount = 0;
+        window.exitRoom = function() {
+            document.getElementById('lobbyView').classList.remove('hidden');
+            document.getElementById('gameView').classList.add('hidden');
+            if(unsubscribeRoom) unsubscribeRoom();
+            gameRunning = false;
+        };
 
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
-            
-            // 界面配置
             document.getElementById('plantsToolbar').classList.toggle('hidden', myPlayerId !== 'p1');
             document.getElementById('zombiesToolbar').classList.toggle('hidden', myPlayerId !== 'p2');
             
@@ -266,83 +202,85 @@
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = snapshot.docs && snapshot.docs[0];
-                    if (!data) return switchToLobby();
-                    
+                    if(!data) return exitRoom();
                     document.getElementById('displayRoomCode').innerText = code;
                     
-                    if (data.status === 'waiting') {
-                        document.getElementById('gameOverlay').innerText = "⏳ 等待僵尸玩家加入...";
-                    } else if (data.status === 'playing') {
-                        document.getElementById('gameOverlay').classList.add('hidden');
-                        if (!gameRunning) startGameLoop();
-                    } else if (data.status === 'finished') {
-                        document.getElementById('gameOverlay').classList.remove('hidden');
-                        document.getElementById('gameOverlay').innerText = `🏆 游戏结束！${data.winner==='p1'?'植物':'僵尸'}方获胜！`;
+                    if (data.status === 'playing' && !gameRunning) startGameLoop();
+                    if (data.status === 'finished') {
                         gameRunning = false;
+                        showToast(`🏆 游戏结束！${data.winner === 'p1' ? '植物' : '僵尸'}方获胜！`);
                     }
 
-                    // 核心：同步并执行云端下发的操作指令
-                    if (data.actions && data.actions.length > syncedActionCount) {
-                        const newActions = data.actions.slice(syncedActionCount);
-                        newActions.forEach(action => applyActionLocally(action));
-                        syncedActionCount = data.actions.length;
+                    // 接收云端增量指令，通过 Set 过滤掉本地已乐观执行的指令
+                    if (data.actions) {
+                        data.actions.forEach(action => {
+                            if (!syncedActionIds.has(action.id)) {
+                                applyActionLocally(action);
+                                syncedActionIds.add(action.id);
+                            }
+                        });
                     }
                 },
-                onError: (err) => console.error(err)
+                onError: e => console.error(e)
             });
             unsubscribeRoom = () => watcher.close();
         }
 
-        // 玩家下发操作指令 (事件源)
-        function sendAction(actionObj) {
-            actionObj.id = Date.now() + Math.random().toString(36).substr(2, 5);
+        // ================= 严格同步机制：先读取，后上传 =================
+        async function sendAction(actionObj) {
+            actionObj.id = Date.now() + "_" + Math.random().toString(36).substr(2, 5);
             actionObj.by = myPlayerId;
-            // 乐观更新（本地直接先执行，做到0延迟）
-            applyActionLocally(actionObj);
-            syncedActionCount++;
             
-            // 使用云开发数据库的数组追加功能推送指令
-            const _ = db.command;
-            getRoomRef(currentRoomId).update({
-                actions: _.push([actionObj])
-            }).catch(e => console.error("同步失败", e));
-        }
-
-        function endGame(winner) {
-            if(!gameRunning) return;
-            gameRunning = false;
-            if(myPlayerId === 'p1') {
-                getRoomRef(currentRoomId).update({ status: 'finished', winner: winner });
+            // 1. 乐观更新：本地立即执行（0延迟手感）
+            applyActionLocally(actionObj);
+            syncedActionIds.add(actionObj.id);
+            
+            // 2. 严格遵循要求：先读取云端数据，合并后再上传
+            try {
+                const roomRef = getRoomRef(currentRoomId);
+                const res = await roomRef.get();
+                const roomData = res.data[0];
+                if (roomData) {
+                    const currentActions = roomData.actions || [];
+                    currentActions.push(actionObj);
+                    await roomRef.update({ actions: currentActions });
+                }
+            } catch (e) {
+                console.error("同步失败", e);
             }
         }
 
-        // ================= 本地游戏引擎引擎 =================
+        // ================= 本地游戏引擎 =================
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const ROWS = 5;
-        const COLS = 9;
-        const CELL_W = 100;
-        const CELL_H = 100;
+        const ROWS = 5, COLS = 10, CELL_W = 100, CELL_H = 100;
         
-        let gameLoopId;
-        let gameRunning = false;
-        let lastTime = 0;
-        let resTimer = 0;
-
-        let state = {
-            resP1: 150, resP2: 150,
-            plants: [], zombies: [], projectiles: [], brains: []
-        };
+        let gameRunning = false, lastTime = 0, resTimer = 0, boxTimer = 0;
+        let state = {};
         let selectedUnit = null;
 
+        const UNIT_DATA = {
+            'sunflower': { cost: 50, hp: 100 },
+            'peashooter': { cost: 100, hp: 100 },
+            'snowpea': { cost: 150, hp: 100 },
+            'wallnut': { cost: 50, hp: 600 },
+            'cherry': { cost: 150, hp: 9999 }, // 樱桃炸弹无敌，1.5秒后自毁
+            
+            'basic': { cost: 50, hp: 150, speed: 15, dmg: 20 },
+            'fast': { cost: 75, hp: 90, speed: 35, dmg: 20 },
+            'cone': { cost: 125, hp: 400, speed: 12, dmg: 25 },
+            'football': { cost: 175, hp: 500, speed: 30, dmg: 30 },
+            'bomb_zombie': { cost: 150, hp: 120, speed: 20, dmg: 20 }
+        };
+
         function initGameEngine() {
-            state = { resP1: 150, resP2: 150, plants: [], zombies: [], projectiles: [], brains: [] };
+            state = { resP1: 200, resP2: 200, plants: [], zombies: [], projectiles: [], mowers: [], boxes: [] };
+            // 初始化大脑与小推车 (第0列)
             for(let r=0; r<ROWS; r++) {
-                state.brains.push({ row: r, col: 0, hp: 1 }); // 每行最左边一个大脑
+                state.mowers.push({ row: r, active: false, x: 20, y: r*CELL_H + CELL_H/2 });
             }
-            syncedActionCount = 0;
-            updateResUI();
-            drawGrid(); // 初始静态绘制
+            syncedActionIds.clear();
+            drawGrid();
         }
 
         window.selectUnit = function(type) {
@@ -351,34 +289,46 @@
             event.currentTarget.classList.add('active');
         };
 
-        // 处理点击：放置植物或释放僵尸
+        // 处理点击交互
         canvas.addEventListener('pointerdown', (e) => {
-            if (!gameRunning || !selectedUnit) return;
+            if (!gameRunning) return;
             const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            const x = (e.clientX - rect.left) * scaleX;
-            const y = (e.clientY - rect.top) * scaleY;
-
-            const col = Math.floor(x / CELL_W);
-            const row = Math.floor(y / CELL_H);
+            const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+            const col = Math.floor(x / CELL_W), row = Math.floor(y / CELL_H);
 
             if (row < 0 || row >= ROWS) return;
 
+            // 1. 点击盲盒
+            const clickedBox = state.boxes.findIndex(b => Math.abs(b.x - x) < 40 && Math.abs(b.y - y) < 40);
+            if (clickedBox > -1) {
+                sendAction({ type: 'open_box', boxId: state.boxes[clickedBox].id });
+                return;
+            }
+
+            // 2. 植物方：触发小推车
+            if (myPlayerId === 'p1' && col === 0 && !selectedUnit) {
+                if (state.mowers[row] && !state.mowers[row].active) {
+                    sendAction({ type: 'trigger_mower', row });
+                }
+                return;
+            }
+
+            // 3. 放置兵种
+            if (!selectedUnit) return;
+
             if (myPlayerId === 'p1') {
-                // 植物只能种在 1-8 列，且不能重叠
-                if (col < 1 || col >= COLS) return;
-                const cost = 50;
-                if (state.resP1 < cost) return showToast("阳光不足！");
-                if (state.plants.some(p => p.row === row && p.col === col)) return showToast("这里已经有植物了");
+                if (col < 1 || col > 8) return; // 植物种在 1-8列
+                const cost = UNIT_DATA[selectedUnit].cost;
+                if (state.resP1 < cost) return showToast("☀️ 阳光不足");
+                if (state.plants.some(p => p.row === row && p.col === col)) return showToast("此处已有植物");
                 
                 state.resP1 -= cost;
                 sendAction({ type: 'spawn_plant', unit: selectedUnit, row, col });
-                
             } else if (myPlayerId === 'p2') {
-                // 僵尸只能释放在最后一列
-                const cost = 50;
-                if (state.resP2 < cost) return showToast("能量不足！");
+                if (col !== 9) return showToast("僵尸只能释放在最右侧区域");
+                const cost = UNIT_DATA[selectedUnit].cost;
+                if (state.resP2 < cost) return showToast("⚡ 能量不足");
                 
                 state.resP2 -= cost;
                 sendAction({ type: 'spawn_zombie', unit: selectedUnit, row, col: 9 });
@@ -389,30 +339,49 @@
             updateResUI();
         });
 
-        // 将同步过来的指令应用到本地状态机
+        // 执行本地状态变更
         function applyActionLocally(action) {
             if (action.type === 'spawn_plant') {
-                const hp = action.unit === 'wallnut' ? 400 : 100;
+                const data = UNIT_DATA[action.unit];
                 state.plants.push({
                     id: action.id, type: action.unit, row: action.row, col: action.col,
-                    hp: hp, maxHp: hp, lastShoot: 0,
+                    hp: data.hp, maxHp: data.hp, timer: 0,
                     x: action.col * CELL_W + CELL_W/2, y: action.row * CELL_H + CELL_H/2
                 });
-                if(action.by !== myPlayerId) { state.resP1 -= 50; updateResUI(); }
+                if(action.by !== myPlayerId) { state.resP1 -= data.cost; updateResUI(); }
             } 
             else if (action.type === 'spawn_zombie') {
+                const data = UNIT_DATA[action.unit];
                 state.zombies.push({
                     id: action.id, type: action.unit, row: action.row, 
-                    hp: 150, maxHp: 150, speed: 20, damage: 20, isEating: false,
-                    x: COLS * CELL_W, y: action.row * CELL_H + CELL_H/2
+                    hp: data.hp, maxHp: data.hp, speed: data.speed, damage: data.dmg, 
+                    isEating: false, slowTimer: 0,
+                    x: COLS * CELL_W - 20, y: action.row * CELL_H + CELL_H/2
                 });
-                if(action.by !== myPlayerId) { state.resP2 -= 50; updateResUI(); }
+                if(action.by !== myPlayerId) { state.resP2 -= data.cost; updateResUI(); }
+            }
+            else if (action.type === 'trigger_mower') {
+                if (state.mowers[action.row]) state.mowers[action.row].active = true;
+            }
+            else if (action.type === 'spawn_box') {
+                state.boxes.push({ id: action.id, x: action.x, y: action.y, row: action.row });
+            }
+            else if (action.type === 'open_box') {
+                const idx = state.boxes.findIndex(b => b.id === action.boxId);
+                if (idx > -1) {
+                    state.boxes.splice(idx, 1);
+                    // 奖励资源
+                    if (action.by === 'p1') state.resP1 += 150;
+                    else state.resP2 += 150;
+                    if (action.by === myPlayerId) showToast("🎁 盲盒开启：获得 150 资源！");
+                    updateResUI();
+                }
             }
         }
 
         function updateResUI() {
-            document.getElementById('res-p1').innerText = state.resP1;
-            document.getElementById('res-p2').innerText = state.resP2;
+            document.getElementById('res-p1').innerText = Math.floor(state.resP1);
+            document.getElementById('res-p2').innerText = Math.floor(state.resP2);
         }
 
         function startGameLoop() {
@@ -421,171 +390,184 @@
             requestAnimationFrame(update);
         }
 
-        // 核心游戏循环 (本地实时计算与碰撞)
+        // 核心更新循环
         function update(timestamp) {
             if(!gameRunning) return;
             const dt = (timestamp - lastTime) / 1000;
             lastTime = timestamp;
 
-            // 资源自动增长
-            resTimer += dt;
+            // 1. 基础资源与盲盒生成 (植物方为Host控制随机事件生成)
+            resTimer += dt; boxTimer += dt;
             if (resTimer >= 2.0) {
-                state.resP1 += 25;
-                state.resP2 += 25;
-                resTimer = 0;
-                updateResUI();
+                state.resP1 += 25; state.resP2 += 30; // 僵尸方补偿点回转
+                resTimer = 0; updateResUI();
+            }
+            if (myPlayerId === 'p1' && boxTimer >= 15.0) {
+                boxTimer = 0;
+                if (Math.random() > 0.3) {
+                    const rRow = Math.floor(Math.random() * ROWS);
+                    const rCol = Math.floor(Math.random() * 6) + 2; // 掉落在中间
+                    sendAction({ type: 'spawn_box', row: rRow, x: rCol*CELL_W + CELL_W/2, y: rRow*CELL_H + CELL_H/2 });
+                }
             }
 
-            // 1. 植物逻辑 (射击)
-            state.plants.forEach(p => {
-                if (p.type === 'peashooter') {
-                    p.lastShoot += dt;
-                    // 检测这一行前方是否有僵尸
+            // 2. 植物特殊逻辑
+            for(let i=state.plants.length-1; i>=0; i--) {
+                const p = state.plants[i];
+                p.timer += dt;
+                
+                if (p.type === 'sunflower' && p.timer >= 3.0) {
+                    p.timer = 0; state.resP1 += 15; updateResUI();
+                }
+                else if (p.type === 'cherry') {
+                    if (p.timer >= 1.5) {
+                        // 炸死周围僵尸
+                        state.zombies.forEach(z => {
+                            if (Math.hypot(z.x - p.x, z.y - p.y) < 180) z.hp -= 1000;
+                        });
+                        state.plants.splice(i, 1); continue;
+                    }
+                }
+                else if ((p.type === 'peashooter' || p.type === 'snowpea') && p.timer >= 1.5) {
                     const hasZombie = state.zombies.some(z => z.row === p.row && z.x > p.x);
-                    if (hasZombie && p.lastShoot >= 1.5) {
-                        p.lastShoot = 0;
+                    if (hasZombie) {
+                        p.timer = 0;
                         state.projectiles.push({
-                            x: p.x + 20, y: p.y, row: p.row, speed: 300, damage: 25
+                            x: p.x + 20, y: p.y, row: p.row, speed: 350, 
+                            damage: 25, isSnow: p.type === 'snowpea'
                         });
                     }
                 }
-            });
+            }
 
-            // 2. 子弹逻辑 (飞行与碰撞)
+            // 3. 子弹飞行与碰撞
             for (let i = state.projectiles.length - 1; i >= 0; i--) {
                 const proj = state.projectiles[i];
                 proj.x += proj.speed * dt;
                 
-                // 碰撞检测：找第一个遇到的僵尸
-                let hitZombie = null;
-                for (let z of state.zombies) {
-                    if (z.row === proj.row && Math.abs(z.x - proj.x) < 30) {
-                        hitZombie = z;
-                        break;
-                    }
-                }
-
+                let hitZombie = state.zombies.find(z => z.row === proj.row && Math.abs(z.x - proj.x) < 30);
                 if (hitZombie) {
                     hitZombie.hp -= proj.damage;
+                    if (proj.isSnow) hitZombie.slowTimer = 3.0; // 减速3秒
                     state.projectiles.splice(i, 1);
                 } else if (proj.x > canvas.width) {
                     state.projectiles.splice(i, 1);
                 }
             }
 
-            // 3. 僵尸逻辑 (移动与啃食)
+            // 4. 小推车逻辑
+            state.mowers.forEach(m => {
+                if (m.active) {
+                    m.x += 400 * dt; // 碾压速度
+                    // 碾压该行僵尸
+                    state.zombies.forEach(z => {
+                        if (z.row === m.row && z.x < m.x + 40 && z.x > m.x - 40) z.hp = -999;
+                    });
+                }
+            });
+
+            // 5. 僵尸逻辑
             for (let i = state.zombies.length - 1; i >= 0; i--) {
                 const z = state.zombies[i];
                 z.isEating = false;
                 
+                if (z.slowTimer > 0) z.slowTimer -= dt;
+                const currentSpeed = z.slowTimer > 0 ? z.speed * 0.4 : z.speed;
+
                 if (z.hp <= 0) {
+                    if (z.type === 'bomb_zombie') { // 自爆僵尸死后炸植物
+                        state.plants.forEach(p => { if (Math.hypot(p.x - z.x, p.y - z.y) < 120) p.hp -= 200; });
+                    }
                     state.zombies.splice(i, 1);
                     continue;
                 }
 
-                // 吃植物检测
-                let hitPlant = null;
-                for (let p of state.plants) {
-                    if (p.row === z.row && Math.abs(p.x - z.x) < 40) {
-                        hitPlant = p; break;
-                    }
-                }
-
+                let hitPlant = state.plants.find(p => p.row === z.row && Math.abs(p.x - z.x) < 40);
                 if (hitPlant) {
                     z.isEating = true;
                     hitPlant.hp -= z.damage * dt;
                 } else {
-                    z.x -= z.speed * dt; // 向左走
+                    z.x -= currentSpeed * dt;
                 }
 
-                // 吃大脑检测 (游戏结束判定)
-                if (z.x < CELL_W / 2) {
-                    const brainIdx = state.brains.findIndex(b => b.row === z.row);
-                    if (brainIdx > -1) {
-                        state.brains.splice(brainIdx, 1);
-                        endGame('p2'); // 僵尸获胜
-                    }
+                // 游戏结束判定 (突破底线)
+                if (z.x < 10) {
+                    getRoomRef(currentRoomId).update({ status: 'finished', winner: 'p2' });
+                    gameRunning = false;
                 }
             }
 
-            // 移除死亡植物
             state.plants = state.plants.filter(p => p.hp > 0);
 
-            drawGrid();
-            drawEntities();
-            
-            if(gameRunning) gameLoopId = requestAnimationFrame(update);
+            drawGame();
+            if(gameRunning) requestAnimationFrame(update);
         }
 
         // ================= 渲染层 =================
-        function drawGrid() {
+        function drawGame() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // 绘制地砖交替色
+            
+            // 背景格子
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
-                    ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.1)';
+                    ctx.fillStyle = (r + c) % 2 === 0 ? 'rgba(0,0,0,0.05)' : 'rgba(0,0,0,0.15)';
                     ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W, CELL_H);
-                    
-                    // 第一列是大脑防线区
-                    if (c === 0) {
-                        ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; // 红色警示带
+                    if (c === 0) { // 禁区
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.2)'; 
                         ctx.fillRect(c * CELL_W, r * CELL_H, CELL_W, CELL_H);
+                        ctx.font = '30px sans-serif'; ctx.fillText('🧠', CELL_W/2, r*CELL_H + CELL_H/2);
                     }
                 }
             }
-        }
 
-        function drawEntities() {
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
 
-            // 绘制大脑
-            state.brains.forEach(b => {
-                ctx.font = '50px sans-serif';
-                ctx.fillText('🧠', b.col * CELL_W + CELL_W/2, b.row * CELL_H + CELL_H/2 + 5);
+            // 盲盒
+            state.boxes.forEach(b => {
+                ctx.font = '40px sans-serif';
+                ctx.fillText('🎁', b.x, b.y + Math.sin(performance.now()/200)*5);
             });
 
-            // 绘制植物
-            state.plants.forEach(p => {
-                ctx.font = '50px sans-serif';
-                ctx.fillText(p.type === 'peashooter' ? '🟢' : '🥔', p.x, p.y + 5);
-                drawHpBar(p.x, p.y - 30, p.hp, p.maxHp);
-            });
-
-            // 绘制子弹
-            state.projectiles.forEach(proj => {
-                ctx.beginPath();
-                ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
-                ctx.fillStyle = '#84cc16'; // 豌豆绿
-                ctx.fill();
-                ctx.strokeStyle = '#4d7c0f';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            });
-
-            // 绘制僵尸
-            state.zombies.forEach(z => {
-                ctx.font = '50px sans-serif';
-                // 啃食时摇摆动画
-                if(z.isEating) {
-                    ctx.save();
-                    ctx.translate(z.x, z.y);
-                    ctx.rotate(Math.sin(performance.now()/50) * 0.1);
-                    ctx.fillText('🧟', 0, 5);
-                    ctx.restore();
-                } else {
-                    ctx.fillText('🧟', z.x, z.y + 5);
+            // 小推车
+            state.mowers.forEach(m => {
+                if(m.x < canvas.width + 100) {
+                    ctx.font = '45px sans-serif';
+                    ctx.fillText('🛒', m.x, m.y);
                 }
-                drawHpBar(z.x, z.y - 35, z.hp, z.maxHp);
+            });
+
+            // 植物
+            const pIcons = { 'sunflower':'🌻', 'peashooter':'🟢', 'snowpea':'❄️', 'wallnut':'🥔', 'cherry':'🍒' };
+            state.plants.forEach(p => {
+                ctx.font = p.type === 'cherry' ? `${40 + Math.sin(p.timer*20)*10}px sans-serif` : '45px sans-serif';
+                ctx.fillText(pIcons[p.type], p.x, p.y + 5);
+                drawHp(p.x, p.y - 30, p.hp, p.maxHp);
+            });
+
+            // 子弹
+            state.projectiles.forEach(proj => {
+                ctx.beginPath(); ctx.arc(proj.x, proj.y, 8, 0, Math.PI * 2);
+                ctx.fillStyle = proj.isSnow ? '#38bdf8' : '#84cc16';
+                ctx.fill(); ctx.stroke();
+            });
+
+            // 僵尸
+            const zIcons = { 'basic':'🧟', 'fast':'🏃', 'cone':'🪖', 'football':'🏈', 'bomb_zombie':'🧨' };
+            state.zombies.forEach(z => {
+                ctx.save(); ctx.translate(z.x, z.y);
+                if(z.isEating) ctx.rotate(Math.sin(performance.now()/50)*0.1);
+                if(z.slowTimer > 0) ctx.filter = 'sepia(1) hue-rotate(180deg) saturate(3)'; // 冰冻变蓝效果
+                ctx.font = '45px sans-serif';
+                ctx.fillText(zIcons[z.type], 0, 5);
+                ctx.restore();
+                drawHp(z.x, z.y - 35, z.hp, z.maxHp);
             });
         }
 
-        function drawHpBar(x, y, hp, maxHp) {
-            const w = 40; const h = 6;
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(x - w/2, y, w, h);
+        function drawHp(x, y, hp, maxHp) {
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(x-20, y, 40, 6);
             ctx.fillStyle = hp > maxHp*0.3 ? '#22c55e' : '#ef4444';
-            ctx.fillRect(x - w/2, y, w * (hp/maxHp), h);
+            ctx.fillRect(x-20, y, 40 * (hp/maxHp), 6);
         }
     </script>
 </body>
