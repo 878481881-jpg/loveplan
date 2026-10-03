@@ -149,10 +149,10 @@
 
     <!-- 战前特质选择弹窗 -->
     <div id="traitSelectModal" class="fixed inset-0 bg-sky-900/80 backdrop-blur-md z-[400] hidden flex flex-col items-center justify-center p-4">
-        <div class="bg-white/95 backdrop-blur-sm rounded-3xl p-6 w-full max-w-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] text-center transform transition-transform duration-300 border border-white" id="traitSelectContent">
-            <h3 class="text-3xl font-black text-sky-600 mb-2 drop-shadow-sm">✨ 飞行员特质选拔 ✨</h3>
-            <p class="text-sm text-gray-500 mb-4 font-bold" id="traitSelectSub">请选择你的作战流派（二选一）</p>
-            <div id="traitOptionsContainer" class="w-full grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+        <div class="bg-white/95 backdrop-blur-xl rounded-3xl p-6 w-full max-w-md shadow-[0_20px_50px_rgba(0,0,0,0.3)] border border-sky-100 text-center transform transition-transform duration-300" id="traitSelectContent">
+            <h3 class="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600 mb-2 drop-shadow-sm">飞行员特质选拔</h3>
+            <p class="text-sm text-gray-500 mb-6 font-bold" id="traitSelectSub">请选择你的作战流派（二选一）</p>
+            <div id="traitOptionsContainer" class="w-full flex flex-col gap-3">
             </div>
         </div>
     </div>
@@ -180,7 +180,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.1.1</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.0</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -216,9 +216,9 @@
             <div class="bg-white/60 rounded-2xl p-4 border border-white shadow-sm text-left">
                 <h3 class="text-sm font-bold text-sky-800 mb-2 flex items-center gap-1"><span>📜</span> 极限战术更新简报</h3>
                 <ul class="text-[11px] text-sky-700 space-y-1.5 pl-4 list-disc opacity-80 font-medium">
-                    <li><b class="text-orange-600">🌟 飞行员天赋</b>：开局随机二选一流派特质！极度影响整场战斗策略。</li>
+                    <li><b class="text-orange-600">🌟 飞行员天赋</b>：开局随机二选一流派特质！领航员、狂战士、大亨、怪盗任你选。</li>
                     <li><b class="text-purple-600">🤡 全息诱饵</b>：制造真假难辨的幻影，攻击它的人将被电磁云禁锢。</li>
-                    <li><b class="text-rose-600">🏴‍‍☠️ 星际海盗</b>：游荡的海盗会优先打劫你的道具，在起点作案后会迅速潜逃！</li>
+                    <li><b class="text-rose-600">🏴‍‍☠️ 星际海盗</b>：游荡的海盗会优先打劫你的道具，没道具才会击毁你！</li>
                     <li><b class="text-teal-600">👻 隐形升级</b>：激活光学迷彩期间，完全免疫雷暴、鸟击、海盗与导弹锁定！</li>
                 </ul>
             </div>
@@ -397,7 +397,7 @@
         window.selectingItemType = null;
         window.pickingItemPos = -1;
         window.onItemPickedCallback = null;
-        window.myTraitOptions = null; 
+        window.myTraitOptions = null; // 本地缓存每次的特质选项
 
         window.animLockCount = 0;
         window.addAnimLock = function() { 
@@ -441,15 +441,17 @@
             container.innerHTML = '';
             options.forEach(tId => {
                 let t = TRAITS_DB[tId];
-                let btn = document.createElement('div');
-                btn.className = 'group relative flex flex-col items-center justify-start p-5 rounded-2xl cursor-pointer transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_10px_30px_rgba(14,165,233,0.3)] bg-gradient-to-b from-white to-sky-50 border-2 border-sky-100 hover:border-sky-400 overflow-hidden';
+                let btn = document.createElement('button');
+                btn.className = 'relative w-full text-left p-4 bg-gradient-to-br from-white to-sky-50 border-2 border-sky-200 rounded-2xl hover:border-sky-400 hover:shadow-[0_0_15px_rgba(56,189,248,0.4)] hover:-translate-y-1 active:scale-95 transition-all mb-3 overflow-hidden group';
                 btn.innerHTML = `
-                    <div class="absolute top-0 right-0 w-16 h-16 bg-sky-100 rounded-bl-full -z-10 group-hover:scale-150 transition-transform duration-500 opacity-50"></div>
-                    <span class="text-5xl mb-3 drop-shadow-md group-hover:scale-110 transition-transform">${t.icon}</span>
-                    <h4 class="text-lg font-black text-sky-800 mb-2">${t.name}</h4>
-                    <p class="text-xs text-sky-600/80 font-medium leading-relaxed text-center">${t.desc}</p>
-                    <button class="mt-4 px-6 py-2 bg-gradient-to-r from-sky-400 to-blue-500 text-white text-xs font-bold rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md">确认选择</button>
-                `;
+                    <div class="absolute -right-4 -top-4 text-7xl opacity-10 group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">${t.icon}</div>
+                    <div class="relative z-10">
+                        <div class="font-black text-sky-700 text-lg flex items-center gap-2 mb-2">
+                            <span class="text-2xl drop-shadow-sm bg-white rounded-full w-10 h-10 flex items-center justify-center shadow-sm">${t.icon}</span> 
+                            ${t.name}
+                        </div>
+                        <div class="text-[11px] text-gray-600 leading-relaxed font-medium bg-white/60 p-2.5 rounded-xl backdrop-blur-sm border border-white/50">${t.desc}</div>
+                    </div>`;
                 btn.onclick = () => window.confirmTrait(tId);
                 container.appendChild(btn);
             });
@@ -493,8 +495,8 @@
             splashEl.innerHTML = text;
             
             let bgColor = 'rgba(14, 165, 233, 0.9)'; 
-            if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞') || text.includes('假') || text.includes('炸') || text.includes('抢') || text.includes('海盗') || text.includes('骰子造假')) bgColor = 'rgba(239, 68, 68, 0.95)'; 
-            if(text.includes('🚀') || text.includes('🎁') || text.includes('🎲') || text.includes('💨') || text.includes('进') || text.includes('💰')) bgColor = 'rgba(34, 197, 94, 0.95)'; 
+            if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞') || text.includes('假') || text.includes('炸') || text.includes('🏴‍☠️')) bgColor = 'rgba(239, 68, 68, 0.95)'; 
+            if(text.includes('🚀') || text.includes('🎁') || text.includes('🎲') || text.includes('💨') || text.includes('进') || text.includes('💰') || text.includes('👻') || text.includes('🧲')) bgColor = 'rgba(34, 197, 94, 0.95)'; 
 
             splashEl.style.cssText = `
                 position: fixed; top: 40%; left: 50%;
@@ -513,7 +515,7 @@
         window.playDiceSplashAnim = function(roll, pName, colorId) {
             playSound('dice');
             const splashEl = document.createElement('div');
-            const diceIcon = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][roll];
+            const diceIcon = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.abs(roll)];
             splashEl.innerHTML = `<div class="text-xl mb-2 text-white/90 drop-shadow">${pName} 掷出了</div><div class="text-8xl drop-shadow-lg leading-none">${diceIcon}</div>`;
             const bgColor = colorId === 'p1' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(59, 130, 246, 0.95)';
             splashEl.style.cssText = `
@@ -688,7 +690,7 @@
             try { 
                 await getRoomRef(code).set(initialData); 
                 myPlayerId = 'p1'; 
-                window.myTraitOptions = null; 
+                window.myTraitOptions = null; // 清除之前可能缓存的特质选项
                 listenToRoom(code); 
                 showToast(`房间 ${code} 创建成功`); 
             } catch (e) { showToast("创建失败"); }
@@ -786,7 +788,7 @@
                     }
                 } else {
                     document.getElementById('traitSelectSub').innerText = '已锁定特质，等待对手...';
-                    document.getElementById('traitOptionsContainer').innerHTML = `<div class="py-8 text-4xl animate-pulse w-full col-span-2 text-center">⏳</div>`;
+                    document.getElementById('traitOptionsContainer').innerHTML = `<div class="py-8 text-4xl animate-pulse">⏳</div>`;
                 }
 
                 if (gameState.p1.trait && gameState.p2.trait && myPlayerId === 'p1') {
@@ -831,8 +833,9 @@
                 renderWeatherSystem(); renderInventory();
             }
 
-            // 修改UI上骰子的呈现，即使是负数也能正常显示其绝对值的骰面
-            document.getElementById('diceVisual').innerText = gameState.diceValue ? diceIcons[Math.abs(gameState.diceValue)] : '🎲';
+            // 修复 -6 在界面上的 undefined 问题
+            let displayDice = gameState.diceValue ? Math.abs(gameState.diceValue) : null;
+            document.getElementById('diceVisual').innerText = displayDice ? diceIcons[displayDice] : '🎲';
 
             const logBox = document.getElementById('eventLogs'); logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 18);
@@ -970,8 +973,8 @@
             };
             if (newCount <= 0) {
                 payload.isPicking = null;
-                payload.turn = gameState.pendingNextTurn; // 平滑恢复被挂起的回合流转
-                payload.pendingNextTurn = null;
+                // 修复BUG：当盲盒拾取完毕后，正确归还本来该继承的回合
+                payload.turn = gameState.nextTurnAfterPick || (myPlayerId === 'p1' ? 'p2' : 'p1');
             }
             
             getRoomRef(currentRoomId).update(payload);
@@ -1130,10 +1133,6 @@
                     window.playSplashAnim(stepData, 800);
                     stepIdx++;
                     setTimeout(nextStep, 800);
-                } else if (typeof stepData === 'object' && stepData.type === 'splash') {
-                    window.playSplashAnim(stepData.data, 1500);
-                    stepIdx++;
-                    setTimeout(nextStep, 500);
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
                     playDuelAnim(stepData.data);
                     stepIdx++;
@@ -1245,7 +1244,7 @@
                     myItems.push(stolen); stateUpdate[`${oppId}.items`] = oppItems;
                     let n = window.getItemName(stolen);
                     logs.push(`🧲 咻！${myName} 发射电磁钩爪，从对方背包偷走了【${n}】！`);
-                    window.playSplashAnim("🧲 钩爪抢夺成功！", 1500);
+                    window.playSplashAnim("🧲 钩爪窃取！", 1500); // 新增抢夺播报
                 } else { logs.push(`🧲 钩爪放空，对方背包空空如也！`); }
             }
             else if (itemType === 'missile') {
@@ -1328,7 +1327,7 @@
             let logs = [...gameState.logs]; 
             
             if (Math.random() < 0.2) {
-                logs.push(`🎲 倒霉！【伪造的指定骰】生效，点数变异反转为 ${-val}！`);
+                logs.push(`🎲 倒霉！【伪造的指定骰】生效，点数变异反转为 -${val}！`);
                 window.playSplashAnim("🎲 骰子造假！", 1500);
                 val = -val;
             } else {
@@ -1336,72 +1335,27 @@
             }
             
             let energy = (gameState.energyLevel || 0) + Math.abs(val);
-            let nextState = { [`${myPlayerId}.items`]: myItems, diceValue: val, hasRolled: true, energyLevel: energy, latestRoll: { p: myPlayerId, roll: Math.abs(val), ts: Date.now() } };
+            let stateUpdate = { [`${myPlayerId}.items`]: myItems, diceValue: val, hasRolled: true, logs: logs, energyLevel: energy, latestRoll: { p: myPlayerId, roll: val, ts: Date.now() } };
             
-            // 无效投掷卡死保护
-            const pieces = gameState[myPlayerId].pieces; let canMoveAny = false;
-            const canTakeOffThisTurn = val > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(val) : [1, 6].includes(val));
-            
-            pieces.forEach((p, idx) => {
+            // 修复BUG：如果伪造骰子判定为了负数且场上没有任何可移动的主力战机，直接终结回合防止死锁
+            let canMoveAny = false;
+            let canTakeOffThisTurn = val > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(val) : [1, 6].includes(val));
+            gameState[myPlayerId].pieces.forEach((p) => {
                 if (p === -1 && canTakeOffThisTurn) canMoveAny = true;
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
-
-            if (!canMoveAny) {
-                let missCount = (gameState[myPlayerId].missCount || 0) + 1;
-                
-                if (missCount >= 3 && pieces[4] === 999) {
-                    logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
-                    let newPieces = [...pieces]; newPieces[4] = myPlayerId === 'p1' ? 0 : 22;
-                    nextState[`${myPlayerId}.pieces`] = newPieces; missCount = 0;
-                } else { logs.push(`⚠ 没有可移动的单位，回合结束。`); }
-                
-                nextState[`${myPlayerId}.missCount`] = missCount; nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
-                decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); 
-                
-                // 海盗游荡
-                let bossPos = nextState.boss ? nextState.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
-                if (bossPos >= 0 && bossPos <= 43) {
-                    let moveSteps = Math.floor(Math.random() * 3) + 1;
-                    let newPos = (bossPos + moveSteps) % 44;
-                    nextState.boss = { pos: newPos, type: 'pirate' };
-                    logs.push(`🏴‍☠️ 星际海盗游荡到了区域 ${newPos}！`);
-                    
-                    const processBossCollision = (pId, pName, piecesArray, stateObj) => {
-                        let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
-                        let crashed = false;
-                        let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
-
-                        piecesArray.forEach((p, i) => {
-                            if (p === newPos) {
-                                if (isStealth) {
-                                    logs.push(`👻 完美潜行！${pName} 的隐形战机避开了星际海盗的扫荡！`);
-                                } else if (items.length > 0) {
-                                    let stealIdx = Math.floor(Math.random() * items.length);
-                                    let stolen = items.splice(stealIdx, 1)[0];
-                                    let n = window.getItemName(stolen);
-                                    logs.push(`🏴‍☠️ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
-                                    stateObj[`${pId}.items`] = items; 
-                                } else {
-                                    piecesArray[i] = pId === 'p1' ? 0 : 22;
-                                    crashed = true;
-                                    logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回基地！`);
-                                }
-                            }
-                        });
-                        if (crashed) stateObj[`${pId}.pieces`] = piecesArray;
-                    };
-
-                    let myP = nextState[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
-                    let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                    let oppP = nextState[`${oppId}.pieces`] || [...gameState[oppId].pieces];
-                    processBossCollision(myPlayerId, myName, myP, nextState);
-                    processBossCollision(oppId, oppId === 'p1' ? gameState.p1.name : gameState.p2.name, oppP, nextState);
-                }
-            } else { nextState[`${myPlayerId}.missCount`] = 0; }
             
-            nextState.logs = logs;
-            closeDiceModal(); getRoomRef(currentRoomId).update(nextState);
+            if (!canMoveAny) {
+                logs.push(`⚠ 骰子点数为 ${val}，但没有可移动的单位，回合结束。`);
+                stateUpdate.hasRolled = false; 
+                stateUpdate.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
+                decrementStatuses(myPlayerId, stateUpdate, logs); 
+                updateWeatherTurn(stateUpdate, logs); 
+                checkCatastrophe(stateUpdate, logs); 
+                moveBoss(stateUpdate, logs);
+            }
+            
+            closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
         };
 
         function isProtectedByFrigate(ownerId, pos) {
@@ -1525,8 +1479,8 @@
                     }
 
                     if (gameState.status === 'playing' && gameState.turn === myPlayerId && myPlayerId === player && gameState.hasRolled && !window.isSelectingPlaneFor) {
-                        const rollVal = gameState.diceValue || 0;
-                        const canTakeOffThisTurn = rollVal > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(rollVal) : [1, 6].includes(rollVal));
+                        const diceVal = gameState.diceValue;
+                        const canTakeOffThisTurn = diceVal > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(diceVal) : [1, 6].includes(diceVal));
                         const canMove = (pos === -1 && canTakeOffThisTurn) || (pos !== -1 && pos !== 999);
                         if (canMove && !window.isGameAnimating() && !gameState.isPicking) planeEl.classList.add('plane-active');
                     }
@@ -1576,6 +1530,195 @@
             } else if (bossEl) { bossEl.style.display = 'none'; }
         }
 
+        function moveBoss(stateUpdate, logs) {
+            let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
+            if (bossPos >= 0 && bossPos <= 43) {
+                let moveSteps = Math.floor(Math.random() * 3) + 1;
+                let newPos = (bossPos + moveSteps) % 44;
+                stateUpdate.boss = { pos: newPos, type: 'pirate' };
+                logs.push(`🏴‍☠️ 星际海盗游荡到了区域 ${newPos}！`);
+                
+                const processBossCollision = (pId, pName, piecesArray, stateObj) => {
+                    let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
+                    let crashed = false;
+                    let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
+
+                    piecesArray.forEach((p, i) => {
+                        if (p === newPos) {
+                            if (isStealth) {
+                                logs.push(`👻 完美潜行！${pName} 的隐形战机避开了星际海盗的扫荡！`);
+                            } else if (items.length > 0) {
+                                let stealIdx = Math.floor(Math.random() * items.length);
+                                let stolen = items.splice(stealIdx, 1)[0];
+                                let n = window.getItemName(stolen);
+                                logs.push(`🏴‍☠️️ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
+                                stateObj[`${pId}.items`] = items; 
+                            } else {
+                                piecesArray[i] = pId === 'p1' ? 0 : 22;
+                                crashed = true;
+                                logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回基地！`);
+                            }
+                        }
+                    });
+                    if (crashed) stateObj[`${pId}.pieces`] = piecesArray;
+                };
+
+                let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
+                let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+                let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
+
+                processBossCollision(myPlayerId, myName, myP, stateUpdate);
+                processBossCollision(oppId, oppId === 'p1' ? gameState.p1.name : gameState.p2.name, oppP, stateUpdate);
+            }
+        }
+
+        window.handleRollDice = function() {
+            if (window.isGameAnimating() || gameState.isPicking) {
+                showToast("请等待上一轮战术动作结算完毕");
+                return;
+            }
+
+            if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
+            if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram) return showToast("请先完成部署");
+            
+            if (gameState[myPlayerId].skipTurns > 0) {
+                playSound('alert');
+                const logs = [...gameState.logs];
+                logs.push(`⚡ ${myName} 受电磁云影响被禁锢，跳过本回合！`);
+                let nextState = { turn: myPlayerId === 'p1' ? 'p2' : 'p1', hasRolled: false };
+                nextState[`${myPlayerId}.skipTurns`] = gameState[myPlayerId].skipTurns - 1;
+                decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs);
+                moveBoss(nextState, logs);
+                nextState.logs = logs; gameState = { ...gameState, ...nextState };
+                requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+                return;
+            }
+
+            playSound('dice');
+            const diceVis = document.getElementById('diceVisual');
+            diceVis.classList.remove('dice-rolling'); void diceVis.offsetWidth; diceVis.classList.add('dice-rolling');
+
+            const roll = Math.floor(Math.random() * 6) + 1;
+            const pieces = gameState[myPlayerId].pieces; let canMoveAny = false;
+            
+            const canTakeOffThisTurn = roll > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(roll) : [1, 6].includes(roll));
+            
+            pieces.forEach((p, idx) => {
+                if (p === -1 && canTakeOffThisTurn) canMoveAny = true;
+                if (p !== -1 && p !== 999) canMoveAny = true;
+            });
+
+            const logs = [...gameState.logs]; logs.push(`${myName} 掷出了 ${roll} 点。`);
+            let nextState = { diceValue: roll, hasRolled: true, latestRoll: { p: myPlayerId, roll: roll, ts: Date.now() } };
+            let energy = (gameState.energyLevel || 0) + roll; nextState.energyLevel = energy;
+
+            if (!canMoveAny) {
+                let missCount = (gameState[myPlayerId].missCount || 0) + 1;
+                
+                if (missCount >= 3 && pieces[4] === 999) {
+                    logs.push(`🚁 塔台支援！连续黑手无法起飞，派出【无人僚机】扫雷破局！`);
+                    let newPieces = [...pieces]; newPieces[4] = myPlayerId === 'p1' ? 0 : 22;
+                    nextState[`${myPlayerId}.pieces`] = newPieces; missCount = 0;
+                } else { logs.push(`⚠ 没有可移动的单位，回合结束。`); }
+                
+                nextState[`${myPlayerId}.missCount`] = missCount; nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
+                decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); moveBoss(nextState, logs);
+            } else { nextState[`${myPlayerId}.missCount`] = 0; }
+
+            nextState.logs = logs; gameState = { ...gameState, ...nextState };
+            requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+        };
+
+        function updateWeatherTurn(stateUpdate, logs) {
+            let weather = stateUpdate.weather || gameState.weather; let env = stateUpdate.envZone || gameState.envZone;
+            if (weather.remainingTurns > 0) {
+                weather.remainingTurns--;
+                if (weather.remainingTurns === 0) { logs.push(`🌤 全局天气恢复正常。`); weather.type = 'normal'; env.type = null; env.indices = []; }
+            }
+            if (weather.type === 'normal' && Math.random() < 0.25) {
+                const types = ['tailwind', 'thunder', 'fog']; weather.type = types[Math.floor(Math.random() * types.length)];
+                weather.remainingTurns = Math.floor(Math.random() * 3) + 2; 
+                
+                if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
+                else if (weather.type === 'fog') logs.push(`🌫️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
+                else if (weather.type === 'thunder') { 
+                    weather.zone = Array.from({length: 6}, (_, i) => (Math.floor(Math.random() * 44) + i) % 44); logs.push(`⚡ 前方出现雷暴区！`); 
+                }
+                if(Math.random() < 0.6) {
+                    const startIdx = Math.floor(Math.random() * 38); env.type = Math.random() < 0.5 ? 'westwind' : 'calm'; env.indices = Array.from({length: 5}, (_, i) => startIdx + i);
+                    if(env.type === 'westwind') logs.push(`🌊 航道局部产生【盛行洋流】，途经将顺势滑行2格！`);
+                    else logs.push(`🛑 航道局部产生【无风带】，途经将无法触发同色跳跃！`);
+                }
+                if(Math.random() < 0.4) {
+                    stateUpdate.wormholes = [Math.floor(Math.random()*44), Math.floor(Math.random()*44)]; logs.push(`🌀 空间结构不稳定，赛道随机产生了【时空虫洞】！`);
+                } else { stateUpdate.wormholes = []; }
+            }
+            stateUpdate.weather = weather; stateUpdate.envZone = env;
+        }
+
+        function checkCatastrophe(stateUpdate, logs) {
+            let eng = stateUpdate.energyLevel || gameState.energyLevel;
+            if(eng >= 100) {
+                playSound('boom'); logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
+                let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
+                let oppId = myPlayerId === 'p1' ? 'p2' : 'p1'; let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
+                
+                const shuffle = (pieces, shield, pId) => {
+                    const trait = stateUpdate[`${pId}.trait`] || gameState[pId].trait;
+                    const pathLogic = generateLogicalPath(pId);
+                    return pieces.map((p, idx) => { 
+                        if(p >= 0 && p <= 43) { 
+                            if(shield) { return p; }
+                            let rPos = Math.floor(Math.random() * 44); 
+                            // 【特质：磁暴行者】
+                            if (trait === 'walker' && Math.random() < 0.5) {
+                                let currIdx = pathLogic.indexOf(p);
+                                let newIdx = pathLogic.indexOf(rPos);
+                                if (newIdx < currIdx) {
+                                    // 若随机位置落后，强制改为向前或原地
+                                    let aheadIdx = currIdx + Math.floor(Math.random() * (44 - currIdx));
+                                    rPos = pathLogic[aheadIdx] !== undefined ? pathLogic[aheadIdx] : pathLogic[currIdx];
+                                }
+                            }
+                            return rPos;
+                        } 
+                        return p; 
+                    });
+                };
+                let mS = stateUpdate[`${myPlayerId}.shield`] !== undefined ? stateUpdate[`${myPlayerId}.shield`] : gameState[myPlayerId].shield;
+                let oS = stateUpdate[`${oppId}.shield`] !== undefined ? stateUpdate[`${oppId}.shield`] : gameState[oppId].shield;
+                
+                stateUpdate[`${myPlayerId}.pieces`] = shuffle(myP, mS, myPlayerId); 
+                stateUpdate[`${oppId}.pieces`] = shuffle(oppP, oS, oppId);
+                
+                if(mS) { logs.push(`🛡 ${myName} 的护盾抵抗了磁暴！`); stateUpdate[`${myPlayerId}.shield`] = false; }
+                if(oS) { logs.push(`🛡️ 敌方的护盾抵抗了磁暴！`); stateUpdate[`${oppId}.shield`] = false; }
+                stateUpdate.energyLevel = 0;
+            }
+        }
+
+        function renderWeatherSystem() {
+            const banner = document.getElementById('weatherBanner'); const overlay = document.getElementById('weatherOverlay'); const envText = document.getElementById('envText');
+            const { type, remainingTurns, zone } = gameState.weather;
+            
+            if (type === 'normal' || remainingTurns <= 0) {
+                banner.classList.add('hidden'); overlay.className = 'weather-overlay'; envText.classList.add('hidden');
+                document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone')); return;
+            }
+            banner.classList.remove('hidden'); document.getElementById('weatherTurns').innerText = remainingTurns;
+            overlay.className = 'weather-overlay'; document.querySelectorAll('.thunder-zone').forEach(el => el.classList.remove('thunder-zone'));
+            
+            if (type === 'tailwind') { document.getElementById('weatherIcon').innerText = '🌬️'; document.getElementById('weatherText').innerText = '强顺风 (移动+2)'; overlay.classList.add('weather-tailwind'); } 
+            else if (type === 'fog') { document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾视阻 (限速1格)'; overlay.classList.add('weather-fog'); } 
+            else if (type === 'thunder') {
+                document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '极光雷暴预警'; overlay.classList.add('weather-thunder');
+                zone.forEach(pos => { const coord = trackCoords[pos]; if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); } });
+            }
+            if(gameState.envZone && gameState.envZone.type) {
+                envText.classList.remove('hidden'); envText.innerText = gameState.envZone.type === 'westwind' ? '🌊 航道局部存在【盛行洋流】' : '🛑 航道局部存在【无风带】';
+            } else { envText.classList.add('hidden'); }
+        }
+
         window.handlePieceClick = function(player, pieceIndex) {
             if (window.isGameAnimating() || gameState.isPicking) return;
 
@@ -1603,8 +1746,6 @@
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || !gameState.hasRolled || player !== myPlayerId) return;
 
             const currentPos = gameState[myPlayerId].pieces[pieceIndex]; const dice = gameState.diceValue;
-            
-            // 修复点：限定必须是正数才能判定起飞
             const canTakeOffThisTurn = dice > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(dice) : [1, 6].includes(dice));
 
             if (currentPos === -1 && !canTakeOffThisTurn) return;
@@ -1649,13 +1790,13 @@
                 if (gameState.weather.type === 'tailwind') moveSteps += 2; 
                 else if (gameState.weather.type === 'fog') {
                     if (isRecon) { animKeyframes.push(`🛩️ 侦察机无视大雾！`); logs.push(`🛩 侦察机雷达全开，无视大雾影响！`); } 
-                    else { moveSteps = Math.sign(dice) * 1; } // 保留移动方向
+                    else { moveSteps = Math.sign(dice) * 1; }
                 }
                 
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, currentBarricades); 
                 newPos = moveResult.pos; 
                 
-                // 【特质：幽灵怪盗】
+                // 【特质：幽灵怪盗】 穿插在移动动画步数中
                 moveResult.path.forEach((stepPos, sIdx) => {
                     animKeyframes.push(stepPos);
                     if (sIdx < moveResult.path.length - 1) { 
@@ -1667,7 +1808,7 @@
                                         let stolen = oppItems.splice(stealIdx, 1)[0];
                                         myItems.push(stolen);
                                         let n = window.getItemName(stolen);
-                                        animKeyframes.push({ type: 'splash', data: `👻 怪盗窃取！` });
+                                        animKeyframes.push(`👻 擦弹窃取！获得【${n}】`);
                                         logs.push(`👻 ${myName} 施展【幽灵怪盗】，在越过敌机时顺手窃取了【${n}】！`);
                                     }
                                 }
@@ -1688,7 +1829,7 @@
             let visitedEvents = []; 
             let hasSameColorJumped = false; 
             let pickedItemsCount = 0;
-            let bossPos = gameState.boss ? gameState.boss.pos : -1;
+            let hasHitPirate = false;
 
             while (processingFeatures && visitCount < 15 && newPos >= 0 && newPos <= 43) {
                 processingFeatures = false;
@@ -1696,7 +1837,9 @@
                 let initialPos = newPos;
 
                 // 0. 星际海盗碰撞检测
-                if (newPos === bossPos && newPos >= 0 && newPos <= 43) {
+                let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
+                if (newPos === bossPos && newPos >= 0 && newPos <= 43 && !hasHitPirate) {
+                    hasHitPirate = true;
                     let isStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] > 0 : gameState[myPlayerId].stealthTurns > 0;
                     if (isStealth) {
                         animKeyframes.push(`👻 隐形完美潜过海盗！`);
@@ -1707,23 +1850,24 @@
                             let stealIdx = Math.floor(Math.random() * myItems.length);
                             let stolen = myItems.splice(stealIdx, 1)[0];
                             let n = window.getItemName(stolen);
-                            animKeyframes.push({ type: 'splash', data: `🏴‍‍☠️ 海盗抢夺！` });
+                            animKeyframes.push(`🏴‍‍☠️ 海盗掠夺了【${n}】！`);
                             logs.push(`🏴‍☠️ ${myName} 遭遇星际海盗，被迫交出【${n}】当做过路费！`);
                         } else {
-                            animKeyframes.push({ type: 'splash', data: `💥 被海盗击落` });
+                            animKeyframes.push(`💥 穷光蛋被海盗撞飞！`);
                             logs.push(`🏴‍☠️ ${myName} 遇到海盗却身无分文，被愤怒地打回起点！`);
                             newPos = myPlayerId === 'p1' ? 0 : 22;
                             animKeyframes.push(newPos);
+                            processingFeatures = true; 
                         }
                         
-                        // 【海盗逃窜逻辑，防止蹲守起点】
-                        let moveSteps = Math.floor(Math.random() * 3) + 1;
-                        let nextBossPos = (bossPos + moveSteps) % 44;
-                        stateUpdate.boss = { pos: nextBossPos, type: 'pirate' };
-                        logs.push(`🏴‍☠️ 星际海盗作案后，迅速逃窜到了区域 ${nextBossPos}！`);
-                        bossPos = -1; // 本次循环屏蔽海盗判定
+                        // 修复BUG：海盗交互后立刻移动自身方位，打断无限死循环卡死现象
+                        let newBossPos = (bossPos + Math.floor(Math.random() * 3) + 1) % 44;
+                        stateUpdate.boss = { pos: newBossPos, type: 'pirate' };
+                        logs.push(`🏴‍☠️ 星际海盗劫掠/击落后心满意足，移动到了区域 ${newBossPos}！`);
                         
-                        processingFeatures = true;
+                        if (myItems.length > 0) {
+                            processingFeatures = true; 
+                        }
                         continue;
                     }
                 }
@@ -1752,7 +1896,7 @@
                         if (isStealth) {
                             animKeyframes.push(`👻 隐形避开了盲盒陷阱！`); logs.push(`👻 ${myName} 依靠光学迷彩避开了盲盒危机的锁定！`);
                         } else if (myShield) { 
-                            animKeyframes.push(`🛡 护盾弹开了恶意效果！`); logs.push(`🛡 护盾弹开了盲盒恶意效果！`); 
+                            animKeyframes.push(`🛡️ 护盾弹开了恶意效果！`); logs.push(`🛡 护盾弹开了盲盒恶意效果！`); 
                             myShield = false; 
                         } else { action(); } 
                     };
@@ -1771,7 +1915,7 @@
                                                 let stolen = oppItems.splice(stealIdx, 1)[0];
                                                 myItems.push(stolen);
                                                 let n = window.getItemName(stolen);
-                                                animKeyframes.push({ type: 'splash', data: `👻 怪盗窃取！` });
+                                                animKeyframes.push(`👻 擦弹窃取！获得【${n}】`);
                                                 logs.push(`👻 ${myName} 施展【幽灵怪盗】，在越过敌机时顺手窃取了【${n}】！`);
                                             }
                                         }
@@ -1814,23 +1958,22 @@
                     }
                 }
 
-                // 3. 优先判定虫洞传送 (优先级高于同色跳跃)
+                // 3. 虫洞传送 (修复BUG：将虫洞优先级置于同色跳跃之上)
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`wormhole_${newPos}`) && gameState.wormholes && gameState.wormholes.length === 2) {
+                    visitedEvents.push(`wormhole_${newPos}`);
                     if(newPos === gameState.wormholes[0]) { 
-                        visitedEvents.push(`wormhole_${newPos}`);
                         newPos = gameState.wormholes[1]; 
                         visitedEvents.push(`wormhole_${newPos}`); 
                         animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); 
                     }
                     else if(newPos === gameState.wormholes[1]) { 
-                        visitedEvents.push(`wormhole_${newPos}`);
                         newPos = gameState.wormholes[0]; 
                         visitedEvents.push(`wormhole_${newPos}`); 
                         animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); 
                     }
                 }
 
-                // 4. 洋流/无风带检测 及 同色跳跃 (允许虫洞后继续判定同色)
+                // 4. 洋流/无风带检测 及 同色跳跃
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`jump_env_${newPos}`)) {
                     visitedEvents.push(`jump_env_${newPos}`);
                     let env = gameState.envZone; let canJump = true;
@@ -1998,51 +2141,15 @@
             } 
             else if (!allFinished) { 
                 nextTurn = oppId; decrementStatuses(myPlayerId, stateUpdate, logs); updateWeatherTurn(stateUpdate, logs); checkCatastrophe(stateUpdate, logs); 
-                
-                // 海盗在回合末自然移动
-                if (bossPos !== -1) {
-                    let moveSteps = Math.floor(Math.random() * 3) + 1;
-                    let newPos = (bossPos + moveSteps) % 44;
-                    stateUpdate.boss = { pos: newPos, type: 'pirate' };
-                    logs.push(`🏴‍☠️ 星际海盗游荡到了区域 ${newPos}！`);
-                    
-                    const processBossCollision = (pId, pName, piecesArray, stateObj) => {
-                        let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
-                        let crashed = false;
-                        let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
-
-                        piecesArray.forEach((p, i) => {
-                            if (p === newPos) {
-                                if (isStealth) {
-                                    logs.push(`👻 完美潜行！${pName} 的隐形战机避开了星际海盗的扫荡！`);
-                                } else if (items.length > 0) {
-                                    let stealIdx = Math.floor(Math.random() * items.length);
-                                    let stolen = items.splice(stealIdx, 1)[0];
-                                    let n = window.getItemName(stolen);
-                                    logs.push(`🏴‍☠️ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
-                                    stateObj[`${pId}.items`] = items; 
-                                } else {
-                                    piecesArray[i] = pId === 'p1' ? 0 : 22;
-                                    crashed = true;
-                                    logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回基地！`);
-                                }
-                            }
-                        });
-                        if (crashed) stateObj[`${pId}.pieces`] = piecesArray;
-                    };
-
-                    let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
-                    let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
-                    processBossCollision(myPlayerId, myName, myP, stateUpdate);
-                    processBossCollision(oppId, oppId === 'p1' ? gameState.p1.name : gameState.p2.name, oppP, stateUpdate);
-                }
+                moveBoss(stateUpdate, logs);
             }
 
             if (pickedItemsCount > 0 && !allFinished) {
                 stateUpdate.isPicking = myPlayerId;
                 stateUpdate.pickingCount = pickedItemsCount;
                 stateUpdate.turn = myPlayerId;
-                stateUpdate.pendingNextTurn = nextTurn;
+                // 修复BUG：记录挑选物资完毕后真实该流转的下一个回合
+                stateUpdate.nextTurnAfterPick = nextTurn; 
             } else {
                 stateUpdate.turn = nextTurn; 
             }
