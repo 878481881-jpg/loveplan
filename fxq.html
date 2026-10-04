@@ -132,7 +132,7 @@
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-bounce mb-4">✈️</div>
+        <div class="text-6xl animate-bounce mb-4">✈️️</div>
         <div class="text-sky-600 font-bold text-xl flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span> 连接战术网络...</div>
     </div>
 
@@ -184,7 +184,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.2</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.3</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -1400,6 +1400,7 @@
                 updateWeatherTurn(stateUpdate, logs); 
                 checkCatastrophe(stateUpdate, logs); 
                 moveBoss(stateUpdate, logs);
+                moveHolograms(stateUpdate, logs);
             }
             
             closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
@@ -1437,7 +1438,6 @@
             }
         }
 
-        // 修改：集中处理飞机被击落或迫降（含【战地医师】天赋支持）
         function killPlane(idx, pId, piecesArray, aArray, bArray, fArray, rArray, stateObj, logs, animKeyframes) {
             let trait = stateObj[`${pId}.trait`] !== undefined ? stateObj[`${pId}.trait`] : gameState[pId].trait;
             let pName = pId === myPlayerId ? myName : (pId === 'p1' ? gameState.p1.name : gameState.p2.name);
@@ -1495,7 +1495,6 @@
             logs.push(`🎁 ${kName} 缴获了 3 件海盗遗产！`);
             window.playSplashAnim("💀 击溃海盗！奖励3件物资", 1500);
 
-            // 标记获得额外回合
             stateUpdate.pendingExtraTurn = killerId;
         }
 
@@ -1553,7 +1552,6 @@
                 });
             }
 
-            // 【侦察机雷达】逻辑：侦测前方 10 个格子内的特殊单位
             let myRecons = gameState[myPlayerId].recons;
             let myPieces = gameState[myPlayerId].pieces;
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
@@ -1688,7 +1686,6 @@
             renderPlayerPlanes('p2', gameState.p2.pieces, gameState.p2.aces, gameState.p2.bombers, gameState.p2.frigates, gameState.p2.recons);
             renderHolograms('p1'); renderHolograms('p2');
             
-            // 渲染星际海盗Boss
             let bossEl = document.getElementById('plane-boss-pirate');
             if (bossEl && gameState.boss && gameState.boss.pos >= 0 && gameState.boss.pos <= 43 && (!gameState.boss.respawnTimer || gameState.boss.respawnTimer <= 0)) {
                 bossEl.style.display = 'flex'; bossEl.style.zIndex = '25';
@@ -1707,13 +1704,12 @@
             let boss = stateUpdate.boss ? {...stateUpdate.boss} : (gameState.boss ? {...gameState.boss} : null);
             if (!boss) return;
 
-            // 1. 处理复活倒计时
             if (boss.respawnTimer > 0) {
                 boss.respawnTimer -= 1;
                 if (boss.respawnTimer <= 0) {
                     boss.pos = Math.floor(Math.random() * 44);
                     boss.hp = 6;
-                    logs.push(`🏴‍☠️️ 星际海盗重组完毕，满血(6HP)降临在区域 ${boss.pos}！`);
+                    logs.push(`🏴‍☠ 星际海盗重组完毕，满血(6HP)降临在区域 ${boss.pos}！`);
                 }
                 stateUpdate.boss = boss;
                 return;
@@ -1724,7 +1720,6 @@
                 let currentBarricades = stateUpdate.barricades || [...(gameState.barricades || [])];
                 let hitBarricade = false;
 
-                // 2. 一步步移动以检测路障
                 for(let s=1; s<=moveSteps; s++){
                     let nextPos = (boss.pos + 1) % 44;
                     if (currentBarricades.includes(nextPos)) {
@@ -1740,14 +1735,12 @@
 
                 if (!hitBarricade) logs.push(`🏴‍☠️ 星际海盗游荡到了区域 ${boss.pos}！`);
 
-                // 3. 穿越虫洞判定
                 let wormholes = stateUpdate.wormholes || gameState.wormholes || [];
                 if (wormholes.length === 2) {
                     if (boss.pos === wormholes[0]) { boss.pos = wormholes[1]; logs.push(`🌀 星际海盗穿越了虫洞到达区域 ${boss.pos}！`); }
                     else if (boss.pos === wormholes[1]) { boss.pos = wormholes[0]; logs.push(`🌀 星际海盗穿越了虫洞到达区域 ${boss.pos}！`); }
                 }
 
-                // 4. 水雷判定
                 let p1Mines = stateUpdate['p1.mines'] || gameState.p1.mines || [];
                 let p2Mines = stateUpdate['p2.mines'] || gameState.p2.mines || [];
                 
@@ -1758,13 +1751,11 @@
                     if (p2Mines.includes(boss.pos)) { p2Mines = p2Mines.filter(m => m !== boss.pos); stateUpdate['p2.mines'] = p2Mines; }
 
                     if (boss.hp <= 0) {
-                        // 谁的地雷判定击杀给谁
                         let killer = p1Mines.includes(boss.pos) ? 'p1' : (p2Mines.includes(boss.pos) ? 'p2' : (stateUpdate.turn === 'p1' ? 'p2' : 'p1'));
                         handleBossDefeat(killer, stateUpdate, logs, boss);
                     }
                 }
 
-                // 5. 原有的海盗对玩家打劫/击飞逻辑 (只有在存活时进行)
                 if (boss.hp > 0) {
                     const processBossCollision = (pId, pName, piecesArray, stateObj) => {
                         let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
@@ -1811,6 +1802,32 @@
             }
         }
 
+        function moveHolograms(stateUpdate, logs) {
+            let movedCount = 0;
+            ['p1', 'p2'].forEach(pId => {
+                let holos = stateUpdate[`${pId}.holograms`] !== undefined ? [...stateUpdate[`${pId}.holograms`]] : (gameState[pId].holograms ? [...gameState[pId].holograms] : []);
+                
+                if (holos.length > 0) {
+                    let updated = false;
+                    for (let i = 0; i < holos.length; i++) {
+                        if (holos[i] >= 0 && holos[i] <= 43) {
+                            let moveSteps = Math.floor(Math.random() * 6) + 1;
+                            holos[i] = (holos[i] + moveSteps) % 44; 
+                            movedCount++;
+                            updated = true;
+                        }
+                    }
+                    if (updated) {
+                        stateUpdate[`${pId}.holograms`] = holos;
+                    }
+                }
+            });
+
+            if (movedCount > 0) {
+                logs.push(`👻 赛道上的全息诱饵随风发生了随机漂移！`);
+            }
+        }
+
         window.handleRollDice = function() {
             if (window.isGameAnimating() || gameState.isPicking) {
                 showToast("请等待上一轮战术动作结算完毕");
@@ -1831,6 +1848,7 @@
                 nextState[`${myPlayerId}.skipTurns`] = gameState[myPlayerId].skipTurns - 1;
                 decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs);
                 moveBoss(nextState, logs);
+                moveHolograms(nextState, logs);
                 nextState.logs = logs; gameState = { ...gameState, ...nextState };
                 requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
                 return;
@@ -1870,7 +1888,9 @@
                 } else { logs.push(`⚠ 没有可移动的单位，回合结束。`); }
                 
                 nextState[`${myPlayerId}.missCount`] = missCount; nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
-                decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); moveBoss(nextState, logs);
+                decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); 
+                moveBoss(nextState, logs);
+                moveHolograms(nextState, logs);
             } else { nextState[`${myPlayerId}.missCount`] = 0; }
 
             nextState.logs = logs; gameState = { ...gameState, ...nextState };
@@ -1888,7 +1908,7 @@
                 weather.remainingTurns = Math.floor(Math.random() * 3) + 2; 
                 
                 if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
-                else if (weather.type === 'fog') logs.push(`🌫️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
+                else if (weather.type === 'fog') logs.push(`🌫️️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
                 else if (weather.type === 'thunder') { 
                     weather.zone = Array.from({length: 6}, (_, i) => (Math.floor(Math.random() * 44) + i) % 44); logs.push(`⚡ 前方出现雷暴区！`); 
                 }
@@ -1990,7 +2010,7 @@
                     let logs = [...gameState.logs]; logs.push(`🔧 ${myName} 成功改装战机为 ${roleName}！`); stateUpdate.logs = logs;
                     window.isSelectingPlaneFor = null; window.selectingItemType = null; document.body.classList.remove('selecting-mode');
                     getRoomRef(currentRoomId).update(stateUpdate); showToast("改装完成");
-                } else { showToast("⚠️ 只能改装主赛道的主力战机"); }
+                } else { showToast("⚠️️ 只能改装主赛道的主力战机"); }
                 return;
             }
 
@@ -2088,13 +2108,11 @@
                 visitCount++;
                 let initialPos = newPos;
 
-                // 0. 星际海盗碰撞检测
                 let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
                 if (newPos === bossPos && newPos >= 0 && newPos <= 43 && !hasHitPirate) {
                     hasHitPirate = true;
                     let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
                     
-                    // 玩家主动靠近，造成1点伤害，并且不视为海盗攻击
                     bossState.hp = (bossState.hp || 6) - 1;
                     animKeyframes.push(`⚔️ 袭击海盗！`);
                     logs.push(`⚔️ ${myName} 主动靠近星际海盗发起了攻击！海盗扣除 1 点生命值！(剩余HP: ${bossState.hp})`);
@@ -2102,14 +2120,13 @@
                     if (bossState.hp <= 0) {
                         handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
                         animKeyframes.push(`💀 击溃海盗`);
-                        extraTurn = true; // 确保本回合结束后立即触发连动
+                        extraTurn = true; 
                     }
                     stateUpdate.boss = bossState;
                     processingFeatures = true; 
                     continue;
                 }
 
-                // 1. 拾取道具：触发空投三选一
                 if (!isWingman && itemCellIndices.includes(newPos) && !visitedEvents.includes(`item_${newPos}`)) {
                     visitedEvents.push(`item_${newPos}`);
                     let choices = [
@@ -2122,7 +2139,6 @@
                     pickedItemsCount++;
                 }
 
-                // 2. 盲盒事件触发
                 if (eventCellIndices.includes(newPos) && !visitedEvents.includes(`event_${newPos}`)) {
                     visitedEvents.push(`event_${newPos}`);
                     let randEvent = myCellEvents[newPos]; 
@@ -2197,7 +2213,6 @@
                     }
                 }
 
-                // 3. 虫洞传送
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`wormhole_${newPos}`) && gameState.wormholes && gameState.wormholes.length === 2) {
                     visitedEvents.push(`wormhole_${newPos}`);
                     if(newPos === gameState.wormholes[0]) { 
@@ -2212,7 +2227,6 @@
                     }
                 }
 
-                // 4. 洋流/无风带检测 及 同色跳跃
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`jump_env_${newPos}`)) {
                     visitedEvents.push(`jump_env_${newPos}`);
                     let env = gameState.envZone; let canJump = true;
@@ -2237,7 +2251,6 @@
                     }
                 }
 
-                // 5. 闪电雷击
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`thunder_${newPos}`) && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                     visitedEvents.push(`thunder_${newPos}`);
                     if (Math.random() < 0.5) {
@@ -2256,7 +2269,6 @@
                     } else { animKeyframes.push(`⛈ 惊险穿过雷暴区。`); logs.push(`⛈️ 惊险穿过雷暴区。`); }
                 }
 
-                // 6. 敌方隐形水雷
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`mine_${newPos}`) && oppMines.includes(newPos)) {
                     visitedEvents.push(`mine_${newPos}`);
                     oppMines = oppMines.filter(m => m !== newPos);
@@ -2425,14 +2437,14 @@
             else if (!allFinished) { 
                 nextTurn = oppId; decrementStatuses(myPlayerId, stateUpdate, logs); updateWeatherTurn(stateUpdate, logs); checkCatastrophe(stateUpdate, logs); 
                 moveBoss(stateUpdate, logs);
+                moveHolograms(stateUpdate, logs);
             }
 
-            // 新增：拦截挂起的额外击溃奖励（由导弹或跨回合水雷造成的延迟奖励）
             if (stateUpdate.pendingExtraTurn) {
                 nextTurn = stateUpdate.pendingExtraTurn;
                 let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
                 logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
-                stateUpdate.pendingExtraTurn = null; // 消耗掉该次特权
+                stateUpdate.pendingExtraTurn = null; 
             } else if (gameState.pendingExtraTurn && stateUpdate.pendingExtraTurn !== null) { 
                 nextTurn = gameState.pendingExtraTurn;
                 let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
