@@ -374,6 +374,10 @@
 
         let myIdentity = "指挥官" + Math.floor(Math.random()*1000); 
         try { if(localStorage.getItem('loveGacha_myIdentity')) myIdentity = localStorage.getItem('loveGacha_myIdentity'); } catch(e) {}
+        
+        // BUG 6 FIX: 彻底清洗名字过滤 XSS，防御从 localStorage 注入的恶意脚本
+        myIdentity = myIdentity.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
+        
         const myName = myIdentity; document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null, unsubscribeRoom = null, gameState = null, myPlayerId = null;
@@ -634,7 +638,7 @@
             bossEl.id = `plane-boss-pirate`;
             bossEl.className = `plane plane-transition pointer-events-none`;
             bossEl.style.background = '#111827'; bossEl.style.color = '#fff'; bossEl.style.border = '2px solid #374151'; bossEl.style.boxShadow = '0 0 10px rgba(0,0,0,0.8)';
-            bossEl.innerText = '🏴‍☠️️'; bossEl.style.display = 'none';
+            bossEl.innerText = '🏴‍☠'; bossEl.style.display = 'none';
             layer.appendChild(bossEl);
         }
 
@@ -881,8 +885,10 @@
         window.sendCustomTaunt = function() {
             const input = document.getElementById('customTauntInput');
             if(!input) return;
-            const val = input.value.trim();
+            let val = input.value.trim();
             if(val) {
+                // BUG 6 FIX: 额外过滤用户手动输入的聊天信息中的潜在恶意标签
+                val = val.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
                 sendTaunt(val);
                 input.value = '';
             }
@@ -953,6 +959,10 @@
         window.pickItem = function(item) {
             let myItems = [...gameState[myPlayerId].items];
             myItems.push(item);
+            
+            // BUG 2 FIX: 添加本地乐观更新，防止连续触发拾取多个物品时由于云端网络延迟导致前一个选择被错误覆盖丢失
+            gameState[myPlayerId].items = myItems;
+            
             let n = window.getItemName(item);
             let logs = [...gameState.logs];
             logs.push(`🎁 ${myName} 选择了空投物资：【${n}】`);
@@ -1195,6 +1205,8 @@
         }
 
         window.useItem = function(itemType) {
+            // BUG 5 FIX: 在飞机移动的动画或者等待选择结算期间，拦截道具的使用，防止时序错误和状态割裂
+            if (window.isGameAnimating() || gameState.isPicking) return showToast("请等待当前战术动作结算完毕");
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return showToast("只能在你的回合使用");
             if (gameState.hasRolled) return showToast("掷骰子后不能使用道具");
             playSound('alert');
@@ -1205,20 +1217,25 @@
             let stateUpdate = {}; let logs = [...gameState.logs]; let myItems = [...gameState[myPlayerId].items];
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             
+            // BUG 4 FIX: 新增点击同道具可取消改装/部署的功能，防止点错被死锁
             if (itemType === 'barricade') {
-                window.isPlacingBarricade = true; window.isPlacingMine = false; window.isPlacingHologram = false; window.selectingItemType = itemType;
+                if (window.isPlacingBarricade) { window.isPlacingBarricade = false; document.getElementById('board-container').classList.remove('placing-mode-active'); return showToast("已取消部署"); }
+                window.isPlacingBarricade = true; window.isPlacingMine = false; window.isPlacingHologram = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道格子放置路障"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
             }
             if (itemType === 'mine') {
-                window.isPlacingMine = true; window.isPlacingBarricade = false; window.isPlacingHologram = false; window.selectingItemType = itemType;
+                if (window.isPlacingMine) { window.isPlacingMine = false; document.getElementById('board-container').classList.remove('placing-mode-active'); return showToast("已取消部署"); }
+                window.isPlacingMine = true; window.isPlacingBarricade = false; window.isPlacingHologram = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道暗中布置水雷(仅己方可见)"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
             }
             if (itemType === 'hologram') {
-                window.isPlacingHologram = true; window.isPlacingMine = false; window.isPlacingBarricade = false; window.selectingItemType = itemType;
+                if (window.isPlacingHologram) { window.isPlacingHologram = false; document.getElementById('board-container').classList.remove('placing-mode-active'); return showToast("已取消部署"); }
+                window.isPlacingHologram = true; window.isPlacingMine = false; window.isPlacingBarricade = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道格子放置全息诱饵(幻影)"); document.getElementById('board-container').classList.add('placing-mode-active'); return;
             }
             if (['bomber', 'frigate', 'recon'].includes(itemType)) {
-                window.isSelectingPlaneFor = itemType; window.selectingItemType = itemType;
+                if (window.isSelectingPlaneFor === itemType) { window.isSelectingPlaneFor = null; window.selectingItemType = null; document.body.classList.remove('selecting-mode'); return showToast("已取消改装"); }
+                window.isSelectingPlaneFor = itemType; window.selectingItemType = itemType; window.isPlacingBarricade = false; window.isPlacingMine = false; window.isPlacingHologram = false; document.getElementById('board-container').classList.remove('placing-mode-active');
                 let t = itemType === 'bomber' ? '轰炸机' : itemType === 'frigate' ? '护卫舰' : '侦察机';
                 showToast(`👉 请点击【主赛道上的己方战机】改装为${t}`); document.body.classList.add('selecting-mode'); return;
             }
@@ -1246,8 +1263,16 @@
                 if (Math.random() < 0.2) {
                     logs.push(`💥 警告！遭遇【劣质过载导弹】，不幸原地炸膛！`);
                     window.playSplashAnim("💥 导弹炸膛", 1500);
-                    let leadIdx = -1; let maxPos = -1;
-                    myPieces.slice(0,4).forEach((p, i) => { if(p > maxPos && p <= 43) { maxPos = p; leadIdx = i; } });
+                    
+                    // BUG 1 FIX: 使用 generateLogicalPath 精准测量行驶距离，避免蓝方判定由于倒序失效
+                    let leadIdx = -1; let maxDist = -1;
+                    let pathLogic = generateLogicalPath(myPlayerId);
+                    myPieces.slice(0,4).forEach((p, i) => { 
+                        if(p >= 0 && p <= 43) { 
+                            let dist = pathLogic.indexOf(p);
+                            if(dist > maxDist) { maxDist = dist; leadIdx = i; }
+                        } 
+                    });
                     if(leadIdx !== -1) {
                         myPieces[leadIdx] = myPlayerId === 'p1' ? 0 : 22;
                         logs.push(`💥 强烈的爆炸将 ${myName} 的领先战机炸回了起点！`);
@@ -1697,7 +1722,11 @@
             }
 
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
-            if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram) return showToast("请先完成部署");
+            
+            // BUG 4 FIX: 拦截在选择战机改装或者部署道具时误触掷骰子引发的逻辑错乱
+            if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram || window.isSelectingPlaneFor) {
+                return showToast("请先完成当前战术部署，或点击对应道具取消");
+            }
             
             if (gameState[myPlayerId].skipTurns > 0) {
                 playSound('alert');
@@ -1986,7 +2015,7 @@
                             let stealIdx = Math.floor(Math.random() * myItems.length);
                             let stolen = myItems.splice(stealIdx, 1)[0];
                             let n = window.getItemName(stolen);
-                            animKeyframes.push(`🏴‍‍‍‍☠️ 海盗掠夺了【${n}】！`);
+                            animKeyframes.push(`🏴☠️ 海盗掠夺了【${n}】！`);
                             logs.push(`🏴‍☠ ${myName} 遭遇星际海盗，被迫交出【${n}】当做过路费！`);
                             window.playSplashAnim(`🏴‍☠️ 交出过路费！失去【${n}】`, 1800);
                         } else {
@@ -2181,7 +2210,9 @@
                 let duelOccurred = false;
                 
                 let hitHolo = -1;
-                let oppHolos = gameState[oppId].holograms || [];
+                
+                // BUG 3 FIX: 使用浅拷贝防止 splice 污染本地 gameState 的只读数据，引发前端视图异常
+                let oppHolos = [...(gameState[oppId].holograms || [])];
                 for(let h=0; h<oppHolos.length; h++) {
                     if (oppHolos[h] === newPos) { hitHolo = h; break; }
                 }
