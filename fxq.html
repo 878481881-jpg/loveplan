@@ -184,7 +184,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.0</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.1</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -726,7 +726,13 @@
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
                     if (data) {
-                        if (isRoomFirstLoad) { isRoomFirstLoad = false; }
+                        if (isRoomFirstLoad) { 
+                            isRoomFirstLoad = false; 
+                            // 新增：初始化时间戳，防止刷新后回放历史事件引发刷道具漏洞
+                            lastProcessedRollTs = data.latestRoll ? data.latestRoll.ts : 0;
+                            lastProcessedMoveTs = data.latestMove ? data.latestMove.ts : 0;
+                            lastProcessedTauntTs = data.latestTaunt ? data.latestTaunt.ts : 0;
+                        }
                         ['p1','p2'].forEach(p => {
                             if(!data[p].pieces || data[p].pieces.length<5) data[p].pieces = (data[p].pieces||[-1,-1,-1,-1]).concat([999]);
                             if(!data[p].mines) data[p].mines = []; if(!data[p].holograms) data[p].holograms = []; if(!data[p].stats) data[p].stats = { kills:0, thunderHits:0, pacifist:true, minesTriggered:0, duelsWon:0 };
@@ -1280,28 +1286,39 @@
                     }
                 } else {
                     let validTargets = [];
+                    let pathLogic = generateLogicalPath(myPlayerId);
+                    
                     myPieces.slice(0,4).forEach(myPos => {
                         if(myPos >= 0 && myPos <= 43) {
+                            let myIdxOnPath = pathLogic.indexOf(myPos);
                             let isOppStealth = gameState[oppId].stealthTurns > 0;
-                            // 隐形完美免疫导弹锁定
+                            
                             if (!isOppStealth) {
                                 oppPieces.slice(0,4).forEach((oppPos, oppIdx) => {
                                     if(oppPos >= 0 && oppPos <= 43) {
-                                        let dist = (oppPos - myPos); if (dist < 0) dist += 44;
-                                        if(dist > 0 && dist <= 6) validTargets.push({type: 'real', idx: oppIdx, dist});
+                                        let oppIdxOnPath = pathLogic.indexOf(oppPos);
+                                        if (oppIdxOnPath !== -1) {
+                                            let dist = oppIdxOnPath - myIdxOnPath;
+                                            if(dist > 0 && dist <= 6) validTargets.push({type: 'real', idx: oppIdx, dist});
+                                        }
                                     }
                                 });
                             }
                             let oppHolos = gameState[oppId].holograms || [];
                             oppHolos.forEach((oppPos, oppIdx) => {
-                                let dist = (oppPos - myPos); if (dist < 0) dist += 44;
-                                if(dist > 0 && dist <= 6) validTargets.push({type: 'holo', idx: oppIdx, dist});
+                                let oppIdxOnPath = pathLogic.indexOf(oppPos);
+                                if (oppIdxOnPath !== -1) {
+                                    let dist = oppIdxOnPath - myIdxOnPath;
+                                    if(dist > 0 && dist <= 6) validTargets.push({type: 'holo', idx: oppIdx, dist});
+                                }
                             });
-                            // 检测星际海盗
                             let bossPos = gameState.boss ? gameState.boss.pos : -1;
                             if (bossPos >= 0 && bossPos <= 43) {
-                                let dist = (bossPos - myPos); if (dist < 0) dist += 44;
-                                if(dist > 0 && dist <= 6) validTargets.push({type: 'boss', idx: 0, dist});
+                                let bossIdxOnPath = pathLogic.indexOf(bossPos);
+                                if (bossIdxOnPath !== -1) {
+                                    let dist = bossIdxOnPath - myIdxOnPath;
+                                    if(dist > 0 && dist <= 6) validTargets.push({type: 'boss', idx: 0, dist});
+                                }
                             }
                         }
                     });
@@ -1874,6 +1891,10 @@
 
         window.handlePieceClick = function(player, pieceIndex) {
             if (window.isGameAnimating() || gameState.isPicking) return;
+            
+            if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram) {
+                return showToast("请先完成当前陷阱部署，或再次点击对应道具取消");
+            }
 
             if (window.isSelectingPlaneFor && player === myPlayerId) {
                 const pos = gameState[myPlayerId].pieces[pieceIndex];
@@ -2276,19 +2297,28 @@
             
             if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
                 let enemyBomberHit = false;
+                let didBomb = false; 
                 let isOppStealth = stateUpdate[`${oppId}.stealthTurns`] !== undefined ? stateUpdate[`${oppId}.stealthTurns`] > 0 : gameState[oppId].stealthTurns > 0;
+                
                 oppPieces.slice(0,4).forEach((p, i) => { 
                     if (p >= 0 && p <= 43) { 
                         let dist1 = Math.abs(p - newPos); let dist2 = 44 - dist1;
                         if (Math.min(dist1, dist2) <= 3) {
-                            if (isOppStealth) { animKeyframes.push(`👻 轰炸未波及隐形敌机！`); logs.push(`👻 敌方借助光学迷彩，惊险避开了轰炸波及！`); }
-                            else if (oppShield) { animKeyframes.push(`🛡️ 护盾保住了敌机！`); logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; } 
-                            else if (consumeFrigateProtection(oppId, p, stateUpdate, logs)) { animKeyframes.push(`🛸 敌方力场拦截了轰炸！`); } 
+                            if (isOppStealth) { 
+                                animKeyframes.push(`👻 轰炸未波及隐形敌机！`); logs.push(`👻 敌方借助光学迷彩，惊险避开了轰炸波及！`); 
+                            }
+                            else if (oppShield) { 
+                                animKeyframes.push(`🛡️ 护盾保住了敌机！`); logs.push(`🛡️ 护盾在爆炸中保住了敌机！`); oppShield = false; didBomb = true; 
+                            } 
+                            else if (consumeFrigateProtection(oppId, p, stateUpdate, logs)) { 
+                                animKeyframes.push(`🛸 敌方力场拦截了轰炸！`); didBomb = true; 
+                            } 
                             else {
                                 let wasBomber = oppBombers[i]; 
                                 killPlane(i, oppId, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons, stateUpdate, logs, animKeyframes);
                                 animKeyframes.push(`🔥 【轰炸机】摧毁了范围内敌机！`); logs.push(`🔥 【轰炸机】摧毁了范围内敌机！`); playSound('boom'); myStats.kills++; oppStats.pacifist = false;
                                 if (wasBomber) { enemyBomberHit = true; }
+                                didBomb = true;
                             }
                         }
                     }
@@ -2303,6 +2333,7 @@
                         myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
                         myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
                         stateUpdate.boss = { pos: Math.floor(Math.random()*44), type: 'pirate' };
+                        didBomb = true;
                     }
                 }
 
@@ -2312,9 +2343,12 @@
                     animKeyframes.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); 
                 }
 
-                // 轰炸机效果触发后重置为普通战机
-                myBombers[pieceIndex] = false;
-                logs.push(`🚀 【轰炸机】弹药耗尽，降级为普通战机！`);
+                if (didBomb) {
+                    myBombers[pieceIndex] = false;
+                    logs.push(`🚀 【轰炸机】弹药耗尽，降级为普通战机！`);
+                } else {
+                    logs.push(`🚀 【轰炸机】未发现有效目标，保留轰炸挂载！`);
+                }
             }
 
             stateUpdate[`${myPlayerId}.pieces`] = myPieces; stateUpdate[`${myPlayerId}.aces`] = myAces; stateUpdate[`${myPlayerId}.items`] = myItems; 
