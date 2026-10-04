@@ -132,7 +132,7 @@
     <div class="fixed bottom-20 left-10 text-3xl cloud opacity-40 z-[-1]">☁</div>
 
     <div id="globalLoading" class="fixed inset-0 bg-sky-50/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
-        <div class="text-6xl animate-bounce mb-4">✈️️</div>
+        <div class="text-6xl animate-bounce mb-4">✈</div>
         <div class="text-sky-600 font-bold text-xl flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span> 连接战术网络...</div>
     </div>
 
@@ -184,7 +184,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.3</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.4</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -632,7 +632,6 @@
             };
             for(let i=0; i<5; i++) { createPlane('p1', i); createPlane('p2', i); }
             
-            // 为海盗Boss预留位置
             const bossEl = document.createElement('div');
             bossEl.id = `plane-boss-pirate`;
             bossEl.className = `plane plane-transition pointer-events-none`;
@@ -1334,7 +1333,7 @@
                             bossState.hp = (bossState.hp || 6) - 2;
                             
                             if (bossState.hp <= 0) {
-                                handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                                myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
                             } else {
                                 logs.push(`💥 星际海盗遭受导弹重创，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
                                 window.playSplashAnim("💥 导弹命中海盗！", 1500);
@@ -1463,7 +1462,7 @@
                     if (animKeyframes) animKeyframes.push(`🚑 迫降至 ${targetPos}！`);
                     if (logs) logs.push(`🚑 【战地医师】发力！${pName} 的主力战机免于坠毁，紧急迫降在后方安全区！`);
                     stateObj[`${pId}.pieces`] = piecesArray;
-                    return false; // Did not die
+                    return false; 
                 }
             }
 
@@ -1479,13 +1478,13 @@
             return true; 
         }
         
-        function handleBossDefeat(killerId, stateUpdate, logs, bossState) {
+        function handleBossDefeat(killerId, stateUpdate, logs, bossState, currentItemsArray = null) {
             bossState.pos = -1;
             bossState.hp = 0;
             bossState.respawnTimer = 3;
             logs.push(`💀 星际海盗被彻底击溃！将在 3 回合后重组降临！`);
 
-            let items = stateUpdate[`${killerId}.items`] || (gameState[killerId] ? [...gameState[killerId].items] : []);
+            let items = currentItemsArray || stateUpdate[`${killerId}.items`] || (gameState[killerId] ? [...gameState[killerId].items] : []);
             items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
             items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
             items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
@@ -1496,6 +1495,7 @@
             window.playSplashAnim("💀 击溃海盗！奖励3件物资", 1500);
 
             stateUpdate.pendingExtraTurn = killerId;
+            return items;
         }
 
         function updateBoardDecorations() {
@@ -1908,7 +1908,7 @@
                 weather.remainingTurns = Math.floor(Math.random() * 3) + 2; 
                 
                 if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
-                else if (weather.type === 'fog') logs.push(`🌫️️ 大雾弥漫视野受限！飞行距离限制为 1 格！`);
+                else if (weather.type === 'fog') logs.push(`🌫 大雾弥漫视野受限！飞行距离限制为 1 格！`);
                 else if (weather.type === 'thunder') { 
                     weather.zone = Array.from({length: 6}, (_, i) => (Math.floor(Math.random() * 44) + i) % 44); logs.push(`⚡ 前方出现雷暴区！`); 
                 }
@@ -2010,7 +2010,7 @@
                     let logs = [...gameState.logs]; logs.push(`🔧 ${myName} 成功改装战机为 ${roleName}！`); stateUpdate.logs = logs;
                     window.isSelectingPlaneFor = null; window.selectingItemType = null; document.body.classList.remove('selecting-mode');
                     getRoomRef(currentRoomId).update(stateUpdate); showToast("改装完成");
-                } else { showToast("⚠️️ 只能改装主赛道的主力战机"); }
+                } else { showToast("⚠ 只能改装主赛道的主力战机"); }
                 return;
             }
 
@@ -2118,7 +2118,7 @@
                     logs.push(`⚔️ ${myName} 主动靠近星际海盗发起了攻击！海盗扣除 1 点生命值！(剩余HP: ${bossState.hp})`);
                     
                     if (bossState.hp <= 0) {
-                        handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                        myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
                         animKeyframes.push(`💀 击溃海盗`);
                         extraTurn = true; 
                     }
@@ -2266,7 +2266,7 @@
                             let died = killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes); 
                             if(died) { newPos = -1; animKeyframes.push(newPos); myStats.thunderHits++; } else { newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); }
                         }
-                    } else { animKeyframes.push(`⛈ 惊险穿过雷暴区。`); logs.push(`⛈️ 惊险穿过雷暴区。`); }
+                    } else { animKeyframes.push(`⛈ 惊险穿过雷暴区。`); logs.push(`⛈️️ 惊险穿过雷暴区。`); }
                 }
 
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`mine_${newPos}`) && oppMines.includes(newPos)) {
@@ -2394,7 +2394,7 @@
                         logs.push(`🔥 星际海盗被轰炸波及，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
                         
                         if (bossState.hp <= 0) {
-                            handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                            myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
                             extraTurn = true;
                         }
                         stateUpdate.boss = bossState;
