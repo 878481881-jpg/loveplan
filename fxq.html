@@ -184,7 +184,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.1</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.2.2</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -375,7 +375,6 @@
         let myIdentity = "指挥官" + Math.floor(Math.random()*1000); 
         try { if(localStorage.getItem('loveGacha_myIdentity')) myIdentity = localStorage.getItem('loveGacha_myIdentity'); } catch(e) {}
         
-        // BUG 6 FIX: 彻底清洗名字过滤 XSS，防御从 localStorage 注入的恶意脚本
         myIdentity = myIdentity.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
         
         const myName = myIdentity; document.getElementById('currentRoleDisplay').innerText = myName;
@@ -395,7 +394,7 @@
         window.selectingItemType = null;
         window.pickingItemPos = -1;
         window.onItemPickedCallback = null;
-        window.myTraitOptions = null; // 本地缓存每次的特质选项
+        window.myTraitOptions = null; 
 
         window.animLockCount = 0;
         window.addAnimLock = function() { 
@@ -496,7 +495,7 @@
             splashEl.innerHTML = text;
             
             let bgColor = 'rgba(14, 165, 233, 0.9)'; 
-            if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞') || text.includes('假') || text.includes('炸') || text.includes('🏴‍☠️')) bgColor = 'rgba(239, 68, 68, 0.95)'; 
+            if(text.includes('💥') || text.includes('⚡') || text.includes('💣') || text.includes('🌪️') || text.includes('退') || text.includes('撞') || text.includes('假') || text.includes('炸') || text.includes('🏴‍☠️') || text.includes('💀')) bgColor = 'rgba(239, 68, 68, 0.95)'; 
             if(text.includes('🚀') || text.includes('🎁') || text.includes('🎲') || text.includes('💨') || text.includes('进') || text.includes('💰') || text.includes('👻') || text.includes('🧲') || text.includes('🚑')) bgColor = 'rgba(34, 197, 94, 0.95)'; 
 
             splashEl.style.cssText = `
@@ -638,7 +637,7 @@
             bossEl.id = `plane-boss-pirate`;
             bossEl.className = `plane plane-transition pointer-events-none`;
             bossEl.style.background = '#111827'; bossEl.style.color = '#fff'; bossEl.style.border = '2px solid #374151'; bossEl.style.boxShadow = '0 0 10px rgba(0,0,0,0.8)';
-            bossEl.innerText = '🏴‍☠'; bossEl.style.display = 'none';
+            bossEl.innerHTML = '🏴‍‍☠️'; bossEl.style.display = 'none';
             layer.appendChild(bossEl);
         }
 
@@ -686,12 +685,14 @@
                 status: 'waiting', p1: getDefP(myName), p2: getDefP(null), barricades: [], turn: 'p1', diceValue: null, hasRolled: false,
                 logs: [`${myName} 创建了指挥部，等待对手...`], winner: null, 
                 weather: { type: 'normal', remainingTurns: 0, zone: [] }, envZone: {type: null, indices: []}, wormholes: [], energyLevel: 0,
-                cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(), boss: { pos: Math.floor(Math.random()*44), type: 'pirate' }
+                cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(), 
+                boss: { pos: Math.floor(Math.random()*44), type: 'pirate', hp: 6, respawnTimer: 0 },
+                pendingExtraTurn: null
             };
             try { 
                 await getRoomRef(code).set(initialData); 
                 myPlayerId = 'p1'; 
-                window.myTraitOptions = null; // 清除之前可能缓存的特质选项
+                window.myTraitOptions = null; 
                 listenToRoom(code); 
                 showToast(`房间 ${code} 创建成功`); 
             } catch (e) { showToast("创建失败"); }
@@ -728,7 +729,6 @@
                     if (data) {
                         if (isRoomFirstLoad) { 
                             isRoomFirstLoad = false; 
-                            // 新增：初始化时间戳，防止刷新后回放历史事件引发刷道具漏洞
                             lastProcessedRollTs = data.latestRoll ? data.latestRoll.ts : 0;
                             lastProcessedMoveTs = data.latestMove ? data.latestMove.ts : 0;
                             lastProcessedTauntTs = data.latestTaunt ? data.latestTaunt.ts : 0;
@@ -741,7 +741,7 @@
                             if(data[p].blindTurns===undefined) data[p].blindTurns = 0;
                         });
                         if(!data.energyLevel) data.energyLevel = 0; if(!data.wormholes) data.wormholes = []; if(!data.envZone) data.envZone = {type:null, indices:[]};
-                        if(!data.boss) data.boss = { pos: -1, type: 'pirate' };
+                        if(!data.boss) data.boss = { pos: -1, type: 'pirate', hp: 6, respawnTimer: 0 };
                         
                         gameState = data; requestAnimationFrame(renderGameState);
                     } else { showToast("房间已解散"); switchToLobby(); }
@@ -893,7 +893,6 @@
             if(!input) return;
             let val = input.value.trim();
             if(val) {
-                // BUG 6 FIX: 额外过滤用户手动输入的聊天信息中的潜在恶意标签
                 val = val.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
                 sendTaunt(val);
                 input.value = '';
@@ -966,7 +965,6 @@
             let myItems = [...gameState[myPlayerId].items];
             myItems.push(item);
             
-            // BUG 2 FIX: 添加本地乐观更新，防止连续触发拾取多个物品时由于云端网络延迟导致前一个选择被错误覆盖丢失
             gameState[myPlayerId].items = myItems;
             
             let n = window.getItemName(item);
@@ -1211,7 +1209,6 @@
         }
 
         window.useItem = function(itemType) {
-            // BUG 5 FIX: 在飞机移动的动画或者等待选择结算期间，拦截道具的使用，防止时序错误和状态割裂
             if (window.isGameAnimating() || gameState.isPicking) return showToast("请等待当前战术动作结算完毕");
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId) return showToast("只能在你的回合使用");
             if (gameState.hasRolled) return showToast("掷骰子后不能使用道具");
@@ -1223,7 +1220,6 @@
             let stateUpdate = {}; let logs = [...gameState.logs]; let myItems = [...gameState[myPlayerId].items];
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             
-            // BUG 4 FIX: 新增点击同道具可取消改装/部署的功能，防止点错被死锁
             if (itemType === 'barricade') {
                 if (window.isPlacingBarricade) { window.isPlacingBarricade = false; document.getElementById('board-container').classList.remove('placing-mode-active'); return showToast("已取消部署"); }
                 window.isPlacingBarricade = true; window.isPlacingMine = false; window.isPlacingHologram = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
@@ -1270,7 +1266,6 @@
                     logs.push(`💥 警告！遭遇【劣质过载导弹】，不幸原地炸膛！`);
                     window.playSplashAnim("💥 导弹炸膛", 1500);
                     
-                    // BUG 1 FIX: 使用 generateLogicalPath 精准测量行驶距离，避免蓝方判定由于倒序失效
                     let leadIdx = -1; let maxDist = -1;
                     let pathLogic = generateLogicalPath(myPlayerId);
                     myPieces.slice(0,4).forEach((p, i) => { 
@@ -1335,11 +1330,16 @@
                             stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
                         } else if (target.type === 'boss') {
                             logs.push(`🚀 砰！${myName} 的【定向导弹】精准命中了【星际海盗】！`);
-                            logs.push(`💰 星际海盗被炸晕，丢下物资仓皇逃跑！缴获2件随机空投！`);
-                            window.playSplashAnim("💰 击退海盗！奖励物资", 1500);
-                            myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
-                            myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
-                            stateUpdate.boss = { pos: Math.floor(Math.random()*44), type: 'pirate' };
+                            let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
+                            bossState.hp = (bossState.hp || 6) - 2;
+                            
+                            if (bossState.hp <= 0) {
+                                handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                            } else {
+                                logs.push(`💥 星际海盗遭受导弹重创，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
+                                window.playSplashAnim("💥 导弹命中海盗！", 1500);
+                            }
+                            stateUpdate.boss = bossState;
                         } else {
                             let targetIdx = target.idx;
                             let oppFrigates = [...gameState[oppId].frigates];
@@ -1413,7 +1413,7 @@
                 if (frigates[i] && pieces[i] >= 0 && pieces[i] <= 43) {
                     let dist1 = Math.abs(pieces[i] - pos); let dist2 = 44 - dist1;
                     if (Math.min(dist1, dist2) <= 3) {
-                        frigates[i] = false; // 消耗护卫舰状态
+                        frigates[i] = false; 
                         stateObj[`${ownerId}.frigates`] = frigates;
                         if(logs) logs.push(`🛸 【护卫舰】能量耗尽，降级为普通战机！`);
                         return true;
@@ -1477,6 +1477,26 @@
             stateObj[`${pId}.frigates`] = fArray; stateObj[`${pId}.recons`] = rArray;
             stateObj[`${pId}.pieces`] = piecesArray;
             return true; 
+        }
+        
+        function handleBossDefeat(killerId, stateUpdate, logs, bossState) {
+            bossState.pos = -1;
+            bossState.hp = 0;
+            bossState.respawnTimer = 3;
+            logs.push(`💀 星际海盗被彻底击溃！将在 3 回合后重组降临！`);
+
+            let items = stateUpdate[`${killerId}.items`] || (gameState[killerId] ? [...gameState[killerId].items] : []);
+            items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
+            items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
+            items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
+            stateUpdate[`${killerId}.items`] = items;
+
+            let kName = killerId === 'p1' ? (gameState.p1 ? gameState.p1.name : '红方') : (gameState.p2 ? gameState.p2.name : '蓝方');
+            logs.push(`🎁 ${kName} 缴获了 3 件海盗遗产！`);
+            window.playSplashAnim("💀 击溃海盗！奖励3件物资", 1500);
+
+            // 标记获得额外回合
+            stateUpdate.pendingExtraTurn = killerId;
         }
 
         function updateBoardDecorations() {
@@ -1620,7 +1640,7 @@
                             if (myRadarCells.has(pos)) {
                                 planeEl.style.display = 'flex';
                                 planeEl.style.opacity = '0.7';
-                                planeEl.style.boxShadow = '0 0 10px #22c55e'; // 雷达扫描到的迷彩
+                                planeEl.style.boxShadow = '0 0 10px #22c55e';
                             } else {
                                 planeEl.style.display = 'none'; 
                             }
@@ -1670,8 +1690,12 @@
             
             // 渲染星际海盗Boss
             let bossEl = document.getElementById('plane-boss-pirate');
-            if (bossEl && gameState.boss && gameState.boss.pos >= 0 && gameState.boss.pos <= 43) {
+            if (bossEl && gameState.boss && gameState.boss.pos >= 0 && gameState.boss.pos <= 43 && (!gameState.boss.respawnTimer || gameState.boss.respawnTimer <= 0)) {
                 bossEl.style.display = 'flex'; bossEl.style.zIndex = '25';
+                
+                let hp = gameState.boss.hp !== undefined ? gameState.boss.hp : 6;
+                bossEl.innerHTML = `🏴‍☠️<div class="absolute -top-3 text-[9px] bg-red-600/95 text-white px-1 rounded-sm border border-red-800 shadow-sm leading-none whitespace-nowrap font-bold" style="transform: scale(0.9)">HP: ${hp}</div>`;
+
                 if (!activeAnimations['boss-pirate']) {
                     let coords = getPlaneCoords('p1', 0, gameState.boss.pos, true);
                     if (coords.x !== undefined) { bossEl.style.left = `calc(${coords.x}% - 13px)`; bossEl.style.top = `calc(${coords.y}% - 13px)`; }
@@ -1680,55 +1704,110 @@
         }
 
         function moveBoss(stateUpdate, logs) {
-            let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
-            if (bossPos >= 0 && bossPos <= 43) {
+            let boss = stateUpdate.boss ? {...stateUpdate.boss} : (gameState.boss ? {...gameState.boss} : null);
+            if (!boss) return;
+
+            // 1. 处理复活倒计时
+            if (boss.respawnTimer > 0) {
+                boss.respawnTimer -= 1;
+                if (boss.respawnTimer <= 0) {
+                    boss.pos = Math.floor(Math.random() * 44);
+                    boss.hp = 6;
+                    logs.push(`🏴‍☠️️ 星际海盗重组完毕，满血(6HP)降临在区域 ${boss.pos}！`);
+                }
+                stateUpdate.boss = boss;
+                return;
+            }
+
+            if (boss.pos >= 0 && boss.pos <= 43) {
                 let moveSteps = Math.floor(Math.random() * 3) + 1;
-                let newPos = (bossPos + moveSteps) % 44;
-                stateUpdate.boss = { pos: newPos, type: 'pirate' };
-                logs.push(`🏴‍‍☠️ 星际海盗游荡到了区域 ${newPos}！`);
+                let currentBarricades = stateUpdate.barricades || [...(gameState.barricades || [])];
+                let hitBarricade = false;
+
+                // 2. 一步步移动以检测路障
+                for(let s=1; s<=moveSteps; s++){
+                    let nextPos = (boss.pos + 1) % 44;
+                    if (currentBarricades.includes(nextPos)) {
+                        boss.pos = nextPos;
+                        hitBarricade = true;
+                        currentBarricades = currentBarricades.filter(b => b !== nextPos);
+                        stateUpdate.barricades = currentBarricades;
+                        logs.push(`🚧 星际海盗移动时撞上了【路障】被强行拦下！`);
+                        break;
+                    }
+                    boss.pos = nextPos;
+                }
+
+                if (!hitBarricade) logs.push(`🏴‍☠️ 星际海盗游荡到了区域 ${boss.pos}！`);
+
+                // 3. 穿越虫洞判定
+                let wormholes = stateUpdate.wormholes || gameState.wormholes || [];
+                if (wormholes.length === 2) {
+                    if (boss.pos === wormholes[0]) { boss.pos = wormholes[1]; logs.push(`🌀 星际海盗穿越了虫洞到达区域 ${boss.pos}！`); }
+                    else if (boss.pos === wormholes[1]) { boss.pos = wormholes[0]; logs.push(`🌀 星际海盗穿越了虫洞到达区域 ${boss.pos}！`); }
+                }
+
+                // 4. 水雷判定
+                let p1Mines = stateUpdate['p1.mines'] || gameState.p1.mines || [];
+                let p2Mines = stateUpdate['p2.mines'] || gameState.p2.mines || [];
                 
-                const processBossCollision = (pId, pName, piecesArray, stateObj) => {
-                    let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
-                    let crashed = false;
-                    let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
+                if (p1Mines.includes(boss.pos) || p2Mines.includes(boss.pos)) {
+                    boss.hp -= 1;
+                    logs.push(`💣 轰！星际海盗踩到了隐形水雷，扣除 1 点生命值！(剩 ${boss.hp} HP)`);
+                    if (p1Mines.includes(boss.pos)) { p1Mines = p1Mines.filter(m => m !== boss.pos); stateUpdate['p1.mines'] = p1Mines; }
+                    if (p2Mines.includes(boss.pos)) { p2Mines = p2Mines.filter(m => m !== boss.pos); stateUpdate['p2.mines'] = p2Mines; }
 
-                    piecesArray.forEach((p, i) => {
-                        let isFrigateProtected = false;
-                        let fArray = stateObj[`${pId}.frigates`] ? [...stateObj[`${pId}.frigates`]] : [...(gameState[pId].frigates || [false,false,false,false,false])];
-                        if (fArray[i]) isFrigateProtected = true;
-                        
-                        if (p === newPos) {
-                            if (isFrigateProtected) {
-                                logs.push(`🛸 ${pName} 的【护卫舰】力场自动驱逐了星际海盗，免受打劫！`);
-                                logs.push(`🛸 【护卫舰】能量耗尽，降级为普通战机！`);
-                                fArray[i] = false; // 消耗
-                                stateObj[`${pId}.frigates`] = fArray;
-                                return;
-                            } else if (isStealth) {
-                                logs.push(`👻 完美潜行！${pName} 的隐形战机避开了星际海盗的扫荡！`);
-                            } else if (items.length > 0) {
-                                let stealIdx = Math.floor(Math.random() * items.length);
-                                let stolen = items.splice(stealIdx, 1)[0];
-                                let n = window.getItemName(stolen);
-                                logs.push(`🏴‍☠ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
-                                window.playSplashAnim(`🏴‍☠️ 海盗打劫！失去【${n}】`, 1800);
-                                stateObj[`${pId}.items`] = items; 
-                            } else {
-                                piecesArray[i] = pId === 'p1' ? 0 : 22;
-                                crashed = true;
-                                logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回基地！`);
+                    if (boss.hp <= 0) {
+                        // 谁的地雷判定击杀给谁
+                        let killer = p1Mines.includes(boss.pos) ? 'p1' : (p2Mines.includes(boss.pos) ? 'p2' : (stateUpdate.turn === 'p1' ? 'p2' : 'p1'));
+                        handleBossDefeat(killer, stateUpdate, logs, boss);
+                    }
+                }
+
+                // 5. 原有的海盗对玩家打劫/击飞逻辑 (只有在存活时进行)
+                if (boss.hp > 0) {
+                    const processBossCollision = (pId, pName, piecesArray, stateObj) => {
+                        let isStealth = stateObj[`${pId}.stealthTurns`] !== undefined ? stateObj[`${pId}.stealthTurns`] > 0 : gameState[pId].stealthTurns > 0;
+                        let crashed = false;
+                        let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
+
+                        piecesArray.forEach((p, i) => {
+                            let isFrigateProtected = false;
+                            let fArray = stateObj[`${pId}.frigates`] ? [...stateObj[`${pId}.frigates`]] : [...(gameState[pId].frigates || [false,false,false,false,false])];
+                            if (fArray[i]) isFrigateProtected = true;
+                            
+                            if (p === boss.pos) {
+                                if (isFrigateProtected) {
+                                    logs.push(`🛸 ${pName} 的【护卫舰】力场自动驱逐了星际海盗，免受打劫！`);
+                                    logs.push(`🛸 【护卫舰】能量耗尽，降级为普通战机！`);
+                                    fArray[i] = false; stateObj[`${pId}.frigates`] = fArray;
+                                } else if (isStealth) {
+                                    logs.push(`👻 完美潜行！${pName} 的隐形战机避开了星际海盗的扫荡！`);
+                                } else if (items.length > 0) {
+                                    let stealIdx = Math.floor(Math.random() * items.length);
+                                    let stolen = items.splice(stealIdx, 1)[0];
+                                    let n = window.getItemName(stolen);
+                                    logs.push(`🏴‍☠ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
+                                    window.playSplashAnim(`🏴‍☠️ 海盗打劫！失去【${n}】`, 1800);
+                                    stateObj[`${pId}.items`] = items; 
+                                } else {
+                                    piecesArray[i] = pId === 'p1' ? 0 : 22;
+                                    crashed = true;
+                                    logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回起点！`);
+                                }
                             }
-                        }
-                    });
-                    if (crashed) stateObj[`${pId}.pieces`] = piecesArray;
-                };
+                        });
+                        if (crashed) stateObj[`${pId}.pieces`] = piecesArray;
+                    };
 
-                let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
-                let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
+                    let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
+                    let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+                    let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
 
-                processBossCollision(myPlayerId, myName, myP, stateUpdate);
-                processBossCollision(oppId, oppId === 'p1' ? gameState.p1.name : gameState.p2.name, oppP, stateUpdate);
+                    processBossCollision(myPlayerId, myName, myP, stateUpdate);
+                    processBossCollision(oppId, oppId === 'p1' ? gameState.p1.name : gameState.p2.name, oppP, stateUpdate);
+                }
+                stateUpdate.boss = boss;
             }
         }
 
@@ -1740,7 +1819,6 @@
 
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             
-            // BUG 4 FIX: 拦截在选择战机改装或者部署道具时误触掷骰子引发的逻辑错乱
             if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram || window.isSelectingPlaneFor) {
                 return showToast("请先完成当前战术部署，或点击对应道具取消");
             }
@@ -1830,7 +1908,7 @@
             let eng = stateUpdate.energyLevel || gameState.energyLevel;
             if(eng >= 100) {
                 playSound('boom'); logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
-                window.playSplashAnim("⚡ 磁暴能量爆表！全局洗牌！", 2500); // 磁暴弹窗提示
+                window.playSplashAnim("⚡ 磁暴能量爆表！全局洗牌！", 2500);
                 let myP = stateUpdate[`${myPlayerId}.pieces`] || [...gameState[myPlayerId].pieces];
                 let oppId = myPlayerId === 'p1' ? 'p2' : 'p1'; let oppP = stateUpdate[`${oppId}.pieces`] || [...gameState[oppId].pieces];
                 
@@ -1841,7 +1919,6 @@
                         if(p >= 0 && p <= 43) { 
                             if(shield) { return p; }
                             let rPos = Math.floor(Math.random() * 44); 
-                            // 【特质：磁暴行者】
                             if (trait === 'walker') {
                                 let currIdx = pathLogic.indexOf(p);
                                 let newIdx = pathLogic.indexOf(rPos);
@@ -1951,9 +2028,8 @@
                 animKeyframes.push(newPos);
                 logs.push(isWingman ? `🚁 无人僚机离陆！` : `✈ ${myName} 的战机驶出机库！`);
                 
-                // 【特质：后勤大亨】
                 if (!isWingman && gameState[myPlayerId].trait === 'tycoon') {
-                    if (Math.random() < 0.5) { // 50%概率
+                    if (Math.random() < 0.5) { 
                         let item = itemPool[Math.floor(Math.random() * itemPool.length)];
                         myItems.push(item);
                         let n = window.getItemName(item);
@@ -1972,7 +2048,6 @@
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, currentBarricades); 
                 newPos = moveResult.pos; 
                 
-                // 【特质：幽灵怪盗】
                 moveResult.path.forEach((stepPos, sIdx) => {
                     animKeyframes.push(stepPos);
                     if (sIdx < moveResult.path.length - 1) { 
@@ -2017,45 +2092,21 @@
                 let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
                 if (newPos === bossPos && newPos >= 0 && newPos <= 43 && !hasHitPirate) {
                     hasHitPirate = true;
-                    let isStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] > 0 : gameState[myPlayerId].stealthTurns > 0;
-                    if (myFrigates[pieceIndex]) {
-                        animKeyframes.push(`🛸 护卫舰驱逐海盗！`);
-                        logs.push(`🛸 ${myName} 的【护卫舰】力场自动逼退了星际海盗！`);
-                        logs.push(`🛸 【护卫舰】能量耗尽，降级为普通战机！`);
-                        myFrigates[pieceIndex] = false; // 消耗护卫舰
-                        let newBossPos = (bossPos + Math.floor(Math.random() * 3) + 1) % 44;
-                        stateUpdate.boss = { pos: newBossPos, type: 'pirate' };
-                        processingFeatures = true; 
-                        continue;
-                    } else if (isStealth) {
-                        animKeyframes.push(`👻 隐形完美潜过海盗！`);
-                        logs.push(`👻 ${myName} 借助光学迷彩，悄无声息地从星际海盗眼皮底下溜过！`);
-                    } else {
-                        animKeyframes.push(`🏴‍☠️ 遭遇星际海盗！`);
-                        if (myItems.length > 0) {
-                            let stealIdx = Math.floor(Math.random() * myItems.length);
-                            let stolen = myItems.splice(stealIdx, 1)[0];
-                            let n = window.getItemName(stolen);
-                            animKeyframes.push(`🏴☠️ 海盗掠夺了【${n}】！`);
-                            logs.push(`🏴‍☠ ${myName} 遭遇星际海盗，被迫交出【${n}】当做过路费！`);
-                            window.playSplashAnim(`🏴‍☠️ 交出过路费！失去【${n}】`, 1800);
-                        } else {
-                            animKeyframes.push(`💥 穷光蛋被海盗撞飞！`);
-                            logs.push(`🏴‍☠️ ${myName} 遇到海盗却身无分文，被愤怒地打回起点！`);
-                            newPos = myPlayerId === 'p1' ? 0 : 22;
-                            animKeyframes.push(newPos);
-                            processingFeatures = true; 
-                        }
-                        
-                        let newBossPos = (bossPos + Math.floor(Math.random() * 3) + 1) % 44;
-                        stateUpdate.boss = { pos: newBossPos, type: 'pirate' };
-                        logs.push(`🏴‍☠️ 星际海盗劫掠/击落后心满意足，移动到了区域 ${newBossPos}！`);
-                        
-                        if (myItems.length > 0) {
-                            processingFeatures = true; 
-                        }
-                        continue;
+                    let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
+                    
+                    // 玩家主动靠近，造成1点伤害，并且不视为海盗攻击
+                    bossState.hp = (bossState.hp || 6) - 1;
+                    animKeyframes.push(`⚔️ 袭击海盗！`);
+                    logs.push(`⚔️ ${myName} 主动靠近星际海盗发起了攻击！海盗扣除 1 点生命值！(剩余HP: ${bossState.hp})`);
+                    
+                    if (bossState.hp <= 0) {
+                        handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                        animKeyframes.push(`💀 击溃海盗`);
+                        extraTurn = true; // 确保本回合结束后立即触发连动
                     }
+                    stateUpdate.boss = bossState;
+                    processingFeatures = true; 
+                    continue;
                 }
 
                 // 1. 拾取道具：触发空投三选一
@@ -2089,7 +2140,6 @@
                     const applyMove = (steps) => { 
                         let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; 
                         
-                        // 移动时依然附带【幽灵怪盗】特质判定
                         res.path.forEach((stepPos, sIdx) => {
                             animKeyframes.push(stepPos);
                             if (sIdx < res.path.length - 1) { 
@@ -2232,7 +2282,6 @@
                 
                 let hitHolo = -1;
                 
-                // BUG 3 FIX: 使用浅拷贝防止 splice 污染本地 gameState 的只读数据，引发前端视图异常
                 let oppHolos = [...(gameState[oppId].holograms || [])];
                 for(let h=0; h<oppHolos.length; h++) {
                     if (oppHolos[h] === newPos) { hitHolo = h; break; }
@@ -2255,7 +2304,6 @@
                                 let myRoll = Math.floor(Math.random()*6)+1; let oppRoll = Math.floor(Math.random()*6)+1;
                                 logs.push(`⚔️ 警告！两机同格遭遇，触发空中对峙！`);
                                 
-                                // 【特质：近战狂战士】
                                 if (gameState[myPlayerId].trait === 'berserker' && myRoll <= 3) {
                                     myRoll = 4; logs.push(`🪓 ${myName} 的【近战狂战士】发怒，掷骰点数强制修正为 4！`);
                                 }
@@ -2328,11 +2376,16 @@
                 if (bossPos >= 0 && bossPos <= 43) {
                     let dist1 = Math.abs(bossPos - newPos); let dist2 = 44 - dist1;
                     if (Math.min(dist1, dist2) <= 3) {
-                        animKeyframes.push(`🔥 轰炸机炸毁了星际海盗！`);
-                        logs.push(`💰 星际海盗被轰炸波及，丢下物资逃跑！缴获2件随机空投！`);
-                        myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
-                        myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
-                        stateUpdate.boss = { pos: Math.floor(Math.random()*44), type: 'pirate' };
+                        let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
+                        bossState.hp = (bossState.hp || 6) - 2;
+                        animKeyframes.push(`🔥 轰炸波及海盗！`);
+                        logs.push(`🔥 星际海盗被轰炸波及，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
+                        
+                        if (bossState.hp <= 0) {
+                            handleBossDefeat(myPlayerId, stateUpdate, logs, bossState);
+                            extraTurn = true;
+                        }
+                        stateUpdate.boss = bossState;
                         didBomb = true;
                     }
                 }
@@ -2372,6 +2425,19 @@
             else if (!allFinished) { 
                 nextTurn = oppId; decrementStatuses(myPlayerId, stateUpdate, logs); updateWeatherTurn(stateUpdate, logs); checkCatastrophe(stateUpdate, logs); 
                 moveBoss(stateUpdate, logs);
+            }
+
+            // 新增：拦截挂起的额外击溃奖励（由导弹或跨回合水雷造成的延迟奖励）
+            if (stateUpdate.pendingExtraTurn) {
+                nextTurn = stateUpdate.pendingExtraTurn;
+                let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                stateUpdate.pendingExtraTurn = null; // 消耗掉该次特权
+            } else if (gameState.pendingExtraTurn && stateUpdate.pendingExtraTurn !== null) { 
+                nextTurn = gameState.pendingExtraTurn;
+                let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                stateUpdate.pendingExtraTurn = null; 
             }
 
             if (pickedItemsCount > 0 && !allFinished) {
@@ -2433,7 +2499,9 @@
                 'p2.trait': null, 'p2.pieces': [-1,-1,-1,-1,999], 'p2.aces': [false,false,false,false,false], 'p2.items':[], 'p2.shield':false, 'p2.bombers':[false,false,false,false,false], 'p2.frigates':[false,false,false,false,false], 'p2.recons':[false,false,false,false,false], 'p2.mines':[], 'p2.holograms':[], 'p2.missCount':0, 'p2.skipTurns':0, 'p2.stats': { kills:0, thunderHits:0, pacifist: true, minesTriggered: 0, duelsWon:0 }, 'p2.stealthTurns':0, 'p2.blindTurns':0,
                 barricades: [], turn: nextTurn, diceValue: null, hasRolled: false, winner: null, energyLevel: 0,
                 weather: {type: 'normal', remainingTurns:0, zone:[]}, envZone: {type:null, indices:[]}, wormholes: [], isPicking: null,
-                cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(), boss: { pos: Math.floor(Math.random()*44), type: 'pirate' },
+                cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(), 
+                boss: { pos: Math.floor(Math.random()*44), type: 'pirate', hp: 6, respawnTimer: 0 },
+                pendingExtraTurn: null,
                 logs: [`🔄 指挥部下达重置指令！${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手。重新进入特质选拔！`]
             });
             closeMsgModal();
