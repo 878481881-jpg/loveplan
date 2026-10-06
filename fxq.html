@@ -183,7 +183,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.4.0</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.3.0</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare</p>
             </div>
         </div>
@@ -248,7 +248,7 @@
             </div>
 
             <div id="weatherBanner" class="w-full py-1 px-4 bg-sky-100 rounded-lg text-center text-xs font-bold text-sky-700 shadow-inner flex flex-col items-center justify-center gap-1 hidden transition-all duration-300">
-                <div class="flex items-center gap-2"><span id="weatherIcon">☀️️</span> <span id="weatherText">晴空万里</span> (剩<span id="weatherTurns">0</span>回合)</div>
+                <div class="flex items-center gap-2"><span id="weatherIcon">☀</span> <span id="weatherText">晴空万里</span> (剩<span id="weatherTurns">0</span>回合)</div>
                 <div id="envText" class="text-[10px] text-purple-600 hidden">局部异像侦测...</div>
             </div>
 
@@ -423,7 +423,7 @@
             return '📦物资';
         };
 
-        // 天赋特质数据库 (完美融入新增的8个天赋)
+        // 天赋特质数据库
         const TRAITS_DB = {
             'navigator': { name: '王牌领航员', icon: '👨‍‍✈️', desc: '【节奏速推流】战机起飞条件大幅放宽，掷出 5、6 或 1 皆可驶出机库。' },
             'berserker': { name: '近战狂战士', icon: '🪓', desc: '【暴力对抗流】战机是名副其实的空中绞肉机。在触发【空中对峙】掷骰子时，若掷出 1 或 2或3，点数将强制修正为 4（保底机制）。' },
@@ -435,7 +435,7 @@
             'wingman': { name: '僚机指挥官', icon: '🚁', desc: '【保底推进流】呼叫【无人僚机】出击的条件从“连黑 3 次”降低为“连黑 2 次”。不仅如此，你的无人僚机出动时，必定自带【侦察机】属性。' },
             
             // 新增 8 大天赋
-            'storm_rider': { name: '风暴骑手', icon: '🌪️', desc: '【气象利用流】极其擅长恶劣天气作战。完全免疫“雷暴”的致死惩罚。此外，在“顺风”天气下，移动加成从 +2 格提升至 +4 格。' },
+            'storm_rider': { name: '风暴骑手', icon: '🌪️️', desc: '【气象利用流】极其擅长恶劣天气作战。完全免疫“雷暴”的致死惩罚。此外，在“顺风”天气下，移动加成从 +2 格提升至 +4 格。' },
             'arms_maniac': { name: '军火狂人', icon: '💣', desc: '【绝地反击流】睚眦必报的危险分子。你的战机每次被摧毁（踩雷、对峙、导弹、海盗、鸟击），都会立刻获得 1 枚【导弹】作为复仇补偿。' },
             'assassin': { name: '暗影刺客', icon: '🥷', desc: '【战术规避流】擅长借势隐匿。当你的掷骰点数为 1 或 2 时，移动结束后，你的所有战机将自动获得 1 回合的【光学迷彩】（隐身）效果。' },
             'scavenger': { name: '战地拾荒者', icon: '🧰', desc: '【稳定发育流】绝不放过任何资源。当你的战机停留在没有任何事件和道具的普通格子时，有 20% 概率从废墟中翻出一件随机战术道具。' },
@@ -468,9 +468,16 @@
         }
 
         window.confirmTrait = function(tId) {
-            getRoomRef(currentRoomId).update({
-                [`${myPlayerId}.trait`]: tId
-            });
+            let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
+            let updatePayload = { [`${myPlayerId}.trait`]: tId };
+            
+            // 如果对手已经选好了，当前玩家就是最后选的，直接触发开始
+            if (gameState[oppId] && gameState[oppId].trait) {
+                updatePayload.status = 'playing';
+                updatePayload.logs = [...gameState.logs, `⚙️ 双方天赋确立，演习正式开始！`];
+            }
+            
+            getRoomRef(currentRoomId).update(updatePayload);
         };
 
         window.showTraitInfo = function(pId) {
@@ -762,6 +769,14 @@
 
         const diceIcons = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
 
+        // 强行跳过因断线死锁的物资挑选
+        window.forceSkipPicking = function() {
+            if(!gameState || !gameState.isPicking) return;
+            let nextTurn = gameState.nextTurnAfterPick || (gameState.isPicking === 'p1' ? 'p2' : 'p1');
+            let logs = [...gameState.logs, `⚠ 对方抉择超时，强制跳过回合！`];
+            getRoomRef(currentRoomId).update({ isPicking: null, turn: nextTurn, logs: logs });
+        };
+
         function renderGameState() {
             if (!gameState) return;
             document.getElementById('displayRoomCode').innerText = currentRoomId;
@@ -798,7 +813,6 @@
 
                 if (!gameState[myPlayerId].trait) {
                     document.getElementById('traitSelectSub').innerText = '请选择你的作战流派（四选一）';
-                    // 抽取 4 个天赋选项
                     if (!window.myTraitOptions || document.getElementById('traitOptionsContainer').querySelectorAll('button').length === 0) {
                         let keys = Object.keys(TRAITS_DB).sort(() => 0.5 - Math.random());
                         window.myTraitOptions = keys.slice(0, 4);
@@ -809,7 +823,8 @@
                     document.getElementById('traitOptionsContainer').innerHTML = `<div class="py-8 text-4xl animate-pulse col-span-2">⏳</div>`;
                 }
 
-                if (gameState.p1.trait && gameState.p2.trait && myPlayerId === 'p1') {
+                // 任意一方都可以触发状态转换，防止其中一方掉线卡死
+                if (gameState.p1.trait && gameState.p2.trait && gameState.status === 'selecting_trait') {
                     getRoomRef(currentRoomId).update({ status: 'playing', logs: [...gameState.logs, `⚙️ 双方天赋确立，演习正式开始！`] });
                 }
             } 
@@ -823,8 +838,8 @@
                         turnInd.innerText = '🎁 战术抉择中';
                         turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-green-500 text-white font-bold animate-pulse';
                     } else {
-                        turnInd.innerText = '👀 对方抉择中';
-                        turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600 font-bold';
+                        turnInd.innerHTML = '👀 对方抉择中 <button onclick="forceSkipPicking()" class="ml-1 bg-red-500 text-white px-1 py-0.5 rounded text-[8px] pointer-events-auto shadow-sm active:scale-95">跳过</button>';
+                        turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600 font-bold flex items-center';
                     }
                 } else if (window.isGameAnimating()) {
                     overlay.classList.remove('hidden');
@@ -1029,7 +1044,7 @@
                 if(item === 'shield') { icon = '🛡️'; name = '护盾'; }
                 if(item === 'bomber') { icon = '🚀'; name = '轰炸机'; }
                 if(item === 'frigate') { icon = '🛸'; name = '护卫舰'; }
-                if(item === 'recon') { icon = '🛩️️'; name = '侦察机'; }
+                if(item === 'recon') { icon = '🛩'; name = '侦察机'; }
                 if(item === 'magic_dice') { 
                     icon = '🎲'; name = '指定骰'; 
                     if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-amber-400 to-orange-500'); 
@@ -1260,13 +1275,13 @@
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             let oppTrait = gameState[oppId].trait;
             
-            // 2. 黑客专家入侵判定 & 劣质道具反噬逻辑 (包含全道具劣质化实现)
+            // 2. 黑客专家入侵判定 & 劣质道具反噬逻辑
             let isHacked = (oppTrait === 'hacker' && Math.random() < 0.5);
             let isOriginalDefectiveMissile = (itemType === 'missile' && Math.random() < 0.2);
 
             if (itemType !== 'magic_dice' && (isHacked || isOriginalDefectiveMissile)) {
                 let myItems = [...gameState[myPlayerId].items];
-                myItems.splice(idx, 1); // 劣质判定生效，强行扣除道具
+                myItems.splice(idx, 1);
                 let stateUpdate = { [`${myPlayerId}.items`]: myItems };
                 let myPieces = [...gameState[myPlayerId].pieces];
                 let logs = [...gameState.logs];
@@ -1279,12 +1294,10 @@
                     window.playSplashAnim("💥 导弹炸膛", 1500);
                 }
 
-                // 寻找前方主力战机
                 let pathLogic = generateLogicalPath(myPlayerId);
                 let getLeadIdx = () => { let lead = -1, maxD = -1; myPieces.slice(0,4).forEach((p,i)=>{ if(p>=0&&p<=43){let d=pathLogic.indexOf(p); if(d>maxD){maxD=d; lead=i;}}}); return lead; };
                 let leadIdx = getLeadIdx();
 
-                // 劣质道具反噬核心系统
                 if (itemType === 'missile' || ['bomber', 'frigate', 'recon'].includes(itemType)) {
                     if(leadIdx !== -1) {
                         myPieces[leadIdx] = myPlayerId === 'p1' ? 0 : 22;
@@ -1309,6 +1322,7 @@
                 } else if (itemType === 'hologram') {
                     stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
                     logs.push(`🤡 劣质诱饵发生漏电！电磁网将自己【禁锢】 1 回合！`);
+                    window.playSplashAnim("⚡ 漏电禁锢！", 1500);
                 } else if (itemType === 'shield') {
                     logs.push(`🛡️ 劣质护盾发生短路，未能成功启动！`);
                 } else if (itemType === 'hook') {
@@ -1332,7 +1346,7 @@
                 return;
             }
 
-            // 3. 正常使用流程（未被黑，且未发生原版导弹炸膛）
+            // 3. 正常使用流程
             let stateUpdate = {}; let logs = [...gameState.logs]; let myItems = [...gameState[myPlayerId].items];
             
             if (itemType === 'barricade') {
@@ -1359,7 +1373,6 @@
                 setTimeout(()=> document.getElementById('diceModalContent').classList.remove('scale-95'), 10); return;
             }
             
-            // 立即生效的道具，正式扣除
             myItems.splice(idx, 1); stateUpdate[`${myPlayerId}.items`] = myItems;
             let myPieces = [...gameState[myPlayerId].pieces]; let oppPieces = [...gameState[oppId].pieces];
             
@@ -1472,7 +1485,6 @@
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             let oppTrait = gameState[oppId].trait;
             
-            // 黑客专家专属指定骰反噬
             let isHacked = (oppTrait === 'hacker' && Math.random() < 0.5);
 
             if (isHacked) {
@@ -1502,9 +1514,20 @@
                 checkCatastrophe(stateUpdate, logs); 
                 moveBoss(stateUpdate, logs);
                 moveHolograms(stateUpdate, logs);
+
+                // FIX: Check if boss move granted an extra turn
+                if (stateUpdate.pendingExtraTurn) {
+                    stateUpdate.turn = stateUpdate.pendingExtraTurn;
+                    let tName = stateUpdate.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                    stateUpdate.pendingExtraTurn = null;
+                }
             }
             
-            closeDiceModal(); getRoomRef(currentRoomId).update(stateUpdate);
+            closeDiceModal(); 
+            // FIX RACE CONDITION: 立即更新本地状态，拦截手快连点
+            gameState = { ...gameState, ...stateUpdate }; 
+            getRoomRef(currentRoomId).update(stateUpdate);
         };
 
         function consumeFrigateProtection(ownerId, pos, stateObj, logs) {
@@ -1560,15 +1583,28 @@
                     while (backIdx > 0 && oppPieces.includes(targetPos)) {
                         backIdx--; targetPos = pathLogic[backIdx];
                     }
-                    piecesArray[idx] = targetPos;
+
                     if (animKeyframes) animKeyframes.push(`🚑 迫降至 ${targetPos}！`);
                     if (logs) logs.push(`🚑 【战地医师】发力！${pName} 的主力战机免于坠毁，紧急迫降在后方安全区！`);
+
+                    // 修复：检查迫降地点是否有水雷
+                    let oppMines = stateObj[`${oppId}.mines`] || (gameState[oppId] ? gameState[oppId].mines : []);
+                    if (oppMines.includes(targetPos)) {
+                        if (logs) logs.push(`💣 糟糕！迫降点刚好有水雷，战机最终还是坠毁了！`);
+                        if (animKeyframes) animKeyframes.push(`💣 迫降踩雷坠毁！`);
+                        piecesArray[idx] = -1; 
+                        if(idx < 4) { aArray[idx] = false; bArray[idx] = false; fArray[idx] = false; rArray[idx] = false; }
+                        oppMines = oppMines.filter(m => m !== targetPos);
+                        stateObj[`${oppId}.mines`] = oppMines;
+                    } else {
+                        piecesArray[idx] = targetPos;
+                    }
+                    
                     stateObj[`${pId}.pieces`] = piecesArray;
-                    return false; 
+                    return piecesArray[idx] === -1; 
                 }
             }
 
-            // 军火狂人天赋逻辑：被摧毁必定获得导弹 (对峙/踩人/被导弹击落/落雷击落)
             if (trait === 'arms_maniac' && idx < 4) {
                 let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
                 items.push('missile');
@@ -1878,7 +1914,6 @@
                             if (fArray[i]) isFrigateProtected = true;
                             
                             if (p === boss.pos) {
-                                // 赏金猎人逻辑判定
                                 let isBountyHunter = stateObj[`${pId}.trait`] === 'bounty_hunter' || gameState[pId].trait === 'bounty_hunter';
                                 
                                 if (isBountyHunter) {
@@ -1897,15 +1932,15 @@
                                     let stealIdx = Math.floor(Math.random() * items.length);
                                     let stolen = items.splice(stealIdx, 1)[0];
                                     let n = window.getItemName(stolen);
-                                    logs.push(`🏴‍☠ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
+                                    logs.push(`🏴‍‍☠ 星际海盗打劫了 ${pName}！抢走了【${n}】当做保护费！`);
                                     window.playSplashAnim(`🏴‍☠️ 海盗打劫！失去【${n}】`, 1800);
                                     stateObj[`${pId}.items`] = items; 
                                 } else {
                                     piecesArray[i] = pId === 'p1' ? 0 : 22;
                                     crashed = true;
                                     logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回起点！`);
+                                    window.playSplashAnim(`🏴‍☠️ 海盗击坠战机！`, 1500);
                                     
-                                    // 军火狂人 坠毁补偿
                                     if (stateObj[`${pId}.trait`] === 'arms_maniac' || gameState[pId].trait === 'arms_maniac') {
                                         items.push('missile');
                                         stateObj[`${pId}.items`] = items;
@@ -2017,6 +2052,15 @@
                 decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); 
                 moveBoss(nextState, logs);
                 moveHolograms(nextState, logs);
+
+                // FIX: Check if boss move granted an extra turn
+                if (nextState.pendingExtraTurn) {
+                    nextState.turn = nextState.pendingExtraTurn;
+                    let tName = nextState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                    nextState.pendingExtraTurn = null; 
+                }
+
             } else { nextState[`${myPlayerId}.missCount`] = 0; }
 
             nextState.logs = logs; gameState = { ...gameState, ...nextState };
@@ -2187,7 +2231,6 @@
             } else {
                 let moveSteps = dice;
                 if (gameState.weather.type === 'tailwind') {
-                    // 风暴骑手顺风加成
                     let bonus = gameState[myPlayerId].trait === 'storm_rider' ? 4 : 2;
                     moveSteps += bonus; 
                 }
@@ -2278,7 +2321,6 @@
                     
                     const triggerBad = (action) => { 
                         let isStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] > 0 : gameState[myPlayerId].stealthTurns > 0;
-                        // 命运赌徒天赋逻辑
                         if (gameState[myPlayerId].trait === 'gambler') {
                             animKeyframes.push(`🎰 逢凶化吉！获得指定骰`);
                             logs.push(`🎰 【命运赌徒】反转霉运！完全免疫了盲盒负面危机，并额外赢取 1 枚【指定骰】！`);
@@ -2320,7 +2362,7 @@
                     };
 
                     switch(randEvent) {
-                        case 0: triggerBad(() => { animKeyframes.push(`🌪️ 高空气流，后退3格！`); logs.push(`🌪️️ 高空气流，后退3格！`); applyMove(-3); }); break;
+                        case 0: triggerBad(() => { animKeyframes.push(`🌪️ 高空气流，后退3格！`); logs.push(`🌪 高空气流，后退3格！`); applyMove(-3); }); break;
                         case 1: animKeyframes.push(`🚀 完美气流，前进3格！`); logs.push(`🚀 完美气流，前进3格！`); applyMove(3); break;
                         case 2: triggerBad(() => { 
                             if (gameState[myPlayerId].trait === 'storm_rider') {
@@ -2346,7 +2388,6 @@
                             logs.push(`💣 遭遇严重鸟击退回起点！`); 
                             newPos = myPlayerId === 'p1' ? 0 : 22; 
                             animKeyframes.push(newPos); 
-                            // 军火狂人 坠毁补偿
                             if (gameState[myPlayerId].trait === 'arms_maniac') {
                                 myItems.push('missile');
                                 logs.push(`💣 轰！【军火狂人】因鸟击坠毁发飙，获得了复仇【导弹】！`);
@@ -2404,7 +2445,6 @@
                     visitedEvents.push(`thunder_${newPos}`);
                     if (Math.random() < 0.5) {
                         let isStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] > 0 : gameState[myPlayerId].stealthTurns > 0;
-                        // 风暴骑手天赋逻辑
                         if (gameState[myPlayerId].trait === 'storm_rider') {
                             animKeyframes.push(`🌪️ 风暴骑手无视雷云！`); logs.push(`🌪️ 【风暴骑手】在雷雨中如鱼得水，无视了雷暴闪电的轰击！`);
                         } else if (isStealth) { 
@@ -2424,7 +2464,6 @@
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`mine_${newPos}`) && oppMines.includes(newPos)) {
                     visitedEvents.push(`mine_${newPos}`);
                     oppMines = oppMines.filter(m => m !== newPos);
-                    // 王牌工兵排雷逻辑
                     if (gameState[myPlayerId].trait === 'engineer') {
                         animKeyframes.push(`🛠️ 完美拆解水雷！`); logs.push(`🛠️ ${myName} 的【王牌工兵】轻松排除了隐藏的水雷，并将其零件重组为一件随机物资！`);
                         myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
@@ -2455,7 +2494,6 @@
                 }
                 
                 if (hitHolo !== -1) {
-                    // 王牌工兵识破诱饵逻辑
                     if (gameState[myPlayerId].trait === 'engineer') {
                         animKeyframes.push(`🛠️ 识破全息诱饵！`);
                         logs.push(`🛠️ ${myName} 的【王牌工兵】一眼看穿了全息幻影，直接碾压过去并未受任何影响！`);
@@ -2506,8 +2544,21 @@
                                     logs.push(`💥 决斗败北！遗憾坠毁！`); oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
                                 } else {
                                     logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                                    let duelRes = calculateDestination(myPlayerId, newPos, -2, []); newPos = duelRes.pos; animKeyframes.push(...duelRes.path); myPieces[pieceIndex] = newPos;
-                                    oppPieces[i] = calculateDestination(oppId, oppPieces[i], -2, []).pos;
+                                    let duelRes = calculateDestination(myPlayerId, newPos, -2, []); newPos = duelRes.pos; animKeyframes.push(...duelRes.path); 
+                                    let oppDuelRes = calculateDestination(oppId, oppPieces[i], -2, []); oppPieces[i] = oppDuelRes.pos;
+                                    
+                                    // 修复：对峙退避时的踩雷判定
+                                    if (oppMines.includes(newPos)) { 
+                                        logs.push(`💣 ${myName} 退避时踩中水雷坠毁！`); 
+                                        newPos = -1;
+                                        oppMines = oppMines.filter(m => m !== newPos);
+                                    }
+                                    if (myMines.includes(oppPieces[i])) { 
+                                        logs.push(`💣 敌机退避时踩中水雷坠毁！`); 
+                                        oppPieces[i] = -1;
+                                        myMines = myMines.filter(m => m !== oppPieces[i]);
+                                    }
+                                    myPieces[pieceIndex] = newPos;
                                 }
                                 duelOccurred = true; break; 
                             }
@@ -2518,7 +2569,6 @@
                 if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 战绩赫赫！晋升为【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
 
-            // 战地拾荒者 判定
             let isWhiteCell = !itemCellIndices.includes(newPos) && !eventCellIndices.includes(newPos) && !oppMines.includes(newPos) && !duelOccurred && !hasHitPirate && newPos !== 999;
             if (isWhiteCell && newPos >= 0 && newPos <= 43 && gameState[myPlayerId].trait === 'scavenger') {
                 if (Math.random() < 0.2) {
@@ -2590,9 +2640,8 @@
                 }
             }
 
-            // 暗影刺客天赋判定
             if (gameState[myPlayerId].trait === 'assassin' && (dice === 1 || dice === 2)) {
-                stateUpdate[`${myPlayerId}.stealthTurns`] = 1;
+                stateUpdate[`${myPlayerId}.stealthTurns`] = 2;
                 logs.push(`🥷 【暗影刺客】发力，悄然借势遁入阴影，战机部队全体获得 1 回合【光学迷彩】！`);
                 animKeyframes.push(`🥷 暗影隐匿`);
             }
