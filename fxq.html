@@ -383,7 +383,7 @@
         let isAudioInited = false;
         let synths = {};
 
-        try { app = cloudbase.init({ env: ENV_ID, region: REGION }); auth = app.auth; db = app.database(); hasCloudBase = true; } catch(e) { console.error(e); }
+        try { app = cloudbase.init({ env: ENV_ID, region: REGION }); auth = app.auth(); db = app.database(); hasCloudBase = true; } catch(e) { console.error(e); }
 
         let myIdentity = "指挥官" + Math.floor(Math.random()*1000); 
         try { if(localStorage.getItem('loveGacha_myIdentity')) myIdentity = localStorage.getItem('loveGacha_myIdentity'); } catch(e) {}
@@ -669,12 +669,25 @@
         async function initAuth() {
             if (!hasCloudBase) { hideLoading(); return; }
             try {
-                const res = await auth.signInAnonymously();
-                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                await auth.signInAnonymously();
+                const authState = await auth.getLoginState();
+                
+                // 生成或获取本地设备的唯一 UID，防止全服玩家共用同一个 ID
+                let localUid = localStorage.getItem('local_device_uid');
+                if (!localUid) {
+                    localUid = 'uid_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                    localStorage.setItem('local_device_uid', localUid);
+                }
+                
+                // 正确挂载 UID
+                currentUser = (authState && authState.user) ? authState.user : { uid: localUid };
+                
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
                 switchToLobby();
             } catch (err) {
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线'; switchToLobby();
+                console.error("Auth Error:", err);
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线'; 
+                switchToLobby();
             } finally { hideLoading(); clearTimeout(fallbackTimer); }
         }
 
