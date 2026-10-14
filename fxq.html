@@ -197,7 +197,7 @@
         <div class="flex items-center gap-2 bg-white/80 px-4 py-2 rounded-2xl shadow-sm border border-white">
             <span class="text-3xl">✈</span>
             <div>
-                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.4.2</span></h1>
+                <h1 class="text-xl font-bold text-sky-600 leading-tight">云端飞行棋 <span class="text-xs text-rose-500">v1.4.1</span></h1>
                 <p class="text-[10px] text-sky-500 font-medium uppercase tracking-wider">Tactical Warfare & Season</p>
             </div>
         </div>
@@ -371,10 +371,6 @@
         const ROOM_COLLECTION = "aeroplaneTactics"; 
         const LEADERBOARD_COLLECTION = "aeroplaneLeaderboard"; // 排行榜数据库集合
 
-        function escapeHtml(str) {
-            return String(str || '').replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
-        }
-
         function getRoomRef(code) { return db.collection(ROOM_COLLECTION).doc(String(code)); }
         function pickDoc(snapshot, code) {
             if (!snapshot) return null; const docs = snapshot.docs;
@@ -384,18 +380,17 @@
         }
 
         let app, auth, db, currentUser = null, hasCloudBase = false, cachedBaseSpots = {};
-        let isAudioInited = false, isAudioIniting = false;
+        let isAudioInited = false;
         let synths = {};
-        let toastTimer = null;
 
         try { app = cloudbase.init({ env: ENV_ID, region: REGION }); auth = app.auth(); db = app.database(); hasCloudBase = true; } catch(e) { console.error(e); }
 
         let myIdentity = "指挥官" + Math.floor(Math.random()*1000); 
         try { if(localStorage.getItem('loveGacha_myIdentity')) myIdentity = localStorage.getItem('loveGacha_myIdentity'); } catch(e) {}
         
-        myIdentity = escapeHtml(myIdentity);
+        myIdentity = myIdentity.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
         
-        let myName = myIdentity; document.getElementById('currentRoleDisplay').innerText = myName;
+        const myName = myIdentity; document.getElementById('currentRoleDisplay').innerText = myName;
 
         let currentRoomId = null, unsubscribeRoom = null, gameState = null, myPlayerId = null;
         let isRoomFirstLoad = true;
@@ -404,10 +399,7 @@
         let lastProcessedMoveTs = 0;
         let lastProcessedTauntTs = 0;
         let activeAnimations = {};
-        let activeAnimTimers = {};
         window.hasSyncedLeaderboard = false; // 控制战绩上报不重复
-        window.hasShownWinnerModal = false;  // 防止关闭战报后被重复弹窗
-        window.isStartingGame = false;       // 防止双端重复推送开局日志
         
         window.isPlacingBarricade = false;
         window.isPlacingMine = false;
@@ -430,48 +422,19 @@
         };
         window.isGameAnimating = function() { return window.animLockCount > 0; };
 
-        function clearSelectionModes() {
-            window.isPlacingBarricade = false;
-            window.isPlacingMine = false;
-            window.isPlacingHologram = false;
-            window.isSelectingPlaneFor = null;
-            window.selectingItemType = null;
-            const bc = document.getElementById('board-container');
-            if (bc) bc.classList.remove('placing-mode-active');
-            document.body.classList.remove('selecting-mode');
-        }
-
-        // 将含点号路径 (如 'p1.pieces') 的更新安全同步至本地 gameState，消除浅拷贝导致的脏属性与状态滞后
-        function applyStateUpdateLocally(stateUpdate) {
-            if (!gameState || !stateUpdate) return;
-            Object.keys(stateUpdate).forEach(key => {
-                if (key.startsWith('p1.') || key.startsWith('p2.')) {
-                    const [pKey, subKey] = key.split('.');
-                    if (gameState[pKey]) {
-                        gameState[pKey][subKey] = stateUpdate[key];
-                    }
-                } else {
-                    gameState[key] = stateUpdate[key];
-                }
-            });
-        }
-
-        const ITEM_META = {
-            missile:    { icon: '🎯', name: '导弹',     fullName: '🎯导弹' },
-            barricade:  { icon: '🚧', name: '路障',     fullName: '🚧路障' },
-            shield:     { icon: '🛡️', name: '护盾',     fullName: '🛡护盾' },
-            bomber:     { icon: '🚀', name: '轰炸机',   fullName: '🚀轰炸机' },
-            frigate:    { icon: '🛸', name: '护卫舰',   fullName: '🛸护卫舰' },
-            recon:      { icon: '🛩️', name: '侦察机',   fullName: '🛩️侦察机' },
-            magic_dice: { icon: '🎲', name: '指定骰',   fullName: '🎲指定骰' },
-            mine:       { icon: '💣', name: '隐形水雷', fullName: '💣水雷' },
-            stealth:    { icon: '👻', name: '光学迷彩', fullName: '👻迷彩' },
-            hologram:   { icon: '🤡', name: '全息诱饵', fullName: '🤡全息诱饵' },
-            hook:       { icon: '🧲', name: '钩爪',     fullName: '🧲钩爪' }
-        };
-
         window.getItemName = function(item) {
-            return ITEM_META[item] ? ITEM_META[item].fullName : '📦物资';
+            if(item === 'missile') return '🎯导弹';
+            if(item === 'barricade') return '🚧路障';
+            if(item === 'shield') return '🛡护盾';
+            if(item === 'bomber') return '🚀轰炸机';
+            if(item === 'frigate') return '🛸护卫舰';
+            if(item === 'recon') return '🛩️侦察机';
+            if(item === 'magic_dice') return '🎲指定骰';
+            if(item === 'mine') return '💣水雷';
+            if(item === 'stealth') return '👻迷彩';
+            if(item === 'hologram') return '🤡全息诱饵';
+            if(item === 'hook') return '🧲钩爪';
+            return '📦物资';
         };
 
         const TRAITS_DB = {
@@ -498,7 +461,6 @@
             container.innerHTML = '';
             options.forEach(tId => {
                 let t = TRAITS_DB[tId];
-                if (!t) return;
                 let btn = document.createElement('button');
                 btn.className = 'relative w-full text-left p-3 bg-gradient-to-br from-white to-sky-50 border-2 border-sky-200 rounded-xl hover:border-sky-400 hover:shadow-[0_0_15px_rgba(56,189,248,0.4)] hover:-translate-y-1 active:scale-95 transition-all mb-2 overflow-hidden group';
                 btn.innerHTML = `
@@ -516,51 +478,39 @@
         }
 
         window.confirmTrait = function(tId) {
-            if (!gameState || !myPlayerId || gameState[myPlayerId].trait) return;
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             let updatePayload = { [`${myPlayerId}.trait`]: tId };
             if (gameState[oppId] && gameState[oppId].trait) {
                 updatePayload.status = 'playing';
                 updatePayload.logs = [...gameState.logs, `⚙️ 双方天赋确立，演习正式开始！`];
-                window.isStartingGame = true;
             }
-            applyStateUpdateLocally(updatePayload);
-            renderGameState();
             getRoomRef(currentRoomId).update(updatePayload);
         };
 
         window.showTraitInfo = function(pId) {
-            if(!gameState || !gameState[pId] || !gameState[pId].trait) return;
+            if(!gameState || !gameState[pId].trait) return;
             const t = TRAITS_DB[gameState[pId].trait];
-            if (!t) return;
             document.getElementById('traitInfoName').innerText = t.icon + ' ' + t.name;
             document.getElementById('traitInfoDesc').innerText = t.desc;
             document.getElementById('traitInfoModal').classList.remove('hidden');
         };
 
         async function initAudioContext() {
-            if (isAudioInited || isAudioIniting) return;
-            isAudioIniting = true;
-            try {
-                await Tone.start();
-                synths.click = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.5 } }).toDestination();
-                synths.boom = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.01, release: 1.4 } }).toDestination();
-                synths.alert = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
-                isAudioInited = true;
-            } catch (e) {
-                isAudioIniting = false;
-            }
+            if(isAudioInited) return;
+            await Tone.start();
+            synths.click = new Tone.PolySynth(Tone.Synth, { oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.1, release: 0.5 } }).toDestination();
+            synths.boom = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 4, oscillator: { type: "square" }, envelope: { attack: 0.01, decay: 0.4, sustain: 0.01, release: 1.4 } }).toDestination();
+            synths.alert = new Tone.Synth({ oscillator: { type: "sawtooth" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0, release: 0.2 } }).toDestination();
+            isAudioInited = true;
         }
         ['click', 'touchstart', 'pointerdown'].forEach(evt => document.body.addEventListener(evt, initAudioContext, { once: true }));
 
         function playSound(type) {
             if(!isAudioInited) return;
-            try {
-                if(type === 'dice') synths.click.triggerAttackRelease(["C4", "E4"], "8n");
-                else if (type === 'boom') synths.boom.triggerAttackRelease("C2", "2n");
-                else if (type === 'alert') synths.alert.triggerAttackRelease("A4", "16n");
-                else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
-            } catch (e) {}
+            if(type === 'dice') synths.click.triggerAttackRelease(["C4", "E4"], "8n");
+            else if (type === 'boom') synths.boom.triggerAttackRelease("C2", "2n");
+            else if (type === 'alert') synths.alert.triggerAttackRelease("A4", "16n");
+            else if (type === 'success') synths.click.triggerAttackRelease(["C4", "E4", "G4", "C5"], "4n");
         }
 
         window.playSplashAnim = function(text, duration = 800) {
@@ -588,9 +538,8 @@
         window.playDiceSplashAnim = function(roll, pName, colorId) {
             playSound('dice');
             const splashEl = document.createElement('div');
-            const diceIcon = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.min(6, Math.abs(roll)) || 0];
-            const signPrefix = roll < 0 ? '-' : '';
-            splashEl.innerHTML = `<div class="text-xl mb-2 text-white/90 drop-shadow">${escapeHtml(pName)} 掷出了</div><div class="text-8xl drop-shadow-lg leading-none">${signPrefix}${diceIcon}</div>`;
+            const diceIcon = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][Math.abs(roll)];
+            splashEl.innerHTML = `<div class="text-xl mb-2 text-white/90 drop-shadow">${pName} 掷出了</div><div class="text-8xl drop-shadow-lg leading-none">${diceIcon}</div>`;
             const bgColor = colorId === 'p1' ? 'rgba(239, 68, 68, 0.95)' : 'rgba(59, 130, 246, 0.95)';
             splashEl.style.cssText = `
                 position: fixed; top: 50%; left: 50%;
@@ -651,124 +600,15 @@
                     fragment.appendChild(div);
                 }
             }
-            grid.appendChild(fragment); initPlanesDOM();
-            setTimeout(() => {
-                cacheBaseSpotRects();
-                if (gameState) updatePlanesPosition();
-            }, 100);
-        }
-
-        // 统一处理道具被【黑客专家】入侵或劣质导弹炸膛的反噬逻辑
-        function checkAndExecuteItemBackfire(itemType, myItems, myStats, oppStats, stateUpdate, logs) {
-            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            const oppTrait = gameState[oppId].trait;
-            const isHacked = (oppTrait === 'hacker' && Math.random() < 0.5);
-            const isOriginalDefectiveMissile = (itemType === 'missile' && Math.random() < 0.2);
-
-            if (!isHacked && !isOriginalDefectiveMissile) return false;
-
-            const myPieces = [...gameState[myPlayerId].pieces];
-            if (isHacked) {
-                logs.push(`💻 警告！遭到【黑客专家】入侵，道具【${window.getItemName(itemType)}】发生严重变异反噬！`);
-                window.playSplashAnim("💻 道具被黑客反噬", 1500);
-            } else {
-                logs.push(`💥 警告！遭遇【劣质过载导弹】，不幸原地炸膛！`);
-                window.playSplashAnim("💥 导弹炸膛", 1500);
-            }
-
-            const pathLogic = generateLogicalPath(myPlayerId);
-            let leadIdx = -1, maxD = -1;
-            myPieces.slice(0, 4).forEach((p, i) => {
-                if (p >= 0 && p <= 43) {
-                    const d = pathLogic.indexOf(p);
-                    if (d > maxD) { maxD = d; leadIdx = i; }
-                }
-            });
-
-            if (itemType === 'missile' || ['bomber', 'frigate', 'recon'].includes(itemType)) {
-                if (leadIdx !== -1) {
-                    myPieces[leadIdx] = myPlayerId === 'p1' ? 0 : 22;
-                    logs.push(`💥 严重的故障导致前线战机坠毁，直接退回起点！`);
-                    stateUpdate[`${myPlayerId}.pieces`] = myPieces;
-                    if (gameState[myPlayerId].trait === 'arms_maniac') {
-                        myItems.push('missile');
-                        myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
-                        logs.push(`💣 轰！【军火狂人】因战机坠毁，获得了复仇【导弹】！`);
-                    }
-                } else {
-                    logs.push(`💥 部件炸膛，好在没有战机在主赛道。`);
-                }
-            } else if (itemType === 'barricade') {
-                if (leadIdx !== -1) {
-                    const barricades = [...(gameState.barricades || []), myPieces[leadIdx]];
-                    stateUpdate.barricades = barricades;
-                    logs.push(`🚧 路障脱手！重重砸在了自己最前方的战机格子上！`);
-                } else {
-                    logs.push(`🚧 劣质路障散架了，毫无作用。`);
-                }
-            } else if (itemType === 'mine') {
-                stateUpdate[`${myPlayerId}.blindTurns`] = (gameState[myPlayerId].blindTurns || 0) + 3;
-                logs.push(`💣 劣质水雷原地引爆！闪光弹导致自己被【致盲】 3 回合！`);
-            } else if (itemType === 'hologram') {
-                stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
-                logs.push(`🤡 劣质诱饵发生漏电！电磁网将自己【禁锢】 1 回合！`);
-                window.playSplashAnim("⚡ 漏电禁锢！", 1500);
-            } else if (itemType === 'shield') {
-                logs.push(`🛡️ 劣质护盾发生短路，未能成功启动！`);
-            } else if (itemType === 'hook') {
-                if (myItems.length > 0) {
-                    const gIdx = Math.floor(Math.random() * myItems.length);
-                    const given = myItems.splice(gIdx, 1)[0];
-                    const oppItems = [...gameState[oppId].items, given];
-                    oppStats.itemsPicked = (oppStats.itemsPicked || 0) + 1;
-                    stateUpdate[`${oppId}.items`] = oppItems;
-                    stateUpdate[`${oppId}.stats`] = oppStats;
-                    logs.push(`🧲 钩爪故障反弹！反而将自己的【${window.getItemName(given)}】无偿送给了对方！`);
-                } else {
-                    logs.push(`🧲 钩爪卡死，无事发生。`);
-                }
-            } else if (itemType === 'stealth') {
-                stateUpdate[`${myPlayerId}.blindTurns`] = (gameState[myPlayerId].blindTurns || 0) + 2;
-                logs.push(`👻 劣质迷彩涂装极度刺眼，非但没能隐身，还闪瞎了自己，【致盲】 2 回合！`);
-            }
-
-            stateUpdate[`${myPlayerId}.items`] = myItems;
-            stateUpdate[`${myPlayerId}.stats`] = myStats;
-            stateUpdate.logs = logs;
-            applyStateUpdateLocally(stateUpdate);
-            getRoomRef(currentRoomId).update(stateUpdate);
-            clearSelectionModes();
-            renderInventory();
-            return true;
+            grid.appendChild(fragment); initPlanesDOM(); setTimeout(cacheBaseSpotRects, 100);
         }
 
         window.handleCellClick = function(trackIdx) {
             if(!window.isPlacingBarricade && !window.isPlacingMine && !window.isPlacingHologram) return;
-            if (!gameState || gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) {
-                clearSelectionModes();
-                renderInventory();
-                return;
-            }
-            const itemType = window.selectingItemType;
             let myItems = [...gameState[myPlayerId].items]; 
-            let idx = myItems.indexOf(itemType);
-            if(idx === -1) {
-                clearSelectionModes();
-                renderInventory();
-                return;
-            }
-            myItems.splice(idx, 1);
-
-            const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            let myStats = {...gameState[myPlayerId].stats};
-            let oppStats = {...gameState[oppId].stats};
-            let logs = [...gameState.logs];
-            let stateUpdate = { [`${myPlayerId}.items`]: myItems };
-
-            // 在实际落地部署时进行黑客反噬判定，避免通过取消按钮刷随机数
-            if (checkAndExecuteItemBackfire(itemType, myItems, myStats, oppStats, stateUpdate, logs)) {
-                return;
-            }
+            let idx = myItems.indexOf(window.selectingItemType);
+            if(idx !== -1) myItems.splice(idx, 1);
+            let logs = [...gameState.logs]; let stateUpdate = { [`${myPlayerId}.items`]: myItems };
             
             if(window.isPlacingBarricade) {
                 let barricades = [...(gameState.barricades || []), trackIdx];
@@ -785,9 +625,9 @@
             }
             
             stateUpdate.logs = logs;
-            applyStateUpdateLocally(stateUpdate);
             getRoomRef(currentRoomId).update(stateUpdate);
-            clearSelectionModes();
+            window.isPlacingBarricade = false; window.isPlacingMine = false; window.isPlacingHologram = false; window.selectingItemType = null;
+            document.getElementById('board-container').classList.remove('placing-mode-active');
             renderInventory(); 
             showToast("部署成功");
         };
@@ -820,7 +660,7 @@
             bossEl.id = `plane-boss-pirate`;
             bossEl.className = `plane plane-transition pointer-events-none`;
             bossEl.style.background = '#111827'; bossEl.style.color = '#fff'; bossEl.style.border = '2px solid #374151'; bossEl.style.boxShadow = '0 0 10px rgba(0,0,0,0.8)';
-            bossEl.innerHTML = '🏴‍☠️'; bossEl.style.display = 'none';
+            bossEl.innerHTML = '🏴☠️'; bossEl.style.display = 'none';
             layer.appendChild(bossEl);
         }
 
@@ -832,19 +672,15 @@
                 await auth.signInAnonymously();
                 const authState = await auth.getLoginState();
                 
-                // 生成或获取本地设备的唯一 UID，并包裹 try/catch 防止无痕/沙盒模式下阻塞登录
-                let localUid = null;
-                try {
-                    localUid = localStorage.getItem('local_device_uid');
-                    if (!localUid) {
-                        localUid = 'uid_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
-                        localStorage.setItem('local_device_uid', localUid);
-                    }
-                } catch (storageErr) {
+                // 生成或获取本地设备的唯一 UID，防止全服玩家共用同一个 ID
+                let localUid = localStorage.getItem('local_device_uid');
+                if (!localUid) {
                     localUid = 'uid_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+                    localStorage.setItem('local_device_uid', localUid);
                 }
                 
-                currentUser = (authState && authState.user && authState.user.uid) ? authState.user : { uid: localUid };
+                // 正确挂载 UID
+                currentUser = (authState && authState.user) ? authState.user : { uid: localUid };
                 
                 document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span> 在线';
                 switchToLobby();
@@ -857,13 +693,8 @@
 
         function hideLoading() { document.getElementById('globalLoading').classList.add('hidden'); }
         function switchToLobby() {
-            clearSelectionModes();
             document.getElementById('lobbyView').classList.remove('hidden'); document.getElementById('gameView').classList.add('hidden');
             document.getElementById('inventoryBar').classList.add('hidden');
-            document.getElementById('traitSelectModal').classList.add('hidden');
-            document.getElementById('msgModal').classList.add('hidden');
-            document.getElementById('itemPickerModal').classList.add('hidden');
-            document.getElementById('diceSelectModal').classList.add('hidden');
             
             const tauntBtn = document.getElementById('btnToggleTaunt');
             const tauntBar = document.getElementById('tauntBar');
@@ -871,7 +702,7 @@
             if(tauntBar) { tauntBar.classList.add('hidden', 'opacity-0', 'scale-95'); tauntBar.classList.remove('opacity-100', 'scale-100'); }
             
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
-            currentRoomId = null; myPlayerId = null; gameState = null;
+            currentRoomId = null; myPlayerId = null;
         }
 
         const getDefP = (name) => ({ 
@@ -886,8 +717,6 @@
         window.createRoom = async function() {
             if (!currentUser) return showToast("未连接服务器");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            myName = myIdentity;
-            document.getElementById('currentRoleDisplay').innerText = myName;
             const initialData = {
                 status: 'waiting', p1: getDefP(myName), p2: getDefP(null), barricades: [], turn: 'p1', diceValue: null, hasRolled: false,
                 logs: [`${myName} 创建了指挥部，等待对手...`], winner: null, 
@@ -899,11 +728,8 @@
             try { 
                 await getRoomRef(code).set(initialData); 
                 myPlayerId = 'p1'; 
-                try { sessionStorage.setItem('aeroplane_role_' + code, 'p1'); } catch(e) {}
                 window.myTraitOptions = null; 
                 window.hasSyncedLeaderboard = false;
-                window.hasShownWinnerModal = false;
-                window.isStartingGame = false;
                 listenToRoom(code); 
                 showToast(`房间 ${code} 创建成功`); 
             } catch (e) { showToast("创建失败"); }
@@ -916,42 +742,11 @@
             try {
                 const res = await getRoomRef(code).get(); const data = res.data && res.data[0];
                 if (!data) return showToast("航班不存在");
-
-                let savedRole = null;
-                try { savedRole = sessionStorage.getItem('aeroplane_role_' + code); } catch(e) {}
-
-                if (data.status === 'waiting') {
-                    if (savedRole === 'p1') {
-                        myPlayerId = 'p1';
-                        myName = data.p1.name || myIdentity;
-                    } else {
-                        // 允许同设备多标签页或同名指挥官加入演习，自动区分同名显示
-                        let joinName = myIdentity;
-                        if (data.p1 && data.p1.name === joinName) {
-                            joinName = joinName + '(蓝方)';
-                        }
-                        myName = joinName;
-                        document.getElementById('currentRoleDisplay').innerText = myName;
-                        await getRoomRef(code).update({ 'p2.name': myName, status: 'selecting_trait', logs: [`${myName} 加入演习，进入战前准备！`] });
-                        myPlayerId = 'p2';
-                        try { sessionStorage.setItem('aeroplane_role_' + code, 'p2'); } catch(e) {}
-                    }
-                } else if (savedRole === 'p1' || data.p1.name === myName) {
-                    myPlayerId = 'p1';
-                    myName = data.p1.name;
-                    document.getElementById('currentRoleDisplay').innerText = myName;
-                } else if (savedRole === 'p2' || data.p2.name === myName || data.p2.name === myIdentity + '(蓝方)') {
-                    myPlayerId = 'p2';
-                    myName = data.p2.name;
-                    document.getElementById('currentRoleDisplay').innerText = myName;
-                } else {
-                    return showToast("该演习房间人数已满");
-                }
-
+                if (data.status === 'waiting' && data.p1.name !== myName) {
+                    await getRoomRef(code).update({ 'p2.name': myName, status: 'selecting_trait', logs: [`${myName} 加入演习，进入战前准备！`] }); myPlayerId = 'p2';
+                } else if (data.p1.name === myName) { myPlayerId = 'p1'; } else if (data.p2.name === myName) { myPlayerId = 'p2'; }
                 window.myTraitOptions = null;
                 window.hasSyncedLeaderboard = false;
-                window.hasShownWinnerModal = false;
-                window.isStartingGame = false;
                 listenToRoom(code);
             } catch (e) { showToast("加入失败"); }
         };
@@ -977,27 +772,15 @@
                             lastProcessedTauntTs = data.latestTaunt ? data.latestTaunt.ts : 0;
                         }
                         ['p1','p2'].forEach(p => {
-                            if(!data[p]) data[p] = getDefP(null);
                             if(!data[p].pieces || data[p].pieces.length<5) data[p].pieces = (data[p].pieces||[-1,-1,-1,-1]).concat([999]);
-                            if(!data[p].aces || data[p].aces.length<5) data[p].aces = [false,false,false,false,false];
-                            if(!data[p].bombers || data[p].bombers.length<5) data[p].bombers = [false,false,false,false,false];
-                            if(!data[p].frigates || data[p].frigates.length<5) data[p].frigates = [false,false,false,false,false];
-                            if(!data[p].recons || data[p].recons.length<5) data[p].recons = [false,false,false,false,false];
-                            if(!data[p].items) data[p].items = [];
-                            if(!data[p].mines) data[p].mines = [];
-                            if(!data[p].holograms) data[p].holograms = []; 
+                            if(!data[p].mines) data[p].mines = []; if(!data[p].holograms) data[p].holograms = []; 
                             if(!data[p].stats) data[p].stats = { kills:0, thunderHits:0, pacifist:true, minesTriggered:0, duelsWon:0, itemsPicked:0, rollsCount:0 };
-                            if(data[p].missCount===undefined) data[p].missCount = 0;
-                            if(data[p].skipTurns===undefined) data[p].skipTurns = 0;
+                            if(data[p].missCount===undefined) data[p].missCount = 0; if(data[p].skipTurns===undefined) data[p].skipTurns = 0;
                             if(data[p].stealthTurns===undefined) data[p].stealthTurns = 0;
                             if(data[p].blindTurns===undefined) data[p].blindTurns = 0;
                         });
-                        if(!data.energyLevel) data.energyLevel = 0;
-                        if(!data.wormholes) data.wormholes = [];
-                        if(!data.envZone) data.envZone = {type:null, indices:[]};
-                        if(!data.weather) data.weather = { type: 'normal', remainingTurns: 0, zone: [] };
+                        if(!data.energyLevel) data.energyLevel = 0; if(!data.wormholes) data.wormholes = []; if(!data.envZone) data.envZone = {type:null, indices:[]};
                         if(!data.boss) data.boss = { pos: -1, type: 'pirate', hp: 6, respawnTimer: 0 };
-                        if(!data.logs) data.logs = [];
                         
                         gameState = data; requestAnimationFrame(renderGameState);
                     } else { showToast("房间已解散"); switchToLobby(); }
@@ -1012,13 +795,11 @@
             if(!gameState || !gameState.isPicking) return;
             let nextTurn = gameState.nextTurnAfterPick || (gameState.isPicking === 'p1' ? 'p2' : 'p1');
             let logs = [...gameState.logs, `⚠ 对方抉择超时，强制跳过回合！`];
-            const updateObj = { isPicking: null, pickingCount: 0, turn: nextTurn, logs: logs };
-            applyStateUpdateLocally(updateObj);
-            getRoomRef(currentRoomId).update(updateObj);
+            getRoomRef(currentRoomId).update({ isPicking: null, turn: nextTurn, logs: logs });
         };
 
         function renderGameState() {
-            if (!gameState || !myPlayerId || !gameState[myPlayerId]) return;
+            if (!gameState) return;
             document.getElementById('displayRoomCode').innerText = currentRoomId;
             document.getElementById('p1NameDisplay').innerText = gameState.p1.name || '等待中';
             document.getElementById('p2NameDisplay').innerText = gameState.p2.name || '等待中';
@@ -1037,12 +818,6 @@
             if(gameState[myPlayerId] && gameState[myPlayerId].blindTurns > 0) { blindOverlay.classList.remove('hidden'); } else { blindOverlay.classList.add('hidden'); }
 
             const isMyTurn = gameState.turn === myPlayerId && gameState.status === 'playing';
-            if (!isMyTurn || gameState.hasRolled) {
-                if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram || window.isSelectingPlaneFor) {
-                    clearSelectionModes();
-                }
-            }
-
             const overlay = document.getElementById('boardOverlay'); const btnRoll = document.getElementById('btnRollDice'); const turnInd = document.getElementById('turnIndicator');
 
             if (gameState.status === 'waiting') {
@@ -1058,32 +833,23 @@
                 tModal.classList.remove('hidden');
 
                 if (!gameState[myPlayerId].trait) {
-                    window.isStartingGame = false;
                     document.getElementById('traitSelectSub').innerText = '请选择你的作战流派（四选一）';
                     if (!window.myTraitOptions || document.getElementById('traitOptionsContainer').querySelectorAll('button').length === 0) {
-                        let keys = Object.keys(TRAITS_DB);
-                        for (let i = keys.length - 1; i > 0; i--) {
-                            const j = Math.floor(Math.random() * (i + 1));
-                            [keys[i], keys[j]] = [keys[j], keys[i]];
-                        }
+                        let keys = Object.keys(TRAITS_DB).sort(() => 0.5 - Math.random());
                         window.myTraitOptions = keys.slice(0, 4);
                         renderTraitOptions(window.myTraitOptions);
                     }
                 } else {
-                    window.myTraitOptions = null;
                     document.getElementById('traitSelectSub').innerText = '已锁定特质，等待对手...';
                     document.getElementById('traitOptionsContainer').innerHTML = `<div class="py-8 text-4xl animate-pulse col-span-2">⏳</div>`;
                 }
 
-                if (gameState.p1.trait && gameState.p2.trait && gameState.status === 'selecting_trait' && myPlayerId === 'p1' && !window.isStartingGame) {
-                    window.isStartingGame = true;
+                if (gameState.p1.trait && gameState.p2.trait && gameState.status === 'selecting_trait') {
                     getRoomRef(currentRoomId).update({ status: 'playing', logs: [...gameState.logs, `⚙️ 双方天赋确立，演习正式开始！`] });
                 }
             } 
-            else if (gameState.status === 'playing' || gameState.status === 'finished') {
+            else if (gameState.status === 'playing') {
                 document.getElementById('traitSelectModal').classList.add('hidden');
-                window.myTraitOptions = null;
-                window.isStartingGame = false;
                 
                 if (gameState.isPicking) {
                     overlay.classList.remove('hidden');
@@ -1091,15 +857,6 @@
                     if (gameState.isPicking === myPlayerId) {
                         turnInd.innerText = '🎁 战术抉择中';
                         turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-green-500 text-white font-bold animate-pulse';
-                        // 若断线重连后处于抉择状态且弹窗未打开，自动恢复空投选择弹窗防止卡死
-                        if (!window.isGameAnimating() && document.getElementById('itemPickerModal').classList.contains('hidden')) {
-                            const fallbackChoices = [
-                                itemPool[Math.floor(Math.random() * itemPool.length)],
-                                itemPool[Math.floor(Math.random() * itemPool.length)],
-                                itemPool[Math.floor(Math.random() * itemPool.length)]
-                            ];
-                            window.showItemPickerModal(fallbackChoices, itemCellIndices[0], null);
-                        }
                     } else {
                         turnInd.innerHTML = '👀 对方抉择中 <button onclick="forceSkipPicking()" class="ml-1 bg-red-500 text-white px-1 py-0.5 rounded text-[8px] pointer-events-auto shadow-sm active:scale-95">跳过</button>';
                         turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600 font-bold flex items-center';
@@ -1118,8 +875,7 @@
                         overlay.classList.add('hidden'); btnRoll.disabled = gameState.hasRolled;
                     }
                 } else {
-                    turnInd.innerText = gameState.winner ? '🏁 演习结束' : `👀 等待对手`;
-                    turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600';
+                    turnInd.innerText = `👀 等待对手`; turnInd.className = 'text-[9px] px-2 py-0.5 rounded bg-gray-200 text-gray-600';
                     overlay.classList.remove('hidden'); btnRoll.disabled = true;
                 }
                 
@@ -1130,23 +886,26 @@
                 renderWeatherSystem(); renderInventory();
             }
 
-            let displayDice = gameState.diceValue ? Math.min(6, Math.abs(gameState.diceValue)) : null;
-            document.getElementById('diceVisual').innerText = displayDice ? ((gameState.diceValue < 0 ? '-' : '') + diceIcons[displayDice]) : '🎲';
+            let displayDice = gameState.diceValue ? Math.abs(gameState.diceValue) : null;
+            document.getElementById('diceVisual').innerText = displayDice ? diceIcons[displayDice] : '🎲';
 
             const logBox = document.getElementById('eventLogs'); logBox.innerHTML = '';
             const logsToRender = gameState.logs.slice().reverse().slice(0, 18);
             logsToRender.forEach(log => {
                 const div = document.createElement('div'); div.className = "border-b border-sky-100/50 pb-1 w-full text-left leading-snug";
-                let html = log;
-                if (gameState.p1.name) {
-                    html = html.replaceAll(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
-                }
-                if (gameState.p2.name && gameState.p2.name !== gameState.p1.name) {
-                    html = html.replaceAll(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
-                }
+                let html = log.replace(gameState.p1.name, `<span class="text-red-500 font-bold">${gameState.p1.name}</span>`);
+                if(gameState.p2.name) html = html.replace(gameState.p2.name, `<span class="text-blue-500 font-bold">${gameState.p2.name}</span>`);
                 div.innerHTML = html; logBox.appendChild(div);
             });
 
+            if (gameState.winner) {
+                overlay.classList.remove('hidden'); document.getElementById('msgModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
+                const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
+                document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
+                generateStatsReport();
+            }
+            
             document.getElementById('p1AvatarArea').style.boxShadow = gameState.p1.shield ? "0 0 10px 2px #3b82f6" : "none";
             document.getElementById('p2AvatarArea').style.boxShadow = gameState.p2.shield ? "0 0 10px 2px #3b82f6" : "none";
 
@@ -1155,26 +914,6 @@
             
             if (!window.isGameAnimating()) {
                 updatePlanesPosition();
-            }
-
-            // 处理胜负结算弹窗与多端再来一局重置同步
-            if (gameState.winner) {
-                overlay.classList.remove('hidden');
-                if (!window.isGameAnimating() && !window.hasShownWinnerModal) {
-                    window.hasShownWinnerModal = true;
-                    document.getElementById('msgModal').classList.remove('hidden');
-                    setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
-                    const wName = gameState.winner === 'p1' ? gameState.p1.name : gameState.p2.name;
-                    document.getElementById('msgTitle').innerText = `${wName} 获胜！`;
-                    generateStatsReport();
-                }
-            } else {
-                window.hasShownWinnerModal = false;
-                window.hasSyncedLeaderboard = false;
-                const msgModal = document.getElementById('msgModal');
-                if (msgModal && !msgModal.classList.contains('hidden')) {
-                    msgModal.classList.add('hidden');
-                }
             }
         }
 
@@ -1200,7 +939,7 @@
             if(!input) return;
             let val = input.value.trim();
             if(val) {
-                val = escapeHtml(val);
+                val = val.replace(/[&<>'"]/g, tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag]));
                 sendTaunt(val);
                 input.value = '';
             }
@@ -1258,12 +997,11 @@
                 } else {
                     res.data.forEach((user, idx) => {
                         let medal = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : `${idx+1}.`));
-                        const safeUserName = escapeHtml(user.name || '未知王牌');
                         listEl.innerHTML += `
                             <div class="flex items-center justify-between p-2 border-b border-gray-200/50 hover:bg-white transition-colors">
                                 <div class="flex items-center gap-2 overflow-hidden flex-1">
                                     <span class="font-black text-amber-500 w-5 text-center flex-shrink-0 text-sm">${medal}</span>
-                                    <span class="font-bold text-sky-700 text-xs truncate">${safeUserName}</span>
+                                    <span class="font-bold text-sky-700 text-xs truncate">${user.name || '未知王牌'}</span>
                                 </div>
                                 <div class="flex gap-2 text-[10px] font-bold text-gray-500 w-32 justify-between flex-shrink-0">
                                     <span class="w-8 text-amber-600">🏆${user.totalWins || 0}</span>
@@ -1286,7 +1024,7 @@
 
         function generateStatsReport() {
             const statsBox = document.getElementById('statsBox');
-            if(!gameState || !myPlayerId || !gameState[myPlayerId]) return;
+            if(!gameState || !myPlayerId) return;
             const myStats = gameState[myPlayerId].stats;
             const isWinner = gameState.winner === myPlayerId;
             let titles = [];
@@ -1337,10 +1075,22 @@
             const container = document.getElementById('itemPickerChoices');
             container.innerHTML = '';
             choices.forEach(item => {
-                const meta = ITEM_META[item] || { icon: '📦', name: '物资' };
+                let icon = '', name = '';
+                if(item === 'missile') { icon = '🎯'; name = '导弹'; }
+                if(item === 'barricade') { icon = '🚧'; name = '路障'; }
+                if(item === 'shield') { icon = '🛡️'; name = '护盾'; }
+                if(item === 'bomber') { icon = '🚀'; name = '轰炸机'; }
+                if(item === 'frigate') { icon = '🛸'; name = '护卫舰'; }
+                if(item === 'recon') { icon = '🛩️'; name = '侦察机'; }
+                if(item === 'magic_dice') { icon = '🎲'; name = '指定骰'; }
+                if(item === 'mine') { icon = '💣'; name = '隐形水雷'; }
+                if(item === 'hook') { icon = '🧲'; name = '钩爪'; }
+                if(item === 'stealth') { icon = '👻'; name = '光学迷彩'; }
+                if(item === 'hologram') { icon = '🤡'; name = '全息诱饵'; }
+                
                 const btn = document.createElement('button');
                 btn.className = 'flex flex-col items-center p-3 bg-gray-50 border-2 border-gray-200 rounded-xl hover:bg-green-50 hover:border-green-300 hover:scale-105 active:scale-95 transition-all shadow-sm';
-                btn.innerHTML = `<span class="text-3xl mb-1">${meta.icon}</span><span class="text-xs font-bold text-gray-700">${meta.name}</span>`;
+                btn.innerHTML = `<span class="text-3xl mb-1">${icon}</span><span class="text-xs font-bold text-gray-700">${name}</span>`;
                 btn.onclick = () => window.pickItem(item);
                 container.appendChild(btn);
             });
@@ -1349,7 +1099,6 @@
         };
 
         window.pickItem = function(item) {
-            if (!gameState || !myPlayerId) return;
             let myItems = [...gameState[myPlayerId].items];
             myItems.push(item);
             
@@ -1362,11 +1111,9 @@
             logs.push(`🎁 ${myName} 选择了空投物资：【${n}】`);
             
             let myCellItems = {...gameState.cellItems};
-            if (window.pickingItemPos >= 0) {
-                myCellItems[window.pickingItemPos] = itemPool[Math.floor(Math.random() * itemPool.length)];
-            }
+            myCellItems[window.pickingItemPos] = itemPool[Math.floor(Math.random() * itemPool.length)];
             
-            let newCount = Math.max(0, (gameState.pickingCount || 1) - 1);
+            let newCount = (gameState.pickingCount || 1) - 1;
             let payload = {
                 [`${myPlayerId}.items`]: myItems,
                 [`${myPlayerId}.stats`]: myStats,
@@ -1379,30 +1126,20 @@
                 payload.turn = gameState.nextTurnAfterPick || (myPlayerId === 'p1' ? 'p2' : 'p1');
             }
             
-            // 立即更新本地状态，防止单回合连续拾取多个空投箱时并发覆盖
-            applyStateUpdateLocally(payload);
             getRoomRef(currentRoomId).update(payload);
             
             document.getElementById('itemPickerContent').classList.add('scale-95');
-            setTimeout(() => {
-                document.getElementById('itemPickerModal').classList.add('hidden');
-                if (window.onItemPickedCallback) {
-                    const cb = window.onItemPickedCallback;
-                    window.onItemPickedCallback = null;
-                    cb();
-                } else {
-                    renderGameState();
-                }
-            }, 200);
+            setTimeout(() => document.getElementById('itemPickerModal').classList.add('hidden'), 200);
+
+            if (window.onItemPickedCallback) {
+                window.onItemPickedCallback();
+                window.onItemPickedCallback = null;
+            }
         };
 
         function renderInventory() {
             const container = document.getElementById('itemsContainer'); container.innerHTML = '';
-            const myItems = (gameState && gameState[myPlayerId]) ? (gameState[myPlayerId].items || []) : [];
-            if (myItems.length === 0) {
-                container.innerHTML = '<span class="text-xs text-gray-400 ml-2 italic">踩中 🎁 获取补给</span>';
-                return;
-            }
+            const myItems = gameState[myPlayerId] ? gameState[myPlayerId].items || [] : [];
             const counts = {}; myItems.forEach(i => counts[i] = (counts[i] || 0) + 1);
             
             Object.keys(counts).forEach(item => {
@@ -1415,13 +1152,18 @@
                     btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-red-500 to-rose-600').replace('border-sky-300', 'border-red-400');
                 }
                 
-                const meta = ITEM_META[item] || { icon: '📦', name: '物资' };
-                let icon = meta.icon, name = meta.name;
-                if(item === 'magic_dice' && !isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-amber-400 to-orange-500');
-                if(item === 'mine' && !isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-gray-600 to-gray-800');
-                if(item === 'hook' && !isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-purple-500 to-indigo-600');
-                if(item === 'stealth' && !isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-teal-400 to-emerald-500');
-                if(item === 'hologram' && !isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-pink-400 to-fuchsia-500');
+                let icon = '', name = '';
+                if(item === 'missile') { icon = '🎯'; name = '导弹'; }
+                if(item === 'barricade') { icon = '🚧'; name = '路障'; }
+                if(item === 'shield') { icon = '🛡️'; name = '护盾'; }
+                if(item === 'bomber') { icon = '🚀'; name = '轰炸机'; }
+                if(item === 'frigate') { icon = '🛸'; name = '护卫舰'; }
+                if(item === 'recon') { icon = '🛩'; name = '侦察机'; }
+                if(item === 'magic_dice') { icon = '🎲'; name = '指定骰'; if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-amber-400 to-orange-500'); }
+                if(item === 'mine') { icon = '💣'; name = '隐形水雷'; if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-gray-600 to-gray-800'); }
+                if(item === 'hook') { icon = '🧲'; name = '钩爪'; if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-purple-500 to-indigo-600'); }
+                if(item === 'stealth') { icon = '👻'; name = '光学迷彩'; if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-teal-400 to-emerald-500'); }
+                if(item === 'hologram') { icon = '🤡'; name = '全息诱饵'; if(!isSelectingThis) btn.className = btn.className.replace('from-sky-400 to-blue-500', 'from-pink-400 to-fuchsia-500'); }
                 
                 let displayName = isSelectingThis ? "取消" : name;
                 btn.innerHTML = `<span>${icon}</span> <span>${displayName} <span class="bg-white/30 px-1 rounded-sm text-[10px]">x${counts[item]}</span></span>`;
@@ -1439,6 +1181,7 @@
                 playDiceSplashAnim(gameState.latestRoll.roll, pName, gameState.latestRoll.p);
                 
                 window.addAnimLock();
+                renderGameState(); 
                 setTimeout(window.removeAnimLock, 1000); 
             }
             
@@ -1515,8 +1258,8 @@
                 atkDice.classList.remove('animate-bounce', 'dice-rolling'); defDice.classList.remove('animate-bounce', 'dice-rolling');
                 atkDice.innerText = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][duel.attackerRoll]; defDice.innerText = ['❓', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][duel.defenderRoll];
 
-                if (duel.result === 'win') { resultText.innerHTML = `<span class="${duel.attackerColor === 'red' ? 'text-red-500' : 'text-blue-500'}">💥 ${escapeHtml(duel.attackerName)} 胜出！</span>`; playSound('boom'); } 
-                else if (duel.result === 'lose') { resultText.innerHTML = `<span class="${duel.defenderColor === 'red' ? 'text-red-500' : 'text-blue-500'}">💥 ${escapeHtml(duel.defenderName)} 胜出！</span>`; playSound('boom'); } 
+                if (duel.result === 'win') { resultText.innerHTML = `<span class="${duel.attackerColor === 'red' ? 'text-red-500' : 'text-blue-500'}">💥 ${duel.attackerName} 胜出！</span>`; playSound('boom'); } 
+                else if (duel.result === 'lose') { resultText.innerHTML = `<span class="${duel.defenderColor === 'red' ? 'text-red-500' : 'text-blue-500'}">💥 ${duel.defenderName} 胜出！</span>`; playSound('boom'); } 
                 else { resultText.innerHTML = `<span class="text-gray-500">⚔ 势均力敌，各退两格！</span>`; playSound('alert'); }
                 resultText.style.opacity = '1';
                 setTimeout(() => { content.classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 300); }, 1800);
@@ -1528,13 +1271,6 @@
             const planeId = `${moveData.p}-${moveData.i}`; const planeEl = document.getElementById(`plane-${planeId}`);
             if (!planeEl) return;
 
-            if (activeAnimTimers[planeId]) {
-                clearTimeout(activeAnimTimers[planeId]);
-                delete activeAnimTimers[planeId];
-                delete activeAnimations[planeId];
-                window.removeAnimLock();
-            }
-
             activeAnimations[planeId] = true; let stepIdx = 0;
             planeEl.style.transition = 'transform 0.2s linear, left 0.2s linear, top 0.2s linear';
             
@@ -1543,7 +1279,6 @@
             function nextStep() {
                 if (stepIdx >= moveData.path.length) {
                     delete activeAnimations[planeId];
-                    delete activeAnimTimers[planeId];
                     planeEl.style.transition = 'transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), left 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), top 0.4s cubic-bezier(0.34, 1.3, 0.64, 1)';
                     window.removeAnimLock();
                     return;
@@ -1554,11 +1289,11 @@
                 if (typeof stepData === 'string') {
                     window.playSplashAnim(stepData, 800);
                     stepIdx++;
-                    activeAnimTimers[planeId] = setTimeout(nextStep, 800);
+                    setTimeout(nextStep, 800);
                 } else if (typeof stepData === 'object' && stepData.type === 'duel') {
                     playDuelAnim(stepData.data);
                     stepIdx++;
-                    activeAnimTimers[planeId] = setTimeout(nextStep, 1800);
+                    setTimeout(nextStep, 1800);
                 } else if (typeof stepData === 'object' && stepData.type === 'itemPicker') {
                     if (moveData.p === myPlayerId) {
                         window.showItemPickerModal(stepData.data.choices, stepData.data.pos, () => {
@@ -1569,22 +1304,17 @@
                     } else {
                         window.playSplashAnim("🎁 对方正在挑选空投物资...", 2000);
                         stepIdx++;
-                        activeAnimTimers[planeId] = setTimeout(nextStep, 2000); 
+                        setTimeout(nextStep, 2000); 
                     }
                 } else {
                     let pos = stepData; 
-                    if (pos === 999 && moveData.i === 4) {
-                        planeEl.style.display = 'none';
-                    } else {
-                        planeEl.style.display = 'flex';
-                        let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
-                        if (coords.x !== undefined && coords.y !== undefined) { 
-                            planeEl.style.left = `calc(${coords.x}% - 13px)`; 
-                            planeEl.style.top = `calc(${coords.y}% - 13px)`; 
-                        }
+                    let coords = getPlaneCoords(moveData.p, moveData.i, pos, true);
+                    if (coords.x !== undefined && coords.y !== undefined) { 
+                        planeEl.style.left = `calc(${coords.x}% - 13px)`; 
+                        planeEl.style.top = `calc(${coords.y}% - 13px)`; 
                     }
                     stepIdx++; 
-                    activeAnimTimers[planeId] = setTimeout(nextStep, 200); 
+                    setTimeout(nextStep, 200); 
                 }
             }
             nextStep();
@@ -1593,7 +1323,6 @@
         function getPlaneCoords(player, i, pos, ignoreStacking = false) {
             let targetX_pct, targetY_pct;
             if (pos === -1) {
-                if (!cachedBaseSpots[`${player}-0`]) cacheBaseSpotRects();
                 let cache = cachedBaseSpots[`${player}-${i}`];
                 if (i === 4) { cache = { x: 50, y: player==='p1'?15:85 }; }
                 if (cache) { targetX_pct = cache.x; targetY_pct = cache.y; }
@@ -1606,28 +1335,21 @@
                 
                 targetX_pct = getCoordPercent(gridCoord.x); targetY_pct = getCoordPercent(gridCoord.y);
 
-                if (!ignoreStacking && gameState) {
+                if (!ignoreStacking) {
                     let countOnSpot = 0, myIndexOnSpot = 0;
-                    const allPieces = [
-                        ...gameState.p1.pieces.map((p, idx) => ({ p, pId: 'p1', idx })),
-                        ...gameState.p2.pieces.map((p, idx) => ({ p, pId: 'p2', idx }))
-                    ];
-                    allPieces.forEach(item => {
+                    const allPieces = [...gameState.p1.pieces.map(p=>({p, pId:'p1'})), ...gameState.p2.pieces.map(p=>({p, pId:'p2'}))];
+                    allPieces.forEach((item, globalIdx) => {
                         if (item.p === pos && pos !== -1 && pos !== 999) {
-                            // 若敌机处于隐身状态且非己方视角，不参与叠放偏移计算以免暴露隐身位置
-                            const isItemStealth = gameState[item.pId].stealthTurns > 0 && item.p >= 0 && item.p <= 43;
-                            if (isItemStealth && item.pId !== myPlayerId) return;
-                            if (item.pId === player && item.idx === i) myIndexOnSpot = countOnSpot;
-                            countOnSpot++;
+                            if (item.pId === player && globalIdx % 5 === i) myIndexOnSpot = countOnSpot; countOnSpot++;
                         }
                     });
                     if (countOnSpot > 1) {
                         const offset = 3; 
                         if (myIndexOnSpot === 0) { targetX_pct -= offset; targetY_pct -= offset; }
-                        else if (myIndexOnSpot === 1) { targetX_pct += offset; targetY_pct += offset; }
-                        else if (myIndexOnSpot === 2) { targetX_pct -= offset; targetY_pct += offset; }
-                        else if (myIndexOnSpot === 3) { targetX_pct += offset; targetY_pct -= offset; }
-                        else { targetX_pct += 0; targetY_pct -= offset*1.5; }
+                        if (myIndexOnSpot === 1) { targetX_pct += offset; targetY_pct += offset; }
+                        if (myIndexOnSpot === 2) { targetX_pct -= offset; targetY_pct += offset; }
+                        if (myIndexOnSpot === 3) { targetX_pct += offset; targetY_pct -= offset; }
+                        if (myIndexOnSpot === 4) { targetX_pct += 0; targetY_pct -= offset*1.5; }
                     }
                 }
             }
@@ -1643,55 +1365,140 @@
             const idx = gameState[myPlayerId].items.indexOf(itemType);
             if (idx === -1) return;
 
-            if (itemType === 'barricade' && window.isPlacingBarricade) { clearSelectionModes(); renderInventory(); return showToast("已取消部署"); }
-            if (itemType === 'mine' && window.isPlacingMine) { clearSelectionModes(); renderInventory(); return showToast("已取消部署"); }
-            if (itemType === 'hologram' && window.isPlacingHologram) { clearSelectionModes(); renderInventory(); return showToast("已取消部署"); }
-            if (['bomber', 'frigate', 'recon'].includes(itemType) && window.isSelectingPlaneFor === itemType) { clearSelectionModes(); renderInventory(); return showToast("已取消改装"); }
+            if (itemType === 'barricade' && window.isPlacingBarricade) { window.isPlacingBarricade = false; window.selectingItemType = null; document.getElementById('board-container').classList.remove('placing-mode-active'); renderInventory(); return showToast("已取消部署"); }
+            if (itemType === 'mine' && window.isPlacingMine) { window.isPlacingMine = false; window.selectingItemType = null; document.getElementById('board-container').classList.remove('placing-mode-active'); renderInventory(); return showToast("已取消部署"); }
+            if (itemType === 'hologram' && window.isPlacingHologram) { window.isPlacingHologram = false; window.selectingItemType = null; document.getElementById('board-container').classList.remove('placing-mode-active'); renderInventory(); return showToast("已取消部署"); }
+            if (['bomber', 'frigate', 'recon'].includes(itemType) && window.isSelectingPlaneFor === itemType) { window.isSelectingPlaneFor = null; window.selectingItemType = null; document.body.classList.remove('selecting-mode'); renderInventory(); return showToast("已取消改装"); }
 
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-            let myPieces = [...gameState[myPlayerId].pieces];
-            let oppPieces = [...gameState[oppId].pieces];
+            let oppTrait = gameState[oppId].trait;
+            
+            let isHacked = (oppTrait === 'hacker' && Math.random() < 0.5);
+            let isOriginalDefectiveMissile = (itemType === 'missile' && Math.random() < 0.2);
 
-            // 需要二次选择目标的道具：先进入选择模式，在实际落地/改装时再消耗并判定黑客反噬
+            let myStats = {...gameState[myPlayerId].stats}; // copy stats for tracking
+            let oppStats = {...gameState[oppId].stats};
+
+            if (itemType !== 'magic_dice' && (isHacked || isOriginalDefectiveMissile)) {
+                let myItems = [...gameState[myPlayerId].items];
+                myItems.splice(idx, 1);
+                let stateUpdate = { [`${myPlayerId}.items`]: myItems };
+                let myPieces = [...gameState[myPlayerId].pieces];
+                let logs = [...gameState.logs];
+
+                if(isHacked) {
+                    logs.push(`💻 警告！遭到【黑客专家】入侵，道具【${window.getItemName(itemType)}】发生严重变异反噬！`);
+                    window.playSplashAnim("💻 道具被黑客反噬", 1500);
+                } else {
+                    logs.push(`💥 警告！遭遇【劣质过载导弹】，不幸原地炸膛！`);
+                    window.playSplashAnim("💥 导弹炸膛", 1500);
+                }
+
+                let pathLogic = generateLogicalPath(myPlayerId);
+                let getLeadIdx = () => { let lead = -1, maxD = -1; myPieces.slice(0,4).forEach((p,i)=>{ if(p>=0&&p<=43){let d=pathLogic.indexOf(p); if(d>maxD){maxD=d; lead=i;}}}); return lead; };
+                let leadIdx = getLeadIdx();
+
+                if (itemType === 'missile' || ['bomber', 'frigate', 'recon'].includes(itemType)) {
+                    if(leadIdx !== -1) {
+                        myPieces[leadIdx] = myPlayerId === 'p1' ? 0 : 22;
+                        logs.push(`💥 严重的故障导致前线战机坠毁，直接退回起点！`);
+                        stateUpdate[`${myPlayerId}.pieces`] = myPieces;
+                        if (gameState[myPlayerId].trait === 'arms_maniac') {
+                            myItems.push('missile');
+                            myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
+                            logs.push(`💣 轰！【军火狂人】因战机坠毁，获得了复仇【导弹】！`);
+                            stateUpdate[`${myPlayerId}.items`] = myItems;
+                        }
+                    } else { logs.push(`💥 部件炸膛，好在没有战机在主赛道。`); }
+                } else if (itemType === 'barricade') {
+                    if(leadIdx !== -1) {
+                        let barricades = [...(gameState.barricades || []), myPieces[leadIdx]];
+                        stateUpdate.barricades = barricades;
+                        logs.push(`🚧 路障脱手！重重砸在了自己最前方的战机格子上！`);
+                    } else { logs.push(`🚧 劣质路障散架了，毫无作用。`); }
+                } else if (itemType === 'mine') {
+                    stateUpdate[`${myPlayerId}.blindTurns`] = (gameState[myPlayerId].blindTurns || 0) + 3;
+                    logs.push(`💣 劣质水雷原地引爆！闪光弹导致自己被【致盲】 3 回合！`);
+                } else if (itemType === 'hologram') {
+                    stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
+                    logs.push(`🤡 劣质诱饵发生漏电！电磁网将自己【禁锢】 1 回合！`);
+                    window.playSplashAnim("⚡ 漏电禁锢！", 1500);
+                } else if (itemType === 'shield') {
+                    logs.push(`🛡️ 劣质护盾发生短路，未能成功启动！`);
+                } else if (itemType === 'hook') {
+                    if(myItems.length > 0) {
+                        let gIdx = Math.floor(Math.random() * myItems.length);
+                        let given = myItems.splice(gIdx, 1)[0];
+                        let oppItems = [...gameState[oppId].items]; oppItems.push(given);
+                        oppStats.itemsPicked = (oppStats.itemsPicked || 0) + 1;
+                        stateUpdate[`${oppId}.items`] = oppItems;
+                        stateUpdate[`${myPlayerId}.items`] = myItems;
+                        stateUpdate[`${oppId}.stats`] = oppStats;
+                        logs.push(`🧲 钩爪故障反弹！反而将自己的【${window.getItemName(given)}】无偿送给了对方！`);
+                    } else { logs.push(`🧲 钩爪卡死，无事发生。`); }
+                } else if (itemType === 'stealth') {
+                    stateUpdate[`${myPlayerId}.blindTurns`] = (gameState[myPlayerId].blindTurns || 0) + 2;
+                    logs.push(`👻 劣质迷彩涂装极度刺眼，非但没能隐身，还闪瞎了自己，【致盲】 2 回合！`);
+                }
+
+                stateUpdate[`${myPlayerId}.stats`] = myStats;
+                stateUpdate.logs = logs;
+                getRoomRef(currentRoomId).update(stateUpdate);
+                window.isPlacingBarricade = false; window.isPlacingMine = false; window.isPlacingHologram = false; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
+                renderInventory();
+                return;
+            }
+
+            let stateUpdate = {}; let logs = [...gameState.logs]; let myItems = [...gameState[myPlayerId].items];
+            
             if (itemType === 'barricade') {
-                clearSelectionModes();
-                window.isPlacingBarricade = true; window.selectingItemType = itemType;
+                window.isPlacingBarricade = true; window.isPlacingMine = false; window.isPlacingHologram = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道格子放置路障"); document.getElementById('board-container').classList.add('placing-mode-active'); renderInventory(); return;
             }
             if (itemType === 'mine') {
-                clearSelectionModes();
-                window.isPlacingMine = true; window.selectingItemType = itemType;
+                window.isPlacingMine = true; window.isPlacingBarricade = false; window.isPlacingHologram = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道暗中布置水雷(仅己方可见)"); document.getElementById('board-container').classList.add('placing-mode-active'); renderInventory(); return;
             }
             if (itemType === 'hologram') {
-                clearSelectionModes();
-                window.isPlacingHologram = true; window.selectingItemType = itemType;
+                window.isPlacingHologram = true; window.isPlacingMine = false; window.isPlacingBarricade = false; window.selectingItemType = itemType; window.isSelectingPlaneFor = null; document.body.classList.remove('selecting-mode');
                 showToast("👉 点击赛道格子放置全息诱饵(幻影)"); document.getElementById('board-container').classList.add('placing-mode-active'); renderInventory(); return;
             }
             if (['bomber', 'frigate', 'recon'].includes(itemType)) {
-                const hasMainTrackPlane = myPieces.slice(0, 4).some(p => p >= 0 && p <= 43);
-                if (!hasMainTrackPlane) return showToast("⚠ 当前主赛道上没有可改装的主力战机");
-                clearSelectionModes();
-                window.isSelectingPlaneFor = itemType; window.selectingItemType = itemType;
+                window.isSelectingPlaneFor = itemType; window.selectingItemType = itemType; window.isPlacingBarricade = false; window.isPlacingMine = false; window.isPlacingHologram = false; document.getElementById('board-container').classList.remove('placing-mode-active');
                 let t = itemType === 'bomber' ? '轰炸机' : itemType === 'frigate' ? '护卫舰' : '侦察机';
                 showToast(`👉 请点击【主赛道上的己方战机】改装为${t}`); document.body.classList.add('selecting-mode'); renderInventory(); return;
             }
             if (itemType === 'magic_dice') {
-                clearSelectionModes();
                 window.selectingItemType = itemType;
                 renderInventory();
                 document.getElementById('diceSelectModal').classList.remove('hidden');
                 setTimeout(()=> document.getElementById('diceModalContent').classList.remove('scale-95'), 10); return;
             }
-
-            // 导弹在发射前先校验是否有合法目标，若无目标则不消耗导弹也不触发炸膛
-            let validTargets = [];
-            if (itemType === 'missile') {
+            
+            myItems.splice(idx, 1); stateUpdate[`${myPlayerId}.items`] = myItems;
+            let myPieces = [...gameState[myPlayerId].pieces]; let oppPieces = [...gameState[oppId].pieces];
+            
+            if (itemType === 'stealth') { stateUpdate[`${myPlayerId}.stealthTurns`] = 3; logs.push(`👻 ${myName} 启动了【光学迷彩】，战机隐形 3 回合！`); }
+            else if (itemType === 'hook') {
+                let oppItems = [...gameState[oppId].items];
+                if(oppItems.length > 0) {
+                    let sIdx = Math.floor(Math.random() * oppItems.length); let stolen = oppItems.splice(sIdx, 1)[0];
+                    myItems.push(stolen); stateUpdate[`${oppId}.items`] = oppItems;
+                    myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
+                    let n = window.getItemName(stolen);
+                    logs.push(`🧲 咻！${myName} 发射电磁钩爪，从对方背包偷走了【${n}】！`);
+                    window.playSplashAnim("🧲 钩爪窃取！", 1500); 
+                } else { logs.push(`🧲 钩爪放空，对方背包空空如也！`); }
+            }
+            else if (itemType === 'missile') {
+                let validTargets = [];
                 let pathLogic = generateLogicalPath(myPlayerId);
-                let isOppStealth = gameState[oppId].stealthTurns > 0;
+                
                 myPieces.slice(0,4).forEach(myPos => {
                     if(myPos >= 0 && myPos <= 43) {
                         let myIdxOnPath = pathLogic.indexOf(myPos);
+                        let isOppStealth = gameState[oppId].stealthTurns > 0;
+                        
                         if (!isOppStealth) {
                             oppPieces.slice(0,4).forEach((oppPos, oppIdx) => {
                                 if(oppPos >= 0 && oppPos <= 43) {
@@ -1711,7 +1518,7 @@
                                 if(dist > 0 && dist <= 6) validTargets.push({type: 'holo', idx: oppIdx, dist});
                             }
                         });
-                        let bossPos = (gameState.boss && (!gameState.boss.respawnTimer || gameState.boss.respawnTimer <= 0)) ? gameState.boss.pos : -1;
+                        let bossPos = gameState.boss ? gameState.boss.pos : -1;
                         if (bossPos >= 0 && bossPos <= 43) {
                             let bossIdxOnPath = pathLogic.indexOf(bossPos);
                             if (bossIdxOnPath !== -1) {
@@ -1721,100 +1528,54 @@
                         }
                     }
                 });
-                if (validTargets.length === 0) {
-                    return showToast("前方 6 格内未锁定敌机或海盗(或均处于隐形状态)");
-                }
-            }
-
-            clearSelectionModes();
-            let myItems = [...gameState[myPlayerId].items];
-            myItems.splice(idx, 1);
-            let myStats = {...gameState[myPlayerId].stats};
-            let oppStats = {...gameState[oppId].stats};
-            let logs = [...gameState.logs];
-            let stateUpdate = { [`${myPlayerId}.items`]: myItems };
-
-            if (checkAndExecuteItemBackfire(itemType, myItems, myStats, oppStats, stateUpdate, logs)) {
-                return;
-            }
-            
-            if (itemType === 'stealth') {
-                stateUpdate[`${myPlayerId}.stealthTurns`] = 3;
-                logs.push(`👻 ${myName} 启动了【光学迷彩】，战机隐形 3 回合！`);
-            } else if (itemType === 'hook') {
-                let oppItems = [...gameState[oppId].items];
-                if(oppItems.length > 0) {
-                    let sIdx = Math.floor(Math.random() * oppItems.length); let stolen = oppItems.splice(sIdx, 1)[0];
-                    myItems.push(stolen); stateUpdate[`${oppId}.items`] = oppItems;
-                    myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
-                    let n = window.getItemName(stolen);
-                    logs.push(`🧲 咻！${myName} 发射电磁钩爪，从对方背包偷走了【${n}】！`);
-                    window.playSplashAnim("🧲 钩爪窃取！", 1500); 
-                } else { logs.push(`🧲 钩爪放空，对方背包空空如也！`); }
-            } else if (itemType === 'missile') {
-                validTargets.sort((a,b) => a.dist - b.dist); 
-                let target = validTargets[0];
-                
-                if (target.type === 'holo') {
-                    logs.push(`🤡 导弹击中【全息诱饵】！幻影化作高压电磁云！${myName} 被反向禁锢一回合！`);
-                    window.playSplashAnim("⚡ 诱饵陷阱触发", 1500);
-                    let h = [...(gameState[oppId].holograms || [])];
-                    h.splice(target.idx, 1);
-                    stateUpdate[`${oppId}.holograms`] = h;
-                    stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
-                } else if (target.type === 'boss') {
-                    logs.push(`🚀 砰！${myName} 的【定向导弹】精准命中了【星际海盗】！`);
-                    let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
-                    bossState.hp = (bossState.hp || 6) - 2;
+                if(validTargets.length > 0) {
+                    validTargets.sort((a,b) => a.dist - b.dist); 
+                    let target = validTargets[0];
                     
-                    if (bossState.hp <= 0) {
-                        myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems, myStats);
+                    if (target.type === 'holo') {
+                        logs.push(`🤡 导弹击中【全息诱饵】！幻影化作高压电磁云！${myName} 被反向禁锢一回合！`);
+                        window.playSplashAnim("⚡ 诱饵陷阱触发", 1500);
+                        let h = [...(gameState[oppId].holograms || [])];
+                        h.splice(target.idx, 1);
+                        stateUpdate[`${oppId}.holograms`] = h;
+                        stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
+                    } else if (target.type === 'boss') {
+                        logs.push(`🚀 砰！${myName} 的【定向导弹】精准命中了【星际海盗】！`);
+                        let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
+                        bossState.hp = (bossState.hp || 6) - 2;
+                        
+                        if (bossState.hp <= 0) {
+                            myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
+                        } else {
+                            logs.push(`💥 星际海盗遭受导弹重创，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
+                            window.playSplashAnim("💥 导弹命中海盗！", 1500);
+                        }
+                        stateUpdate.boss = bossState;
                     } else {
-                        logs.push(`💥 星际海盗遭受导弹重创，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
-                        window.playSplashAnim("💥 导弹命中海盗！", 1500);
-                    }
-                    stateUpdate.boss = bossState;
-                } else {
-                    let targetIdx = target.idx;
-                    let oppFrigates = [...gameState[oppId].frigates];
-                    let oppAces = [...gameState[oppId].aces];
-                    let oppBombers = [...gameState[oppId].bombers];
-                    let oppRecons = [...gameState[oppId].recons];
-                    let oppItems = [...gameState[oppId].items];
-                    stateUpdate[`${oppId}.pieces`] = oppPieces;
-                    stateUpdate[`${oppId}.frigates`] = oppFrigates;
-                    stateUpdate[`${oppId}.items`] = oppItems;
-                    stateUpdate[`${oppId}.stats`] = oppStats;
-
-                    if (gameState[oppId].shield) {
-                        logs.push(`🛡 敌方【反导护盾】拦截了导弹！`);
-                        stateUpdate[`${oppId}.shield`] = false;
-                    } else if (consumeFrigateProtection(oppId, oppPieces[targetIdx], stateUpdate, logs)) {
-                        logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`);
-                    } else {
-                        let wasAce = oppAces[targetIdx];
-                        killPlane(targetIdx, oppId, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons, stateUpdate, logs, null);
-                        logs.push(`🚀 砰！${myName} 的【定向导弹】炸毁了前方敌机！`); playSound('boom');
-                        myStats.kills++; oppStats.pacifist = false;
-                        if (wasAce) {
-                            logs.push(`💰 导弹引爆敌方【王牌】！缴获额外随机空投物资！`);
-                            window.playSplashAnim("💰 击落王牌！奖励物资", 1500);
-                            myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
-                            myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
+                        let targetIdx = target.idx;
+                        let oppFrigates = [...gameState[oppId].frigates];
+                        if (gameState[oppId].shield) { logs.push(`🛡 敌方【反导护盾】拦截了导弹！`); stateUpdate[`${oppId}.shield`] = false; } 
+                        else if (consumeFrigateProtection(oppId, oppPieces[targetIdx], stateUpdate, logs)) { logs.push(`🛸 导弹被敌方【护卫舰】立场拦截！`); } 
+                        else {
+                            let wasAce = gameState[oppId].aces[targetIdx];
+                            killPlane(targetIdx, oppId, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, oppFrigates, gameState[oppId].recons, stateUpdate, logs, null);
+                            logs.push(`🚀 砰！${myName} 的【定向导弹】炸毁了前方敌机！`); playSound('boom');
+                            myStats.kills++; oppStats.pacifist = false;
+                            if (wasAce) {
+                                logs.push(`💰 导弹引爆敌方【王牌】！缴获额外随机空投物资！`);
+                                window.playSplashAnim("💰 击落王牌！奖励物资", 1500);
+                                myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
+                                myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
+                            }
                         }
                     }
-                }
-            } else if (itemType === 'shield') {
-                stateUpdate[`${myPlayerId}.shield`] = true;
-                logs.push(`🛡️ ${myName} 开启了【反导护盾】！`);
-            }
+                } else { return showToast("前方 6 格内未锁定敌机或海盗(或均处于隐形状态)"); }
+            } 
+            else if (itemType === 'shield') { stateUpdate[`${myPlayerId}.shield`] = true; logs.push(`🛡️ ${myName} 开启了【反导护盾】！`); }
             
-            stateUpdate[`${myPlayerId}.items`] = myItems;
             stateUpdate[`${myPlayerId}.stats`] = myStats;
             stateUpdate[`${oppId}.stats`] = oppStats;
-            stateUpdate.logs = logs;
-            applyStateUpdateLocally(stateUpdate);
-            getRoomRef(currentRoomId).update(stateUpdate);
+            stateUpdate.logs = logs; getRoomRef(currentRoomId).update(stateUpdate);
         };
 
         window.closeDiceModal = function() {
@@ -1823,21 +1584,7 @@
             renderInventory(); 
         };
 
-        // 统一检查并结算击溃海盗带来的额外回合控制权
-        function consumePendingExtraTurn(stateUpdate, logs) {
-            const pending = stateUpdate.pendingExtraTurn !== undefined ? stateUpdate.pendingExtraTurn : (gameState ? gameState.pendingExtraTurn : null);
-            if (pending) {
-                stateUpdate.turn = pending;
-                let tName = pending === 'p1' ? gameState.p1.name : gameState.p2.name;
-                logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
-                stateUpdate.pendingExtraTurn = null;
-                return pending;
-            }
-            return null;
-        }
-
         window.setMagicDice = function(val) {
-            if (!gameState || !myPlayerId) return;
             let myItems = [...gameState[myPlayerId].items]; 
             let idx = myItems.indexOf(window.selectingItemType); if(idx !== -1) myItems.splice(idx, 1);
             let logs = [...gameState.logs]; 
@@ -1873,18 +1620,23 @@
                 checkCatastrophe(stateUpdate, logs); 
                 moveBoss(stateUpdate, logs);
                 moveHolograms(stateUpdate, logs);
-                consumePendingExtraTurn(stateUpdate, logs);
+
+                if (stateUpdate.pendingExtraTurn) {
+                    stateUpdate.turn = stateUpdate.pendingExtraTurn;
+                    let tName = stateUpdate.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                    stateUpdate.pendingExtraTurn = null;
+                }
             }
             
             closeDiceModal(); 
-            applyStateUpdateLocally(stateUpdate);
-            requestAnimationFrame(renderGameState);
+            gameState = { ...gameState, ...stateUpdate }; 
             getRoomRef(currentRoomId).update(stateUpdate);
         };
 
         function consumeFrigateProtection(ownerId, pos, stateObj, logs) {
             const pieces = stateObj[`${ownerId}.pieces`] || gameState[ownerId].pieces; 
-            let frigates = stateObj[`${ownerId}.frigates`] || [...(gameState[ownerId].frigates || [false,false,false,false,false])];
+            let frigates = stateObj[`${ownerId}.frigates`] ? [...stateObj[`${ownerId}.frigates`]] : [...(gameState[ownerId].frigates || [false,false,false,false,false])];
             
             for(let i=0; i<4; i++) {
                 if (frigates[i] && pieces[i] >= 0 && pieces[i] <= 43) {
@@ -1900,19 +1652,17 @@
             return false;
         }
 
-        function decrementStatuses(playerId, stateUpdate, logs, skipBlindDecrement = false) {
+        function decrementStatuses(playerId, stateUpdate, logs) {
             let pData = gameState[playerId] || {};
             let stealth = stateUpdate[`${playerId}.stealthTurns`] !== undefined ? stateUpdate[`${playerId}.stealthTurns`] : (pData.stealthTurns || 0);
             if (stealth > 0) {
                 stateUpdate[`${playerId}.stealthTurns`] = stealth - 1;
                 if (stealth - 1 === 0) logs.push(`👻 ${pData.name || '玩家'} 的隐形状态解除了。`);
             }
-            if (!skipBlindDecrement) {
-                let blind = stateUpdate[`${playerId}.blindTurns`] !== undefined ? stateUpdate[`${playerId}.blindTurns`] : (pData.blindTurns || 0);
-                if (blind > 0) {
-                    stateUpdate[`${playerId}.blindTurns`] = blind - 1;
-                    if (blind - 1 === 0) logs.push(`👁 ${pData.name || '玩家'} 的视野恢复正常了。`);
-                }
+            let blind = stateUpdate[`${playerId}.blindTurns`] !== undefined ? stateUpdate[`${playerId}.blindTurns`] : (pData.blindTurns || 0);
+            if (blind > 0) {
+                stateUpdate[`${playerId}.blindTurns`] = blind - 1;
+                if (blind - 1 === 0) logs.push(`👁 ${pData.name || '玩家'} 的视野恢复正常了。`);
             }
         }
 
@@ -1941,14 +1691,13 @@
                     if (animKeyframes) animKeyframes.push(`🚑 迫降至 ${targetPos}！`);
                     if (logs) logs.push(`🚑 【战地医师】发力！${pName} 的主力战机免于坠毁，紧急迫降在后方安全区！`);
 
-                    let oppMines = stateObj[`${oppId}.mines`] || (gameState[oppId] ? [...gameState[oppId].mines] : []);
-                    const mineIndex = oppMines.indexOf(targetPos);
-                    if (mineIndex !== -1) {
+                    let oppMines = stateObj[`${oppId}.mines`] || (gameState[oppId] ? gameState[oppId].mines : []);
+                    if (oppMines.includes(targetPos)) {
                         if (logs) logs.push(`💣 糟糕！迫降点刚好有水雷，战机最终还是坠毁了！`);
                         if (animKeyframes) animKeyframes.push(`💣 迫降踩雷坠毁！`);
                         piecesArray[idx] = -1; 
                         if(idx < 4) { aArray[idx] = false; bArray[idx] = false; fArray[idx] = false; rArray[idx] = false; }
-                        oppMines.splice(mineIndex, 1);
+                        oppMines = oppMines.filter(m => m !== targetPos);
                         stateObj[`${oppId}.mines`] = oppMines;
                         let s = stateObj[`${pId}.stats`] || {...gameState[pId].stats};
                         s.minesTriggered = (s.minesTriggered || 0) + 1;
@@ -1974,7 +1723,6 @@
 
             if (idx === 4) {
                 piecesArray[idx] = 999;
-                aArray[4] = false; bArray[4] = false; fArray[4] = false; rArray[4] = false;
             } else {
                 piecesArray[idx] = -1;
                 if(idx < 4) { aArray[idx] = false; bArray[idx] = false; fArray[idx] = false; rArray[idx] = false; }
@@ -1985,7 +1733,7 @@
             return true; 
         }
         
-        function handleBossDefeat(killerId, stateUpdate, logs, bossState, currentItemsArray = null, currentStatsObj = null, setPendingFlag = true) {
+        function handleBossDefeat(killerId, stateUpdate, logs, bossState, currentItemsArray = null) {
             bossState.pos = -1;
             bossState.hp = 0;
             bossState.respawnTimer = 3;
@@ -1997,7 +1745,7 @@
             items.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
             stateUpdate[`${killerId}.items`] = items;
 
-            let st = currentStatsObj || stateUpdate[`${killerId}.stats`] || {...(gameState[killerId] ? gameState[killerId].stats : {})};
+            let st = stateUpdate[`${killerId}.stats`] || {...(gameState[killerId] ? gameState[killerId].stats : {})};
             st.itemsPicked = (st.itemsPicked || 0) + 3;
             stateUpdate[`${killerId}.stats`] = st;
 
@@ -2005,14 +1753,12 @@
             logs.push(`🎁 ${kName} 缴获了 3 件海盗遗产！`);
             window.playSplashAnim("💀 击溃海盗！奖励3件物资", 1500);
 
-            if (setPendingFlag) {
-                stateUpdate.pendingExtraTurn = killerId;
-            }
+            stateUpdate.pendingExtraTurn = killerId;
             return items;
         }
 
         function updateBoardDecorations() {
-            if (!gameState || !myPlayerId || !gameState[myPlayerId]) return;
+            if (!gameState) return;
             document.querySelectorAll('.board-prop, .radar-prop').forEach(el => el.remove());
             document.querySelectorAll('.cell-wormhole, .cell-env-wind, .cell-env-calm, .radar-safe, .radar-danger').forEach(el => {
                 el.classList.remove('cell-wormhole', 'cell-env-wind', 'cell-env-calm', 'radar-safe', 'radar-danger');
@@ -2105,7 +1851,6 @@
         }
 
         function updatePlanesPosition() {
-            if (!gameState || !myPlayerId || !gameState[myPlayerId]) return;
             let myRecons = gameState[myPlayerId].recons;
             let myRadarCells = new Set();
             gameState[myPlayerId].pieces.forEach((p, idx) => {
@@ -2126,7 +1871,7 @@
                     planeEl.style.display = 'flex'; planeEl.style.opacity = '1'; planeEl.style.zIndex = '10'; planeEl.style.boxShadow = '';
                     
                     if(i === 4) {
-                        if (pos === 999 || pos === -1) { planeEl.style.display = 'none'; return; }
+                        if (pos === 999) { planeEl.style.display = 'none'; return; }
                         planeEl.innerText = '🚁'; planeEl.classList.add('plane-wingman');
                     } else {
                         if (aces && aces[i]) planeEl.classList.add('plane-ace'); else planeEl.classList.remove('plane-ace');
@@ -2184,15 +1929,12 @@
                     }
                     planeEl.style.display = 'flex'; planeEl.style.opacity = player === myPlayerId ? '0.6' : '1'; planeEl.style.zIndex = '5';
                     if (activeAnimations[planeId]) return;
-                    let coords = getPlaneCoords(player, 0, pos, true); 
+                    let coords = getPlaneCoords(player, 0, pos); 
                     if (coords.x !== undefined) { planeEl.style.left = `calc(${coords.x}% - 13px)`; planeEl.style.top = `calc(${coords.y}% - 13px)`; }
                 });
-                let extraIdx = holos.length;
-                while (true) {
-                    let planeEl = document.getElementById(`plane-holo-${player}-${extraIdx}`);
-                    if (!planeEl) break;
-                    planeEl.style.display = 'none';
-                    extraIdx++;
+                for(let i = holos.length; i < 5; i++) {
+                    let planeEl = document.getElementById(`plane-holo-${player}-${i}`);
+                    if(planeEl) planeEl.style.display = 'none';
                 }
             };
 
@@ -2255,21 +1997,17 @@
                     else if (boss.pos === wormholes[1]) { boss.pos = wormholes[0]; logs.push(`🌀 星际海盗穿越了虫洞到达区域 ${boss.pos}！`); }
                 }
 
-                let p1Mines = stateUpdate['p1.mines'] || [...(gameState.p1.mines || [])];
-                let p2Mines = stateUpdate['p2.mines'] || [...(gameState.p2.mines || [])];
-                const hitP1Mine = p1Mines.includes(boss.pos);
-                const hitP2Mine = p2Mines.includes(boss.pos);
+                let p1Mines = stateUpdate['p1.mines'] || gameState.p1.mines || [];
+                let p2Mines = stateUpdate['p2.mines'] || gameState.p2.mines || [];
                 
-                if (hitP1Mine || hitP2Mine) {
-                    const minePos = boss.pos;
+                if (p1Mines.includes(boss.pos) || p2Mines.includes(boss.pos)) {
                     boss.hp -= 1;
                     logs.push(`💣 轰！星际海盗踩到了隐形水雷，扣除 1 点生命值！(剩 ${boss.hp} HP)`);
-                    if (hitP1Mine) { p1Mines = p1Mines.filter(m => m !== minePos); stateUpdate['p1.mines'] = p1Mines; }
-                    if (hitP2Mine) { p2Mines = p2Mines.filter(m => m !== minePos); stateUpdate['p2.mines'] = p2Mines; }
+                    if (p1Mines.includes(boss.pos)) { p1Mines = p1Mines.filter(m => m !== boss.pos); stateUpdate['p1.mines'] = p1Mines; }
+                    if (p2Mines.includes(boss.pos)) { p2Mines = p2Mines.filter(m => m !== boss.pos); stateUpdate['p2.mines'] = p2Mines; }
 
                     if (boss.hp <= 0) {
-                        // 在过滤前已记录 hitP1Mine / hitP2Mine，确保水雷击杀归属准确
-                        let killer = hitP1Mine ? 'p1' : (hitP2Mine ? 'p2' : (stateUpdate.turn === 'p1' ? 'p2' : 'p1'));
+                        let killer = p1Mines.includes(boss.pos) ? 'p1' : (p2Mines.includes(boss.pos) ? 'p2' : (stateUpdate.turn === 'p1' ? 'p2' : 'p1'));
                         handleBossDefeat(killer, stateUpdate, logs, boss);
                     }
                 }
@@ -2280,11 +2018,13 @@
                         let crashed = false;
                         let items = stateObj[`${pId}.items`] || [...gameState[pId].items];
                         let myStats = stateObj[`${pId}.stats`] || {...gameState[pId].stats};
-                        let fArray = stateObj[`${pId}.frigates`] || [...(gameState[pId].frigates || [false,false,false,false,false])];
 
                         piecesArray.forEach((p, i) => {
+                            let isFrigateProtected = false;
+                            let fArray = stateObj[`${pId}.frigates`] ? [...stateObj[`${pId}.frigates`]] : [...(gameState[pId].frigates || [false,false,false,false,false])];
+                            if (fArray[i]) isFrigateProtected = true;
+                            
                             if (p === boss.pos) {
-                                let isFrigateProtected = Boolean(fArray[i]);
                                 let isBountyHunter = stateObj[`${pId}.trait`] === 'bounty_hunter' || gameState[pId].trait === 'bounty_hunter';
                                 
                                 if (isBountyHunter) {
@@ -2313,7 +2053,7 @@
                                     logs.push(`🏴‍☠️ 星际海盗发现 ${pName} 是个穷光蛋，愤怒地将其击落回起点！`);
                                     window.playSplashAnim(`🏴‍☠️ 海盗击坠战机！`, 1500);
                                     
-                                    if (i < 4 && (stateObj[`${pId}.trait`] === 'arms_maniac' || gameState[pId].trait === 'arms_maniac')) {
+                                    if (stateObj[`${pId}.trait`] === 'arms_maniac' || gameState[pId].trait === 'arms_maniac') {
                                         items.push('missile');
                                         myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
                                         stateObj[`${pId}.items`] = items;
@@ -2358,7 +2098,6 @@
         }
 
         window.handleRollDice = function() {
-            if (!gameState || !myPlayerId) return;
             if (window.isGameAnimating() || gameState.isPicking) { showToast("请等待上一轮战术动作结算完毕"); return; }
             if (gameState.status !== 'playing' || gameState.turn !== myPlayerId || gameState.hasRolled) return;
             if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram || window.isSelectingPlaneFor) { return showToast("请先完成当前战术部署，或点击对应道具取消"); }
@@ -2375,9 +2114,7 @@
                 nextState[`${myPlayerId}.stats`] = myStats;
                 decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs);
                 moveBoss(nextState, logs); moveHolograms(nextState, logs);
-                consumePendingExtraTurn(nextState, logs);
-                nextState.logs = logs;
-                applyStateUpdateLocally(nextState);
+                nextState.logs = logs; gameState = { ...gameState, ...nextState };
                 requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
                 return;
             }
@@ -2391,7 +2128,7 @@
             
             const canTakeOffThisTurn = roll > 0 && (gameState[myPlayerId].trait === 'navigator' ? [1, 5, 6].includes(roll) : [1, 6].includes(roll));
             
-            pieces.forEach((p) => {
+            pieces.forEach((p, idx) => {
                 if (p === -1 && canTakeOffThisTurn) canMoveAny = true;
                 if (p !== -1 && p !== 999) canMoveAny = true;
             });
@@ -2418,18 +2155,22 @@
                 nextState[`${myPlayerId}.missCount`] = missCount; nextState.hasRolled = false; nextState.turn = myPlayerId === 'p1' ? 'p2' : 'p1';
                 decrementStatuses(myPlayerId, nextState, logs); updateWeatherTurn(nextState, logs); checkCatastrophe(nextState, logs); 
                 moveBoss(nextState, logs); moveHolograms(nextState, logs);
-                consumePendingExtraTurn(nextState, logs);
+
+                if (nextState.pendingExtraTurn) {
+                    nextState.turn = nextState.pendingExtraTurn;
+                    let tName = nextState.turn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                    logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                    nextState.pendingExtraTurn = null; 
+                }
             } else { nextState[`${myPlayerId}.missCount`] = 0; }
 
             nextState[`${myPlayerId}.stats`] = myStats;
-            nextState.logs = logs;
-            applyStateUpdateLocally(nextState);
+            nextState.logs = logs; gameState = { ...gameState, ...nextState };
             requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
         };
 
         function updateWeatherTurn(stateUpdate, logs) {
-            let weather = stateUpdate.weather ? {...stateUpdate.weather} : {...gameState.weather};
-            let env = stateUpdate.envZone ? {...stateUpdate.envZone} : {...gameState.envZone};
+            let weather = stateUpdate.weather || gameState.weather; let env = stateUpdate.envZone || gameState.envZone;
             if (weather.remainingTurns > 0) {
                 weather.remainingTurns--;
                 if (weather.remainingTurns === 0) { logs.push(`🌤 全局天气恢复正常。`); weather.type = 'normal'; env.type = null; env.indices = []; }
@@ -2441,8 +2182,7 @@
                 if (weather.type === 'tailwind') logs.push(`🌬️ 遭遇强劲顺风！所有移动 +2 格！`);
                 else if (weather.type === 'fog') logs.push(`🌫 大雾弥漫视野受限！飞行距离限制为 1 格！`);
                 else if (weather.type === 'thunder') { 
-                    const base = Math.floor(Math.random() * 44);
-                    weather.zone = Array.from({length: 6}, (_, i) => (base + i) % 44); logs.push(`⚡ 前方出现雷暴区！`); 
+                    weather.zone = Array.from({length: 6}, (_, i) => (Math.floor(Math.random() * 44) + i) % 44); logs.push(`⚡ 前方出现雷暴区！`); 
                 }
                 if(Math.random() < 0.6) {
                     const startIdx = Math.floor(Math.random() * 38); env.type = Math.random() < 0.5 ? 'westwind' : 'calm'; env.indices = Array.from({length: 5}, (_, i) => startIdx + i);
@@ -2450,16 +2190,14 @@
                     else logs.push(`🛑 航道局部产生【无风带】，途经将无法触发同色跳跃！`);
                 }
                 if(Math.random() < 0.4) {
-                    let w1 = Math.floor(Math.random() * 44);
-                    let w2 = (w1 + 1 + Math.floor(Math.random() * 43)) % 44;
-                    stateUpdate.wormholes = [w1, w2]; logs.push(`🌀 空间结构不稳定，赛道随机产生了【时空虫洞】！`);
+                    stateUpdate.wormholes = [Math.floor(Math.random()*44), Math.floor(Math.random()*44)]; logs.push(`🌀 空间结构不稳定，赛道随机产生了【时空虫洞】！`);
                 } else { stateUpdate.wormholes = []; }
             }
             stateUpdate.weather = weather; stateUpdate.envZone = env;
         }
 
         function checkCatastrophe(stateUpdate, logs) {
-            let eng = stateUpdate.energyLevel !== undefined ? stateUpdate.energyLevel : gameState.energyLevel;
+            let eng = stateUpdate.energyLevel || gameState.energyLevel;
             if(eng >= 100) {
                 playSound('boom'); logs.push(`💥 【警告】磁暴能量爆表！触发全局空间洗牌！`);
                 window.playSplashAnim("⚡ 磁暴能量爆表！全局洗牌！", 2500);
@@ -2469,7 +2207,7 @@
                 const shuffle = (pieces, shield, pId) => {
                     const trait = stateUpdate[`${pId}.trait`] || gameState[pId].trait;
                     const pathLogic = generateLogicalPath(pId);
-                    return pieces.map((p) => { 
+                    return pieces.map((p, idx) => { 
                         if(p >= 0 && p <= 43) { 
                             if(shield) { return p; }
                             let rPos = Math.floor(Math.random() * 44); 
@@ -2513,7 +2251,7 @@
             else if (type === 'fog') { document.getElementById('weatherIcon').innerText = '🌫️'; document.getElementById('weatherText').innerText = '大雾视阻 (限速1格)'; overlay.classList.add('weather-fog'); } 
             else if (type === 'thunder') {
                 document.getElementById('weatherIcon').innerText = '⚡'; document.getElementById('weatherText').innerText = '极光雷暴预警'; overlay.classList.add('weather-thunder');
-                (zone || []).forEach(pos => { const coord = trackCoords[pos]; if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); } });
+                zone.forEach(pos => { const coord = trackCoords[pos]; if(coord) { const cell = document.getElementById(`cell-${coord.x}-${coord.y}`); if(cell) cell.classList.add('thunder-zone'); } });
             }
             if(gameState.envZone && gameState.envZone.type) {
                 envText.classList.remove('hidden'); envText.innerText = gameState.envZone.type === 'westwind' ? '🌊 航道局部存在【盛行洋流】' : '🛑 航道局部存在【无风带】';
@@ -2521,33 +2259,14 @@
         }
 
         window.handlePieceClick = function(player, pieceIndex) {
-            if (!gameState || !myPlayerId) return;
             if (window.isGameAnimating() || gameState.isPicking) return;
             if (window.isPlacingBarricade || window.isPlacingMine || window.isPlacingHologram) { return showToast("请先完成当前陷阱部署，或再次点击对应道具取消"); }
 
             if (window.isSelectingPlaneFor && player === myPlayerId) {
                 const pos = gameState[myPlayerId].pieces[pieceIndex];
                 if (pos >= 0 && pos <= 43 && pieceIndex !== 4) {
-                    const itemType = window.selectingItemType;
-                    let myItems = [...gameState[myPlayerId].items];
-                    let idx = myItems.indexOf(itemType);
-                    if(idx === -1) {
-                        clearSelectionModes();
-                        renderInventory();
-                        return;
-                    }
-                    myItems.splice(idx, 1);
-                    const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
-                    let myStats = {...gameState[myPlayerId].stats};
-                    let oppStats = {...gameState[oppId].stats};
-                    let logs = [...gameState.logs];
+                    let myItems = [...gameState[myPlayerId].items]; let idx = myItems.indexOf(window.selectingItemType); if(idx !== -1) myItems.splice(idx, 1);
                     let stateUpdate = { [`${myPlayerId}.items`]: myItems };
-
-                    // 在实际点击战机完成改装时进行黑客反噬判定
-                    if (checkAndExecuteItemBackfire(itemType, myItems, myStats, oppStats, stateUpdate, logs)) {
-                        return;
-                    }
-
                     let b = [...gameState[myPlayerId].bombers]; let f = [...gameState[myPlayerId].frigates]; let r = [...gameState[myPlayerId].recons];
                     b[pieceIndex] = false; f[pieceIndex] = false; r[pieceIndex] = false; 
                     
@@ -2557,10 +2276,9 @@
                     if (window.isSelectingPlaneFor === 'recon') { r[pieceIndex] = true; roleName = '【侦察机】🛩️'; }
                     
                     stateUpdate[`${myPlayerId}.bombers`] = b; stateUpdate[`${myPlayerId}.frigates`] = f; stateUpdate[`${myPlayerId}.recons`] = r;
-                    logs.push(`🔧 ${myName} 成功改装战机为 ${roleName}！`); stateUpdate.logs = logs;
-                    clearSelectionModes();
+                    let logs = [...gameState.logs]; logs.push(`🔧 ${myName} 成功改装战机为 ${roleName}！`); stateUpdate.logs = logs;
+                    window.isSelectingPlaneFor = null; window.selectingItemType = null; document.body.classList.remove('selecting-mode');
                     renderInventory(); 
-                    applyStateUpdateLocally(stateUpdate);
                     getRoomRef(currentRoomId).update(stateUpdate); showToast("改装完成");
                 } else { showToast("⚠ 只能改装主赛道的主力战机"); }
                 return;
@@ -2574,7 +2292,7 @@
             if (currentPos === -1 && !canTakeOffThisTurn) return;
             if (currentPos === 999) return;
 
-            const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false;
+            const logs = [...gameState.logs]; let newPos = currentPos; let extraTurn = false; let stateUpdate = {}; 
             let animKeyframes = []; 
             const oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
 
@@ -2585,26 +2303,14 @@
             let oppFrigates = [...gameState[oppId].frigates]; let oppRecons = [...gameState[oppId].recons]; let oppShield = gameState[oppId].shield;
             let oppMines = [...gameState[oppId].mines]; let oppItems = [...gameState[oppId].items]; let oppStats = {...gameState[oppId].stats};
             
-            // 将局部引用预先绑定到 stateUpdate，避免子函数更新 stateUpdate 后被末尾重新赋值覆盖
-            let stateUpdate = {
-                [`${myPlayerId}.pieces`]: myPieces, [`${myPlayerId}.aces`]: myAces, [`${myPlayerId}.items`]: myItems,
-                [`${myPlayerId}.bombers`]: myBombers, [`${myPlayerId}.frigates`]: myFrigates, [`${myPlayerId}.recons`]: myRecons,
-                [`${myPlayerId}.mines`]: myMines, [`${myPlayerId}.stats`]: myStats,
-                [`${oppId}.pieces`]: oppPieces, [`${oppId}.aces`]: oppAces, [`${oppId}.items`]: oppItems,
-                [`${oppId}.bombers`]: oppBombers, [`${oppId}.frigates`]: oppFrigates, [`${oppId}.recons`]: oppRecons,
-                [`${oppId}.mines`]: oppMines, [`${oppId}.stats`]: oppStats
-            };
-
             const isRecon = myRecons[pieceIndex];
             let myCellEvents = {...gameState.cellEvents}; let myCellItems = {...gameState.cellItems};
             let currentBarricades = [...(gameState.barricades || [])]; 
             const consumeBarricade = (pos) => { currentBarricades = currentBarricades.filter(b => b !== pos); stateUpdate.barricades = currentBarricades; };
             const isWingman = (pieceIndex === 4);
-            let triggeredBlindThisTurn = false;
 
             if (currentPos === -1 && canTakeOffThisTurn) {
                 newPos = myPlayerId === 'p1' ? 0 : 22; 
-                myPieces[pieceIndex] = newPos;
                 animKeyframes.push(isWingman ? '🚁 无人僚机出击！' : '✈ 战机出击！');
                 animKeyframes.push(newPos);
                 logs.push(isWingman ? `🚁 无人僚机离陆！` : `✈ ${myName} 的战机驶出机库！`);
@@ -2632,12 +2338,11 @@
                 
                 let moveResult = calculateDestination(myPlayerId, currentPos, moveSteps, currentBarricades); 
                 newPos = moveResult.pos; 
-                myPieces[pieceIndex] = newPos;
                 
                 moveResult.path.forEach((stepPos, sIdx) => {
                     animKeyframes.push(stepPos);
                     if (sIdx < moveResult.path.length - 1) { 
-                        oppPieces.slice(0,4).forEach((oppP) => {
+                        oppPieces.slice(0,4).forEach((oppP, oIdx) => {
                             if (oppP === stepPos && oppP >= 0 && oppP <= 43) {
                                 if (gameState[myPlayerId].trait === 'thief' && Math.random() < 0.5) {
                                     if (oppItems.length > 0) {
@@ -2675,10 +2380,8 @@
                 processingFeatures = false;
                 visitCount++;
                 let initialPos = newPos;
-                myPieces[pieceIndex] = newPos;
 
-                let activeBoss = stateUpdate.boss || gameState.boss;
-                let bossPos = (activeBoss && (!activeBoss.respawnTimer || activeBoss.respawnTimer <= 0)) ? activeBoss.pos : -1;
+                let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
                 if (newPos === bossPos && newPos >= 0 && newPos <= 43 && !hasHitPirate) {
                     hasHitPirate = true;
                     let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
@@ -2688,8 +2391,9 @@
                     logs.push(`⚔️ ${myName} 主动靠近星际海盗发起了攻击！海盗扣除 1 点生命值！(剩余HP: ${bossState.hp})`);
                     
                     if (bossState.hp <= 0) {
-                        myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems, myStats);
+                        myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
                         animKeyframes.push(`💀 击溃海盗`);
+                        extraTurn = true; 
                     }
                     stateUpdate.boss = bossState;
                     processingFeatures = true; 
@@ -2728,12 +2432,12 @@
                         } else { action(); } 
                     };
                     const applyMove = (steps) => { 
-                        let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; myPieces[pieceIndex] = newPos;
+                        let res = calculateDestination(myPlayerId, newPos, steps, currentBarricades); newPos = res.pos; 
                         
                         res.path.forEach((stepPos, sIdx) => {
                             animKeyframes.push(stepPos);
                             if (sIdx < res.path.length - 1) { 
-                                oppPieces.slice(0,4).forEach((oppP) => {
+                                oppPieces.slice(0,4).forEach((oppP, oIdx) => {
                                     if (oppP === stepPos && oppP >= 0 && oppP <= 43) {
                                         if (gameState[myPlayerId].trait === 'thief' && Math.random() < 0.5) {
                                             if (oppItems.length > 0) {
@@ -2768,33 +2472,23 @@
                             } else {
                                 animKeyframes.push(`⚡ 被闪电直击坠毁！`); logs.push(`⚡ 被闪电直击坠毁！`); 
                                 let died = killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes); 
-                                newPos = myPieces[pieceIndex];
-                                animKeyframes.push(newPos);
-                                if (died) { myStats.thunderHits++; }
+                                if (died) { newPos = -1; animKeyframes.push(-1); myStats.thunderHits++; } else { newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); }
                             }
                         }); break;
                         case 3: animKeyframes.push(`🎲 获得胶囊，额外回合！`); logs.push(`🎲 获得胶囊，额外回合！`); extraTurn = true; break;
                         case 4: animKeyframes.push(`🌈 跃迁至下一同色格！`); logs.push(`🌈 跃迁至下一同色格！`);
                             const path = generateLogicalPath(myPlayerId); const currIdx = path.indexOf(newPos);
-                            if (currIdx !== -1) { let nextSame = currIdx + 1; while (nextSame < 44 && getCellColor(path[nextSame]) !== getCellColor(newPos)) nextSame++; if (nextSame < 44) { newPos = path[nextSame]; myPieces[pieceIndex] = newPos; animKeyframes.push(newPos); } } break;
+                            if (currIdx !== -1) { let nextSame = currIdx + 1; while (nextSame < 44 && getCellColor(path[nextSame]) !== getCellColor(newPos)) nextSame++; if (nextSame < 44) { newPos = path[nextSame]; animKeyframes.push(newPos); } } break;
                         case 5:
                             let validOpp = oppPieces.slice(0,4).map((p,i) => (p>=0 && p<=43)?i:-1).filter(i=>i!==-1);
-                            if(validOpp.length > 0) {
-                                const r = validOpp[Math.floor(Math.random() * validOpp.length)];
-                                const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; myPieces[pieceIndex] = newPos;
-                                animKeyframes.push(`🔄 空间传送！互换位置！`); animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`);
-                            } else {
-                                animKeyframes.push(`🔄 赛道无敌机可交换`); logs.push(`🔄 空间传送启动，但主赛道上没有可交换的敌机！`);
-                            }
-                            break;
-                        case 6: animKeyframes.push(`🛸 被UFO绑架随机传送！`); logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); myPieces[pieceIndex] = newPos; animKeyframes.push(newPos); break;
+                            if(validOpp.length > 0) { const r = validOpp[Math.floor(Math.random() * validOpp.length)]; const oPos = oppPieces[r]; oppPieces[r] = newPos; newPos = oPos; animKeyframes.push(`🔄 空间传送！互换位置！`); animKeyframes.push(newPos); logs.push(`🔄 空间传送！与敌方互换位置！`); } break;
+                        case 6: animKeyframes.push(`🛸 被UFO绑架随机传送！`); logs.push(`🛸 被UFO绑架随机传送！`); newPos = Math.floor(Math.random() * 44); animKeyframes.push(newPos); break;
                         case 7: triggerBad(() => { 
                             animKeyframes.push(`💣 遭遇严重鸟击退回起点！`); 
                             logs.push(`💣 遭遇严重鸟击退回起点！`); 
                             newPos = myPlayerId === 'p1' ? 0 : 22; 
-                            myPieces[pieceIndex] = newPos;
                             animKeyframes.push(newPos); 
-                            if (!isWingman && gameState[myPlayerId].trait === 'arms_maniac') {
+                            if (gameState[myPlayerId].trait === 'arms_maniac') {
                                 myItems.push('missile');
                                 myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
                                 logs.push(`💣 轰！【军火狂人】因鸟击坠毁发飙，获得了复仇【导弹】！`);
@@ -2805,16 +2499,7 @@
                         case 10:
                             animKeyframes.push(`🕳️ 引发局部坍塌，退 2 格！`); logs.push(`🕳️ 引发局部坍塌，赛道战机倒退 2 格！`);
                             myPieces[pieceIndex] = newPos; 
-                            for (let idx = 0; idx < myPieces.length; idx++) {
-                                if (myPieces[idx] >= 0 && myPieces[idx] <= 43) {
-                                    myPieces[idx] = calculateDestination(myPlayerId, myPieces[idx], -2, []).pos;
-                                }
-                            }
-                            for (let idx = 0; idx < oppPieces.length; idx++) {
-                                if (oppPieces[idx] >= 0 && oppPieces[idx] <= 43) {
-                                    oppPieces[idx] = calculateDestination(oppId, oppPieces[idx], -2, []).pos;
-                                }
-                            }
+                            myPieces = myPieces.map(p => (p>=0 && p<=43) ? calculateDestination(myPlayerId, p, -2, []).pos : p); oppPieces = oppPieces.map(p => (p>=0 && p<=43) ? calculateDestination(oppId, p, -2, []).pos : p);
                             newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); break;
                     }
                 }
@@ -2822,12 +2507,12 @@
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`wormhole_${newPos}`) && gameState.wormholes && gameState.wormholes.length === 2) {
                     visitedEvents.push(`wormhole_${newPos}`);
                     if(newPos === gameState.wormholes[0]) { 
-                        newPos = gameState.wormholes[1]; myPieces[pieceIndex] = newPos;
+                        newPos = gameState.wormholes[1]; 
                         visitedEvents.push(`wormhole_${newPos}`); 
                         animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); 
                     }
                     else if(newPos === gameState.wormholes[1]) { 
-                        newPos = gameState.wormholes[0]; myPieces[pieceIndex] = newPos;
+                        newPos = gameState.wormholes[0]; 
                         visitedEvents.push(`wormhole_${newPos}`); 
                         animKeyframes.push(`🌀 穿过时空虫洞！`); animKeyframes.push(newPos); logs.push(`🌀 穿过时空虫洞！`); 
                     }
@@ -2836,10 +2521,10 @@
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`jump_env_${newPos}`)) {
                     visitedEvents.push(`jump_env_${newPos}`);
                     let env = gameState.envZone; let canJump = true;
-                    if(env && env.indices && env.indices.includes(newPos)) {
+                    if(env && env.indices.includes(newPos)) {
                         if(env.type === 'westwind') { 
                             animKeyframes.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); logs.push(`🌊 顺势搭上洋流，额外滑行 2 格！`); 
-                            let envRes = calculateDestination(myPlayerId, newPos, 2, currentBarricades); newPos = envRes.pos; myPieces[pieceIndex] = newPos; animKeyframes.push(...envRes.path);
+                            let envRes = calculateDestination(myPlayerId, newPos, 2, currentBarricades); newPos = envRes.pos; animKeyframes.push(...envRes.path);
                             if(envRes.hitBarricadePos !== -1) { animKeyframes.push(`🚧 撞上路障！`); logs.push(`🚧 撞上路障！`); consumeBarricade(envRes.hitBarricadePos); }
                         }
                         else if(env.type === 'calm') { animKeyframes.push(`🛑 陷入无风带，无法进行同色跳跃！`); logs.push(`🛑 陷入无风带，无法进行同色跳跃！`); canJump = false; }
@@ -2851,13 +2536,13 @@
                             hasSameColorJumped = true;
                             let jumpDist = gameState[myPlayerId].trait === 'overclocker' ? 6 : 4; 
                             animKeyframes.push(`💨 引擎轰鸣，触发同色跳跃！`); logs.push(`💨 引擎轰鸣，触发同色跳跃！`);
-                            let jmpRes = calculateDestination(myPlayerId, newPos, jumpDist, currentBarricades); newPos = jmpRes.pos; myPieces[pieceIndex] = newPos; animKeyframes.push(...jmpRes.path);
+                            let jmpRes = calculateDestination(myPlayerId, newPos, jumpDist, currentBarricades); newPos = jmpRes.pos; animKeyframes.push(...jmpRes.path);
                             if(jmpRes.hitBarricadePos !== -1) { animKeyframes.push(`💨 跳跃中撞上路障被迫停下！`); logs.push(`💨 跳跃中撞上路障被迫停下！`); consumeBarricade(jmpRes.hitBarricadePos); } 
                         }
                     }
                 }
 
-                if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`thunder_${newPos}`) && gameState.weather.type === 'thunder' && gameState.weather.zone && gameState.weather.zone.includes(newPos)) {
+                if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`thunder_${newPos}`) && gameState.weather.type === 'thunder' && gameState.weather.zone.includes(newPos)) {
                     visitedEvents.push(`thunder_${newPos}`);
                     if (Math.random() < 0.5) {
                         let isStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] > 0 : gameState[myPlayerId].stealthTurns > 0;
@@ -2872,17 +2557,14 @@
                         } else { 
                             animKeyframes.push(`⚡ 轰隆！不幸遭雷击坠毁！`); logs.push(`⚡ 轰隆！不幸遭雷击坠毁！`); 
                             let died = killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes); 
-                            newPos = myPieces[pieceIndex];
-                            animKeyframes.push(newPos);
-                            if(died) { myStats.thunderHits++; }
+                            if(died) { newPos = -1; animKeyframes.push(newPos); myStats.thunderHits++; } else { newPos = myPieces[pieceIndex]; animKeyframes.push(newPos); }
                         }
                     } else { animKeyframes.push(`⛈ 惊险穿过雷暴区。`); logs.push(`⛈ 惊险穿过雷暴区。`); }
                 }
 
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`mine_${newPos}`) && oppMines.includes(newPos)) {
                     visitedEvents.push(`mine_${newPos}`);
-                    const mIdx = oppMines.indexOf(newPos);
-                    if (mIdx !== -1) oppMines.splice(mIdx, 1);
+                    oppMines = oppMines.filter(m => m !== newPos);
                     if (gameState[myPlayerId].trait === 'engineer') {
                         animKeyframes.push(`🛠️ 完美拆解水雷！`); logs.push(`🛠️ ${myName} 的【王牌工兵】轻松排除了隐藏的水雷，并将其重组为随机物资！`);
                         myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
@@ -2891,11 +2573,9 @@
                         animKeyframes.push(`🛩️ 侦察机排除了水雷！`); logs.push(`🛩️ ${myName} 的侦察机看破并安全排除了隐形水雷！`);
                     } else {
                         animKeyframes.push(`💣 踩中水雷，致盲并退后 3 格！`); logs.push(`💣 轰隆！踩中水雷，退后 3 格，并遭受严重【致盲】3回合！`); playSound('boom');
-                        let mineRes = calculateDestination(myPlayerId, newPos, -3, currentBarricades); newPos = mineRes.pos; myPieces[pieceIndex] = newPos; animKeyframes.push(...mineRes.path);
+                        let mineRes = calculateDestination(myPlayerId, newPos, -3, currentBarricades); newPos = mineRes.pos; animKeyframes.push(...mineRes.path);
                         if(mineRes.hitBarricadePos !== -1) { animKeyframes.push(`🚧 撞上路障！`); logs.push(`🚧 撞上路障！`); consumeBarricade(mineRes.hitBarricadePos); }
-                        stateUpdate[`${myPlayerId}.blindTurns`] = 3;
-                        triggeredBlindThisTurn = true;
-                        myStats.minesTriggered++;
+                        stateUpdate[`${myPlayerId}.blindTurns`] = 3; myStats.minesTriggered++;
                     }
                 }
 
@@ -2961,32 +2641,23 @@
                                         extraTurn = true; 
                                     }
                                 } else if (myRoll < oppRoll) {
-                                    killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes);
-                                    newPos = myPieces[pieceIndex];
-                                    animKeyframes.push(newPos);
+                                    let died = killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes);
+                                    if (died) { newPos = -1; myPieces[pieceIndex] = -1; } else { newPos = myPieces[pieceIndex]; }
                                     logs.push(`💥 决斗败北！遗憾坠毁！`); oppStats.kills++; myStats.pacifist = false; oppStats.duelsWon++;
                                 } else {
                                     logs.push(`⚔️ 势均力敌！各退避 2 格！`);
-                                    let duelRes = calculateDestination(myPlayerId, newPos, -2, []); newPos = duelRes.pos; myPieces[pieceIndex] = newPos; animKeyframes.push(...duelRes.path); 
+                                    let duelRes = calculateDestination(myPlayerId, newPos, -2, []); newPos = duelRes.pos; animKeyframes.push(...duelRes.path); 
                                     let oppDuelRes = calculateDestination(oppId, oppPieces[i], -2, []); oppPieces[i] = oppDuelRes.pos;
                                     
-                                    // 先记录并移除水雷坐标，再执行战机坠毁逻辑，修复退避踩雷无法清除水雷的 Bug
-                                    const myMineHitIdx = oppMines.indexOf(newPos);
-                                    if (myMineHitIdx !== -1) { 
-                                        oppMines.splice(myMineHitIdx, 1);
-                                        myStats.minesTriggered++;
+                                    if (oppMines.includes(newPos)) { 
                                         logs.push(`💣 ${myName} 退避时踩中水雷坠毁！`); 
-                                        killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes);
-                                        newPos = myPieces[pieceIndex];
-                                        animKeyframes.push(newPos);
+                                        newPos = -1;
+                                        oppMines = oppMines.filter(m => m !== newPos);
                                     }
-                                    const oppRetreatPos = oppPieces[i];
-                                    const oppMineHitIdx = myMines.indexOf(oppRetreatPos);
-                                    if (oppMineHitIdx !== -1) { 
-                                        myMines.splice(oppMineHitIdx, 1);
-                                        oppStats.minesTriggered++;
+                                    if (myMines.includes(oppPieces[i])) { 
                                         logs.push(`💣 敌机退避时踩中水雷坠毁！`); 
-                                        killPlane(i, oppId, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons, stateUpdate, logs, null);
+                                        oppPieces[i] = -1;
+                                        myMines = myMines.filter(m => m !== oppPieces[i]);
                                     }
                                     myPieces[pieceIndex] = newPos;
                                 }
@@ -2996,7 +2667,7 @@
                     }
                 }
                 
-                if (duelOccurred && !isWingman && newPos >= 0 && newPos <= 43 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 战绩赫赫！晋升为【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
+                if (duelOccurred && !isWingman && newPos !== -1 && !myAces[pieceIndex]) { myAces[pieceIndex] = true; animKeyframes.push(`👑 战绩赫赫！晋升为【王牌】！`); logs.push(`👑 战绩赫赫！战机晋升为【王牌】！`); }
             }
 
             let isWhiteCell = !itemCellIndices.includes(newPos) && !eventCellIndices.includes(newPos) && !oppMines.includes(newPos) && !duelOccurred && !hasHitPirate && newPos !== 999;
@@ -3039,8 +2710,7 @@
                     }
                 });
                 
-                let activeBoss = stateUpdate.boss || gameState.boss;
-                let bossPos = (activeBoss && (!activeBoss.respawnTimer || activeBoss.respawnTimer <= 0)) ? activeBoss.pos : -1;
+                let bossPos = stateUpdate.boss ? stateUpdate.boss.pos : (gameState.boss ? gameState.boss.pos : -1);
                 if (bossPos >= 0 && bossPos <= 43) {
                     let dist1 = Math.abs(bossPos - newPos); let dist2 = 44 - dist1;
                     if (Math.min(dist1, dist2) <= 3) {
@@ -3050,7 +2720,8 @@
                         logs.push(`🔥 星际海盗被轰炸波及，扣除 2 点生命值！(剩余HP: ${bossState.hp})`);
                         
                         if (bossState.hp <= 0) {
-                            myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems, myStats);
+                            myItems = handleBossDefeat(myPlayerId, stateUpdate, logs, bossState, myItems);
+                            extraTurn = true;
                         }
                         stateUpdate.boss = bossState;
                         didBomb = true;
@@ -3058,11 +2729,9 @@
                 }
 
                 if (enemyBomberHit) { 
-                    killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes); 
-                    newPos = myPieces[pieceIndex];
-                    animKeyframes.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`);
-                    animKeyframes.push(newPos);
-                    logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); 
+                    let selfDied = killPlane(pieceIndex, myPlayerId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes); 
+                    if (selfDied) newPos = -1; else newPos = myPieces[pieceIndex];
+                    animKeyframes.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); logs.push(`💥 炸毁敌方轰炸机引发殉爆！同归于尽！`); 
                 }
 
                 if (didBomb) {
@@ -3074,20 +2743,19 @@
             }
 
             if (gameState[myPlayerId].trait === 'assassin' && (dice === 1 || dice === 2)) {
-                const currStealth = stateUpdate[`${myPlayerId}.stealthTurns`] !== undefined ? stateUpdate[`${myPlayerId}.stealthTurns`] : (gameState[myPlayerId].stealthTurns || 0);
-                stateUpdate[`${myPlayerId}.stealthTurns`] = Math.max(currStealth, 2);
+                stateUpdate[`${myPlayerId}.stealthTurns`] = 2;
                 logs.push(`🥷 【暗影刺客】发力，悄然借势遁入阴影，全体获得 1 回合【光学迷彩】！`);
                 animKeyframes.push(`🥷 暗影隐匿`);
             }
 
-            if (newPos === 999 && isWingman) {
-                myRecons[4] = false;
-            }
-
-            stateUpdate[`${myPlayerId}.shield`] = myShield;
-            stateUpdate[`${oppId}.shield`] = oppShield;
-            stateUpdate.cellEvents = myCellEvents;
-            stateUpdate.cellItems = myCellItems;
+            stateUpdate[`${myPlayerId}.pieces`] = myPieces; stateUpdate[`${myPlayerId}.aces`] = myAces; stateUpdate[`${myPlayerId}.items`] = myItems; 
+            stateUpdate[`${myPlayerId}.shield`] = myShield; stateUpdate[`${myPlayerId}.bombers`] = myBombers; stateUpdate[`${myPlayerId}.frigates`] = myFrigates; 
+            stateUpdate[`${myPlayerId}.recons`] = myRecons; stateUpdate[`${myPlayerId}.mines`] = myMines; stateUpdate[`${myPlayerId}.stats`] = myStats;
+            
+            stateUpdate[`${oppId}.pieces`] = oppPieces; stateUpdate[`${oppId}.aces`] = oppAces; stateUpdate[`${oppId}.shield`] = oppShield; 
+            stateUpdate[`${oppId}.bombers`] = oppBombers; stateUpdate[`${oppId}.frigates`] = oppFrigates; stateUpdate[`${oppId}.recons`] = oppRecons; 
+            stateUpdate[`${oppId}.mines`] = oppMines; stateUpdate[`${oppId}.items`] = oppItems; stateUpdate[`${oppId}.stats`] = oppStats;
+            stateUpdate.cellEvents = myCellEvents; stateUpdate.cellItems = myCellItems;
             
             const allFinished = myPieces.slice(0,4).every(p => p === 999);
             if (allFinished) { stateUpdate.winner = myPlayerId; stateUpdate.status = 'finished'; logs.push(`🏆 恭喜 ${myName} 获得胜利！`); }
@@ -3099,17 +2767,20 @@
                 nextTurn = myPlayerId; logs.push((extraTurn && Math.abs(dice) !== 6) ? `🔄 获得额外回合！` : `🎲 掷出 6 点，额外回合！`); 
             } 
             else if (!allFinished) { 
-                nextTurn = oppId;
-                decrementStatuses(myPlayerId, stateUpdate, logs, triggeredBlindThisTurn);
-                updateWeatherTurn(stateUpdate, logs);
-                checkCatastrophe(stateUpdate, logs); 
-                moveBoss(stateUpdate, logs);
-                moveHolograms(stateUpdate, logs);
+                nextTurn = oppId; decrementStatuses(myPlayerId, stateUpdate, logs); updateWeatherTurn(stateUpdate, logs); checkCatastrophe(stateUpdate, logs); 
+                moveBoss(stateUpdate, logs); moveHolograms(stateUpdate, logs);
             }
 
-            if (!allFinished) {
-                const extraOwner = consumePendingExtraTurn(stateUpdate, logs);
-                if (extraOwner) nextTurn = extraOwner;
+            if (stateUpdate.pendingExtraTurn) {
+                nextTurn = stateUpdate.pendingExtraTurn;
+                let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                stateUpdate.pendingExtraTurn = null; 
+            } else if (gameState.pendingExtraTurn && stateUpdate.pendingExtraTurn !== null) { 
+                nextTurn = gameState.pendingExtraTurn;
+                let tName = nextTurn === 'p1' ? gameState.p1.name : gameState.p2.name;
+                logs.push(`🔄 击溃星际海盗特权生效，${tName} 获得该回合的控制权！`);
+                stateUpdate.pendingExtraTurn = null; 
             }
 
             if (pickedItemsCount > 0 && !allFinished) {
@@ -3126,7 +2797,12 @@
             
             stateUpdate.logs = logs; stateUpdate.latestMove = { p: myPlayerId, i: pieceIndex, path: animKeyframes, ts: Date.now() };
             
-            applyStateUpdateLocally(stateUpdate);
+            gameState = { ...gameState, ...stateUpdate };
+            ['pieces','aces','items','shield','bombers','frigates','recons','mines','stats', 'holograms'].forEach(k => {
+                if(stateUpdate[`${myPlayerId}.${k}`] !== undefined) gameState[myPlayerId][k] = stateUpdate[`${myPlayerId}.${k}`];
+                if(stateUpdate[`${oppId}.${k}`] !== undefined) gameState[oppId][k] = stateUpdate[`${oppId}.${k}`];
+            });
+
             requestAnimationFrame(renderGameState); getRoomRef(currentRoomId).update(stateUpdate).catch(e => console.error(e));
         };
 
@@ -3153,36 +2829,20 @@
             return { pos: actualPos, hitBarricadePos, path };
         }
 
-        window.showToast = function(msg) {
-            const toast = document.getElementById('toast');
-            if (!toast) return;
-            if (toastTimer) clearTimeout(toastTimer);
-            toast.innerText = msg;
-            toast.classList.remove('hidden', 'toast-animate');
-            void toast.offsetWidth;
-            toast.classList.add('toast-animate');
-            toastTimer = setTimeout(() => {
-                toast.classList.add('hidden');
-                toast.classList.remove('toast-animate');
-                toastTimer = null;
-            }, 3000);
-        };
+        window.showToast = function(msg) { const toast = document.getElementById('toast'); toast.innerText = msg; toast.classList.remove('hidden'); toast.classList.add('toast-animate'); setTimeout(() => { toast.classList.add('hidden'); toast.classList.remove('toast-animate'); }, 3000); };
         window.closeMsgModal = function() { document.getElementById('msgModalContent').classList.add('scale-95'); setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200); };
 
         window.resetGame = async function() {
             if (!currentRoomId || !gameState) return;
             const nextTurn = gameState.winner === 'p1' ? 'p2' : 'p1';
-            clearSelectionModes();
             window.myTraitOptions = null;
             window.hasSyncedLeaderboard = false;
-            window.hasShownWinnerModal = false;
-            window.isStartingGame = false;
             await getRoomRef(currentRoomId).update({
                 status: 'selecting_trait',
                 'p1.trait': null, 'p1.pieces': [-1,-1,-1,-1,999], 'p1.aces': [false,false,false,false,false], 'p1.items':[], 'p1.shield':false, 'p1.bombers':[false,false,false,false,false], 'p1.frigates':[false,false,false,false,false], 'p1.recons':[false,false,false,false,false], 'p1.mines':[], 'p1.holograms':[], 'p1.missCount':0, 'p1.skipTurns':0, 'p1.stats': { kills:0, thunderHits:0, pacifist: true, minesTriggered: 0, duelsWon:0, itemsPicked:0, rollsCount:0 }, 'p1.stealthTurns':0, 'p1.blindTurns':0,
                 'p2.trait': null, 'p2.pieces': [-1,-1,-1,-1,999], 'p2.aces': [false,false,false,false,false], 'p2.items':[], 'p2.shield':false, 'p2.bombers':[false,false,false,false,false], 'p2.frigates':[false,false,false,false,false], 'p2.recons':[false,false,false,false,false], 'p2.mines':[], 'p2.holograms':[], 'p2.missCount':0, 'p2.skipTurns':0, 'p2.stats': { kills:0, thunderHits:0, pacifist: true, minesTriggered: 0, duelsWon:0, itemsPicked:0, rollsCount:0 }, 'p2.stealthTurns':0, 'p2.blindTurns':0,
                 barricades: [], turn: nextTurn, diceValue: null, hasRolled: false, winner: null, energyLevel: 0,
-                weather: {type: 'normal', remainingTurns:0, zone:[]}, envZone: {type:null, indices:[]}, wormholes: [], isPicking: null, pickingCount: 0,
+                weather: {type: 'normal', remainingTurns:0, zone:[]}, envZone: {type:null, indices:[]}, wormholes: [], isPicking: null,
                 cellEvents: generateInitialCellEvents(), cellItems: generateInitialCellItems(), 
                 boss: { pos: Math.floor(Math.random()*44), type: 'pirate', hp: 6, respawnTimer: 0 },
                 pendingExtraTurn: null,
