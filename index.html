@@ -197,6 +197,57 @@
             </div>
         </div>
     </div>
+
+    <!-- ============================================== -->
+    <!-- 📋 待办心愿与事项中心弹窗 (单列表汇总视图) -->
+    <!-- ============================================== -->
+    <div id="pendingCenterModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[92] hidden flex items-center justify-center p-3 sm:p-4 opacity-0 transition-opacity duration-300" onclick="if(event.target === this) closePendingCenterModal()">
+        <div class="bg-white/95 backdrop-blur-xl rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-lg max-h-[85vh] shadow-2xl flex flex-col border-4 border-rose-100 transform scale-95 transition-transform duration-300 relative overflow-hidden" id="pendingCenterModalContent">
+            
+            <div class="absolute -right-16 -top-16 w-48 h-48 bg-rose-100/50 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -left-16 -bottom-16 w-48 h-48 bg-pink-100/50 rounded-full blur-3xl pointer-events-none"></div>
+
+            <!-- 弹窗头部 -->
+            <div class="relative p-5 sm:p-6 pb-4 border-b border-rose-100/70 shrink-0 z-10">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-rose-400 to-pink-500 text-white flex items-center justify-center text-xl shadow-sm">
+                            📋
+                        </div>
+                        <div class="text-left">
+                            <div class="flex items-center gap-2">
+                                <h2 class="text-lg sm:text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-rose-500 to-pink-500 tracking-wide">
+                                    待办心愿与事项中心
+                                </h2>
+                                <span id="pendingModalCountBadge" class="bg-rose-100 text-rose-600 text-[11px] font-black px-2 py-0.5 rounded-full border border-rose-200">0</span>
+                            </div>
+                            <p class="text-[11px] sm:text-xs text-gray-400 font-medium mt-0.5">各模块未完成项目汇总（每类仅显示一条）</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="fetchAllPendingItems(true)" id="refreshPendingBtn" title="刷新待办数据" class="bg-rose-50 hover:bg-rose-100 text-rose-500 w-8 h-8 rounded-full flex items-center justify-center transition-all text-sm font-bold shadow-sm active:scale-95">
+                            🔄
+                        </button>
+                        <button onclick="closePendingCenterModal()" class="bg-gray-50 hover:bg-rose-50 text-gray-400 hover:text-rose-500 w-8 h-8 rounded-full flex items-center justify-center transition-all text-base font-bold shadow-sm">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 弹窗内部待办列表 -->
+            <div id="pendingItemsContainer" class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-grow space-y-2.5 z-10">
+                <div class="text-center py-10 text-rose-300 text-sm animate-pulse">正在读取各模块未完成项目...</div>
+            </div>
+
+            <!-- 底部快捷提示 -->
+            <div class="px-5 py-3 bg-rose-50/50 border-t border-rose-100/60 flex items-center justify-between text-[11px] text-gray-400 shrink-0 z-10">
+                <span id="pendingFooterSummary">点击任意卡片即可直达对应页面完成</span>
+                <button onclick="closePendingCenterModal()" class="text-rose-500 font-bold hover:underline">收起面板</button>
+            </div>
+        </div>
+    </div>
     
     <!-- ============================================== -->
     <!-- 🏠 主菜单区域 (精美的 4 大板块 - 强制双列) -->
@@ -214,39 +265,40 @@
             </div>
         </header>
 
-        <!-- ====== 通知字条区域 (宽横条排列 - 默认隐藏) ====== -->
-        <div id="notificationArea" class="w-full max-w-sm mx-auto mb-8 px-2 flex flex-col gap-3 justify-center relative z-20">
-            
-            <!-- 未读悄悄话通知字条 (默认隐藏) -->
-            <div id="unreadDiaryNotice" class="hidden w-full cursor-pointer transition-all duration-300 transform hover:-translate-y-1" onclick="window.location.href='diary.html'">
-                <div class="bg-gradient-to-r from-purple-400 to-pink-500 rounded-2xl p-3.5 shadow-lg shadow-pink-200 border-2 border-white/50 flex items-center justify-between relative overflow-hidden">
-                    <div class="absolute -right-4 -top-4 w-20 h-20 bg-white/20 rounded-full blur-xl"></div>
-                    <div class="flex items-center gap-3 relative z-10">
-                        <span id="unreadIcon" class="text-3xl hover-wiggle drop-shadow-sm">💌</span>
-                        <div class="flex flex-col text-left">
-                            <span id="unreadTitleText" class="text-white font-black text-base drop-shadow-sm tracking-wide">悄悄话信箱</span>
-                            <span id="unreadCountText" class="text-rose-100 text-xs font-medium">正在看看TA有没有留言...</span>
-                        </div>
-                    </div>
-                    <div class="relative z-10 bg-white text-rose-500 text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1">
-                        去看看 <span class="text-[10px]">▶</span>
-                    </div>
-                </div>
-            </div>
+        <!-- ====== 顶部紧凑待办入口区域 (已移除原独立未读消息与小任务横条) ====== -->
+        <div id="notificationArea" class="w-full max-w-sm sm:max-w-md mx-auto mb-6 sm:mb-8 px-2 flex flex-col gap-2.5 justify-center relative z-20">
 
-            <!-- 今日任务通知字条 (默认隐藏) -->
-            <div id="taskNoticeSlip" class="hidden w-full cursor-pointer transition-all duration-300 transform hover:-translate-y-1" onclick="openTaskModal()">
-                <div class="bg-gradient-to-r from-orange-400 to-rose-400 rounded-2xl p-3.5 shadow-lg shadow-rose-200 border-2 border-white/50 flex items-center justify-between relative overflow-hidden">
-                    <div class="absolute -left-4 -bottom-4 w-20 h-20 bg-white/20 rounded-full blur-xl"></div>
-                    <div class="flex items-center gap-3 relative z-10">
-                        <span class="text-3xl hover-wiggle drop-shadow-sm">🎁</span>
-                        <div class="flex flex-col text-left">
-                            <span class="text-white font-black text-base drop-shadow-sm tracking-wide">今日心动任务</span>
-                            <span id="taskSlipStatusText" class="text-rose-100 text-xs font-medium">正在同步云端数据...</span>
+            <!-- 待办心愿与事项中心入口条 (紧凑胶囊横条) -->
+            <div id="pendingCenterSlip" class="w-full cursor-pointer transition-all duration-300 transform hover:-translate-y-1" onclick="openPendingCenterModal()">
+                <div class="bg-white/90 backdrop-blur-xl rounded-2xl p-3.5 shadow-md hover:shadow-lg border-2 border-rose-200/80 flex flex-col gap-2 relative overflow-hidden">
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-gradient-to-br from-rose-200/40 to-pink-200/40 rounded-full blur-xl pointer-events-none"></div>
+                    
+                    <div class="flex items-center justify-between relative z-10">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 text-white flex items-center justify-center text-lg shadow-sm shrink-0 relative">
+                                <span>📋</span>
+                                <span id="pendingPulseDot" class="hidden absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-500"></span>
+                                </span>
+                            </div>
+                            <div class="flex flex-col text-left min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="text-gray-800 font-black text-sm sm:text-base tracking-wide truncate">待办心愿与事项</span>
+                                    <span id="pendingSlipCountBadge" class="bg-rose-100 text-rose-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-200 shrink-0">同步中</span>
+                                </div>
+                                <span id="pendingSlipDescText" class="text-gray-400 text-[11px] font-medium truncate">正在汇总各模块待完成项目...</span>
+                            </div>
+                        </div>
+                        <div class="relative z-10 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm flex items-center gap-1 shrink-0 ml-2">
+                            <span>待办清单</span>
+                            <span class="text-[10px]">▶</span>
                         </div>
                     </div>
-                    <div class="relative z-10 bg-white text-rose-500 text-xs font-bold px-3 py-1.5 rounded-full shadow-md flex items-center gap-1">
-                        去完成 <span class="text-[10px]">▶</span>
+
+                    <!-- 紧凑模块标签行 -->
+                    <div id="pendingSlipTagsRow" class="hidden flex-wrap gap-1.5 pt-1 border-t border-rose-100/60 relative z-10">
+                        <!-- JS 动态渲染待完成模块小胶囊 -->
                     </div>
                 </div>
             </div>
@@ -436,11 +488,545 @@
         };
 
         // ========================================================
-        // 💌 新增：获取悄悄话未读消息逻辑
+        // 📋 新增：全站各模块「待办心愿与未完成事项」聚合中心 (每模块合并为单条)
+        // ========================================================
+        let allPendingItems = [];
+        let isFetchingPending = false;
+
+        function escapePendingHtml(str) {
+            if (!str) return '';
+            return String(str).replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+        }
+
+        function openPendingCenterModal() {
+            renderPendingModal();
+            const modal = document.getElementById('pendingCenterModal');
+            const content = document.getElementById('pendingCenterModalContent');
+            if (!modal || !content) return;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            });
+        }
+
+        function closePendingCenterModal() {
+            const modal = document.getElementById('pendingCenterModal');
+            const content = document.getElementById('pendingCenterModalContent');
+            if (!modal || !content) return;
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+        }
+
+        async function fetchAllPendingItems(forceToast = false) {
+            const myIdentity = localStorage.getItem('loveGacha_myIdentity');
+            const token = localStorage.getItem('loveGacha_githubToken');
+            if (!myIdentity || !token || isFetchingPending) return;
+
+            isFetchingPending = true;
+            const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
+            const myPrefix = (myIdentity === '哼哼') ? 'h' : 'q';
+            const partnerPrefix = (partnerIdentity === '哼哼') ? 'h' : 'q';
+
+            const refreshBtn = document.getElementById('refreshPendingBtn');
+            if (refreshBtn) refreshBtn.classList.add('animate-spin');
+
+            try {
+                const now = new Date();
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+
+                const [
+                    cqgRes,
+                    moviesRes,
+                    partnerTwRes,
+                    myTwRes,
+                    dagRes,
+                    partnerCkRes,
+                    myCkRes,
+                    partnerMhjlRes,
+                    myMhjlRes,
+                    cwRes,
+                    myPetActRes,
+                    djsRes,
+                    myTaskRes,
+                    partnerTaskRes,
+                    partnerDiaryRes
+                ] = await Promise.all([
+                    fetchFile('data/cqg.json'),
+                    fetchFile('data/movies.json'),
+                    fetchFile(`data/${partnerPrefix}tw.json`),
+                    fetchFile(`data/${myPrefix}tw.json`),
+                    fetchFile('data/dag.json'),
+                    fetchFile(`data/${partnerPrefix}ck.json`),
+                    fetchFile(`data/${myPrefix}ck.json`),
+                    fetchFile(`data/${partnerPrefix}mhjl.json`),
+                    fetchFile(`data/${myPrefix}mhjl.json`),
+                    fetchFile('data/cw.json'),
+                    fetchFile(`data/${myIdentity === '哼哼' ? 'Hcw' : 'Qcw'}.json`),
+                    fetchFile('data/djs.json'),
+                    fetchFile(`data/${myPrefix}.json`),
+                    fetchFile(`data/${partnerPrefix}.json`),
+                    fetchFile(`data/${partnerIdentity === '哼哼' ? 'Hrj' : 'Qrj'}.json`)
+                ]);
+
+                const items = [];
+
+                // 1. 悄悄话与时光胶囊 (diary.html -> 合并为 1 条)
+                const partnerDiaries = (partnerDiaryRes.data && Array.isArray(partnerDiaryRes.data.diaries)) ? partnerDiaryRes.data.diaries : [];
+                const lastReadTime = parseInt(localStorage.getItem('loveGacha_diaryLastRead')) || 0;
+                const nowMs = Date.now();
+                let unreadDiaryNum = 0;
+                let readyCapsuleNum = 0;
+
+                partnerDiaries.forEach(d => {
+                    const isCapsule = d.unlockTime !== undefined && d.unlockTime !== null;
+                    if (isCapsule && nowMs >= d.unlockTime && !d.opened) {
+                        readyCapsuleNum++;
+                    } else if (!isCapsule) {
+                        const msgTime = typeof d.time === 'number' ? d.time : new Date(String(d.time).replace(/-/g, '/')).getTime();
+                        if (msgTime > lastReadTime) unreadDiaryNum++;
+                    }
+                });
+
+                if (unreadDiaryNum > 0 || readyCapsuleNum > 0) {
+                    const parts = [];
+                    if (unreadDiaryNum > 0) parts.push(`${unreadDiaryNum} 条未读留言`);
+                    if (readyCapsuleNum > 0) parts.push(`${readyCapsuleNum} 封到期时光胶囊`);
+                    items.push({
+                        icon: readyCapsuleNum > 0 ? '⏳' : '💌',
+                        moduleName: '悄悄话',
+                        tagText: parts.join(' · '),
+                        tagColor: 'bg-purple-50 text-purple-600 border-purple-200',
+                        title: `悄悄话信箱有 ${parts.join('、')} 待查收`,
+                        desc: `来自 ${partnerIdentity} 的专属留言或已解锁胶囊，快去拆阅吧~`,
+                        url: 'diary.html',
+                        btnText: '去信箱'
+                    });
+                }
+
+                // 2. 今日心动任务 (task.html -> 合并为 1 条)
+                const myTaskMap = myTaskRes.data || {};
+                const partnerTaskMap = partnerTaskRes.data || {};
+                const myTodayTask = myTaskMap[todayStr];
+                const partnerTodayTask = partnerTaskMap[todayStr];
+
+                const myTaskDone = !!(myTodayTask && myTodayTask.myTaskCompleted);
+                const partnerTaskDone = !!(partnerTodayTask && partnerTodayTask.myTaskCompleted);
+
+                if (!myTaskDone || !partnerTaskDone) {
+                    let tagText = '';
+                    let title = '';
+                    let desc = '';
+                    if (!myTodayTask) {
+                        tagText = '今日未抽卡';
+                        title = '我的今日心动任务尚未抽取';
+                        desc = partnerTodayTask
+                            ? `${partnerIdentity} 已抽「${partnerTodayTask.text}」(${partnerTaskDone ? '已完成' : '未完成'})`
+                            : `${partnerIdentity} 今天也还没抽卡哦，快去抽取今日恋爱盲盒~`;
+                    } else if (!myTaskDone) {
+                        tagText = '今日待打卡';
+                        title = `今日任务待完成：${myTodayTask.text || '心动小事'}`;
+                        desc = `我的状态：未完成 · ${partnerIdentity}：${!partnerTodayTask ? '未抽卡' : (partnerTaskDone ? '已完成✅' : '进行中')}`;
+                    } else {
+                        tagText = `${partnerIdentity}待完成`;
+                        title = `我已完成今日任务，等待 ${partnerIdentity} 完成打卡`;
+                        desc = partnerTodayTask
+                            ? `${partnerIdentity} 的今日任务：「${partnerTodayTask.text}」尚未完成`
+                            : `${partnerIdentity} 今天还没有抽取心动任务哦~`;
+                    }
+                    items.push({
+                        icon: '🎁',
+                        moduleName: '小任务',
+                        tagText,
+                        tagColor: !myTaskDone ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-500 border-blue-200',
+                        title,
+                        desc,
+                        url: 'task.html',
+                        btnText: '去任务'
+                    });
+                }
+
+                // 3. 养儿子 / 宠物照顾 (pet.html -> 包含今日照顾互动、传书纸条、灵魂共鸣，合并为 1 条)
+                const cwData = cwRes.data || {};
+                const myActList = Array.isArray(myPetActRes.data) ? myPetActRes.data : [];
+                const PET_CARE_ACTIONS = [
+                    { id: 'feed', name: '喂零食' },
+                    { id: 'fan', name: '扔飞盘' },
+                    { id: 'water', name: '洗个澡' },
+                    { id: 'tickle', name: '挠痒痒' },
+                    { id: 'walk', name: '去遛弯' },
+                    { id: 'brush', name: '梳梳毛' },
+                    { id: 'train', name: '特训' }
+                ];
+
+                if (!cwData || !cwData.name) {
+                    items.push({
+                        icon: '🐾',
+                        moduleName: '养儿子',
+                        tagText: '待唤醒领养',
+                        tagColor: 'bg-orange-50 text-orange-600 border-orange-200',
+                        title: '尚未唤醒你们的赛博毛孩子',
+                        desc: '快去给儿子起个名字，开启共同抚养之旅吧~',
+                        url: 'pet.html',
+                        btnText: '去唤醒'
+                    });
+                } else {
+                    const remainingCare = PET_CARE_ACTIONS.filter(act => {
+                        const usedToday = myActList.some(log => log.action === act.id && Number(log.time) >= todayStart);
+                        return !usedToday;
+                    });
+                    const doneCareCount = PET_CARE_ACTIONS.length - remainingCare.length;
+                    const carePct = Math.round((doneCareCount / PET_CARE_ACTIONS.length) * 100);
+
+                    const hasUnreadLetter = !!(cwData.letter && (cwData.letter.text || cwData.letter.content) && cwData.letter.sender === partnerIdentity);
+                    const isResonanceToday = cwData.resonance && cwData.resonance.date === todayStr;
+                    const myResonanceReady = isResonanceToday ? (myIdentity === '哼哼' ? cwData.resonance.h_ready : cwData.resonance.q_ready) : false;
+                    const partnerResonanceReady = isResonanceToday ? (myIdentity === '哼哼' ? cwData.resonance.q_ready : cwData.resonance.h_ready) : false;
+
+                    if (remainingCare.length > 0 || hasUnreadLetter || !myResonanceReady) {
+                        const tags = [];
+                        if (remainingCare.length > 0) tags.push(`待照顾 ${remainingCare.length} 项`);
+                        if (hasUnreadLetter) tags.push('有新纸条💌');
+                        if (!myResonanceReady) tags.push(partnerResonanceReady ? 'TA等你共鸣✨' : '待灵魂共鸣');
+
+                        const descParts = [];
+                        if (remainingCare.length > 0) {
+                            descParts.push(`未做：${remainingCare.map(a => a.name).join('、')}`);
+                        } else {
+                            descParts.push('今日日常照顾已完成');
+                        }
+                        if (hasUnreadLetter) descParts.push(`收到 ${partnerIdentity} 的传书纸条`);
+                        if (!myResonanceReady) descParts.push(partnerResonanceReady ? `${partnerIdentity}已准备共鸣` : '今日尚未触发灵魂共鸣');
+
+                        items.push({
+                            icon: '🐾',
+                            moduleName: '养儿子',
+                            tagText: tags.join(' · '),
+                            tagColor: 'bg-orange-50 text-orange-600 border-orange-200',
+                            title: `照顾「${cwData.name}」(${doneCareCount}/${PET_CARE_ACTIONS.length} 项已完成)`,
+                            desc: descParts.join(' | '),
+                            progress: carePct,
+                            url: 'pet.html',
+                            btnText: '去照顾'
+                        });
+                    }
+                }
+
+                // 4. 心愿存钱罐 (cqg.html -> 合并为 1 条)
+                const rawFund = cqgRes.data || {};
+                let wishFunds = [];
+                if (Array.isArray(rawFund.wishFunds)) {
+                    wishFunds = rawFund.wishFunds;
+                } else if (rawFund.targetPoints) {
+                    wishFunds = [{
+                        id: 1,
+                        targetName: rawFund.targetName || '神秘心愿',
+                        targetPoints: rawFund.targetPoints,
+                        currentTotal: rawFund.currentTotal || 0
+                    }];
+                }
+                const ongoingWishes = wishFunds.filter(g => Number(g.currentTotal || 0) < Number(g.targetPoints || 1));
+                if (ongoingWishes.length > 0) {
+                    const topWish = ongoingWishes[0];
+                    const cur = Number(topWish.currentTotal || 0);
+                    const tar = Number(topWish.targetPoints || 1);
+                    const pct = Math.min(99, Math.floor((cur / tar) * 100));
+                    items.push({
+                        icon: '🐷',
+                        moduleName: '心愿存钱罐',
+                        tagText: `${ongoingWishes.length} 个心愿进行中`,
+                        tagColor: 'bg-amber-50 text-amber-600 border-amber-200',
+                        title: ongoingWishes.length === 1
+                            ? `正在存钱：${topWish.targetName || '共同心愿'} (${pct}%)`
+                            : `共有 ${ongoingWishes.length} 个共同心愿待存满（含「${topWish.targetName}」等）`,
+                        desc: `「${topWish.targetName}」已存 ${cur}/${tar} 积分，还差 ${tar - cur} 积分达成`,
+                        progress: pct,
+                        url: 'cqg.html',
+                        btnText: '去存钱'
+                    });
+                }
+
+                // 5. 观影放映室 (movie.html -> 合并为 1 条)
+                let moviesList = [];
+                if (moviesRes.data && Array.isArray(moviesRes.data.movies)) {
+                    moviesList = moviesRes.data.movies;
+                } else {
+                    try {
+                        const localMovies = JSON.parse(localStorage.getItem('loveGacha_movies') || '{}');
+                        if (Array.isArray(localMovies.movies)) moviesList = localMovies.movies;
+                    } catch (e) {}
+                }
+                const wantMovies = [];
+                const unratedMovies = [];
+                moviesList.forEach(m => {
+                    const ratings = m.ratings || {};
+                    const ratingKeys = Object.keys(ratings);
+                    if (ratingKeys.length === 0) wantMovies.push(m);
+                    else if (!ratings[myIdentity]) unratedMovies.push(m);
+                });
+
+                if (wantMovies.length > 0 || unratedMovies.length > 0) {
+                    const tagParts = [];
+                    if (wantMovies.length > 0) tagParts.push(`${wantMovies.length} 部想看未看`);
+                    if (unratedMovies.length > 0) tagParts.push(`${unratedMovies.length} 部待我打分`);
+                    const sampleNames = [...unratedMovies, ...wantMovies].slice(0, 2).map(m => `《${m.title}》`).join('、');
+                    items.push({
+                        icon: '🎬',
+                        moduleName: '观影放映室',
+                        tagText: tagParts.join(' · '),
+                        tagColor: 'bg-rose-50 text-rose-500 border-rose-200',
+                        title: `私人影院有 ${ tagParts.join('、') }`,
+                        desc: `包含 ${sampleNames}${(wantMovies.length + unratedMovies.length) > 2 ? ' 等影片' : ''}`,
+                        url: 'movie.html',
+                        btnText: '去影院'
+                    });
+                }
+
+                // 6. 默契大考验 (moqi.html -> 合并为 1 条)
+                const partnerQs = (partnerTwRes.data && Array.isArray(partnerTwRes.data.questions)) ? partnerTwRes.data.questions : [];
+                const myQs = (myTwRes.data && Array.isArray(myTwRes.data.questions)) ? myTwRes.data.questions : [];
+                const pendingForMe = partnerQs.filter(q => q.status === 'pending');
+                const pendingForPartner = myQs.filter(q => q.status === 'pending');
+
+                if (pendingForMe.length > 0 || pendingForPartner.length > 0) {
+                    const tagParts = [];
+                    if (pendingForMe.length > 0) tagParts.push(`${pendingForMe.length} 题待我作答`);
+                    if (pendingForPartner.length > 0) tagParts.push(`${pendingForPartner.length} 题待TA作答`);
+                    items.push({
+                        icon: '🎯',
+                        moduleName: '默契大考验',
+                        tagText: tagParts.join(' · '),
+                        tagColor: pendingForMe.length > 0 ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-500 border-blue-200',
+                        title: pendingForMe.length > 0
+                            ? `${partnerIdentity} 出了 ${pendingForMe.length} 道默契题等你挑战`
+                            : `我出的 ${pendingForPartner.length} 道默契题正等待 ${partnerIdentity} 作答`,
+                        desc: pendingForMe.length > 0
+                            ? `最新题目：「${pendingForMe[0].q}」`
+                            : `最新出题：「${pendingForPartner[0].q}」`,
+                        url: 'moqi.html',
+                        btnText: pendingForMe.length > 0 ? '去答题' : '去查看'
+                    });
+                }
+
+                // 7. 恋爱档案馆 (dag.html -> 合并为 1 条)
+                const dagEvents = (dagRes.data && Array.isArray(dagRes.data.events)) ? dagRes.data.events : [];
+                const unwrittenEvents = dagEvents.filter(ev => {
+                    const myRef = ev.reflections && ev.reflections[myIdentity];
+                    return !myRef || !String(myRef).trim();
+                });
+                if (unwrittenEvents.length > 0) {
+                    const sampleTitles = unwrittenEvents.slice(0, 2).map(e => `「${e.title || '未命名瞬间'}」`).join('、');
+                    items.push({
+                        icon: '🗂️',
+                        moduleName: '恋爱档案馆',
+                        tagText: `${unwrittenEvents.length} 篇待写感悟`,
+                        tagColor: 'bg-indigo-50 text-indigo-600 border-indigo-200',
+                        title: `共有 ${unwrittenEvents.length} 个档案事件待你补充专属感悟`,
+                        desc: `包含 ${sampleTitles}${unwrittenEvents.length > 2 ? ' 等档案记录' : ''}`,
+                        url: 'dag.html',
+                        btnText: '去写感悟'
+                    });
+                }
+
+                // 8. 恋爱商场 (shop.html -> 合并为 1 条)
+                const partnerShopPending = (partnerCkRes.data && Array.isArray(partnerCkRes.data.pendingUses)) ? partnerCkRes.data.pendingUses : [];
+                const myShopPending = (myCkRes.data && Array.isArray(myCkRes.data.pendingUses)) ? myCkRes.data.pendingUses : [];
+                if (partnerShopPending.length > 0 || myShopPending.length > 0) {
+                    const tagParts = [];
+                    if (partnerShopPending.length > 0) tagParts.push(`${partnerShopPending.length} 项待我核销`);
+                    if (myShopPending.length > 0) tagParts.push(`${myShopPending.length} 项待TA核销`);
+                    const firstReq = partnerShopPending[0] || myShopPending[0];
+                    items.push({
+                        icon: '🛍️',
+                        moduleName: '恋爱商场',
+                        tagText: tagParts.join(' · '),
+                        tagColor: partnerShopPending.length > 0 ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-gray-100 text-gray-600 border-gray-200',
+                        title: partnerShopPending.length > 0
+                            ? `${partnerIdentity} 有 ${partnerShopPending.length} 个商场道具使用请求待你核销`
+                            : `我有 ${myShopPending.length} 个商场道具申请等待 ${partnerIdentity} 核销`,
+                        desc: `包含「${firstReq.name || firstReq.itemName || firstReq.itemId || '道具'}」（核销码：${firstReq.code || '--'}）`,
+                        url: 'shop.html',
+                        btnText: '去商场'
+                    });
+                }
+
+                // 9. 惊喜盲盒 (manghe.html -> 合并为 1 条)
+                const partnerMhPending = (partnerMhjlRes.data && Array.isArray(partnerMhjlRes.data.pendingUses)) ? partnerMhjlRes.data.pendingUses : [];
+                const myFragments = (myMhjlRes.data && myMhjlRes.data.fragments && typeof myMhjlRes.data.fragments === 'object') ? myMhjlRes.data.fragments : {};
+                const fragList = Object.keys(myFragments).map(name => {
+                    const f = myFragments[name];
+                    const unique = Array.isArray(f?.pieces) ? new Set(f.pieces).size : 0;
+                    const total = Number(f?.total || 0);
+                    return { name, unique, total };
+                }).filter(f => f.total > 0);
+
+                if (partnerMhPending.length > 0 || fragList.length > 0) {
+                    const tagParts = [];
+                    if (partnerMhPending.length > 0) tagParts.push(`${partnerMhPending.length} 项待核销`);
+                    if (fragList.length > 0) tagParts.push(`${fragList.length} 个碎片目标`);
+                    const topFrag = fragList[0];
+                    const pct = topFrag ? Math.min(100, Math.floor((topFrag.unique / topFrag.total) * 100)) : undefined;
+
+                    items.push({
+                        icon: '🎁',
+                        moduleName: '惊喜盲盒',
+                        tagText: tagParts.join(' · '),
+                        tagColor: 'bg-purple-50 text-purple-600 border-purple-200',
+                        title: partnerMhPending.length > 0
+                            ? `${partnerIdentity} 有 ${partnerMhPending.length} 个盲盒奖励待你核销`
+                            : `正在收集「${topFrag.name}」等 ${fragList.length} 个高级盲盒碎片`,
+                        desc: topFrag
+                            ? `「${topFrag.name}」碎片进度：${topFrag.unique}/${topFrag.total}${partnerMhPending.length > 0 ? ` · 另有 ${partnerMhPending.length} 项待核销` : ''}`
+                            : `核销码：${partnerMhPending[0]?.code || '--'}`,
+                        progress: pct,
+                        url: 'manghe.html',
+                        btnText: '去盲盒'
+                    });
+                }
+
+                // 10. 时光纪念碑倒数日 (djs.html -> 合并为 1 条)
+                const countdowns = (djsRes.data && Array.isArray(djsRes.data.countdowns)) ? djsRes.data.countdowns : [];
+                const upcomingCds = [];
+                countdowns.forEach(cd => {
+                    if (!cd.date) return;
+                    const targetTime = new Date(String(cd.date).replace(/-/g, '/')).getTime();
+                    const diffDays = Math.ceil((targetTime - todayStart) / (1000 * 60 * 60 * 24));
+                    if (diffDays >= 0 && diffDays <= 30) {
+                        upcomingCds.push({ ...cd, diffDays });
+                    }
+                });
+                upcomingCds.sort((a, b) => a.diffDays - b.diffDays);
+
+                if (upcomingCds.length > 0) {
+                    const nearest = upcomingCds[0];
+                    items.push({
+                        icon: nearest.icon || '⏳',
+                        moduleName: '时光纪念碑',
+                        tagText: nearest.diffDays === 0 ? '就是今天🎉' : `最近还有 ${nearest.diffDays} 天`,
+                        tagColor: nearest.diffDays <= 7 ? 'bg-rose-100 text-rose-600 border-rose-200' : 'bg-sky-50 text-sky-600 border-sky-200',
+                        title: upcomingCds.length === 1
+                            ? `期待的日子：${nearest.name || nearest.title || '纪念日'}`
+                            : `近期共有 ${upcomingCds.length} 个期待的日子即将到来`,
+                        desc: `最近：「${nearest.name || nearest.title || '纪念日'}」（${nearest.date}）`,
+                        url: 'djs.html',
+                        btnText: '去查看'
+                    });
+                }
+
+                allPendingItems = items;
+                updatePendingSlipUI();
+                const modal = document.getElementById('pendingCenterModal');
+                if (modal && !modal.classList.contains('hidden')) {
+                    renderPendingModal();
+                }
+                if (forceToast) showToast(`已同步最新待办，共 ${items.length} 个模块待完成 ✨`);
+            } catch (err) {
+                console.error("Failed to fetch pending items:", err);
+                if (forceToast) showToast("部分待办同步失败，请稍后重试");
+            } finally {
+                isFetchingPending = false;
+                if (refreshBtn) refreshBtn.classList.remove('animate-spin');
+            }
+        }
+
+        function updatePendingSlipUI() {
+            const countBadge = document.getElementById('pendingSlipCountBadge');
+            const descText = document.getElementById('pendingSlipDescText');
+            const tagsRow = document.getElementById('pendingSlipTagsRow');
+            const pulseDot = document.getElementById('pendingPulseDot');
+
+            if (!countBadge || !descText || !tagsRow) return;
+
+            const total = allPendingItems.length;
+            if (total === 0) {
+                countBadge.innerText = '全部完成 🎉';
+                countBadge.className = 'bg-emerald-50 text-emerald-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-emerald-200 shrink-0';
+                descText.innerText = '太棒啦！目前所有模块的待办与心愿均已达成~';
+                tagsRow.classList.add('hidden');
+                tagsRow.classList.remove('flex');
+                if (pulseDot) pulseDot.classList.add('hidden');
+                return;
+            }
+
+            countBadge.innerText = `${total} 项待办`;
+            countBadge.className = 'bg-rose-100 text-rose-600 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-200 shrink-0';
+            if (pulseDot) pulseDot.classList.remove('hidden');
+
+            descText.innerText = `包含 ${allPendingItems.map(it => it.moduleName).join(' · ')}`;
+
+            tagsRow.innerHTML = allPendingItems.map(it => `
+                <span onclick="event.stopPropagation(); openPendingCenterModal()" class="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-50/80 hover:bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full border border-rose-100 transition-colors">
+                    <span>${it.icon}</span>
+                    <span>${escapePendingHtml(it.moduleName)}</span>
+                </span>
+            `).join('');
+            tagsRow.classList.remove('hidden');
+            tagsRow.classList.add('flex');
+        }
+
+        function renderPendingModal() {
+            const listContainer = document.getElementById('pendingItemsContainer');
+            const modalBadge = document.getElementById('pendingModalCountBadge');
+            const footerSummary = document.getElementById('pendingFooterSummary');
+
+            if (!listContainer) return;
+
+            if (modalBadge) modalBadge.innerText = `${allPendingItems.length} 项`;
+            if (footerSummary) {
+                footerSummary.innerText = `共 ${allPendingItems.length} 个模块有待完成事项 · 点击卡片直达对应页面`;
+            }
+
+            if (allPendingItems.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="flex flex-col items-center justify-center py-12 text-center">
+                        <div class="text-4xl mb-2">🎉</div>
+                        <p class="text-sm font-bold text-gray-600">所有模块都没有待完成项目啦</p>
+                        <p class="text-xs text-gray-400 mt-1">你们超有默契，所有事项都已处理完毕~</p>
+                    </div>
+                `;
+                return;
+            }
+
+            listContainer.innerHTML = allPendingItems.map(item => `
+                <div onclick="window.location.href='${item.url}'" class="group bg-white hover:bg-rose-50/40 rounded-2xl p-3.5 border border-rose-100 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between gap-3">
+                    <div class="flex items-start gap-3 min-w-0 flex-1">
+                        <div class="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-100 flex items-center justify-center text-xl shrink-0 group-hover:scale-105 transition-transform">
+                            ${item.icon}
+                        </div>
+                        <div class="flex flex-col min-w-0 flex-1 text-left">
+                            <div class="flex items-center gap-1.5 flex-wrap mb-0.5">
+                                <span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">${escapePendingHtml(item.moduleName)}</span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full border ${item.tagColor}">${escapePendingHtml(item.tagText)}</span>
+                            </div>
+                            <h4 class="text-sm font-bold text-gray-800 truncate group-hover:text-rose-600 transition-colors">${escapePendingHtml(item.title)}</h4>
+                            <p class="text-xs text-gray-500 line-clamp-1 mt-0.5">${escapePendingHtml(item.desc)}</p>
+                            ${item.progress !== undefined ? `
+                                <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden mt-2">
+                                    <div class="bg-gradient-to-r from-rose-400 to-pink-500 h-full rounded-full transition-all duration-500" style="width: ${item.progress}%"></div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <button class="shrink-0 bg-rose-50 group-hover:bg-gradient-to-r group-hover:from-rose-400 group-hover:to-pink-500 text-rose-500 group-hover:text-white text-xs font-bold px-3 py-2 rounded-xl border border-rose-100 group-hover:border-transparent transition-all shadow-xs flex items-center gap-1">
+                        <span>${escapePendingHtml(item.btnText)}</span>
+                        <span class="text-[10px]">▶</span>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // ========================================================
+        // 💌 原悄悄话未读检测入口 (已并入待办中心统一汇总)
         // ========================================================
         async function checkUnreadDiaries() {
-            const myIdentity = localStorage.getItem('loveGacha_myIdentity');
-            if (!myIdentity) return;
+            fetchAllPendingItems();
+            return;
 
             const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
             const partnerFile = partnerIdentity === '哼哼' ? 'data/Hrj.json' : 'data/Qrj.json';
@@ -522,6 +1108,7 @@
 
             // 更新字条的文本状态
             const slipText = document.getElementById('taskSlipStatusText');
+            if (!slipText) return;
             if (myData && myData.myTaskCompleted) {
                 slipText.innerText = "今日打卡完毕 ✅";
             } else if (myData) {
