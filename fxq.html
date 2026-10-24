@@ -135,7 +135,7 @@
         .base-spot::after { content: 'H'; font-size: 9px; font-weight: 900; color: rgba(148, 163, 184, 0.45); }
         body.theme-space .base-spot, body.theme-cyber .base-spot { background: rgba(15, 23, 42, 0.65); }
 
-        /* v5.0 棋盘中央全息战术雷达屏 */
+        /* v5.0 棋盘中央全息战术雷达屏（支持展开与缩略胶囊切换） */
         .board-center-decor {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
             width: 38.5%; height: 38.5%; border-radius: 22px;
@@ -145,6 +145,15 @@
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
             pointer-events: auto; z-index: 8; padding: 7px 8px; color: #f8fafc;
             overflow: hidden;
+            transition: all 0.25s cubic-bezier(0.34, 1.3, 0.64, 1);
+        }
+        .board-center-decor.radar-collapsed {
+            width: auto !important;
+            height: auto !important;
+            border-radius: 999px !important;
+            padding: 3px 9px !important;
+            background: rgba(15, 23, 42, 0.9) !important;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35), 0 0 0 1.5px rgba(56, 189, 248, 0.55) !important;
         }
         @keyframes radarSweep {
             0% { transform: translate(-50%, -50%) rotate(0deg); }
@@ -613,7 +622,7 @@
                             <span id="displayRoomCode" class="text-[10px] font-black text-slate-500 tracking-wider">----</span>
                             <span id="spectatorBadge" class="hidden text-[9px] bg-purple-100 text-purple-700 px-1 rounded font-bold">观战</span>
                         </div>
-                        <div id="turnTimerBadge" class="text-[10px] font-black text-amber-700 bg-amber-100/90 px-2 py-0.2 rounded-full border border-amber-300/80 my-0.5">30s</div>
+                        <div id="turnTimerBadge" class="hidden"></div>
                         <div class="flex items-center gap-1 mt-0.5">
                             <button id="btnContractOpen" onclick="openContractModal()" class="w-6 h-6 rounded-lg bg-amber-50 text-amber-600 border border-amber-200 text-[11px] font-bold flex items-center justify-center hover:bg-amber-100 active:scale-90 transition-all" title="签署战略空域契约">📜</button>
                             <button id="btnAutoPlay" onclick="toggleAutoTrust()" class="w-6 h-6 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-bold flex items-center justify-center hover:bg-sky-100 active:scale-90 transition-all" title="AI代打托管">🤖</button>
@@ -672,27 +681,39 @@
             <!-- 2. 棋盘主舞台（含中央全息雷达屏） -->
             <div id="board-container">
                 <div class="board-center-decor" id="centerRadarHud">
-                    <div class="radar-sweep-line"></div>
-                    <div class="relative z-10 w-full flex items-center justify-between text-[9px] font-black">
-                        <span id="radarDayNightBadge" class="bg-sky-500/25 border border-sky-400/40 text-sky-200 px-1.5 py-0.5 rounded-md">☀️白昼 R1</span>
-                        <span id="radarBossBadge" class="bg-rose-500/25 border border-rose-400/40 text-rose-200 px-1.5 py-0.5 rounded-md">🏴‍☠️6HP</span>
-                    </div>
-                    <div class="relative z-10 w-full flex flex-col items-center my-0.5">
-                        <div class="text-[8px] text-sky-300/90 font-black tracking-wider uppercase flex items-center gap-1">
-                            <span>👑 制空霸权</span>
-                            <span id="radarSupremacyScore" class="text-amber-300 font-mono text-[10px]">0 : 0</span>
-                            <span class="text-slate-400">/100</span>
+                    <div class="radar-sweep-line" id="radarSweepLine"></div>
+                    <!-- 展开态完整全息视图 -->
+                    <div id="radarExpandedBody" class="relative z-10 w-full h-full flex flex-col items-center justify-between">
+                        <div class="w-full flex items-center justify-between text-[9px] font-black gap-1">
+                            <span id="radarDayNightBadge" class="bg-sky-500/25 border border-sky-400/40 text-sky-200 px-1.5 py-0.5 rounded-md truncate">☀️白昼 R1</span>
+                            <div class="flex items-center gap-1 flex-shrink-0">
+                                <span id="radarBossBadge" class="bg-rose-500/25 border border-rose-400/40 text-rose-200 px-1.5 py-0.5 rounded-md">🏴‍☠️6HP</span>
+                                <button onclick="toggleCenterRadar(event)" class="w-4 h-4 rounded bg-slate-700/80 hover:bg-slate-600 text-sky-200 border border-sky-400/40 flex items-center justify-center text-[9px] leading-none font-black active:scale-90" title="缩略全息屏">─</button>
+                            </div>
                         </div>
-                        <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex border border-slate-600/80 mt-0.5">
-                            <div id="supremacyBarP1" class="h-full bg-gradient-to-r from-rose-500 to-red-400 transition-all duration-300" style="width: 50%"></div>
-                            <div id="supremacyBarP2" class="h-full bg-gradient-to-l from-blue-500 to-sky-400 transition-all duration-300" style="width: 50%"></div>
+                        <div class="w-full flex flex-col items-center my-0.5">
+                            <div class="text-[8px] text-sky-300/90 font-black tracking-wider uppercase flex items-center gap-1">
+                                <span>👑 制空霸权</span>
+                                <span id="radarSupremacyScore" class="text-amber-300 font-mono text-[10px]">0 : 0</span>
+                                <span class="text-slate-400">/100</span>
+                            </div>
+                            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden flex border border-slate-600/80 mt-0.5">
+                                <div id="supremacyBarP1" class="h-full bg-gradient-to-r from-rose-500 to-red-400 transition-all duration-300" style="width: 50%"></div>
+                                <div id="supremacyBarP2" class="h-full bg-gradient-to-l from-blue-500 to-sky-400 transition-all duration-300" style="width: 50%"></div>
+                            </div>
+                            <div id="radarAltHint" class="text-[8px] text-slate-300 mt-1 text-center leading-tight">点击下方机群卡切换 ☁️低/🛰️高空</div>
                         </div>
-                        <div id="radarAltHint" class="text-[8px] text-slate-300 mt-1 text-center leading-tight">点击下方机群卡切换 ☁️低/🛰️高空</div>
+                        <div class="w-full flex items-center justify-center gap-1.5">
+                            <button onclick="openShopModal()" class="flex-1 py-1 bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 rounded-lg text-[9px] font-black text-amber-200 active:scale-95 transition-all">🏪 黑市</button>
+                            <button onclick="openContractModal()" class="flex-1 py-1 bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/50 rounded-lg text-[9px] font-black text-sky-200 active:scale-95 transition-all">📜 契约</button>
+                        </div>
                     </div>
-                    <div class="relative z-10 w-full flex items-center justify-center gap-1.5">
-                        <button onclick="openShopModal()" class="flex-1 py-1 bg-amber-500/25 hover:bg-amber-500/40 border border-amber-400/50 rounded-lg text-[9px] font-black text-amber-200 active:scale-95 transition-all">🏪 黑市</button>
-                        <button onclick="openContractModal()" class="flex-1 py-1 bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/50 rounded-lg text-[9px] font-black text-sky-200 active:scale-95 transition-all">📜 契约</button>
-                    </div>
+                    <!-- 缩略态迷你胶囊视图 -->
+                    <button id="radarCollapsedPill" onclick="toggleCenterRadar(event)" class="hidden relative z-10 flex items-center gap-1.5 text-[9px] font-black text-sky-200 whitespace-nowrap active:scale-95 transition-all" title="点击展开中央全息雷达屏">
+                        <span>📡</span>
+                        <span id="radarMiniSupScore" class="text-amber-300 font-mono">👑0:0</span>
+                        <span class="bg-sky-500/30 border border-sky-400/40 px-1 rounded text-[8px] text-white">展开 ⤢</span>
+                    </button>
                 </div>
 
                 <div id="boardOverlay" class="absolute inset-0 z-30 bg-slate-900/5 rounded-[28px] hidden cursor-not-allowed"></div>
@@ -744,7 +765,7 @@
                     <div class="flex items-center gap-1.5">
                         <span class="text-[11px] font-black text-slate-700">🎒 武器舱</span>
                         <span id="bagCapBadge" class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-md font-bold">0/4</span>
-                        <span id="apQuotaBadge" class="text-[9px] bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-md font-black">⚡3/3 AP</span>
+                        <span id="apQuotaBadge" class="text-[9px] bg-indigo-100 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded-md font-black">⚡5/5 AP</span>
                         <span id="creditsBadge" class="text-[9px] bg-amber-100 text-amber-800 border border-amber-300 px-1.5 py-0.5 rounded-md font-black">🪙20</span>
                         <span id="empFrozenTag" class="hidden text-[9px] bg-rose-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">⚡EMP冻结</span>
                     </div>
@@ -1125,8 +1146,8 @@
         };
 
         window.getPlayerMaxAp = function(pData) {
-            if (!pData) return 3;
-            let base = pData.trait === 'arbiter' ? 4 : 3;
+            if (!pData) return 5;
+            let base = pData.trait === 'arbiter' ? 6 : 5;
             if (pData.apPenalty && pData.apPenalty > 0) base = Math.max(1, base - pData.apPenalty);
             return base;
         };
@@ -1176,7 +1197,7 @@
             'stratosphere_ghost': { name: '平流层幽灵', icon: '🛰️', ultName: '平流层跃迁', desc: '战机处于🛰️高空平流层时不减速（免除高空-1步惩罚），且每回合可不限次数切换高低空。\n🔥大招：主赛道所有己方战机升入🛰️高空并向前推进 3 格。' },
             'royal_mechanic': { name: '皇家机械师', icon: '🔧', ultName: '全域装甲重构', desc: '战机满甲受损时 50% 概率触发应急镀层免于后退并获 +8🪙 军费；途经任何据点自动修复至 2HP 满甲。\n🔥大招：全队战机恢复 2HP 满甲、开启护盾并获得 1 件【🛠️维修包】。' },
             'quartermaster': { name: '联邦军需官', icon: '🪙', ultName: '战时军火征调', desc: '开局额外 +20🪙 军费（共40🪙），背包容量上限提升至 5 格，军工黑市所有商品享受 8 折优惠。\n🔥大招：立即拨款 +35🪙 军费、+10👑 霸权分，并空投 1 件精英装备。' },
-            'arbiter': { name: '秩序仲裁者', icon: '⚖️', ultName: '静默裁决', desc: '每回合行动点上限提升至 4 AP；敌方使用道具时为你充能 +8 SP 与 +6🪙 军费。\n🔥大招：压制敌方下回合行动点上限 -2 AP，并为己方增加 +12👑 霸权分。' }
+            'arbiter': { name: '秩序仲裁者', icon: '⚖️', ultName: '静默裁决', desc: '每回合行动点上限提升至 6 AP；敌方使用道具时为你充能 +8 SP 与 +6🪙 军费。\n🔥大招：压制敌方下回合行动点上限 -2 AP，并为己方增加 +12👑 霸权分。' }
         };
 
         const AWAKENING_POOL = [
@@ -1266,7 +1287,7 @@
                 logs.push(`🪙 【联邦军需官】后勤专线启动！${myName} 开局军费提升至 40🪙，背包扩容至 5 格！`);
             }
             if (tId === 'arbiter') {
-                updatePayload[`${myPlayerId}.ap`] = 4;
+                updatePayload[`${myPlayerId}.ap`] = 6;
             } else if (tId === 'orbital_commander') {
                 updatePayload[`${myPlayerId}.items`] = ['missile'];
                 logs.push(`🛰️ 【天基统帅】已就位，开局配备制导【🎯导弹】！`);
@@ -1979,7 +2000,7 @@
             pieces: [-1,-1,-1,-1, 999],
             hp: [2, 2, 2, 2, 1],
             altitudes: [0, 0, 0, 0, 0],
-            ap: 3, apPenalty: 0, credits: 20, supremacy: 0, shopBuys: {}, altToggledThisTurn: false,
+            ap: 5, apPenalty: 0, credits: 20, supremacy: 0, shopBuys: {}, altToggledThisTurn: false,
             aces: [false,false,false,false, false], bombers:[false,false,false,false, false],
             frigates:[false,false,false,false, false], recons:[false,false,false,false, false],
             ewars:[false,false,false,false, false], tankers:[false,false,false,false, false],
@@ -2403,7 +2424,7 @@
                             if(!data[p].pieces || data[p].pieces.length<5) data[p].pieces = (data[p].pieces||[-1,-1,-1,-1]).concat([999]);
                             if(!data[p].hp) data[p].hp = [2,2,2,2,1];
                             if(!data[p].altitudes) data[p].altitudes = [0,0,0,0,0];
-                            if(data[p].ap === undefined) data[p].ap = 3;
+                            if(data[p].ap === undefined) data[p].ap = 5;
                             if(data[p].credits === undefined) data[p].credits = 20;
                             if(data[p].supremacy === undefined) data[p].supremacy = 0;
                             if(!data[p].shopBuys) data[p].shopBuys = {};
@@ -2429,27 +2450,31 @@
             unsubscribeRoom = () => watcher.close();
         }
 
+        window.isRadarCollapsed = false;
+        window.toggleCenterRadar = function(e) {
+            if (e) e.stopPropagation();
+            window.isRadarCollapsed = !window.isRadarCollapsed;
+            const hud = document.getElementById('centerRadarHud');
+            const expBody = document.getElementById('radarExpandedBody');
+            const colPill = document.getElementById('radarCollapsedPill');
+            const sweep = document.getElementById('radarSweepLine');
+            if (!hud || !expBody || !colPill) return;
+            if (window.isRadarCollapsed) {
+                hud.classList.add('radar-collapsed');
+                expBody.classList.add('hidden');
+                colPill.classList.remove('hidden');
+                if (sweep) sweep.classList.add('hidden');
+            } else {
+                hud.classList.remove('radar-collapsed');
+                expBody.classList.remove('hidden');
+                colPill.classList.add('hidden');
+                if (sweep) sweep.classList.remove('hidden');
+            }
+        };
+
         function startTurnTimer() {
+            // 已移除 30 秒未操作自动触发机器人代打机制
             stopTurnTimer();
-            turnCountdown = 30;
-            turnTimerInterval = setInterval(() => {
-                if (!gameState || gameState.status !== 'playing' || gameState.winner || window.isGameAnimating()) return;
-                turnCountdown--;
-                const badge = document.getElementById('turnTimerBadge');
-                if (badge) {
-                    badge.innerText = `${Math.max(0, turnCountdown)}s`;
-                    badge.className = turnCountdown <= 8
-                        ? 'text-[10px] font-black text-white bg-rose-500 px-2 py-0.2 rounded-full animate-pulse my-0.5'
-                        : 'text-[10px] font-black text-amber-700 bg-amber-100/90 px-2 py-0.2 rounded-full border border-amber-300/80 my-0.5';
-                }
-                if (turnCountdown <= 0) {
-                    turnCountdown = 30;
-                    if (!isSpectator && gameState.turn === myPlayerId) {
-                        showToast("⏰ 回合思考超时，AI 副官为您自动代打一次！");
-                        executeAiLogic(myPlayerId);
-                    }
-                }
-            }, 1000);
         }
         function stopTurnTimer() {
             if (turnTimerInterval) { clearInterval(turnTimerInterval); turnTimerInterval = null; }
@@ -2528,6 +2553,8 @@
             }
             const supScoreEl = document.getElementById('radarSupremacyScore');
             if (supScoreEl) supScoreEl.innerText = `${p1Sup} : ${p2Sup}`;
+            const miniSupEl = document.getElementById('radarMiniSupScore');
+            if (miniSupEl) miniSupEl.innerText = `👑${p1Sup}:${p2Sup}`;
             const totalSup = Math.max(1, p1Sup + p2Sup);
             const p1Bar = document.getElementById('supremacyBarP1');
             const p2Bar = document.getElementById('supremacyBarP2');
@@ -3686,7 +3713,7 @@
             // 恢复行动点 AP 并结算压制惩罚
             let oppId = playerId === 'p1' ? 'p2' : 'p1';
             let oppData = gameState[oppId] || {};
-            let nextMaxAp = oppData.trait === 'arbiter' ? 4 : 3;
+            let nextMaxAp = oppData.trait === 'arbiter' ? 6 : 5;
             let oppPen = stateUpdate[`${oppId}.apPenalty`] !== undefined ? stateUpdate[`${oppId}.apPenalty`] : (oppData.apPenalty || 0);
             if (oppPen > 0) {
                 nextMaxAp = Math.max(1, nextMaxAp - oppPen);
@@ -3768,7 +3795,7 @@
                 altArr[idx] = 0; // 受损迫降至低空
                 stateObj[`${pId}.hp`] = hpArr;
                 stateObj[`${pId}.altitudes`] = altArr;
-                addSupremacy(oppId, 5, stateObj, null);
+                addSupremacy(oppId, 3, stateObj, null);
                 if (trait === 'royal_mechanic' && Math.random() < 0.5) {
                     addCredits(pId, 8, stateObj);
                     if (logs) logs.push(`🔧 【皇家机械师】纳米镀层生效！${pName} 的 ${idx+1} 号机虽装甲受损(1HP)，但稳住阵脚免于后退并获 +8🪙 补贴！`);
@@ -3817,7 +3844,7 @@
                 altArr[idx] = 0;
                 if(idx < 4) { aArray[idx] = false; bArray[idx] = false; fArray[idx] = false; rArray[idx] = false; }
             }
-            addSupremacy(oppId, 10, stateObj, null);
+            addSupremacy(oppId, 3, stateObj, null);
             stateObj[`${pId}.hp`] = hpArr;
             stateObj[`${pId}.altitudes`] = altArr;
             stateObj[`${pId}.aces`] = aArray; stateObj[`${pId}.bombers`] = bArray;
@@ -3839,7 +3866,7 @@
             }
             addPlayerSp(killerId, 25, stateUpdate);
             addCredits(killerId, 25, stateUpdate);
-            addSupremacy(killerId, 15, stateUpdate, logs, '击溃星际首领');
+            addSupremacy(killerId, 10, stateUpdate, logs, '击溃星际首领');
             window.playSplashAnim("💀 击溃首领！获天基激光", 1400);
             stateUpdate.pendingExtraTurn = killerId;
             return items;
@@ -4445,8 +4472,8 @@
                     if (!isHighAlt && actorData.trait === 'tactical_fortress' && outpostIndices.includes(stepPos) && !currentOutposts[stepPos]) {
                         currentOutposts[stepPos] = actorId;
                         myStats.outpostsCaptured = (myStats.outpostsCaptured || 0) + 1;
-                        addSupremacy(actorId, 8, stateUpdate, null);
-                        logs.push(`🚩 【据点督军】途经区域 ${stepPos} 直接占领了该座战略雷达站 (+8👑霸权)！`);
+                        addSupremacy(actorId, 4, stateUpdate, null);
+                        logs.push(`🚩 【据点督军】途经区域 ${stepPos} 直接占领了该座战略雷达站 (+4👑霸权)！`);
                     }
                     if (sIdx < moveResult.path.length - 1) { 
                         oppPieces.slice(0,4).forEach((oppP) => {
@@ -4530,8 +4557,8 @@
                         myStats.outpostsCaptured = (myStats.outpostsCaptured || 0) + 1;
                         addPlayerSp(actorId, actorData.trait === 'orbital_commander' ? 20 : 10, stateUpdate);
                         addCredits(actorId, 8, stateUpdate);
-                        addSupremacy(actorId, 8, stateUpdate, logs, `占领 ${newPos} 号雷达站`);
-                        animKeyframes.push(`🚩 占领雷达站 (+8👑 +8🪙)！`);
+                        addSupremacy(actorId, 4, stateUpdate, logs, `占领 ${newPos} 号雷达站`);
+                        animKeyframes.push(`🚩 占领雷达站 (+4👑 +8🪙)！`);
                     }
                 }
 
@@ -4952,7 +4979,7 @@
                 myHps[pieceIndex] = 2;
                 logs.push(`🎉 ${actorName} 的一架战机成功抵达终点！`);
                 addPlayerSp(actorId, 20, stateUpdate);
-                addSupremacy(actorId, 25, stateUpdate, logs, '战机冲线凯旋');
+                addSupremacy(actorId, 15, stateUpdate, logs, '战机冲线凯旋');
             }
 
             // Cap inventory to player bag capacity
@@ -5052,8 +5079,8 @@
             startTurnTimer();
             await getRoomRef(currentRoomId).update({
                 status: 'selecting_trait',
-                'p1.hp': [2,2,2,2,1], 'p1.altitudes': [0,0,0,0,0], 'p1.ap': 3, 'p1.apPenalty': 0, 'p1.credits': 20, 'p1.supremacy': 0, 'p1.shopBuys': {}, 'p1.altToggledThisTurn': false,
-                'p2.hp': [2,2,2,2,1], 'p2.altitudes': [0,0,0,0,0], 'p2.ap': 3, 'p2.apPenalty': 0, 'p2.credits': 20, 'p2.supremacy': 0, 'p2.shopBuys': {}, 'p2.altToggledThisTurn': false,
+                'p1.hp': [2,2,2,2,1], 'p1.altitudes': [0,0,0,0,0], 'p1.ap': 5, 'p1.apPenalty': 0, 'p1.credits': 20, 'p1.supremacy': 0, 'p1.shopBuys': {}, 'p1.altToggledThisTurn': false,
+                'p2.hp': [2,2,2,2,1], 'p2.altitudes': [0,0,0,0,0], 'p2.ap': 5, 'p2.apPenalty': 0, 'p2.credits': 20, 'p2.supremacy': 0, 'p2.shopBuys': {}, 'p2.altToggledThisTurn': false,
                 balloons: [], turnCount: 1, isNight: false,
                 outposts: { 7: null, 18: null, 29: null, 40: null },
                 activeContract: null,
