@@ -1567,18 +1567,30 @@
             let logs = [...gameState.logs]; let stateUpdate = { [`${myPlayerId}.items`]: myItems };
             let oppId = myPlayerId === 'p1' ? 'p2' : 'p1';
             
+            if (gameState[myPlayerId].trait === 'alchemist') {
+                addPlayerSp(myPlayerId, 10, stateUpdate);
+            }
             if (window.isPlacingOrbital) {
-                // v4.0 天基轨道激光：定点毁灭目标格及相邻1格内的所有敌机与路障
+                // v4.0 天基轨道激光：定点轰击目标格及相邻1格（支持反导护盾与护卫舰力场拦截）
                 window.launchOrbitalBeamAnim(trackIdx);
                 playSound('boom');
                 let oppPieces = [...gameState[oppId].pieces];
+                let oppShield = gameState[oppId].shield;
                 let hitCount = 0;
                 oppPieces.forEach((p, pIdx) => {
                     if (p >= 0 && p <= 43) {
                         let d = Math.abs(p - trackIdx);
                         if (Math.min(d, 44 - d) <= 1) {
-                            killPlane(pIdx, oppId, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, gameState[oppId].frigates, gameState[oppId].recons, stateUpdate, logs, null);
-                            hitCount++;
+                            if (oppShield) {
+                                oppShield = false;
+                                stateUpdate[`${oppId}.shield`] = false;
+                                logs.push(`🛡️ 敌方【反导护盾】成功偏折了天基轨道激光的致命轰击！`);
+                            } else if (consumeFrigateProtection(oppId, p, stateUpdate, logs)) {
+                                logs.push(`🛸 敌方【护卫舰】力场过载拦截了天基轨道激光！`);
+                            } else {
+                                killPlane(pIdx, oppId, oppPieces, gameState[oppId].aces, gameState[oppId].bombers, gameState[oppId].frigates, gameState[oppId].recons, stateUpdate, logs, null);
+                                hitCount++;
+                            }
                         }
                     }
                 });
@@ -2905,25 +2917,37 @@
                 logs.push(`💉 ${myName} 注入【肾上腺素】！本回合掷骰移动距离将额外 +4 格！`);
                 window.playSplashAnim("💉 肾上腺素 (+4格)！", 1300);
             } else if (itemType === 'jammer') {
-                stateUpdate[`${oppId}.skipTurns`] = (gameState[oppId].skipTurns || 0) + 1;
-                logs.push(`📡 ${myName} 启动【全域锁死干扰】！强行封锁敌方机库与塔台 1 回合！`);
-                window.playSplashAnim("📡 敌方塔台被锁死！", 1300);
+                if (gameState[oppId].shield) {
+                    stateUpdate[`${oppId}.shield`] = false;
+                    logs.push(`🛡️ 敌方【反导护盾】抵御了【全域锁死干扰】的电磁压制！`);
+                    window.playSplashAnim("🛡️ 护盾抵御锁死干扰！", 1300);
+                } else {
+                    stateUpdate[`${oppId}.skipTurns`] = (gameState[oppId].skipTurns || 0) + 1;
+                    logs.push(`📡 ${myName} 启动【全域锁死干扰】！强行封锁敌方机库与塔台 1 回合！`);
+                    window.playSplashAnim("📡 敌方塔台被锁死！", 1300);
+                }
             } else if (itemType === 'swap_beam') {
                 let myTrackIdx = myPieces.slice(0,4).findIndex(p => p >= 0 && p <= 43);
                 let oppTrackIdx = oppPieces.slice(0,4).findIndex(p => p >= 0 && p <= 43);
                 if (myTrackIdx !== -1 && oppTrackIdx !== -1) {
-                    let temp = myPieces[myTrackIdx];
-                    myPieces[myTrackIdx] = oppPieces[oppTrackIdx];
-                    oppPieces[oppTrackIdx] = temp;
-                    if (gameState[myPlayerId].trait === 'phantom_mirror') {
-                        myPieces[myTrackIdx] = calculateDestination(myPlayerId, myPieces[myTrackIdx], 3, [], false).pos;
-                        stateUpdate[`${myPlayerId}.shield`] = true;
-                        logs.push(`🪞 【幻影镜像】触发空间折射，互换位置后获得护盾并额外推进 3 格！`);
+                    if (gameState[oppId].shield) {
+                        stateUpdate[`${oppId}.shield`] = false;
+                        logs.push(`🛡️ 敌方【反导护盾】免疫了【移形换影】的强制坐标置换！`);
+                        window.playSplashAnim("🛡️ 护盾阻断移形换影！", 1300);
+                    } else {
+                        let temp = myPieces[myTrackIdx];
+                        myPieces[myTrackIdx] = oppPieces[oppTrackIdx];
+                        oppPieces[oppTrackIdx] = temp;
+                        if (gameState[myPlayerId].trait === 'phantom_mirror') {
+                            myPieces[myTrackIdx] = calculateDestination(myPlayerId, myPieces[myTrackIdx], 3, [], false).pos;
+                            stateUpdate[`${myPlayerId}.shield`] = true;
+                            logs.push(`🪞 【幻影镜像】触发空间折射，互换位置后获得护盾并额外推进 3 格！`);
+                        }
+                        stateUpdate[`${myPlayerId}.pieces`] = myPieces;
+                        stateUpdate[`${oppId}.pieces`] = oppPieces;
+                        logs.push(`🔄 ${myName} 发动【移形换影】！将己方战机与敌方主赛道战机直接对调了空间坐标！`);
+                        window.playSplashAnim("🔄 移形换影互换坐标！", 1400);
                     }
-                    stateUpdate[`${myPlayerId}.pieces`] = myPieces;
-                    stateUpdate[`${oppId}.pieces`] = oppPieces;
-                    logs.push(`🔄 ${myName} 发动【移形换影】！将己方战机与敌方主赛道战机直接对调了空间坐标！`);
-                    window.playSplashAnim("🔄 移形换影互换坐标！", 1400);
                 } else {
                     logs.push(`🔄 赛道上缺乏可对调的战机，移形换影转化为 20 SP 能量！`);
                     addPlayerSp(myPlayerId, 20, stateUpdate);
@@ -2933,9 +2957,15 @@
                 stateUpdate.blackholes = [];
                 stateUpdate[`${oppId}.mines`] = [];
                 stateUpdate[`${oppId}.holograms`] = [];
-                stateUpdate[`${oppId}.empTurns`] = 1;
-                logs.push(`⚡ ${myName} 释放【EMP脉冲】！全图敌方陷阱与路障被清空，且敌方背包被冻结 1 回合！`);
-                window.playSplashAnim("⚡ EMP 全域清场！", 1400);
+                if (gameState[oppId].shield) {
+                    stateUpdate[`${oppId}.shield`] = false;
+                    logs.push(`⚡ ${myName} 释放【EMP脉冲】清空了全场陷阱！敌方【反导护盾】抵挡了背包冻结效果！`);
+                    window.playSplashAnim("🛡️ 护盾抵消EMP冻结！", 1400);
+                } else {
+                    stateUpdate[`${oppId}.empTurns`] = 1;
+                    logs.push(`⚡ ${myName} 释放【EMP脉冲】！全图敌方陷阱与路障被清空，且敌方背包被冻结 1 回合！`);
+                    window.playSplashAnim("⚡ EMP 全域清场！", 1400);
+                }
             } else if (itemType === 'beacon') {
                 let leadPos = myPieces.slice(0,4).find(p => p >= 0 && p <= 43);
                 let hangarIdx = myPieces.slice(0,4).findIndex(p => p === -1);
@@ -2954,7 +2984,11 @@
                 }
             } else if (itemType === 'hook') {
                 let oppItems = [...gameState[oppId].items];
-                if(oppItems.length > 0) {
+                if (gameState[oppId].shield) {
+                    stateUpdate[`${oppId}.shield`] = false;
+                    logs.push(`🛡️ 敌方【反导护盾】弹开了电磁钩爪的窃取！`);
+                    window.playSplashAnim("🛡️ 护盾弹开电磁钩爪！", 1300);
+                } else if(oppItems.length > 0) {
                     let sIdx = Math.floor(Math.random() * oppItems.length); let stolen = oppItems.splice(sIdx, 1)[0];
                     myItems.push(stolen); stateUpdate[`${oppId}.items`] = oppItems;
                     myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
@@ -3009,17 +3043,27 @@
                     window.launchProjectileAnim(target.fromPos, target.toPos, '#ef4444');
                     
                     if (target.type === 'holo') {
-                        logs.push(`🤡 导弹击中【全息诱饵】！${myName} 被电磁云反向禁锢一回合！`);
                         let h = [...(gameState[oppId].holograms || [])];
                         h.splice(target.idx, 1);
                         stateUpdate[`${oppId}.holograms`] = h;
-                        stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
+                        if (gameState[myPlayerId].shield) {
+                            stateUpdate[`${myPlayerId}.shield`] = false;
+                            logs.push(`🤡 导弹击中【全息诱饵】！好在 ${myName} 的【反导护盾】抵消了电磁反向禁锢！`);
+                        } else {
+                            logs.push(`🤡 导弹击中【全息诱饵】！${myName} 被电磁云反向禁锢一回合！`);
+                            stateUpdate[`${myPlayerId}.skipTurns`] = (gameState[myPlayerId].skipTurns || 0) + 1;
+                        }
                     } else if (target.type === 'home_strike') {
-                        let targetIdx = target.idx;
-                        oppPieces[targetIdx] = oppId === 'p1' ? Math.max(100, oppPieces[targetIdx] - 2) : Math.max(200, oppPieces[targetIdx] - 2);
-                        stateUpdate[`${oppId}.pieces`] = oppPieces;
-                        logs.push(`🚀 【深水巡航打击】命中终点安全区内的敌机，将其震退 2 格！`);
-                        playSound('boom');
+                        if (gameState[oppId].shield) {
+                            stateUpdate[`${oppId}.shield`] = false;
+                            logs.push(`🛡️ 敌方【反导护盾】拦截了针对终点安全区的深水巡航打击！`);
+                        } else {
+                            let targetIdx = target.idx;
+                            oppPieces[targetIdx] = oppId === 'p1' ? Math.max(100, oppPieces[targetIdx] - 2) : Math.max(200, oppPieces[targetIdx] - 2);
+                            stateUpdate[`${oppId}.pieces`] = oppPieces;
+                            logs.push(`🚀 【深水巡航打击】命中终点安全区内的敌机，将其震退 2 格！`);
+                            playSound('boom');
+                        }
                     } else if (target.type === 'boss') {
                         logs.push(`🚀 砰！${myName} 的【定向导弹】精准命中了【${gameState.boss.name || '星际海盗'}】！`);
                         let bossState = stateUpdate.boss ? {...stateUpdate.boss} : {...gameState.boss};
@@ -3370,6 +3414,35 @@
             
             renderPlayerPlanes('p1', gameState.p1);
             renderPlayerPlanes('p2', gameState.p2);
+
+            const renderHolograms = (player) => {
+                let holos = (gameState[player] && gameState[player].holograms) || [];
+                holos.forEach((pos, hIdx) => {
+                    let planeId = `holo-${player}-${hIdx}`;
+                    let planeEl = document.getElementById(`plane-${planeId}`);
+                    if (!planeEl) {
+                        planeEl = document.createElement('div');
+                        planeEl.id = `plane-${planeId}`;
+                        planeEl.className = `plane plane-transition pointer-events-none ${player === 'p1' ? 'plane-red' : 'plane-blue'}`;
+                        planeEl.innerHTML = PLANE_SVG_ICON;
+                        document.getElementById('planes-layer').appendChild(planeEl);
+                    }
+                    planeEl.style.display = 'flex';
+                    planeEl.style.opacity = (player === myPlayerId || isSpectator) ? '0.55' : '1';
+                    planeEl.style.zIndex = '12';
+                    let coords = getPlaneCoords(player, 0, pos);
+                    if (coords.x !== undefined) {
+                        planeEl.style.left = `calc(${coords.x}% - 14px)`;
+                        planeEl.style.top = `calc(${coords.y}% - 14px)`;
+                    }
+                });
+                for (let i = holos.length; i < 6; i++) {
+                    let planeEl = document.getElementById(`plane-holo-${player}-${i}`);
+                    if (planeEl) planeEl.style.display = 'none';
+                }
+            };
+            renderHolograms('p1');
+            renderHolograms('p2');
             
             let bossEl = document.getElementById('plane-boss-pirate');
             if (bossEl && gameState.boss && gameState.boss.pos >= 0 && gameState.boss.pos <= 43 && (!gameState.boss.respawnTimer || gameState.boss.respawnTimer <= 0)) {
@@ -3430,6 +3503,53 @@
                     stateUpdate.craters = craters;
                     logs.push(`🐉 苍穹机甲龙喷吐龙息，在区域 ${boss.pos} 留下焦土弹坑！`);
                 }
+
+                // 首领巡航撞击双方战机判定（支持赏金猎人、反导护盾、护卫力场）
+                ['p1', 'p2'].forEach(pId => {
+                    let pData = gameState[pId];
+                    if (!pData) return;
+                    let pieces = stateUpdate[`${pId}.pieces`] ? [...stateUpdate[`${pId}.pieces`]] : [...pData.pieces];
+                    let items = stateUpdate[`${pId}.items`] ? [...stateUpdate[`${pId}.items`]] : [...(pData.items || [])];
+                    let shield = stateUpdate[`${pId}.shield`] !== undefined ? stateUpdate[`${pId}.shield`] : pData.shield;
+                    let isStealth = (stateUpdate[`${pId}.stealthTurns`] !== undefined ? stateUpdate[`${pId}.stealthTurns`] : pData.stealthTurns) > 0;
+                    let trait = stateUpdate[`${pId}.trait`] || pData.trait;
+                    let changed = false;
+
+                    pieces.forEach((pos, idx) => {
+                        if (pos === boss.pos && pos >= 0 && pos <= 43) {
+                            if (trait === 'bounty_hunter') {
+                                let reward = ['orbital_laser', 'magic_dice', 'missile', 'shield'][Math.floor(Math.random()*4)];
+                                items.push(reward);
+                                boss.hp = Math.max(1, (boss.hp || 6) - 1);
+                                logs.push(`🤠 【赏金猎人】${pData.name} 与首领擦肩交火，不仅毫发无损还顺走了一件【${window.getItemName(reward)}】！`);
+                                stateUpdate[`${pId}.items`] = items;
+                            } else if (isStealth) {
+                                logs.push(`👻 ${pData.name} 的隐形战机完美避开了首领的巡航扫荡！`);
+                            } else if (shield) {
+                                shield = false;
+                                stateUpdate[`${pId}.shield`] = false;
+                                logs.push(`🛡️ ${pData.name} 的【反导护盾】挡下了首领【${boss.name}】的正面冲撞！`);
+                            } else if (consumeFrigateProtection(pId, pos, stateUpdate, logs)) {
+                                logs.push(`🛸 ${pData.name} 的【护卫力场】驱逐了首领的袭击！`);
+                            } else if (items.length > 0 && idx < 4) {
+                                let stolen = items.splice(Math.floor(Math.random()*items.length), 1)[0];
+                                stateUpdate[`${pId}.items`] = items;
+                                logs.push(`${boss.icon} 首领【${boss.name}】掠夺了 ${pData.name} 的【${window.getItemName(stolen)}】作为买路财！`);
+                            } else {
+                                pieces[idx] = idx === 4 ? 999 : (pId === 'p1' ? 0 : 22);
+                                changed = true;
+                                logs.push(`${boss.icon} 首领【${boss.name}】将 ${pData.name} 的战机撞回了起点！`);
+                                if (trait === 'arms_maniac' && idx < 4) {
+                                    items.push('missile');
+                                    stateUpdate[`${pId}.items`] = items;
+                                    logs.push(`💣 【军火狂人】被首领激怒，获得复仇【🎯导弹】！`);
+                                }
+                            }
+                        }
+                    });
+                    if (changed) stateUpdate[`${pId}.pieces`] = pieces;
+                });
+
                 stateUpdate.boss = boss;
             }
         }
@@ -3705,6 +3825,18 @@
                 } else if (gameState.weather.type === 'fog' && !isRecon) {
                     moveSteps = Math.sign(dice) * 1;
                 }
+                // 电子战机改装效果：若起点周围4格内有敌方电子战机，受到电子压制步数-2（护盾可免疫）
+                let oppEwars = oppData.ewars || [false,false,false,false,false];
+                let nearOppEwar = oppPieces.slice(0,4).some((op, oi) => oppEwars[oi] && op >= 0 && op <= 43 && Math.min(Math.abs(op - currentPos), 44 - Math.abs(op - currentPos)) <= 4);
+                if (nearOppEwar && moveSteps > 1) {
+                    if (myShield) {
+                        myShield = false;
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】屏蔽了敌方【⚡电子战机】的减速干扰！`);
+                    } else {
+                        moveSteps = Math.max(1, moveSteps - 2);
+                        logs.push(`⚡ 受到敌方【电子战机】强电磁干扰，移动距离衰减 2 格！`);
+                    }
+                }
 
                 let ignoreAllBarricades = (actorData.trait === 'iron_bastion');
                 let moveResult = calculateDestination(actorId, currentPos, moveSteps, ignoreAllBarricades ? [] : currentBarricades, false); 
@@ -3722,9 +3854,14 @@
                         oppPieces.slice(0,4).forEach((oppP) => {
                             if (oppP === stepPos && oppP >= 0 && oppP <= 43) {
                                 if (actorData.trait === 'thief' && Math.random() < 0.5 && oppItems.length > 0) {
-                                    let stolen = oppItems.splice(Math.floor(Math.random() * oppItems.length), 1)[0];
-                                    myItems.push(stolen); myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
-                                    logs.push(`👻 ${actorName} 施展【幽灵怪盗】，越过敌机顺手窃取了【${window.getItemName(stolen)}】！`);
+                                    if (oppShield) {
+                                        oppShield = false;
+                                        logs.push(`🛡️ 敌方【反导护盾】挡下了【幽灵怪盗】的顺手牵羊！`);
+                                    } else {
+                                        let stolen = oppItems.splice(Math.floor(Math.random() * oppItems.length), 1)[0];
+                                        myItems.push(stolen); myStats.itemsPicked = (myStats.itemsPicked || 0) + 1;
+                                        logs.push(`👻 ${actorName} 施展【幽灵怪盗】，越过敌机顺手窃取了【${window.getItemName(stolen)}】！`);
+                                    }
                                 }
                                 if (actorData.trait === 'hive_mind') {
                                     addPlayerSp(actorId, 8, stateUpdate);
@@ -3793,6 +3930,10 @@
                     if (actorData.trait === 'engineer') {
                         myItems.push('shield');
                         logs.push(`🛠️ 【王牌工兵】拆解了引力黑洞并转化为护盾！`);
+                    } else if (myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾抵御黑洞引力！`);
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】抵消了引力黑洞的强制拖拽！`);
                     } else {
                         newPos = nearBh;
                         animKeyframes.push(`🕳️ 被引力黑洞强行吸附！`);
@@ -3810,12 +3951,21 @@
                     let jumpDelta = spObj.owner === actorId ? 6 : -4;
                     let newSprings = [...springs]; newSprings.splice(spHitIdx, 1);
                     stateUpdate.springs = newSprings;
-                    let spRes = calculateDestination(actorId, newPos, jumpDelta, currentBarricades, false);
-                    newPos = spRes.pos;
-                    animKeyframes.push(jumpDelta > 0 ? `⏫ 战术跳板助推 +6 格！` : `⏫ 误踩敌方跳板弹回 4 格！`);
-                    animKeyframes.push(...spRes.path);
-                    logs.push(`⏫ ${actorName} 触发【战术跳板】，位移 ${jumpDelta} 格！`);
-                    processingFeatures = true; continue;
+                    if (jumpDelta < 0 && actorData.trait === 'engineer') {
+                        myItems.push('spring');
+                        logs.push(`🛠️ 【王牌工兵】拆除了敌方跳板并收入囊中！`);
+                    } else if (jumpDelta < 0 && myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾稳住机身免于弹回！`);
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】抵消了敌方战术跳板的逆向弹射！`);
+                    } else {
+                        let spRes = calculateDestination(actorId, newPos, jumpDelta, currentBarricades, false);
+                        newPos = spRes.pos;
+                        animKeyframes.push(jumpDelta > 0 ? `⏫ 战术跳板助推 +6 格！` : `⏫ 误踩敌方跳板弹回 4 格！`);
+                        animKeyframes.push(...spRes.path);
+                        logs.push(`⏫ ${actorName} 触发【战术跳板】，位移 ${jumpDelta} 格！`);
+                        processingFeatures = true; continue;
+                    }
                 }
 
                 let oppFakeboxes = stateUpdate[`${oppId}.fakeboxes`] || oppData.fakeboxes || [];
@@ -3823,7 +3973,12 @@
                     visitedEvents.push(`fb_${newPos}`);
                     stateUpdate[`${oppId}.fakeboxes`] = oppFakeboxes.filter(f => f !== newPos);
                     if (actorData.trait === 'engineer' || isRecon) {
-                        logs.push(`🛠️ ${actorName} 识破了敌方的【伪装空投箱】！`);
+                        myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
+                        logs.push(`🛠️ ${actorName} 识破并拆解了敌方的【伪装空投箱】，转化为真实物资！`);
+                    } else if (myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾挡下伪装箱爆炸！`);
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】挡下了【伪装空投箱】的诡雷爆炸与致盲！`);
                     } else {
                         let fbRes = calculateDestination(actorId, newPos, -4, currentBarricades, false);
                         newPos = fbRes.pos;
@@ -3844,10 +3999,29 @@
                     logs.push(`❄️ 极地结冰航道，战机顺势滑行 2 格！`);
                     processingFeatures = true; continue;
                 }
+                if ((gameState.lavaCells || []).includes(newPos) && !visitedEvents.includes(`lava_${newPos}`)) {
+                    visitedEvents.push(`lava_${newPos}`);
+                    if (myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾隔绝火山熔岩！`);
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】抵御了炽热熔岩的灼烧！`);
+                    } else {
+                        let lavaRes = calculateDestination(actorId, newPos, -3, currentBarricades, false);
+                        newPos = lavaRes.pos;
+                        animKeyframes.push(`🌋 误入喷发熔岩！退避3格！`);
+                        animKeyframes.push(...lavaRes.path);
+                        logs.push(`🌋 ${actorName} 闯入火山熔岩喷发区，紧急后撤 3 格！`);
+                        processingFeatures = true; continue;
+                    }
+                }
                 if ((gameState.craters || []).some(c => c.pos === newPos) && !visitedEvents.includes(`crater_${newPos}`)) {
                     visitedEvents.push(`crater_${newPos}`);
-                    myShield = false;
-                    logs.push(`🔥 战机陷入【焦土弹坑】，护盾受损且无法继续同色跳跃！`);
+                    if (myShield) {
+                        myShield = false;
+                        logs.push(`🛡️ 【反导护盾】保护战机免受焦土弹坑灼伤，但护盾能量耗尽！`);
+                    } else {
+                        logs.push(`🔥 战机陷入【焦土弹坑】，无法继续同色跳跃！`);
+                    }
                     break;
                 }
 
@@ -3936,12 +4110,42 @@
                     }
                 }
 
+                if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`thunder_${newPos}`) && gameState.weather.type === 'thunder' && (gameState.weather.zone || []).includes(newPos)) {
+                    visitedEvents.push(`thunder_${newPos}`);
+                    if (Math.random() < 0.5) {
+                        if (actorData.trait === 'storm_rider') {
+                            logs.push(`🌪️ 【风暴骑手】无视了雷暴区的落雷轰击！`);
+                        } else if (actorData.stealthTurns > 0) {
+                            logs.push(`👻 隐形战机避开了雷暴落雷感应！`);
+                        } else if (myShield) {
+                            myShield = false;
+                            animKeyframes.push(`🛡️ 护盾弹开落雷！`);
+                            logs.push(`🛡️ ${actorName} 的【反导护盾】弹开了雷暴闪电！`);
+                        } else if (consumeFrigateProtection(actorId, newPos, stateUpdate, logs)) {
+                            animKeyframes.push(`🛸 护卫力场抵御落雷！`);
+                        } else {
+                            animKeyframes.push(`⚡ 遭遇雷击受损！`);
+                            logs.push(`⚡ 轰隆！${actorName} 在雷暴区不幸遭闪电直击！`);
+                            let died = killPlane(pieceIndex, actorId, myPieces, myAces, myBombers, myFrigates, myRecons, stateUpdate, logs, animKeyframes);
+                            newPos = died ? (isWingman ? 999 : -1) : myPieces[pieceIndex];
+                            animKeyframes.push(newPos);
+                            myStats.thunderHits = (myStats.thunderHits || 0) + 1;
+                        }
+                    }
+                }
+
                 if (newPos === initialPos && newPos >= 0 && newPos <= 43 && !visitedEvents.includes(`mine_${newPos}`) && oppMines.includes(newPos)) {
                     visitedEvents.push(`mine_${newPos}`);
                     oppMines = oppMines.filter(m => m !== newPos);
                     if (actorData.trait === 'engineer' || isRecon) {
                         myItems.push(itemPool[Math.floor(Math.random()*itemPool.length)]);
                         logs.push(`🛠️ ${actorName} 安全拆除了隐形水雷并转化为物资！`);
+                    } else if (myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾挡下水雷爆炸！`);
+                        logs.push(`🛡️ ${actorName} 的【反导护盾】成功抵挡了隐形水雷的爆炸冲击！`);
+                    } else if (consumeFrigateProtection(actorId, newPos, stateUpdate, logs)) {
+                        animKeyframes.push(`🛸 护卫舰拦截水雷冲击！`);
                     } else {
                         animKeyframes.push(`💣 踩中水雷，后退3格！`); logs.push(`💣 轰隆！${actorName} 踩中水雷，退后 3 格并留下🔥弹坑！`); playSound('boom');
                         stateUpdate.craters = [...(gameState.craters || []), { pos: newPos, turns: 2 }];
@@ -3966,8 +4170,27 @@
                 logs.push(`✈️×2 【双机编队】长机与僚机协同推进至区域 ${newPos}！`);
             }
 
-            if (newPos >= 0 && newPos <= 43) { 
-                for(let i=0; i<5; i++) { 
+            if (newPos >= 0 && newPos <= 43) {
+                let oppHolos = [...(oppData.holograms || [])];
+                let hitHoloIdx = oppHolos.indexOf(newPos);
+                if (hitHoloIdx !== -1) {
+                    oppHolos.splice(hitHoloIdx, 1);
+                    stateUpdate[`${oppId}.holograms`] = oppHolos;
+                    if (actorData.trait === 'engineer' || isRecon) {
+                        logs.push(`🛠️ ${actorName} 一眼看穿了敌方的【全息诱饵】，未受任何影响！`);
+                    } else if (myShield) {
+                        myShield = false;
+                        animKeyframes.push(`🛡️ 护盾抵消全息诱饵禁锢！`);
+                        logs.push(`🛡️ ${actorName} 撞上【全息诱饵】，【反导护盾】成功抵消了电磁禁锢！`);
+                    } else {
+                        animKeyframes.push(`🤡 撞破全息诱饵被禁锢！`);
+                        logs.push(`🤡 糟糕！${actorName} 撞破了敌方【全息诱饵】，被高压电磁云禁锢 1 回合！`);
+                        stateUpdate[`${actorId}.skipTurns`] = (actorData.skipTurns || 0) + 1;
+                        duelOccurred = true;
+                    }
+                }
+                for(let i=0; i<5; i++) {
+                    if (duelOccurred) break; 
                     if (oppPieces[i] === newPos) {
                         const oppName = oppData.name;
                         const isMyKamikazeWingman = (pieceIndex === 4 && actorData.trait === 'wingman');
@@ -4029,6 +4252,39 @@
                     myAces[pieceIndex] = true;
                     animKeyframes.push(`👑 晋升为【王牌】！`);
                     logs.push(`👑 战绩赫赫！${actorName} 的战机晋升为【王牌】！`);
+                }
+            }
+
+            // 轰炸机改装落地范围轰炸结算（周围3格内敌机与首领，支持护盾与护卫舰拦截）
+            if (myBombers[pieceIndex] && newPos >= 0 && newPos <= 43) {
+                let didBomb = false;
+                let isOppStealth = oppData.stealthTurns > 0;
+                oppPieces.slice(0,4).forEach((p, i) => {
+                    if (p >= 0 && p <= 43) {
+                        let d = Math.abs(p - newPos);
+                        if (Math.min(d, 44 - d) <= 3 && !isOppStealth) {
+                            if (oppShield) {
+                                oppShield = false;
+                                animKeyframes.push(`🛡️ 敌方护盾挡下轰炸！`);
+                                logs.push(`🛡️ 敌方【反导护盾】在轰炸机空袭中保住了战机！`);
+                                didBomb = true;
+                            } else if (consumeFrigateProtection(oppId, p, stateUpdate, logs)) {
+                                animKeyframes.push(`🛸 敌方力场拦截轰炸！`);
+                                didBomb = true;
+                            } else {
+                                killPlane(i, oppId, oppPieces, oppAces, oppBombers, oppFrigates, oppRecons, stateUpdate, logs, animKeyframes);
+                                animKeyframes.push(`🚀 轰炸机摧毁敌机！`);
+                                logs.push(`🚀 【轰炸机】地毯式轰炸摧毁了周围 3 格内的敌机！`);
+                                playSound('boom');
+                                myStats.kills++; oppStats.pacifist = false;
+                                didBomb = true;
+                            }
+                        }
+                    }
+                });
+                if (didBomb) {
+                    myBombers[pieceIndex] = false;
+                    logs.push(`🚀 【轰炸机】弹药倾泻完毕，恢复为常规战机。`);
                 }
             }
 
