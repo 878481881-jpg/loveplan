@@ -1,0 +1,1790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>云端恶魔轮盘：宿命左轮 🎲🔫</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://static.cloudbase.net">
+    <!-- 腾讯云开发 CloudBase Web SDK -->
+    <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Noto+Sans+SC:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #090a0f;
+            --panel-bg: rgba(18, 21, 33, 0.88);
+            --neon-red: #ff2a5f;
+            --neon-blue: #00f0ff;
+            --neon-gold: #ffb800;
+            --neon-purple: #b829ff;
+            --neon-green: #00e676;
+        }
+        body {
+            font-family: 'Noto Sans SC', 'ZCOOL KuaiLe', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 50% 35%, rgba(184, 41, 255, 0.12) 0%, transparent 55%),
+                radial-gradient(circle at 15% 80%, rgba(255, 42, 95, 0.1) 0%, transparent 45%),
+                radial-gradient(circle at 85% 20%, rgba(0, 240, 255, 0.1) 0%, transparent 45%),
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+            color: #e2e8f0;
+            overflow: hidden;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .title-font { font-family: 'ZCOOL KuaiLe', cursive, sans-serif; }
+
+        /* 玻璃拟态与赛博边框 */
+        .cyber-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .cyber-border-red { border-color: rgba(255, 42, 95, 0.5); box-shadow: 0 0 15px rgba(255, 42, 95, 0.2); }
+        .cyber-border-blue { border-color: rgba(0, 240, 255, 0.5); box-shadow: 0 0 15px rgba(0, 240, 255, 0.2); }
+        .cyber-border-gold { border-color: rgba(255, 184, 0, 0.6); box-shadow: 0 0 18px rgba(255, 184, 0, 0.25); }
+
+        /* 枪械动画与悬浮 */
+        @keyframes gunFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(-1.5deg); }
+        }
+        .gun-idle { animation: gunFloat 3.5s ease-in-out infinite; }
+
+        @keyframes shootRecoil {
+            0% { transform: scale(1) rotate(0deg); }
+            15% { transform: scale(1.25) rotate(-22deg) translateY(-12px); filter: drop-shadow(0 0 25px #ff2a5f); }
+            40% { transform: scale(0.95) rotate(8deg) translateY(4px); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .gun-shoot { animation: shootRecoil 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
+
+        @keyframes screenShake {
+            0%, 100% { transform: translate(0, 0); }
+            15% { transform: translate(-10px, -8px) rotate(-1deg); }
+            30% { transform: translate(10px, 6px) rotate(1deg); }
+            45% { transform: translate(-8px, 6px) rotate(-0.5deg); }
+            60% { transform: translate(6px, -6px) rotate(0.5deg); }
+            75% { transform: translate(-4px, 2px); }
+        }
+        .shake-anim { animation: screenShake 0.45s ease-in-out; }
+
+        @keyframes flashRed {
+            0% { background-color: rgba(255, 20, 60, 0.55); }
+            100% { background-color: transparent; }
+        }
+        .damage-flash { animation: flashRed 0.6s ease-out forwards; }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.7; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.06); }
+        }
+        .pulse-glow { animation: pulseGlow 2s infinite; }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 20px); }
+            12% { opacity: 1; transform: translate(-50%, 0); }
+            88% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -15px); }
+        }
+        .toast-animate { animation: slideUpFade 2.8s forwards; }
+
+        /* 道具卡片样式 */
+        .item-slot {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        .item-slot:hover:not(.disabled) {
+            transform: translateY(-5px) scale(1.04);
+            border-color: #38bdf8;
+            box-shadow: 0 6px 16px rgba(56, 189, 248, 0.35);
+            z-index: 20;
+        }
+        .item-slot:active:not(.disabled) {
+            transform: scale(0.95);
+        }
+        .item-slot.disabled {
+            opacity: 0.45;
+            filter: grayscale(0.6);
+            cursor: not-allowed;
+        }
+
+        /* 隐藏滚动条 */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 子弹图标展示 */
+        .shell-pill {
+            width: 18px;
+            height: 36px;
+            border-radius: 4px 4px 2px 2px;
+            border-bottom: 5px solid #d97706;
+            box-shadow: inset -2px 0 4px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.5);
+            transition: transform 0.2s;
+        }
+        .shell-pill:hover { transform: translateY(-4px); }
+    </style>
+</head>
+<body id="appBody" class="h-screen w-screen flex flex-col items-center justify-between py-2 px-2 sm:px-4 relative overflow-hidden">
+
+    <!-- 受击全屏红光遮罩 -->
+    <div id="screenFxOverlay" class="fixed inset-0 pointer-events-none z-[95]"></div>
+
+    <!-- 全局连接 Loading -->
+    <div id="globalLoading" class="fixed inset-0 bg-slate-950/95 backdrop-blur-lg z-[150] flex flex-col items-center justify-center transition-opacity duration-500">
+        <div class="text-6xl animate-bounce mb-4">🔫</div>
+        <div class="text-amber-400 font-bold text-xl tracking-widest flex items-center gap-2 title-font">
+            <span class="w-3 h-3 rounded-full bg-rose-500 animate-ping"></span>
+            正在接入地下轮盘赌局...
+        </div>
+        <p class="text-xs text-slate-400 mt-2">腾讯云 CloudBase 实时双人同步引擎</p>
+    </div>
+
+    <!-- 顶部浮动提示 Toast -->
+    <div id="toast" class="fixed top-16 left-1/2 transform -translate-x-1/2 bg-slate-900/95 text-amber-300 px-6 py-2.5 rounded-full shadow-2xl text-xs sm:text-sm font-bold hidden z-[140] whitespace-nowrap border border-amber-500/50"></div>
+
+    <!-- 子弹装填公示弹窗 (每轮上膛时展示3.2秒) -->
+    <div id="loadoutModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[110] hidden flex items-center justify-center p-4">
+        <div class="cyber-panel cyber-border-gold rounded-3xl p-6 w-full max-w-md text-center transform transition-all">
+            <div class="text-xs font-bold uppercase tracking-widest text-amber-400 mb-1" id="loadoutRoundTag">ROUND 1 · 弹仓装填公示</div>
+            <h3 class="text-2xl font-black text-white mb-2 title-font" id="loadoutTitle">新弹夹已随机混入枪膛！</h3>
+            <p class="text-xs text-slate-300 mb-4" id="loadoutEventDesc">本轮混沌法则：无</p>
+            
+            <!-- 子弹构成展示 -->
+            <div id="loadoutShellsBox" class="flex flex-wrap items-center justify-center gap-3 py-4 px-3 bg-slate-950/80 rounded-2xl border border-slate-800 mb-4">
+                <!-- 动态生成子弹图标 -->
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-left text-[11px] bg-slate-900/70 p-3 rounded-xl border border-slate-800 text-slate-300 mb-4" id="loadoutBreakdown">
+                <!-- 子弹类型说明 -->
+            </div>
+
+            <div class="text-xs text-amber-400 animate-pulse font-bold">⚠️ 记住子弹配比！装入枪膛后顺序已完全打乱</div>
+        </div>
+    </div>
+
+    <!-- 黑市军火商店弹窗 -->
+    <div id="shopModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[115] hidden flex items-center justify-center p-4">
+        <div class="cyber-panel cyber-border-blue rounded-3xl p-5 w-full max-w-md flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center border-b border-slate-700/80 pb-3 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">🏪</span>
+                    <div>
+                        <h3 class="text-lg font-black text-cyan-400 title-font">地下黑市军火库</h3>
+                        <p class="text-[11px] text-slate-400">在你的回合消耗筹码购买强力秘宝（不消耗出牌权）</p>
+                    </div>
+                </div>
+                <div class="bg-amber-500/20 border border-amber-500/40 px-3 py-1 rounded-full text-xs font-black text-amber-300">
+                    🪙 <span id="shopMyCoins">0</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto space-y-2.5 pr-1 no-scrollbar" id="shopItemsList">
+                <!-- 动态渲染黑市商品 -->
+            </div>
+
+            <button onclick="closeShopModal()" class="mt-4 w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm border border-slate-600 transition-all">
+                关闭黑市
+            </button>
+        </div>
+    </div>
+
+    <!-- 肾上腺素偷取对手道具弹窗 -->
+    <div id="stealModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[118] hidden flex items-center justify-center p-4">
+        <div class="cyber-panel cyber-border-red rounded-3xl p-5 w-full max-w-sm text-center">
+            <div class="text-4xl mb-2">💉</div>
+            <h3 class="text-lg font-black text-rose-400 mb-1">肾上腺素爆发！</h3>
+            <p class="text-xs text-slate-300 mb-4">选择对手桌面上的 1 件道具立即夺取到自己手中：</p>
+            <div id="stealItemsGrid" class="grid grid-cols-2 gap-2.5 mb-4"></div>
+            <button onclick="closeStealModal()" class="w-full py-2 rounded-xl bg-slate-800 text-slate-400 text-xs font-bold">取消</button>
+        </div>
+    </div>
+
+    <!-- 图鉴与规则说明弹窗 -->
+    <div id="guideModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[125] hidden flex items-center justify-center p-4">
+        <div class="cyber-panel rounded-3xl p-5 w-full max-w-lg max-h-[86vh] flex flex-col border border-slate-700">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-3">
+                <h3 class="text-lg font-black text-amber-400 title-font flex items-center gap-2"><span>📖</span> 恶魔轮盘：特种弹药与道具图鉴</h3>
+                <button onclick="toggleGuideModal(false)" class="text-slate-400 hover:text-white text-xl font-bold px-2">✕</button>
+            </div>
+            <div class="flex-1 overflow-y-auto space-y-4 text-xs text-slate-300 pr-1 no-scrollbar leading-relaxed">
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="font-bold text-amber-400 text-sm mb-1.5">🏆 核心赛制：三局两胜制 (BO3 持久战役)</div>
+                    <p>整场对决分为 <b>3个阶段 (Act I / II / III)</b>，率先赢下 <b>2个阶段</b> 的赌徒赢得最终桂冠！第一幕双方 5滴血，第二幕 6滴血，决胜幕 7滴血。每当枪膛子弹打光，会自动进入下一轮装填并随机刷新<b>桌面混沌法则</b>与<b>4件补给道具</b>。</p>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="font-bold text-rose-400 text-sm mb-1.5">🔫 5种特种弹药（随机混装入膛）</div>
+                    <ul class="space-y-1.5">
+                        <li><span class="text-red-400 font-bold">🔴 普通实弹</span>：造成 1 点基础伤害，获得 2 筹码 + 25 怒气。</li>
+                        <li><span class="text-sky-400 font-bold">🔵 空包哑弹</span>：无伤害！<b>若朝自己开枪且为空包弹，你直接获得额外行动回合 + 2 筹码！</b></li>
+                        <li><span class="text-orange-400 font-bold">💥 高爆重弹</span>：属于实弹，天生造成 <b>2 点巨额伤害</b>（配合手锯可达3点）！</li>
+                        <li><span class="text-purple-400 font-bold">🧛 猩红吸血弹</span>：属于实弹，造成 1 点伤害，并为开枪者回复 1 点生命（若打自己则纯扣血不回血）。</li>
+                        <li><span class="text-emerald-400 font-bold">⚡ 电磁震荡弹</span>：属于实弹，造成 1 点伤害，并<b>随机震碎目标桌上的 1 件道具</b>！</li>
+                    </ul>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="font-bold text-cyan-400 text-sm mb-1.5">🧰 10种战术道具（上限8格）</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div><b>🔍 验弹放大镜</b>：暗中查看当前枪膛内第一发子弹的真实属性。</div>
+                        <div><b>🪚 改装手锯</b>：本回合下一枪若为实弹，伤害额外 +1。</div>
+                        <div><b>🍺 冰镇啤酒</b>：拉栓退掉当前第一发子弹（公开展示），不结束回合。</div>
+                        <div><b>🔗 战术手铐</b>：拷住对手，使其下一次轮到回合时直接跳过。</div>
+                        <div><b>🚬 疗伤雪茄</b>：平复心跳，立即恢复 1 点生命值。</div>
+                        <div><b>🔄 极性逆转器</b>：将当前枪膛内的实弹变成空包弹，或空包弹变成普通实弹！</div>
+                        <div><b>💉 肾上腺素</b>：立即从对手道具栏中指定夺取 1 件道具化为己用。</div>
+                        <div><b>📱 幽灵手机</b>：未来视！偷偷预知弹仓后续某发子弹的确切属性。</div>
+                        <div><b>💊 赌命药丸</b>：50%概率直接恢复 2 点生命，50%概率中毒扣除 1 点生命！</div>
+                        <div><b>🛡️ 纳米护盾</b>：展开护盾，抵消自己下一次受到的 1 点枪击伤害。</div>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/90 p-3 rounded-xl border border-slate-800">
+                    <div class="font-bold text-purple-400 text-sm mb-1.5">🎭 四大赌徒职业（满100怒气释放终极技）</div>
+                    <ul class="space-y-1">
+                        <li><b>🎲 命运赌徒</b>：朝自己开出空包弹额外+2筹码；主动技【命运轮盘】随机回复1~2血并获2件道具。</li>
+                        <li><b>⚙️ 枪械黑客</b>：开局额外自带1个放大镜；主动技【弹道重构】偷看当前子弹并获得1把改装手锯。</li>
+                        <li><b>🩸 暗夜死神</b>：使用雪茄或药丸回血时额外+2筹码；主动技【死神镰刀】直接诅咒削减对手1点生命（保留1血底线）并给自身加护盾。</li>
+                        <li><b>🃏 诡术欺诈师</b>：道具栏每轮多发1件；主动技【瞒天过海】立即洗乱当前弹仓顺序并摸取2件高阶道具。</li>
+                    </ul>
+                </div>
+            </div>
+            <button onclick="toggleGuideModal(false)" class="mt-3 w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 text-slate-950 font-black text-sm">
+                了然于胸，回到赌局
+            </button>
+        </div>
+    </div>
+
+    <!-- 结算与晋级弹窗 -->
+    <div id="msgModal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[130] hidden flex items-center justify-center p-4">
+        <div class="cyber-panel cyber-border-gold rounded-3xl p-6 w-full max-w-sm text-center transform scale-95 transition-transform" id="msgModalContent">
+            <div id="msgIcon" class="text-6xl mb-3 animate-bounce">🏆</div>
+            <h3 class="text-2xl font-black text-amber-400 mb-2 title-font" id="msgTitle">对决落幕</h3>
+            <p class="text-slate-300 text-sm mb-6 leading-relaxed" id="msgDesc">恭喜赢得胜利！</p>
+            <div class="flex gap-3">
+                <button onclick="closeMsgModal()" class="flex-1 py-3 rounded-xl bg-slate-800 text-slate-300 font-bold text-sm hover:bg-slate-700">查看桌面</button>
+                <button onclick="resetGame()" class="flex-1 py-3 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 text-slate-950 font-black text-sm shadow-lg hover:opacity-95">再来一局 (BO3)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部状态栏 -->
+    <header class="w-full max-w-lg flex justify-between items-center z-10 px-2 py-1 flex-shrink-0">
+        <div class="flex items-center gap-2 cyber-panel px-3 py-1.5 rounded-2xl">
+            <span class="text-xl">🔫</span>
+            <div>
+                <h1 class="text-sm sm:text-base font-black text-amber-400 tracking-wide title-font leading-none">云端恶魔轮盘</h1>
+                <span class="text-[10px] text-slate-400">BO3 宿命左轮 · 战术版</span>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+            <button onclick="toggleGuideModal(true)" class="cyber-panel px-2.5 py-1.5 rounded-xl text-xs font-bold text-cyan-300 hover:bg-slate-800 flex items-center gap-1 border border-cyan-500/30">
+                <span>📖</span> 规则图鉴
+            </button>
+            <div class="flex flex-col items-end cyber-panel px-3 py-1 rounded-xl">
+                <div class="text-[11px] font-bold text-slate-300 flex items-center gap-1">
+                    代号: <span id="currentRoleDisplay" class="text-amber-400 font-black cursor-pointer underline decoration-dotted" onclick="changeNickname()" title="点击修改代号">加载中</span>
+                </div>
+                <span id="syncStatusBadge" class="text-[9px] text-slate-400 flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span> 连接中
+                </span>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主视图容器 -->
+    <main class="w-full max-w-lg flex-1 flex flex-col items-center justify-between gap-2 relative z-10 overflow-hidden my-1">
+
+        <!-- ==================== 匹配大厅视图 ==================== -->
+        <div id="lobbyView" class="w-full flex-1 flex flex-col gap-3 overflow-y-auto no-scrollbar px-1 py-1">
+            <div class="cyber-panel rounded-3xl p-5 flex flex-col items-center text-center relative overflow-hidden">
+                <div class="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none"></div>
+                <div class="absolute -bottom-12 -left-12 w-32 h-32 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+                <!-- 职业选择区 -->
+                <div class="w-full mb-4">
+                    <div class="text-xs font-bold text-amber-400 mb-2 flex items-center justify-between px-1">
+                        <span>🎭 第一步：选择你的参战契约职业</span>
+                        <span class="text-[10px] text-slate-400">附带专属被动与大招</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2" id="classSelectGrid">
+                        <!-- JS 动态生成4大职业卡片 -->
+                    </div>
+                </div>
+
+                <!-- 房间创建与加入 -->
+                <div class="w-full space-y-3 pt-2 border-t border-slate-800/80">
+                    <button onclick="createRoom()" class="w-full py-3.5 bg-gradient-to-r from-rose-600 via-red-500 to-amber-500 text-white rounded-2xl font-black text-base shadow-lg shadow-rose-950/60 hover:opacity-95 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-rose-400/40">
+                        <span>🕯️</span> 创建地下赌局 (庄家 P1)
+                    </button>
+
+                    <div class="flex items-center gap-2">
+                        <input type="text" id="roomCodeInput" maxlength="4" placeholder="输入4位房间密码" class="flex-1 px-3 py-3 bg-slate-950/90 border border-slate-700 rounded-2xl text-center text-lg font-black text-cyan-400 tracking-[0.35em] focus:outline-none focus:border-cyan-400 uppercase" autocomplete="off">
+                        <button onclick="joinRoom()" class="px-5 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-slate-950 font-black text-base rounded-2xl shadow-lg hover:opacity-95 active:scale-[0.98] transition-all whitespace-nowrap">
+                            闯入赌局 (P2)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 玩法亮点速览 -->
+            <div class="cyber-panel rounded-2xl p-4 text-left border border-slate-800/90">
+                <h3 class="text-xs font-black text-amber-400 mb-2 flex items-center gap-1.5">
+                    <span>⚡</span> 为什么这局恶魔轮盘持久又刺激？
+                </h3>
+                <div class="grid grid-cols-2 gap-2 text-[11px] text-slate-300">
+                    <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-800">
+                        <b class="text-rose-400">🔥 三局两胜 (BO3)</b>：三幕递增血量(5/6/7血)，单局落后也能绝地翻盘。
+                    </div>
+                    <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-800">
+                        <b class="text-cyan-400">🧪 5种特种弹药</b>：高爆弹、猩红吸血弹、电磁碎物弹混装，拒绝单调。
+                    </div>
+                    <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-800">
+                        <b class="text-amber-400">🏪 筹码黑市 & 技能</b>：交火积攒筹码与怒气，随时买道具或开职业大招。
+                    </div>
+                    <div class="bg-slate-900/70 p-2 rounded-xl border border-slate-800">
+                        <b class="text-purple-400">🌪️ 桌面混沌法则</b>：每轮换弹触发随机全局突变，局局体验截然不同。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== 游戏对战视图 ==================== -->
+        <div id="gameView" class="w-full flex-1 flex flex-col justify-between gap-1.5 hidden h-full overflow-hidden">
+
+            <!-- 顶部房间号 + 阶段比分 + 回合横幅 -->
+            <div class="w-full cyber-panel rounded-xl px-2.5 py-1.5 flex items-center justify-between gap-2 flex-shrink-0">
+                <div class="flex items-center gap-2">
+                    <div class="bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700 text-center">
+                        <span class="text-[9px] text-slate-400 block leading-none">房号</span>
+                        <span id="displayRoomCode" class="text-xs font-black text-amber-400 tracking-wider">----</span>
+                    </div>
+                    <div class="bg-slate-900 px-2 py-0.5 rounded-lg border border-slate-700 text-center">
+                        <span class="text-[9px] text-slate-400 block leading-none" id="actBadgeText">ACT 1</span>
+                        <span id="scoreBadgeText" class="text-xs font-black text-rose-400">0 : 0</span>
+                    </div>
+                </div>
+
+                <div id="turnBanner" class="flex-1 py-1 px-2 rounded-lg text-center text-xs font-black truncate transition-all">
+                    ⏳ 等待对手加入...
+                </div>
+
+                <button onclick="exitRoom()" class="w-7 h-7 rounded-lg bg-rose-950/60 text-rose-400 flex items-center justify-center hover:bg-rose-900/70 border border-rose-800/50 text-xs" title="退出房间">
+                    ✕
+                </button>
+            </div>
+
+            <!-- ==================== 对手信息与道具区 ==================== -->
+            <div class="w-full cyber-panel rounded-2xl p-2.5 flex flex-col gap-1.5 flex-shrink-0 border border-rose-500/20">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-1.5">
+                        <span id="oppClassIcon" class="text-base">🎭</span>
+                        <span id="oppNameDisplay" class="text-xs font-black text-slate-200 truncate max-w-[110px]">等待对手...</span>
+                        <span id="oppClassName" class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">未知</span>
+                        <span id="oppStatusBadges" class="flex gap-1 text-xs"></span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] font-bold text-amber-300">🪙 <span id="oppCoins">0</span></span>
+                        <div id="oppHpBar" class="flex items-center gap-0.5 text-xs"></div>
+                    </div>
+                </div>
+
+                <!-- 对手桌面道具栏 (8格) -->
+                <div class="grid grid-cols-8 gap-1 pt-0.5" id="oppItemsGrid">
+                    <!-- 动态渲染对手8个道具槽位 -->
+                </div>
+            </div>
+
+            <!-- ==================== 中央赌桌：混沌法则 + 霰弹枪 + 私密情报 ==================== -->
+            <div class="w-full flex-1 cyber-panel rounded-2xl p-2.5 flex flex-col items-center justify-between relative overflow-hidden border border-slate-700/80">
+                
+                <!-- 顶部：本轮混沌法则 & 剩余弹药概览 -->
+                <div class="w-full flex justify-between items-center gap-1 z-10">
+                    <div id="chaosLawBadge" class="px-2.5 py-1 rounded-full bg-purple-950/80 border border-purple-500/40 text-[10px] font-bold text-purple-200 truncate max-w-[58%]">
+                        🌀 法则：等待开局
+                    </div>
+                    <div class="flex items-center gap-1.5 bg-slate-950/85 px-2.5 py-1 rounded-full border border-slate-700 text-[10px] font-bold">
+                        <span class="text-slate-400">膛内余弹:</span>
+                        <span id="chamberCountBadge" class="text-amber-400 font-black">0</span>
+                        <span class="text-slate-600">|</span>
+                        <span id="knownRatioBadge" class="text-rose-400">🔴? 🔵?</span>
+                    </div>
+                </div>
+
+                <!-- 中部：武器舞台与状态提示 -->
+                <div class="flex flex-col items-center justify-center my-auto relative w-full py-1">
+                    <!-- 私密验弹/手机提示条（仅自己可见） -->
+                    <div id="secretIntelBanner" class="mb-1.5 px-3 py-1 rounded-full bg-cyan-950/90 border border-cyan-400/60 text-cyan-200 text-xs font-black shadow-lg hidden pulse-glow">
+                        🔍 绝密情报：当前第一发是【实弹】
+                    </div>
+
+                    <!-- 枪械本体视觉 -->
+                    <div id="gunStage" class="relative flex items-center justify-center cursor-pointer py-1 gun-idle">
+                        <div id="gunGlow" class="absolute w-36 h-12 rounded-full bg-amber-500/15 blur-xl transition-all"></div>
+                        <div class="relative flex flex-col items-center">
+                            <div id="gunGraphic" class="text-5xl sm:text-6xl select-none filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.85)] transition-transform">
+                                🔫
+                            </div>
+                            <div id="gunBuffTags" class="flex gap-1.5 mt-1">
+                                <!-- 例如：手锯已架设 伤害+1 / 极性已逆转 -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 上一枪开火结果播报横幅 -->
+                    <div id="lastShotBanner" class="text-[11px] font-bold text-slate-300 bg-slate-900/80 px-3 py-1 rounded-lg border border-slate-800 max-w-full truncate">
+                        🎲 双人就位后自动装填第一轮弹药
+                    </div>
+                </div>
+
+                <!-- 底部：双目标开火决策按钮 + 辅助战术按钮 -->
+                <div class="w-full flex flex-col gap-1.5 z-10">
+                    <div class="grid grid-cols-2 gap-2 w-full">
+                        <button id="btnShootOpp" onclick="handleShoot('opp')" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-rose-950/80 border border-rose-400/50 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                            <span>🎯</span> 朝对手开枪
+                        </button>
+                        <button id="btnShootSelf" onclick="handleShoot('self')" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-black text-xs sm:text-sm shadow-lg shadow-cyan-950/80 border border-cyan-400/50 active:scale-95 transition-all flex items-center justify-center gap-1.5">
+                            <span>🎲</span> 朝自己开枪 <span class="text-[10px] font-normal opacity-90">(空包连动)</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== 我方信息、道具栏与黑市/大招区 ==================== -->
+            <div class="w-full cyber-panel rounded-2xl p-2.5 flex flex-col gap-1.5 flex-shrink-0 border border-cyan-500/30">
+                <!-- 我方状态头 -->
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center gap-1.5">
+                        <span id="myClassIcon" class="text-base">🎲</span>
+                        <span class="text-xs font-black text-cyan-300">我方</span>
+                        <span id="myClassName" class="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-bold">命运赌徒</span>
+                        <span id="myStatusBadges" class="flex gap-1 text-xs"></span>
+                    </div>
+                    <div id="myHpBar" class="flex items-center gap-0.5 text-xs"></div>
+                </div>
+
+                <!-- 我方8格道具栏 -->
+                <div class="grid grid-cols-4 sm:grid-cols-8 gap-1.5 py-0.5" id="myItemsGrid">
+                    <!-- 动态生成我方8个可点击道具槽 -->
+                </div>
+
+                <!-- 底部战术栏：黑市商店 + 职业终极技能 + 快捷挑衅 -->
+                <div class="flex items-center justify-between gap-2 pt-1 border-t border-slate-800">
+                    <button onclick="openShopModal()" id="btnOpenShop" class="flex-1 py-1.5 px-2.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all">
+                        <span>🏪</span> 黑市 (<span id="myCoinsDisplay">0</span>🪙)
+                    </button>
+
+                    <button onclick="useClassSkill()" id="btnClassSkill" class="flex-1 py-1.5 px-2.5 rounded-xl bg-purple-600/20 hover:bg-purple-600/35 border border-purple-500/40 text-purple-300 text-xs font-black flex items-center justify-center gap-1 active:scale-95 transition-all">
+                        <span>⚡</span> 终极技 (<span id="myRageDisplay">0</span>%)
+                    </button>
+
+                    <div class="flex gap-1">
+                        <button onclick="sendQuickTaunt('😎 这一发绝对是实弹，你敢接吗？')" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs border border-slate-700" title="心理施压">😎</button>
+                        <button onclick="sendQuickTaunt('🤡 颤抖吧！我早就看穿枪膛了！')" class="px-2 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs border border-slate-700" title="虚张声势">🤡</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部实时战况通讯记录 -->
+            <div class="w-full h-20 cyber-panel rounded-xl p-2 overflow-hidden relative flex-shrink-0 flex flex-col">
+                <div class="text-[10px] font-bold text-slate-400 mb-1 flex justify-between items-center border-b border-slate-800 pb-0.5">
+                    <span>📡 赌桌加密电台</span>
+                    <span class="text-emerald-400">● 腾讯云实时同步</span>
+                </div>
+                <div id="eventLogs" class="flex-1 overflow-y-auto space-y-1 no-scrollbar text-[11px] text-slate-300"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script type="module">
+        const fallbackTimer = setTimeout(() => hideLoading(), 1200);
+
+        // ==================== 腾讯云开发 CloudBase 配置（严格复用参考页联网逻辑与集合） ====================
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";
+        const REGION = "ap-shanghai";
+        const ROOM_COLLECTION = "unoRooms"; // 复用现有的 unoRooms 集合，零配置即开即玩
+
+        function getRoomRef(code) {
+            return db.collection(ROOM_COLLECTION).doc(String(code));
+        }
+
+        function pickDoc(snapshot, code) {
+            if (!snapshot) return null;
+            const docs = snapshot.docs;
+            if (Array.isArray(docs)) return docs[0] || null;
+            if (docs && typeof docs === 'object') {
+                return docs[code] || (docs._id ? docs : null);
+            }
+            return null;
+        }
+
+        let app, auth, db;
+        let currentUser = null;
+        let hasCloudBase = false;
+
+        try {
+            app = cloudbase.init({ env: ENV_ID, region: REGION });
+            auth = app.auth;
+            db = app.database();
+            hasCloudBase = true;
+        } catch (e) {
+            console.error("CloudBase init failed", e);
+        }
+
+        // ==================== 玩家身份与选职状态 ====================
+        let myName = "赌徒" + Math.floor(100 + Math.random() * 900);
+        try {
+            const saved = localStorage.getItem('loveGacha_myIdentity');
+            if (saved) myName = saved;
+        } catch (e) {}
+        document.getElementById('currentRoleDisplay').innerText = myName;
+
+        window.changeNickname = function() {
+            const input = prompt("请输入你的赌徒代号（最多8个字）：", myName);
+            if (input && input.trim()) {
+                myName = input.trim().slice(0, 8);
+                document.getElementById('currentRoleDisplay').innerText = myName;
+                try { localStorage.setItem('loveGacha_myIdentity', myName); } catch (e) {}
+            }
+        };
+
+        // 四大职业定义
+        const CLASSES = {
+            gambler: {
+                id: 'gambler',
+                name: '命运赌徒',
+                icon: '🎲',
+                desc: '被动：射自己空包弹额外+2🪙；大招：回1~2血并获2件道具',
+                skillName: '命运轮盘'
+            },
+            hacker: {
+                id: 'hacker',
+                name: '枪械黑客',
+                icon: '⚙️',
+                desc: '被动：每幕开局额外获🔍放大镜；大招：偷看当前弹并获🪚手锯',
+                skillName: '弹道重构'
+            },
+            reaper: {
+                id: 'reaper',
+                name: '暗夜死神',
+                icon: '🩸',
+                desc: '被动：造成实弹伤害额外+1🪙；大招：诅咒对手扣1血(保底1)并获🛡️护盾',
+                skillName: '死神镰刀'
+            },
+            trickster: {
+                id: 'trickster',
+                name: '诡术欺诈师',
+                icon: '🃏',
+                desc: '被动：每轮补给多领1件道具；大招：洗乱枪膛顺序并摸2件道具',
+                skillName: '瞒天过海'
+            }
+        };
+
+        let selectedClassId = 'gambler';
+
+        function renderClassSelection() {
+            const grid = document.getElementById('classSelectGrid');
+            grid.innerHTML = '';
+            Object.values(CLASSES).forEach(cls => {
+                const active = cls.id === selectedClassId;
+                const div = document.createElement('div');
+                div.className = `p-2.5 rounded-2xl border text-left cursor-pointer transition-all ${
+                    active 
+                        ? 'bg-amber-500/20 border-amber-400 shadow-md shadow-amber-500/10' 
+                        : 'bg-slate-900/75 border-slate-800 hover:border-slate-600'
+                }`;
+                div.onclick = () => {
+                    selectedClassId = cls.id;
+                    renderClassSelection();
+                };
+                div.innerHTML = `
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-black ${active ? 'text-amber-300' : 'text-slate-200'}">${cls.icon} ${cls.name}</span>
+                        ${active ? '<span class="text-[10px] bg-amber-400 text-slate-950 font-black px-1.5 rounded">已选</span>' : ''}
+                    </div>
+                    <p class="text-[10px] text-slate-400 leading-snug">${cls.desc}</p>
+                `;
+                grid.appendChild(div);
+            });
+        }
+        renderClassSelection();
+
+        // ==================== 10种战术道具与5种特种弹药定义 ====================
+        const ITEMS = {
+            magnifier: { id: 'magnifier', name: '验弹镜', icon: '🔍', desc: '偷看当前枪膛第一发子弹', price: 3 },
+            saw:       { id: 'saw',       name: '手锯',   icon: '🪚', desc: '本回合下一枪实弹伤害+1', price: 4 },
+            beer:      { id: 'beer',      name: '冰啤酒', icon: '🍺', desc: '退掉当前第一发子弹', price: 3 },
+            cuffs:     { id: 'cuffs',     name: '手铐',   icon: '🔗', desc: '禁锢对手跳过下个回合', price: 5 },
+            cigar:     { id: 'cigar',     name: '雪茄',   icon: '🚬', desc: '立即恢复 1 点生命值', price: 4 },
+            inverter:  { id: 'inverter',  name: '逆转器', icon: '🔄', desc: '反转当前子弹的实/空属性', price: 4 },
+            adrenaline:{ id: 'adrenaline',name: '肾上腺素',icon: '💉', desc: '夺取对手1件道具化为己用', price: 5 },
+            phone:     { id: 'phone',     name: '幽灵手机',icon: '📱', desc: '预知枪膛后续某发子弹', price: 3 },
+            pill:      { id: 'pill',      name: '赌命药丸',icon: '💊', desc: '50%回2血，50%扣1血', price: 2 },
+            shield:    { id: 'shield',    name: '纳米护盾',icon: '🛡️', desc: '抵消下一次受到的1点伤害', price: 4 }
+        };
+        const ITEM_KEYS = Object.keys(ITEMS);
+
+        const SHELL_TYPES = {
+            live:    { id: 'live',    name: '普通实弹', icon: '🔴', color: 'bg-red-600',    isLive: true,  dmg: 1, desc: '造成1点伤害' },
+            blank:   { id: 'blank',   name: '空包哑弹', icon: '🔵', color: 'bg-sky-500',    isLive: false, dmg: 0, desc: '无伤，射自己连动' },
+            heavy:   { id: 'heavy',   name: '高爆重弹', icon: '💥', color: 'bg-orange-500', isLive: true,  dmg: 2, desc: '天生造成2点高额伤害' },
+            vampire: { id: 'vampire', name: '猩红吸血弹',icon: '🧛', color: 'bg-purple-600', isLive: true,  dmg: 1, desc: '1点伤害并为射手回1血' },
+            shock:   { id: 'shock',   name: '电磁震荡弹',icon: '⚡', color: 'bg-emerald-500',isLive: true,  dmg: 1, desc: '1点伤害并击碎目标1件道具' }
+        };
+
+        // 8种桌面混沌法则（每轮换弹随机抽取1种）
+        const CHAOS_LAWS = [
+            { id: 'normal',     name: '⚖️ 标准死斗',   desc: '本轮无特殊规则修正，纯靠算计与胆魄' },
+            { id: 'bloodpact',  name: '🩸 血色契约',   desc: '本轮所有实弹命中额外获得 +2 筹码' },
+            { id: 'arsenal',    name: '📦 军火大促',   desc: '本轮双方额外多发放 1 件战术道具' },
+            { id: 'overcharge', name: '⚡ 怒气沸腾',   desc: '本轮每次开枪获得的怒气值翻倍 (+50%)' },
+            { id: 'gamble',     name: '🎲 勇者奖赏',   desc: '朝自己开枪若为空包弹，额外恢复 1 点生命！' },
+            { id: 'toxic',      name: '☠️ 禁疗迷雾',   desc: '本轮雪茄与药丸的回血效果减半（最多回1血）' }
+        ];
+
+        // ==================== 全局房间与本地状态 ====================
+        let currentRoomId = null;
+        let unsubscribeRoom = null;
+        let gameState = null;
+        let myPlayerId = null;
+        let oppPlayerId = null;
+
+        // 本地私密情报（放大镜/幽灵手机看到的结果，仅自己可见，换弹或开枪后自动清空）
+        let localSecretIntel = "";
+        let lastSeenLoadoutId = 0;
+
+        // ==================== Web Audio 合成音效系统（无需外部音频文件） ====================
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new AudioCtx();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                if (type === 'bang') {
+                    // 实弹轰鸣
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(160, now);
+                    osc.frequency.exponentialRampToValueAtTime(28, now + 0.38);
+                    gain.gain.setValueAtTime(0.6, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'click') {
+                    // 空包弹清脆击针声
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(950, now);
+                    osc.frequency.exponentialRampToValueAtTime(220, now + 0.08);
+                    gain.gain.setValueAtTime(0.35, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.09);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.09);
+                } else if (type === 'reload') {
+                    // 上膛声
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(320, now);
+                    osc.frequency.linearRampToValueAtTime(580, now + 0.15);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.18);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'item') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.14);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+                }
+            } catch (e) {}
+        }
+
+        // ==================== 生成新弹夹与随机道具补给 ====================
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        function drawRandomItems(count) {
+            const res = [];
+            for (let i = 0; i < count; i++) {
+                const k = ITEM_KEYS[Math.floor(Math.random() * ITEM_KEYS.length)];
+                res.push(k);
+            }
+            return res;
+        }
+
+        // 生成一轮全新的弹仓与桌面道具
+        function buildNewLoadout(actNumber, roundNumber, p1State, p2State) {
+            // 每轮总子弹数 5 ~ 8 发
+            const totalShells = Math.floor(Math.random() * 4) + 5; // 5, 6, 7, 8
+            const liveCount = Math.max(2, Math.min(totalShells - 2, Math.round(totalShells * 0.5)));
+            const blankCount = totalShells - liveCount;
+
+            const rawShells = [];
+            for (let i = 0; i < liveCount; i++) {
+                // 随机将部分实弹升级为特种实弹（高爆、吸血、震荡）
+                const roll = Math.random();
+                if (roll < 0.22) rawShells.push('heavy');
+                else if (roll < 0.44) rawShells.push('vampire');
+                else if (roll < 0.65) rawShells.push('shock');
+                else rawShells.push('live');
+            }
+            for (let i = 0; i < blankCount; i++) {
+                rawShells.push('blank');
+            }
+
+            // 混沌法则
+            const law = CHAOS_LAWS[Math.floor(Math.random() * CHAOS_LAWS.length)];
+
+            // 计算双方发放道具数（基础3件，军火大促+1，欺诈师被动+1，上限8格）
+            const baseGrant = law.id === 'arsenal' ? 4 : 3;
+            const p1GrantCount = Math.min(8 - p1State.items.length, baseGrant + (p1State.classId === 'trickster' ? 1 : 0));
+            const p2GrantCount = Math.min(8 - p2State.items.length, baseGrant + (p2State.classId === 'trickster' ? 1 : 0));
+
+            const newP1Items = [...p1State.items, ...drawRandomItems(Math.max(0, p1GrantCount))];
+            const newP2Items = [...p2State.items, ...drawRandomItems(Math.max(0, p2GrantCount))];
+
+            // 公示用的未打乱数组（排序方便玩家一眼看清配比）
+            const displayShells = [...rawShells].sort();
+            // 真正装入枪膛的打乱数组
+            const chamber = shuffle(rawShells);
+
+            return {
+                chamber,
+                displayShells,
+                chaosLaw: law,
+                p1Items: newP1Items,
+                p2Items: newP2Items,
+                loadoutId: Date.now()
+            };
+        }
+
+        // ==================== 腾讯云登录与房间生命周期 ====================
+        async function initAuth() {
+            if (!hasCloudBase) {
+                showToast("未检测到云环境配置");
+                clearTimeout(fallbackTimer);
+                hideLoading();
+                return;
+            }
+            try {
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> 在线就绪';
+                switchToLobby();
+            } catch (err) {
+                console.error("Auth Error:", err);
+                showToast("云同步连接异常，请检查网络");
+                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 离线';
+                switchToLobby();
+            } finally {
+                clearTimeout(fallbackTimer);
+                hideLoading();
+            }
+        }
+
+        function hideLoading() {
+            const el = document.getElementById('globalLoading');
+            el.classList.add('opacity-0', 'pointer-events-none');
+            setTimeout(() => el.classList.add('hidden'), 500);
+        }
+
+        function switchToLobby() {
+            document.getElementById('lobbyView').classList.remove('hidden');
+            document.getElementById('gameView').classList.add('hidden');
+            if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
+            currentRoomId = null;
+            myPlayerId = null;
+            oppPlayerId = null;
+            localSecretIntel = "";
+        }
+
+        window.createRoom = async function() {
+            if (!currentUser) return showToast("正在连接云端服务器，请稍候...");
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+
+            const p1InitItems = selectedClassId === 'hacker' ? ['magnifier'] : [];
+
+            const initialData = {
+                gameType: 'buckshot_v2',
+                status: 'waiting',
+                act: 1,              // 当前第几幕 (1~3)
+                roundInAct: 1,       // 当前幕第几轮换弹
+                scores: { p1: 0, p2: 0 }, // BO3 大比分
+                turn: 'p1',
+                p1: {
+                    name: myName,
+                    classId: selectedClassId,
+                    hp: 5,
+                    maxHp: 5,
+                    coins: 3,
+                    rage: 20,
+                    items: p1InitItems,
+                    shield: false,
+                    cuffed: false
+                },
+                p2: {
+                    name: null,
+                    classId: 'gambler',
+                    hp: 5,
+                    maxHp: 5,
+                    coins: 3,
+                    rage: 20,
+                    items: [],
+                    shield: false,
+                    cuffed: false
+                },
+                chamber: [],
+                displayShells: [],
+                loadoutId: 0,
+                chaosLaw: CHAOS_LAWS[0],
+                gunBuffs: {
+                    sawBonus: 0,
+                    inverted: false
+                },
+                lastActionText: '等待第二位赌徒入座...',
+                lastActionTime: Date.now(),
+                logs: [`🕯️ ${myName} (${CLASSES[selectedClassId].name}) 创建了赌局 [${code}]，等待挑战者...`],
+                winner: null
+            };
+
+            try {
+                await getRoomRef(code).set(initialData);
+                myPlayerId = 'p1';
+                oppPlayerId = 'p2';
+                listenToRoom(code);
+                showToast(`赌局房间 ${code} 创建成功！`);
+            } catch (e) {
+                console.error(e);
+                showToast("创建房间失败，请重试");
+            }
+        };
+
+        window.joinRoom = async function() {
+            if (!currentUser) return showToast("未连接服务器");
+            const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+            if (!code || code.length !== 4) return showToast("请输入4位数字房间号");
+
+            try {
+                const res = await getRoomRef(code).get();
+                const data = res.data && res.data[0];
+                if (!data) return showToast("房间不存在或已解散");
+                if (data.gameType !== 'buckshot_v2') {
+                    return showToast("该房间号属于旧版其他游戏，请新建房间");
+                }
+                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
+                    return showToast("该赌局已满员开战");
+                }
+
+                if (data.status === 'waiting' && data.p1.name !== myName) {
+                    const p2BaseItems = selectedClassId === 'hacker' ? ['magnifier'] : [];
+                    const p2Obj = {
+                        name: myName,
+                        classId: selectedClassId,
+                        hp: 5,
+                        maxHp: 5,
+                        coins: 3,
+                        rage: 20,
+                        items: p2BaseItems,
+                        shield: false,
+                        cuffed: false
+                    };
+
+                    const loadout = buildNewLoadout(1, 1, data.p1, p2Obj);
+                    p2Obj.items = loadout.p2Items;
+                    const updatedP1 = { ...data.p1, items: loadout.p1Items };
+
+                    await getRoomRef(code).update({
+                        p1: updatedP1,
+                        p2: p2Obj,
+                        status: 'playing',
+                        chamber: loadout.chamber,
+                        displayShells: loadout.displayShells,
+                        chaosLaw: loadout.chaosLaw,
+                        loadoutId: loadout.loadoutId,
+                        lastActionText: `⚔️ 第一幕开战！本轮共 ${loadout.chamber.length} 发子弹上膛！`,
+                        logs: [
+                            ...data.logs,
+                            `⚔️ ${myName} (${CLASSES[selectedClassId].name}) 闯入赌局！BO3 第一幕正式开始！`,
+                            `🔫 第1轮上膛：共 ${loadout.chamber.length} 发子弹，法则【${loadout.chaosLaw.name}】`
+                        ]
+                    });
+                    myPlayerId = 'p2';
+                    oppPlayerId = 'p1';
+                } else if (data.p1.name === myName) {
+                    myPlayerId = 'p1'; oppPlayerId = 'p2';
+                } else if (data.p2.name === myName) {
+                    myPlayerId = 'p2'; oppPlayerId = 'p1';
+                }
+
+                listenToRoom(code);
+            } catch (e) {
+                console.error(e);
+                showToast("加入房间失败");
+            }
+        };
+
+        window.exitRoom = function() {
+            switchToLobby();
+        };
+
+        function listenToRoom(code) {
+            currentRoomId = code;
+            document.getElementById('lobbyView').classList.add('hidden');
+            document.getElementById('gameView').classList.remove('hidden');
+
+            if (unsubscribeRoom) unsubscribeRoom();
+
+            const watcher = getRoomRef(code).watch({
+                onChange: (snapshot) => {
+                    const data = pickDoc(snapshot, code);
+                    if (data) {
+                        // 检查是否触发了新的上膛公示
+                        if (data.loadoutId && data.loadoutId !== lastSeenLoadoutId && data.status === 'playing') {
+                            lastSeenLoadoutId = data.loadoutId;
+                            localSecretIntel = ""; // 换新弹夹清空旧情报
+                            playSound('reload');
+                            showLoadoutModal(data);
+                        }
+                        // 检查是否有人刚刚开枪触发震屏动画
+                        if (gameState && data.lastActionTime !== gameState.lastActionTime) {
+                            if (data.lastActionText && (data.lastActionText.includes('💥') || data.lastActionText.includes('🔴') || data.lastActionText.includes('🧛') || data.lastActionText.includes('⚡'))) {
+                                triggerDamageVisuals();
+                                playSound('bang');
+                            } else if (data.lastActionText && data.lastActionText.includes('🔵')) {
+                                playSound('click');
+                            }
+                        }
+                        gameState = data;
+                        requestAnimationFrame(renderGameState);
+                    } else {
+                        showToast("房间已关闭");
+                        switchToLobby();
+                    }
+                },
+                onError: (err) => console.error("Watch error:", err)
+            });
+
+            unsubscribeRoom = () => watcher.close();
+        }
+
+        function triggerDamageVisuals() {
+            const body = document.getElementById('appBody');
+            const fx = document.getElementById('screenFxOverlay');
+            const gun = document.getElementById('gunStage');
+            body.classList.remove('shake-anim');
+            fx.classList.remove('damage-flash');
+            gun.classList.remove('gun-shoot');
+            void body.offsetWidth;
+            body.classList.add('shake-anim');
+            fx.classList.add('damage-flash');
+            gun.classList.add('gun-shoot');
+        }
+
+        // ==================== 弹仓装填公示弹窗 ====================
+        function showLoadoutModal(data) {
+            const modal = document.getElementById('loadoutModal');
+            document.getElementById('loadoutRoundTag').innerText = `ACT ${data.act} · 第 ${data.roundInAct} 轮装填公示`;
+            document.getElementById('loadoutTitle').innerText = `共 ${data.displayShells.length} 发特种弹药入膛！`;
+            document.getElementById('loadoutEventDesc').innerText = `${data.chaosLaw.name}：${data.chaosLaw.desc}`;
+
+            const box = document.getElementById('loadoutShellsBox');
+            box.innerHTML = '';
+            const counts = {};
+            data.displayShells.forEach(sKey => {
+                counts[sKey] = (counts[sKey] || 0) + 1;
+                const s = SHELL_TYPES[sKey] || SHELL_TYPES.live;
+                const pill = document.createElement('div');
+                pill.className = `flex flex-col items-center gap-1`;
+                pill.innerHTML = `
+                    <div class="shell-pill ${s.color} flex items-center justify-center text-xs">${s.icon}</div>
+                    <span class="text-[10px] font-bold text-slate-300">${s.name.slice(0,2)}</span>
+                `;
+                box.appendChild(pill);
+            });
+
+            const breakdown = document.getElementById('loadoutBreakdown');
+            breakdown.innerHTML = Object.entries(counts).map(([k, num]) => {
+                const s = SHELL_TYPES[k] || SHELL_TYPES.live;
+                return `<div>${s.icon} <b>${s.name} x${num}</b>：<span class="text-slate-400">${s.desc}</span></div>`;
+            }).join('');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 3400);
+        }
+
+        // ==================== 渲染主界面状态 ====================
+        function renderHpHearts(hp, maxHp, hasShield) {
+            let html = '';
+            for (let i = 0; i < maxHp; i++) {
+                if (i < hp) {
+                    html += `<span class="text-rose-500 drop-shadow-[0_0_4px_rgba(244,63,94,0.6)]">❤️</span>`;
+                } else {
+                    html += `<span class="opacity-25 grayscale">🖤</span>`;
+                }
+            }
+            if (hasShield) {
+                html += `<span class="ml-1 px-1 rounded bg-cyan-500/20 border border-cyan-400 text-[10px] text-cyan-300 font-bold">🛡️护盾</span>`;
+            }
+            return html;
+        }
+
+        function renderGameState() {
+            if (!gameState || !myPlayerId) return;
+
+            const me = gameState[myPlayerId];
+            const opp = gameState[oppPlayerId];
+            const isMyTurn = gameState.status === 'playing' && gameState.turn === myPlayerId;
+
+            // 顶部房间与比分
+            document.getElementById('displayRoomCode').innerText = currentRoomId;
+            document.getElementById('actBadgeText').innerText = `第 ${gameState.act}/3 幕`;
+            const myScore = gameState.scores ? gameState.scores[myPlayerId] : 0;
+            const oppScore = gameState.scores ? gameState.scores[oppPlayerId] : 0;
+            document.getElementById('scoreBadgeText').innerText = `我 ${myScore} : ${oppScore} 敌`;
+
+            // 回合横幅
+            const banner = document.getElementById('turnBanner');
+            if (gameState.status === 'waiting') {
+                banner.className = "flex-1 py-1 px-2 rounded-lg text-center text-xs font-bold bg-slate-800 text-slate-400";
+                banner.innerText = "⏳ 等待挑战者输入房号加入...";
+            } else if (gameState.status === 'playing') {
+                if (isMyTurn) {
+                    banner.className = "flex-1 py-1 px-2 rounded-lg text-center text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 pulse-glow";
+                    banner.innerText = "👉 轮到你行动！可用道具或直接扣动扳机";
+                } else {
+                    banner.className = "flex-1 py-1 px-2 rounded-lg text-center text-xs font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30";
+                    banner.innerText = `👀 对手 [${opp.name || '赌徒'}] 正在抉择...`;
+                }
+            } else {
+                banner.className = "flex-1 py-1 px-2 rounded-lg text-center text-xs font-black bg-amber-500/20 text-amber-300";
+                banner.innerText = "🏆 对决已分出胜负！";
+            }
+
+            // 对手状态栏
+            const oppCls = CLASSES[opp.classId] || CLASSES.gambler;
+            document.getElementById('oppClassIcon').innerText = oppCls.icon;
+            document.getElementById('oppNameDisplay').innerText = opp.name || '等待加入...';
+            document.getElementById('oppClassName').innerText = oppCls.name;
+            document.getElementById('oppCoins').innerText = opp.coins || 0;
+            document.getElementById('oppHpBar').innerHTML = renderHpHearts(opp.hp, opp.maxHp, opp.shield);
+            document.getElementById('oppStatusBadges').innerHTML = opp.cuffed ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400 text-[10px] text-amber-300">🔗被铐</span>` : '';
+
+            // 对手8格道具
+            const oppGrid = document.getElementById('oppItemsGrid');
+            oppGrid.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const itemKey = opp.items && opp.items[i];
+                const slot = document.createElement('div');
+                if (itemKey && ITEMS[itemKey]) {
+                    const it = ITEMS[itemKey];
+                    slot.className = "h-9 rounded-lg bg-slate-900/90 border border-slate-700 flex flex-col items-center justify-center text-xs relative";
+                    slot.title = `${it.name}：${it.desc}`;
+                    slot.innerHTML = `<span>${it.icon}</span><span class="text-[8px] text-slate-400 leading-none mt-0.5">${it.name.slice(0,2)}</span>`;
+                } else {
+                    slot.className = "h-9 rounded-lg bg-slate-950/40 border border-slate-800/60 flex items-center justify-center text-[10px] text-slate-700";
+                    slot.innerHTML = `·`;
+                }
+                oppGrid.appendChild(slot);
+            }
+
+            // 中央区域：混沌法则 + 剩余实弹/空包统计
+            const law = gameState.chaosLaw || CHAOS_LAWS[0];
+            const lawEl = document.getElementById('chaosLawBadge');
+            lawEl.innerText = `${law.name}：${law.desc}`;
+            lawEl.title = `${law.name}：${law.desc}`;
+
+            const chamber = gameState.chamber || [];
+            document.getElementById('chamberCountBadge').innerText = `${chamber.length} 发`;
+            const liveLeft = chamber.filter(s => SHELL_TYPES[s] && SHELL_TYPES[s].isLive).length;
+            const blankLeft = chamber.length - liveLeft;
+            document.getElementById('knownRatioBadge').innerText = `🔴实 ${liveLeft} | 🔵空 ${blankLeft}`;
+
+            // 私密情报条
+            const intelEl = document.getElementById('secretIntelBanner');
+            if (localSecretIntel && isMyTurn) {
+                intelEl.innerText = localSecretIntel;
+                intelEl.classList.remove('hidden');
+            } else {
+                intelEl.classList.add('hidden');
+            }
+
+            // 枪械附加Buff标签
+            const buffsEl = document.getElementById('gunBuffTags');
+            buffsEl.innerHTML = '';
+            if (gameState.gunBuffs && gameState.gunBuffs.sawBonus > 0) {
+                buffsEl.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-rose-600/30 border border-rose-400 text-[10px] font-black text-rose-300">🪚 锯短枪管 伤害+${gameState.gunBuffs.sawBonus}</span>`;
+            }
+            if (gameState.gunBuffs && gameState.gunBuffs.inverted) {
+                buffsEl.innerHTML += `<span class="px-2 py-0.5 rounded-full bg-purple-600/30 border border-purple-400 text-[10px] font-black text-purple-300">🔄 极性已逆转</span>`;
+            }
+
+            document.getElementById('lastShotBanner').innerText = gameState.lastActionText || '等待开局...';
+
+            // 射击按钮状态
+            const btnOpp = document.getElementById('btnShootOpp');
+            const btnSelf = document.getElementById('btnShootSelf');
+            btnOpp.disabled = !isMyTurn;
+            btnSelf.disabled = !isMyTurn;
+            btnOpp.classList.toggle('opacity-40', !isMyTurn);
+            btnSelf.classList.toggle('opacity-40', !isMyTurn);
+
+            // 我方状态栏
+            const myCls = CLASSES[me.classId] || CLASSES.gambler;
+            document.getElementById('myClassIcon').innerText = myCls.icon;
+            document.getElementById('myClassName').innerText = myCls.name;
+            document.getElementById('myHpBar').innerHTML = renderHpHearts(me.hp, me.maxHp, me.shield);
+            document.getElementById('myStatusBadges').innerHTML = me.cuffed ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400 text-[10px] text-amber-300">🔗被铐</span>` : '';
+
+            // 我方8格道具栏
+            const myGrid = document.getElementById('myItemsGrid');
+            myGrid.innerHTML = '';
+            for (let i = 0; i < 8; i++) {
+                const itemKey = me.items && me.items[i];
+                const slot = document.createElement('button');
+                if (itemKey && ITEMS[itemKey]) {
+                    const it = ITEMS[itemKey];
+                    slot.className = `item-slot h-12 rounded-xl bg-slate-900 border border-slate-700 flex flex-col items-center justify-center p-1 ${!isMyTurn ? 'disabled' : ''}`;
+                    slot.innerHTML = `
+                        <span class="text-base leading-none">${it.icon}</span>
+                        <span class="text-[10px] font-bold text-slate-200 mt-0.5 leading-none">${it.name}</span>
+                    `;
+                    slot.onclick = () => {
+                        if (!isMyTurn) return showToast("还没轮到你的回合！");
+                        handleUseItem(i, itemKey);
+                    };
+                } else {
+                    slot.className = "h-12 rounded-xl bg-slate-950/50 border border-slate-800/70 flex items-center justify-center text-[10px] text-slate-600 cursor-default";
+                    slot.innerHTML = `空槽`;
+                }
+                myGrid.appendChild(slot);
+            }
+
+            // 筹码与职业大招按钮
+            document.getElementById('myCoinsDisplay').innerText = me.coins || 0;
+            const rage = Math.min(100, me.rage || 0);
+            document.getElementById('myRageDisplay').innerText = rage;
+            const skillBtn = document.getElementById('btnClassSkill');
+            if (rage >= 100 && isMyTurn) {
+                skillBtn.className = "flex-1 py-1.5 px-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs font-black flex items-center justify-center gap-1 shadow-lg pulse-glow";
+            } else {
+                skillBtn.className = "flex-1 py-1.5 px-2.5 rounded-xl bg-purple-600/20 border border-purple-500/40 text-purple-300 text-xs font-black flex items-center justify-center gap-1 opacity-75";
+            }
+
+            // 渲染日志
+            const logBox = document.getElementById('eventLogs');
+            logBox.innerHTML = '';
+            const logsToRender = (gameState.logs || []).slice().reverse().slice(0, 20);
+            logsToRender.forEach(log => {
+                const div = document.createElement('div');
+                div.className = "border-b border-slate-800/70 pb-0.5 w-full text-left leading-snug";
+                div.innerHTML = log;
+                logBox.appendChild(div);
+            });
+
+            // 终局弹窗
+            if (gameState.winner) {
+                document.getElementById('msgModal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('msgModalContent').classList.remove('scale-95'), 10);
+                const isMeWin = gameState.winner === myPlayerId;
+                document.getElementById('msgIcon').innerText = isMeWin ? '👑' : '💀';
+                document.getElementById('msgTitle').innerText = isMeWin ? '你主宰了恶魔轮盘！' : `${opp.name} 赢得了最终赌局！`;
+                document.getElementById('msgDesc').innerText = `最终大比分：${gameState.scores[myPlayerId]} : ${gameState.scores[oppPlayerId]}。生死博弈，胜者通吃！`;
+            }
+        }
+
+        // ==================== 10种战术道具执行逻辑 ====================
+        window.handleUseItem = async function(index, itemKey) {
+            if (!gameState || gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
+
+            const me = structuredClone(gameState[myPlayerId]);
+            const opp = structuredClone(gameState[oppPlayerId]);
+            let chamber = [...gameState.chamber];
+            let gunBuffs = { ...(gameState.gunBuffs || { sawBonus: 0, inverted: false }) };
+            let logs = [...(gameState.logs || [])];
+            const it = ITEMS[itemKey];
+
+            if (chamber.length === 0) return showToast("枪膛已空，即将换弹");
+
+            // 特殊前置校验
+            if (itemKey === 'cigar' && me.hp >= me.maxHp) {
+                return showToast("你的生命值已满，无需使用雪茄！");
+            }
+            if (itemKey === 'cuffs' && opp.cuffed) {
+                return showToast("对手已经被手铐禁锢了！");
+            }
+            if (itemKey === 'shield' && me.shield) {
+                return showToast("你已经拥有纳米护盾了！");
+            }
+            if (itemKey === 'adrenaline') {
+                if (!opp.items || opp.items.length === 0) {
+                    return showToast("对手桌上没有任何道具可偷！");
+                }
+                openStealModal(index);
+                return;
+            }
+
+            playSound('item');
+            // 扣除道具并加少量怒气
+            me.items.splice(index, 1);
+            me.rage = Math.min(100, (me.rage || 0) + 10);
+
+            let actionText = `${me.name} 使用了 ${it.icon}${it.name}`;
+
+            if (itemKey === 'magnifier') {
+                const topKey = chamber[0];
+                const shell = SHELL_TYPES[topKey] || SHELL_TYPES.live;
+                localSecretIntel = `🔍 验弹镜确认：当前第1发是【${shell.icon} ${shell.name}】！`;
+                showToast(localSecretIntel);
+                logs.push(`🔍 <b>${me.name}</b> 举起放大镜，仔细端详了枪膛内的底火...`);
+            } else if (itemKey === 'phone') {
+                if (chamber.length === 1) {
+                    const s = SHELL_TYPES[chamber[0]];
+                    localSecretIntel = `📱 幽灵来电：最后1发是【${s.icon} ${s.name}】！`;
+                } else {
+                    const randIdx = Math.floor(Math.random() * (chamber.length - 1)) + 1;
+                    const s = SHELL_TYPES[chamber[randIdx]];
+                    localSecretIntel = `📱 幽灵来电：当前第 ${randIdx + 1} 发子弹是【${s.icon} ${s.name}】！`;
+                }
+                showToast(localSecretIntel);
+                logs.push(`📱 <b>${me.name}</b> 接听了神秘幽灵来电，洞悉了未来的弹道...`);
+            } else if (itemKey === 'saw') {
+                gunBuffs.sawBonus = (gunBuffs.sawBonus || 0) + 1;
+                logs.push(`🪚 <b>${me.name}</b> 锯短了霰弹枪管！本回合下一枪实弹伤害 +1！`);
+                actionText = `🪚 ${me.name} 架设了改装手锯，下一枪实弹伤害+1！`;
+            } else if (itemKey === 'beer') {
+                const ejectedKey = chamber.shift();
+                const s = SHELL_TYPES[ejectedKey] || SHELL_TYPES.live;
+                localSecretIntel = "";
+                logs.push(`🍺 <b>${me.name}</b> 痛饮冰啤酒拉栓退膛，抛出了 1 发【${s.icon} ${s.name}】！`);
+                actionText = `🍺 退膛抛出了一发【${s.icon} ${s.name}】！`;
+            } else if (itemKey === 'cuffs') {
+                opp.cuffed = true;
+                logs.push(`🔗 <b>${me.name}</b> 给 <b>${opp.name}</b> 戴上了战术手铐！对方下回合将被迫跳过！`);
+                actionText = `🔗 ${opp.name} 被戴上手铐禁锢！`;
+            } else if (itemKey === 'cigar') {
+                me.hp = Math.min(me.maxHp, me.hp + 1);
+                if (me.classId === 'reaper') me.coins += 2;
+                logs.push(`🚬 <b>${me.name}</b> 点燃疗伤雪茄，恢复了 1 点生命值！`);
+            } else if (itemKey === 'inverter') {
+                const topKey = chamber[0];
+                const isCurrentlyLive = SHELL_TYPES[topKey] && SHELL_TYPES[topKey].isLive;
+                chamber[0] = isCurrentlyLive ? 'blank' : 'live';
+                gunBuffs.inverted = !gunBuffs.inverted;
+                localSecretIntel = "";
+                logs.push(`🔄 <b>${me.name}</b> 拨动极性逆转器，当前膛内第一发子弹的虚实已被颠倒！`);
+                actionText = `🔄 ${me.name} 逆转了当前子弹的虚实极性！`;
+            } else if (itemKey === 'pill') {
+                const winRoll = Math.random() < 0.5;
+                if (winRoll) {
+                    const healAmt = (gameState.chaosLaw && gameState.chaosLaw.id === 'toxic') ? 1 : 2;
+                    me.hp = Math.min(me.maxHp, me.hp + healAmt);
+                    if (me.classId === 'reaper') me.coins += 2;
+                    logs.push(`💊 <b>${me.name}</b> 吞下赌命药丸，赌运亨通！直接恢复了 ${healAmt} 点生命！`);
+                    actionText = `💊 赌命药丸生效！${me.name} 恢复 ${healAmt} 点生命！`;
+                } else {
+                    me.hp = Math.max(1, me.hp - 1);
+                    logs.push(`💊 <b>${me.name}</b> 吞下赌命药丸，不幸中毒抽搐！损失 1 点生命（保底1血）！`);
+                    actionText = `💊 药丸过期中毒！${me.name} 损失 1 点生命！`;
+                }
+            } else if (itemKey === 'shield') {
+                me.shield = true;
+                logs.push(`🛡️ <b>${me.name}</b> 展开了纳米防弹护盾，可抵消下一次受到的1点枪击伤害！`);
+            }
+
+            let updatePayload = {
+                [myPlayerId]: me,
+                [oppPlayerId]: opp,
+                chamber,
+                gunBuffs,
+                lastActionText: actionText,
+                logs
+            };
+
+            // 如果啤酒退掉了最后一发子弹，立即触发新一轮自动装填
+            if (chamber.length === 0) {
+                const nextRound = (gameState.roundInAct || 1) + 1;
+                const loadout = buildNewLoadout(gameState.act, nextRound,
+                    myPlayerId === 'p1' ? me : opp,
+                    myPlayerId === 'p2' ? me : opp
+                );
+                updatePayload[myPlayerId].items = myPlayerId === 'p1' ? loadout.p1Items : loadout.p2Items;
+                updatePayload[oppPlayerId].items = oppPlayerId === 'p1' ? loadout.p1Items : loadout.p2Items;
+                updatePayload.chamber = loadout.chamber;
+                updatePayload.displayShells = loadout.displayShells;
+                updatePayload.chaosLaw = loadout.chaosLaw;
+                updatePayload.roundInAct = nextRound;
+                updatePayload.loadoutId = loadout.loadoutId;
+                updatePayload.gunBuffs = { sawBonus: 0, inverted: false };
+                updatePayload.logs.push(`🔄 弹仓清空！进入第 ${nextRound} 轮装填，法则【${loadout.chaosLaw.name}】！`);
+            }
+
+            gameState = { ...gameState, ...updatePayload };
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update(updatePayload);
+        };
+
+        // 肾上腺素偷取弹窗
+        let pendingAdrenalineSlot = null;
+        function openStealModal(mySlotIdx) {
+            pendingAdrenalineSlot = mySlotIdx;
+            const opp = gameState[oppPlayerId];
+            const grid = document.getElementById('stealItemsGrid');
+            grid.innerHTML = '';
+            opp.items.forEach((itemKey, oppIdx) => {
+                const it = ITEMS[itemKey];
+                const btn = document.createElement('button');
+                btn.className = "p-3 rounded-xl bg-slate-900 hover:bg-slate-800 border border-rose-500/40 flex items-center gap-2 text-left";
+                btn.innerHTML = `<span class="text-2xl">${it.icon}</span><div><div class="text-xs font-black text-white">${it.name}</div><div class="text-[10px] text-slate-400">${it.desc}</div></div>`;
+                btn.onclick = () => confirmStealItem(oppIdx);
+                grid.appendChild(btn);
+            });
+            document.getElementById('stealModal').classList.remove('hidden');
+        }
+
+        window.closeStealModal = function() {
+            document.getElementById('stealModal').classList.add('hidden');
+            pendingAdrenalineSlot = null;
+        };
+
+        async function confirmStealItem(oppIdx) {
+            const mySlotIdx = pendingAdrenalineSlot;
+            closeStealModal();
+            if (mySlotIdx === null) return;
+
+            const me = structuredClone(gameState[myPlayerId]);
+            const opp = structuredClone(gameState[oppPlayerId]);
+            const stolenKey = opp.items[oppIdx];
+            if (!stolenKey) return;
+
+            playSound('item');
+            // 替换我方肾上腺素槽位为偷来的道具
+            me.items.splice(mySlotIdx, 1, stolenKey);
+            opp.items.splice(oppIdx, 1);
+
+            const it = ITEMS[stolenKey];
+            const logs = [...gameState.logs, `💉 <b>${me.name}</b> 注射肾上腺素，直接从 <b>${opp.name}</b> 手中夺走了【${it.icon}${it.name}】！`];
+
+            const payload = {
+                [myPlayerId]: me,
+                [oppPlayerId]: opp,
+                lastActionText: `💉 ${me.name} 夺取了 ${opp.name} 的 ${it.icon}${it.name}！`,
+                logs
+            };
+            gameState = { ...gameState, ...payload };
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update(payload);
+        }
+
+        // ==================== 四大职业终极技能 ====================
+        window.useClassSkill = async function() {
+            if (!gameState || gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
+            const me = structuredClone(gameState[myPlayerId]);
+            const opp = structuredClone(gameState[oppPlayerId]);
+            if ((me.rage || 0) < 100) {
+                return showToast(`怒气未满（当前 ${me.rage || 0}% / 100%），开枪或使用道具可积攒怒气！`);
+            }
+
+            playSound('item');
+            me.rage = 0;
+            let chamber = [...gameState.chamber];
+            let logs = [...gameState.logs];
+            const cls = CLASSES[me.classId] || CLASSES.gambler;
+
+            if (me.classId === 'gambler') {
+                const heal = Math.floor(Math.random() * 2) + 1;
+                me.hp = Math.min(me.maxHp, me.hp + heal);
+                const newItems = drawRandomItems(Math.min(2, 8 - me.items.length));
+                me.items.push(...newItems);
+                logs.push(`⚡ <b>${me.name}</b> 发动终极技【${cls.skillName}】！恢复 ${heal} 点生命并凭空摸取 ${newItems.length} 件秘宝！`);
+            } else if (me.classId === 'hacker') {
+                if (chamber.length > 0) {
+                    const s = SHELL_TYPES[chamber[0]];
+                    localSecretIntel = `⚙️ 黑客透视：当前第1发是【${s.icon} ${s.name}】！`;
+                    showToast(localSecretIntel);
+                }
+                if (me.items.length < 8) me.items.push('saw');
+                logs.push(`⚡ <b>${me.name}</b> 发动终极技【${cls.skillName}】！入侵枪膛核心并合成了 1 把【🪚改装手锯】！`);
+            } else if (me.classId === 'reaper') {
+                opp.hp = Math.max(1, opp.hp - 1);
+                me.shield = true;
+                logs.push(`⚡ <b>${me.name}</b> 发动终极技【${cls.skillName}】！死神镰刀削减 <b>${opp.name}</b> 1点生命并展开纳米护盾！`);
+            } else if (me.classId === 'trickster') {
+                chamber = shuffle(chamber);
+                localSecretIntel = "";
+                const newItems = drawRandomItems(Math.min(2, 8 - me.items.length));
+                me.items.push(...newItems);
+                logs.push(`⚡ <b>${me.name}</b> 发动终极技【${cls.skillName}】！洗乱了枪膛内的子弹顺序并盗取 ${newItems.length} 件道具！`);
+            }
+
+            const payload = {
+                [myPlayerId]: me,
+                [oppPlayerId]: opp,
+                chamber,
+                lastActionText: `⚡ ${me.name} 释放了职业大招【${cls.skillName}】！`,
+                logs
+            };
+            gameState = { ...gameState, ...payload };
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update(payload);
+        };
+
+        // ==================== 黑市军火商店系统 ====================
+        window.openShopModal = function() {
+            if (!gameState || gameState.status !== 'playing') return;
+            const me = gameState[myPlayerId];
+            document.getElementById('shopMyCoins').innerText = me.coins || 0;
+
+            const list = document.getElementById('shopItemsList');
+            list.innerHTML = '';
+
+            // 盲盒选项
+            const mysteryDiv = document.createElement('div');
+            mysteryDiv.className = "p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 to-purple-500/15 border border-amber-400/40 flex items-center justify-between";
+            mysteryDiv.innerHTML = `
+                <div class="flex items-center gap-2.5">
+                    <span class="text-2xl">🎁</span>
+                    <div>
+                        <div class="text-xs font-black text-amber-300">黑市神秘盲盒</div>
+                        <div class="text-[10px] text-slate-300">随机抽取 1 件高阶战术道具，超值特惠！</div>
+                    </div>
+                </div>
+                <button onclick="buyShopItem('mystery', 2)" class="px-3 py-1.5 rounded-xl bg-amber-400 text-slate-950 font-black text-xs hover:opacity-90">2 🪙 购买</button>
+            `;
+            list.appendChild(mysteryDiv);
+
+            // 指定道具列表
+            Object.values(ITEMS).forEach(it => {
+                const row = document.createElement('div');
+                row.className = "p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between";
+                row.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-xl">${it.icon}</span>
+                        <div>
+                            <div class="text-xs font-bold text-white">${it.name}</div>
+                            <div class="text-[10px] text-slate-400">${it.desc}</div>
+                        </div>
+                    </div>
+                    <button onclick="buyShopItem('${it.id}', ${it.price})" class="px-3 py-1.5 rounded-xl bg-cyan-500/20 border border-cyan-400/50 text-cyan-300 font-bold text-xs hover:bg-cyan-500/30">${it.price} 🪙</button>
+                `;
+                list.appendChild(row);
+            });
+
+            document.getElementById('shopModal').classList.remove('hidden');
+        };
+
+        window.closeShopModal = function() {
+            document.getElementById('shopModal').classList.add('hidden');
+        };
+
+        window.buyShopItem = async function(itemId, cost) {
+            if (gameState.turn !== myPlayerId) return showToast("只能在你的行动回合购买黑市军火！");
+            const me = structuredClone(gameState[myPlayerId]);
+            if ((me.coins || 0) < cost) return showToast("筹码不足！开枪或触发职业被动可赚取筹码");
+            if (me.items.length >= 8) return showToast("你的8格道具栏已满，请先使用道具！");
+
+            playSound('item');
+            me.coins -= cost;
+            const actualKey = itemId === 'mystery' ? ITEM_KEYS[Math.floor(Math.random() * ITEM_KEYS.length)] : itemId;
+            me.items.push(actualKey);
+            const it = ITEMS[actualKey];
+
+            document.getElementById('shopMyCoins').innerText = me.coins;
+            showToast(`成功入手【${it.icon}${it.name}】！`);
+
+            const logs = [...gameState.logs, `🏪 <b>${me.name}</b> 在黑市花费 ${cost}🪙 购入了装备！`];
+            const payload = { [myPlayerId]: me, logs };
+            gameState = { ...gameState, ...payload };
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update(payload);
+        };
+
+        // ==================== 核心开枪结算逻辑 (支持5种特种弹、手铐、护盾、BO3阶段晋级) ====================
+        window.handleShoot = async function(targetType) {
+            if (!gameState || gameState.status !== 'playing' || gameState.turn !== myPlayerId) return;
+            let chamber = [...gameState.chamber];
+            if (chamber.length === 0) return;
+
+            localSecretIntel = ""; // 开枪后清空情报
+
+            const me = structuredClone(gameState[myPlayerId]);
+            const opp = structuredClone(gameState[oppPlayerId]);
+            const target = targetType === 'self' ? me : opp;
+            const targetName = targetType === 'self' ? `${me.name}(自己)` : opp.name;
+
+            const shellKey = chamber.shift();
+            const shell = SHELL_TYPES[shellKey] || SHELL_TYPES.live;
+            const gunBuffs = gameState.gunBuffs || { sawBonus: 0, inverted: false };
+            const law = gameState.chaosLaw || CHAOS_LAWS[0];
+            let logs = [...gameState.logs];
+
+            // 怒气增长
+            const rageGain = law.id === 'overcharge' ? 50 : 25;
+            me.rage = Math.min(100, (me.rage || 0) + rageGain);
+
+            let nextTurn = oppPlayerId;
+            let actionBanner = "";
+
+            if (!shell.isLive) {
+                // ========== 空包哑弹 ==========
+                if (targetType === 'self') {
+                    // 射自己空包弹：保留回合继续行动！
+                    nextTurn = myPlayerId;
+                    let coinBonus = 2 + (me.classId === 'gambler' ? 2 : 0);
+                    me.coins = (me.coins || 0) + coinBonus;
+
+                    let extraHealMsg = "";
+                    if (law.id === 'gamble' && me.hp < me.maxHp) {
+                        me.hp += 1;
+                        extraHealMsg = "，触发【勇者奖赏】额外恢复1点生命";
+                    }
+
+                    actionBanner = `🔵 空包弹！${me.name} 赌对了！获得额外回合并赚取 ${coinBonus}🪙！`;
+                    logs.push(`🔵 咔哒！<b>${me.name}</b> 朝自己扣动扳机——是<b>空包哑弹</b>！获得连动回合 +${coinBonus}🪙${extraHealMsg}！`);
+                } else {
+                    // 射对手空包弹：无事发生，换人
+                    actionBanner = `🔵 空包弹！${me.name} 朝 ${opp.name} 放了一发空枪！`;
+                    logs.push(`🔵 咔哒！<b>${me.name}</b> 朝 <b>${opp.name}</b> 开枪——是<b>空包哑弹</b>，毫发无伤！`);
+                }
+            } else {
+                // ========== 实弹命中（普通/高爆/吸血/震荡） ==========
+                let totalDmg = shell.dmg + (gunBuffs.sawBonus || 0);
+                let shieldText = "";
+
+                if (target.shield) {
+                    target.shield = false;
+                    totalDmg = Math.max(0, totalDmg - 1);
+                    shieldText = "（🛡️纳米护盾抵消了1点伤害）";
+                }
+
+                target.hp = Math.max(0, target.hp - totalDmg);
+
+                // 射手赚取筹码
+                let coinGain = 2 + (law.id === 'bloodpact' ? 2 : 0) + (me.classId === 'reaper' ? 1 : 0);
+                me.coins = (me.coins || 0) + coinGain;
+
+                let specialEffectMsg = "";
+                // 吸血弹效果（朝对手开枪才吸血）
+                if (shell.id === 'vampire' && targetType === 'opp' && me.hp < me.maxHp) {
+                    me.hp += 1;
+                    specialEffectMsg += " 🧛汲取1点生命！";
+                }
+                // 电磁震荡弹效果
+                if (shell.id === 'shock' && target.items && target.items.length > 0) {
+                    const destroyIdx = Math.floor(Math.random() * target.items.length);
+                    const destroyedKey = target.items.splice(destroyIdx, 1)[0];
+                    const dItem = ITEMS[destroyedKey];
+                    specialEffectMsg += ` ⚡震碎了【${dItem.icon}${dItem.name}】！`;
+                }
+
+                actionBanner = `${shell.icon} 轰！！【${shell.name}】对 ${targetName} 造成 ${totalDmg} 点伤害！${specialEffectMsg}`;
+                logs.push(`${shell.icon} <b>轰鸣！</b><b>${me.name}</b> 朝 <b>${targetName}</b> 射出【<b>${shell.name}</b>】，造成 <b>${totalDmg}</b> 点伤害${shieldText}！${specialEffectMsg}`);
+            }
+
+            // 如果本轮原本应该轮到对手，但对手被手铐锁住，则跳过对手回合，我方继续行动！
+            if (nextTurn === oppPlayerId && opp.cuffed && me.hp > 0 && opp.hp > 0) {
+                opp.cuffed = false;
+                nextTurn = myPlayerId;
+                logs.push(`🔗 <b>${opp.name}</b> 挣脱了战术手铐，本回合被迫跳过！<b>${me.name}</b> 继续行动！`);
+                actionBanner += ` (🔗手铐生效，${me.name} 继续行动！)`;
+            }
+
+            // 重置枪管单发增益
+            const resetBuffs = { sawBonus: 0, inverted: false };
+
+            // 检查是否有人生命归零（结算当前幕 Act）
+            let act = gameState.act || 1;
+            let roundInAct = gameState.roundInAct || 1;
+            let scores = { ...(gameState.scores || { p1: 0, p2: 0 }) };
+            let winner = null;
+            let status = 'playing';
+            let newLoadout = null;
+
+            if (me.hp <= 0 || opp.hp <= 0) {
+                const actWinnerId = me.hp <= 0 ? oppPlayerId : myPlayerId;
+                const actWinnerName = actWinnerId === myPlayerId ? me.name : opp.name;
+                scores[actWinnerId] = (scores[actWinnerId] || 0) + 1;
+
+                logs.push(`🏅 <b>第 ${act} 幕结束！${actWinnerName} 赢下本幕！当前总比分 ${scores.p1} : ${scores.p2}</b>`);
+
+                if (scores[actWinnerId] >= 2) {
+                    // 达成两胜，整场 BO3 结束！
+                    winner = actWinnerId;
+                    status = 'finished';
+                    logs.push(`👑 <b>终局落幕！${actWinnerName} 以两胜战绩登顶地下轮盘之王！</b>`);
+                } else {
+                    // 进入下一幕！提升生命上限并补满血
+                    act += 1;
+                    roundInAct = 1;
+                    const nextMaxHp = act === 2 ? 6 : 7;
+                    me.maxHp = nextMaxHp;
+                    me.hp = nextMaxHp;
+                    me.shield = false;
+                    me.cuffed = false;
+                    opp.maxHp = nextMaxHp;
+                    opp.hp = nextMaxHp;
+                    opp.shield = false;
+                    opp.cuffed = false;
+
+                    newLoadout = buildNewLoadout(act, 1,
+                        myPlayerId === 'p1' ? me : opp,
+                        myPlayerId === 'p2' ? me : opp
+                    );
+                    me.items = myPlayerId === 'p1' ? newLoadout.p1Items : newLoadout.p2Items;
+                    opp.items = oppPlayerId === 'p1' ? newLoadout.p1Items : newLoadout.p2Items;
+                    logs.push(`🔥 <b>进入第 ${act} 幕（上限 ${nextMaxHp} 血）！新弹夹已装填！</b>`);
+                }
+            } else if (chamber.length === 0) {
+                // 没人死但子弹打光，进入下一轮装填
+                roundInAct += 1;
+                newLoadout = buildNewLoadout(act, roundInAct,
+                    myPlayerId === 'p1' ? me : opp,
+                    myPlayerId === 'p2' ? me : opp
+                );
+                me.items = myPlayerId === 'p1' ? newLoadout.p1Items : newLoadout.p2Items;
+                opp.items = oppPlayerId === 'p1' ? newLoadout.p1Items : newLoadout.p2Items;
+                logs.push(`🔄 <b>枪膛打空！进入第 ${roundInAct} 轮重新装填，法则【${newLoadout.chaosLaw.name}】！</b>`);
+            }
+
+            const payload = {
+                [myPlayerId]: me,
+                [oppPlayerId]: opp,
+                chamber: newLoadout ? newLoadout.chamber : chamber,
+                displayShells: newLoadout ? newLoadout.displayShells : gameState.displayShells,
+                chaosLaw: newLoadout ? newLoadout.chaosLaw : gameState.chaosLaw,
+                loadoutId: newLoadout ? newLoadout.loadoutId : gameState.loadoutId,
+                act,
+                roundInAct,
+                scores,
+                turn: nextTurn,
+                gunBuffs: resetBuffs,
+                lastActionText: actionBanner,
+                lastActionTime: Date.now(),
+                logs,
+                winner,
+                status
+            };
+
+            gameState = { ...gameState, ...payload };
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update(payload);
+        };
+
+        // ==================== 快捷心理战喊话 & 重开游戏 ====================
+        window.sendQuickTaunt = async function(text) {
+            if (!gameState || !currentRoomId) return;
+            const me = gameState[myPlayerId];
+            const logs = [...(gameState.logs || []), `🗣️ <b>${me.name}</b> 挑衅道：“<span class="text-amber-300">${text}</span>”`];
+            gameState.logs = logs;
+            requestAnimationFrame(renderGameState);
+            await getRoomRef(currentRoomId).update({ logs });
+            showToast("已发送挑衅广播！");
+        };
+
+        window.resetGame = async function() {
+            if (!currentRoomId || !gameState) return;
+            const p1Base = {
+                ...gameState.p1,
+                hp: 5, maxHp: 5, coins: 3, rage: 20,
+                items: gameState.p1.classId === 'hacker' ? ['magnifier'] : [],
+                shield: false, cuffed: false
+            };
+            const p2Base = {
+                ...gameState.p2,
+                hp: 5, maxHp: 5, coins: 3, rage: 20,
+                items: gameState.p2.classId === 'hacker' ? ['magnifier'] : [],
+                shield: false, cuffed: false
+            };
+
+            const loadout = buildNewLoadout(1, 1, p1Base, p2Base);
+            p1Base.items = loadout.p1Items;
+            p2Base.items = loadout.p2Items;
+
+            const nextStarter = gameState.winner === 'p1' ? 'p2' : 'p1';
+
+            await getRoomRef(currentRoomId).update({
+                status: 'playing',
+                act: 1,
+                roundInAct: 1,
+                scores: { p1: 0, p2: 0 },
+                turn: nextStarter,
+                p1: p1Base,
+                p2: p2Base,
+                chamber: loadout.chamber,
+                displayShells: loadout.displayShells,
+                chaosLaw: loadout.chaosLaw,
+                loadoutId: loadout.loadoutId,
+                gunBuffs: { sawBonus: 0, inverted: false },
+                winner: null,
+                lastActionText: `🔄 新一轮 BO3 宿命赌局开启！`,
+                logs: [`🔄 双方重整旗鼓，新一轮 BO3 宿命赌局正式打响！`]
+            });
+            closeMsgModal();
+        };
+
+        window.toggleGuideModal = function(show) {
+            const el = document.getElementById('guideModal');
+            if (show) el.classList.remove('hidden');
+            else el.classList.add('hidden');
+        };
+
+        window.closeMsgModal = function() {
+            document.getElementById('msgModalContent').classList.add('scale-95');
+            setTimeout(() => document.getElementById('msgModal').classList.add('hidden'), 200);
+        };
+
+        window.showToast = function(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.remove('toast-animate');
+            void toast.offsetWidth;
+            toast.classList.add('toast-animate');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-animate');
+            }, 2800);
+        };
+
+        initAuth();
+    </script>
+</body>
+</html>
