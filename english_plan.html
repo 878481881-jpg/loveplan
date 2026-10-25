@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>我的英语蜕变手账 💖</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { 
+            font-family: 'Noto Sans SC', sans-serif; 
+            background-color: #fdf2f8; 
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px); 
+            background-size: 20px 20px; 
+            overflow-x: hidden; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0px); } }
+        .animate-float { animation: float 3s ease-in-out infinite; }
+        
+        @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
+        .toast-animate { animation: slideUpFade 3s forwards; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.35s ease-out forwards; }
+        
+        @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.25); } 100% { transform: scale(1); } }
+        .animate-pop { animation: pop 0.3s ease-out; }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
+
+        audio { outline: none; border-radius: 9999px; }
+        audio::-webkit-media-controls-enclosure { background-color: rgba(255, 255, 255, 0.75); }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col items-center py-5 px-3 pb-16">
+    <!-- 顶部栏 (完全沿用 diary.html 风格) -->
+    <header class="text-center mb-3 max-w-md animate-float w-full flex justify-between items-center px-1">
+        <button onclick="openCloudModal()" class="px-3 py-1.5 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 text-xs font-bold flex items-center gap-1 hover:bg-rose-50 transition-all">
+            <span>👤</span> <span id="headerNickname">设置昵称</span>
+        </button>
+        <div>
+            <h1 class="text-xl font-bold text-rose-500 flex items-center justify-center gap-1.5">
+               <span>✨</span> 英语日常交流手账 <span>✨</span>
+            </h1>
+        </div>
+        <button onclick="manualSyncCloud()" id="syncStatusBtn" class="px-3 py-1.5 bg-white text-emerald-500 rounded-full shadow-sm border border-emerald-100 text-xs font-bold flex items-center gap-1 hover:bg-emerald-50 transition-all" title="点击同步云端">
+            <span id="syncIcon">☁️</span> <span id="syncText">云同步</span>
+        </button>
+    </header>
+
+    <main class="w-full max-w-md flex flex-col items-center">
+        <!-- 顶部 4 大功能导航胶囊 -->
+        <div class="grid grid-cols-4 gap-2 mb-4 w-full">
+            <button onclick="switchTab('daily')" id="tab_daily" class="py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-xs flex items-center justify-center gap-1">
+                📅 每日任务
+            </button>
+            <button onclick="switchTab('Checkin')" id="tab_Checkin" class="py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-xs flex items-center justify-center gap-1">
+                🎙️ 打卡本
+            </button>
+            <button onclick="switchTab('roadmap')" id="tab_roadmap" class="py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-xs flex items-center justify-center gap-1">
+                🗺️ 四阶目标
+            </button>
+            <button onclick="switchTab('toolkit')" id="tab_toolkit" class="py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-xs flex items-center justify-center gap-1">
+                🧰 救急句库
+            </button>
+        </div>
+
+        <!-- 总体进度迷你横幅 -->
+        <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-3 shadow-sm border-2 border-rose-100 mb-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-400 to-pink-500 text-white flex flex-col items-center justify-center font-bold shadow-sm">
+                    <span class="text-[10px] leading-none opacity-90">WEEK</span>
+                    <span class="text-sm leading-tight" id="bannerWeekNum">1</span>
+                </div>
+                <div>
+                    <div class="text-xs font-bold text-gray-700 flex items-center gap-1.5">
+                        <span id="bannerStageTitle">阶段一：唤醒词汇与语音破冰</span>
+                    </div>
+                    <div class="text-[11px] text-rose-400 font-medium mt-0.5">
+                        累计打卡 <span id="totalCompletedDays" class="font-bold text-rose-500">0</span>/365 天 · 云端记录 <span id="totalDiaryCount" class="font-bold text-emerald-500">0</span> 条
+                    </div>
+                </div>
+            </div>
+            <!-- 30m / 60m 模式切换 -->
+            <div class="flex bg-rose-50 p-1 rounded-full border border-rose-200">
+                <button onclick="setDurationMode('30m')" id="modeBtn_30m" class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all text-rose-500">30m保底</button>
+                <button onclick="setDurationMode('60m')" id="modeBtn_60m" class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all bg-rose-500 text-white shadow-sm">60m标准</button>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 1: 每日任务视图 ==================== -->
+        <div id="view_daily" class="w-full flex flex-col items-center animate-fade-in">
+            
+            <!-- 周次与星期选择器 -->
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-3.5 shadow-sm border-2 border-rose-100 mb-3">
+                <div class="flex items-center justify-between mb-2.5">
+                    <button onclick="changeWeek(-1)" class="w-8 h-8 rounded-full bg-rose-50 text-rose-500 font-bold flex items-center justify-center hover:bg-rose-100 transition-colors">‹</button>
+                    <div class="flex items-center gap-1.5">
+                        <select id="weekSelector" onchange="onWeekSelectChange()" class="bg-rose-50/80 border border-rose-200 text-rose-600 font-bold text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-rose-400">
+                            <!-- JS生成 1-52周 -->
+                        </select>
+                    </div>
+                    <button onclick="changeWeek(1)" class="w-8 h-8 rounded-full bg-rose-50 text-rose-500 font-bold flex items-center justify-center hover:bg-rose-100 transition-colors">›</button>
+                </div>
+
+                <!-- 周一至周日 7天胶囊按钮 -->
+                <div id="dayPillsContainer" class="grid grid-cols-7 gap-1.5">
+                    <!-- JS生成 Day 1 - Day 7 -->
+                </div>
+            </div>
+
+            <!-- 今日核心课程与内置播放器卡片 -->
+            <div class="w-full bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-3">
+                <div class="flex items-start justify-between gap-2 border-b border-rose-50 pb-2.5 mb-3">
+                    <div>
+                        <span id="dayFocusBadge" class="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-600 mb-1">今日主修课</span>
+                        <h2 id="dailyLessonTitle" class="text-sm font-bold text-gray-800 leading-snug">加载中...</h2>
+                    </div>
+                    <span id="dayStatusTag" class="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">未完成</span>
+                </div>
+
+                <!-- 页内直接播放视频区 -->
+                <div class="mb-3">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-bold text-rose-500 flex items-center gap-1">
+                            🎬 页内视频直播 <span class="text-[10px] font-normal text-gray-400" id="videoChannelLabel"></span>
+                        </span>
+                        <button onclick="toggleVideoPlayer()" id="toggleVideoBtn" class="text-[11px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold hover:bg-emerald-100 transition">
+                            展开/收起视频
+                        </button>
+                    </div>
+                    <div id="videoPlayerWrap" class="w-full rounded-xl overflow-hidden border-2 border-rose-100 bg-black aspect-video relative shadow-inner">
+                        <iframe id="lessonYoutubeIframe" class="w-full h-full" src="" title="English Lesson Video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                    <p class="text-[11px] text-gray-400 mt-1.5 leading-normal">
+                        💡 提示：如手机当前网络无法加载内嵌 YouTube 视频，请直接点击下方<span class="text-rose-500 font-bold">「直达本课具体网页」</span>按钮或使用页内<span class="text-emerald-600 font-bold">「原生语音点读」</span>跟练。
+                    </p>
+                </div>
+
+                <!-- 直达具体某一课的网页按钮组 -->
+                <div id="directLinksContainer" class="flex flex-col gap-2 mb-3">
+                    <!-- JS生成具体到某一课的直达按钮 -->
+                </div>
+
+                <!-- 页内今日必背句块 + 手机原生TTS慢速/常速发声跟读 -->
+                <div class="bg-rose-50/70 rounded-xl p-3 border border-rose-100">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-bold text-rose-600 flex items-center gap-1">🔊 今日必背口语词块（点击直接发声跟读）</span>
+                        <span class="text-[10px] text-rose-400">内置美音合成</span>
+                    </div>
+                    <div id="dailyPhrasesList" class="space-y-2">
+                        <!-- JS动态渲染今日3个核心句子+播放按钮 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 今日 4 步打卡任务清单（勾选自动保存云端） -->
+            <div class="w-full bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-3">
+                <div class="flex items-center justify-between border-b border-rose-50 pb-2 mb-3">
+                    <h3 class="text-sm font-bold text-rose-500 flex items-center gap-1.5">
+                        ✅ 今日四步执行清单（点击勾选保存）
+                    </h3>
+                    <button onclick="checkAllTodaySteps()" class="text-[11px] bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-full font-bold border border-emerald-200 hover:bg-emerald-100 transition">
+                        一键全勾
+                    </button>
+                </div>
+
+                <div id="dailyStepsList" class="space-y-2.5">
+                    <!-- JS生成4步任务Checklist -->
+                </div>
+
+                <!-- 快捷跳转到录音打卡 -->
+                <button onclick="jumpToRecordToday()" class="mt-4 w-full py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-1.5">
+                    🎤 录下今日1分钟自言自语 / 写学习笔记 &rarr;
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: 口语录音与云端打卡本 (完全复刻 diary.html 交互) ==================== -->
+        <div id="view_Checkin" class="w-full flex flex-col items-center hidden animate-fade-in">
+            <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 shadow-sm border-2 border-rose-100 mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-bold text-rose-500" id="recordContextTag">📌 关联课程：第 1 周 · 周一</span>
+                    <span class="text-[11px] text-gray-400">保存账号：<b id="checkinNicknameLabel" class="text-rose-500">-</b></span>
+                </div>
+
+                <div class="flex items-center gap-2 mb-3 overflow-x-auto pb-1 custom-scrollbar">
+                    <span class="text-xs text-rose-400 font-bold whitespace-nowrap">状态:</span>
+                    <div id="moodOptions" class="flex gap-1.5"></div>
+                </div>
+
+                <textarea id="diaryInput" rows="3" class="w-full px-3.5 py-2.5 text-sm border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 resize-none text-gray-700 placeholder-rose-300 transition-all" placeholder="写下今天学会的3个地道造句，或者点击下方【语音】直接录一段1分钟英语自言自语吧..."></textarea>
+                
+                <!-- 预览区容器 -->
+                <div class="flex flex-col gap-2 w-full">
+                    <!-- 图片预览 -->
+                    <div id="imagePreviewContainer" class="hidden relative mt-2 w-24 h-24 group">
+                        <img id="imagePreview" class="w-full h-full object-cover rounded-xl border-2 border-rose-200 shadow-sm">
+                        <button onclick="clearImage()" class="absolute -top-2 -right-2 bg-white text-gray-500 hover:text-rose-500 rounded-full w-6 h-6 flex items-center justify-center shadow-md border border-gray-100 font-bold text-sm">×</button>
+                    </div>
+
+                    <!-- 语音预览 -->
+                    <div id="audioPreviewContainer" class="hidden relative mt-2 w-full bg-rose-50 rounded-full pr-2 pl-1 py-1 border border-rose-200 flex items-center justify-between shadow-sm">
+                        <audio id="audioPreview" controls class="h-8 flex-1"></audio>
+                        <button onclick="clearAudio()" class="ml-2 bg-white text-gray-500 hover:text-rose-500 rounded-full w-6 h-6 flex items-center justify-center shadow-sm border border-gray-100 font-bold text-sm flex-shrink-0">×</button>
+                    </div>
+                </div>
+
+                <!-- 底部操作栏 -->
+                <div class="mt-2 pt-2 border-t border-rose-50 border-dashed">
+                    <div id="normalActions" class="flex items-center justify-between">
+                        <div class="flex gap-4">
+                            <!-- 笔记配图 -->
+                            <button onclick="document.getElementById('imageInput').click()" class="flex items-center gap-1 text-xs text-rose-400 hover:text-rose-500 transition-colors font-medium">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <span>晒笔记图</span>
+                            </button>
+                            <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+                            
+                            <!-- 录口语 -->
+                            <button onclick="startRecording()" class="flex items-center gap-1 text-xs text-rose-500 bg-rose-50 px-2.5 py-1 rounded-full border border-rose-200 hover:bg-rose-100 transition-colors font-bold">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+                                <span>录口语跟读</span>
+                            </button>
+
+                            <!-- 时光胶囊（给未来的自己） -->
+                            <label class="flex items-center gap-1 cursor-pointer text-xs text-gray-500 hover:text-rose-400 transition-colors font-medium">
+                                <input type="checkbox" id="capsuleToggle" onchange="toggleCapsuleUI()" class="rounded text-rose-400 focus:ring-rose-400 bg-rose-50 border-rose-200 cursor-pointer w-3.5 h-3.5">
+                                <span>🔒 阶段胶囊</span>
+                            </label>
+                        </div>
+                        <input type="date" id="capsuleDate" class="hidden text-xs border border-rose-200 rounded-md px-1 py-0.5 text-gray-600 focus:outline-none focus:border-rose-400 max-w-[105px]">
+                    </div>
+
+                    <!-- 正在录音 UI -->
+                    <div id="recordingUI" class="hidden flex items-center justify-between w-full bg-rose-100 rounded-lg p-2 px-3 shadow-inner">
+                        <div class="flex items-center gap-2 text-rose-500 font-bold text-sm animate-pulse">
+                            <div class="w-2 h-2 bg-rose-500 rounded-full"></div>
+                            <span>正在录英语口语</span>
+                            <span id="recordTimer">00:00</span>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <button onclick="cancelRecording()" class="text-xs text-gray-500 hover:text-rose-500">取消</button>
+                            <button onclick="stopRecording()" class="text-xs bg-rose-500 text-white px-3 py-1 rounded-full shadow-md font-bold hover:bg-rose-600">录完了</button>
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveDiary()" id="saveDiaryBtn" class="mt-3 w-full py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-sm font-bold rounded-xl shadow-md hover:shadow-lg transition flex justify-center items-center gap-2">
+                    保存到云端打卡本 ✍️
+                </button>
+            </div>
+
+            <!-- 历史打卡记录流 -->
+            <div class="w-full bg-white rounded-2xl p-4 shadow-sm border-2 border-rose-100 flex flex-col h-[52vh] min-h-[340px] relative">
+                <div class="flex items-center justify-between border-b border-rose-50 pb-2 mb-3">
+                    <h3 class="text-sm font-bold text-rose-500 flex items-center gap-1.5">
+                        📖 我的云端口语成长档案
+                    </h3>
+                    <button onclick="showRandomMemory()" class="text-xs bg-rose-50 text-rose-500 px-3 py-1 rounded-full font-bold hover:bg-rose-100 transition-colors shadow-sm border border-rose-100 flex items-center gap-1">
+                        🎲 随机抽查复习
+                    </button>
+                </div>
+
+                <div id="ourDiaryList" class="flex-1 overflow-y-auto space-y-3 pr-1 custom-scrollbar flex flex-col">
+                    <!-- 动态渲染 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: 一年四阶段目标与资源全景 ==================== -->
+        <div id="view_roadmap" class="w-full flex flex-col items-center hidden animate-fade-in space-y-3">
+            <div class="w-full bg-white/95 rounded-2xl p-4 shadow-sm border-2 border-rose-100">
+                <h3 class="text-sm font-bold text-rose-500 mb-2 flex items-center gap-1.5">🎯 你的个人学情与破局法则</h3>
+                <p class="text-xs text-gray-600 leading-relaxed mb-2">
+                    你具备高中/四级阅读词汇底子，离开学校 3 年，核心痛点是<b>“视觉词汇多、听觉与肌肉词块少”</b>。无需从头背单词书，全年坚持<b>「激活3个句块 + 15分钟影子跟读 + 1分钟自言自语录音」</b>即可在一年内达成海外生活与旅游自如沟通。
+                </p>
+                <div id="stagesAccordion" class="space-y-3 mt-3">
+                    <!-- JS渲染4个阶段卡片及阶段自测Checklist -->
+                </div>
+            </div>
+
+            <div class="w-full bg-white/95 rounded-2xl p-4 shadow-sm border-2 border-rose-100">
+                <h3 class="text-sm font-bold text-rose-500 mb-2.5 flex items-center gap-1.5">🌐 16 大全免费核心学习网站直达库</h3>
+                <div id="allResourcesGrid" class="space-y-2">
+                    <!-- JS渲染16个免费网站直达卡片 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 4: 出国旅游与生活救急句库 ==================== -->
+        <div id="view_toolkit" class="w-full flex flex-col items-center hidden animate-fade-in space-y-3">
+            <div class="w-full bg-white/95 rounded-2xl p-4 shadow-sm border-2 border-rose-100">
+                <h3 class="text-sm font-bold text-rose-500 mb-1">🧰 出国旅游 & 母语交流救急工具箱</h3>
+                <p class="text-xs text-gray-500 mb-3">点击任意英文句子右侧的 <span class="text-rose-500 font-bold">🔊 朗读</span> 即可直接听发音跟读：</p>
+                <div id="survivalToolkitContainer" class="space-y-3">
+                    <!-- JS渲染6大救急场景句库 -->
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 昵称与云端同步设置弹窗 -->
+    <div id="cloudModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl border-2 border-rose-100 animate-fade-in">
+            <div class="flex justify-between items-center mb-3 border-b border-rose-50 pb-2">
+                <h3 class="text-rose-500 font-bold text-base flex items-center gap-1.5">☁️ 昵称与云端存档设置</h3>
+                <button onclick="closeCloudModal()" class="text-gray-400 hover:text-rose-500 text-xl font-bold">&times;</button>
+            </div>
+            <div class="space-y-3 text-xs text-gray-600">
+                <div>
+                    <label class="font-bold text-gray-700 block mb-1">1. 你的专属昵称（用于云端区分存档）：</label>
+                    <div class="flex gap-1.5 mb-1.5">
+                        <button onclick="quickSetNick('哼哼')" class="px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg border border-rose-200 font-bold">👦 哼哼</button>
+                        <button onclick="quickSetNick('亲亲')" class="px-2.5 py-1 bg-rose-50 text-rose-500 rounded-lg border border-rose-200 font-bold">👧 亲亲</button>
+                    </div>
+                    <input type="text" id="inputNickname" placeholder="输入你的昵称（如：哼哼）" class="w-full px-3 py-2 border-2 border-rose-100 rounded-xl focus:outline-none focus:border-rose-400 text-sm font-bold text-rose-600">
+                    <p class="text-[11px] text-gray-400 mt-1">数据将自动保存在云端仓库 <code class="text-rose-500">data/eng_你的昵称.json</code> 中，换手机输入相同昵称即可恢复进度。</p>
+                </div>
+
+                <div>
+                    <label class="font-bold text-gray-700 block mb-1">2. GitHub 仓库地址（默认沿用你的悄悄话仓库）：</label>
+                    <input type="text" id="inputRepo" value="878481881-jpg/loveplan" class="w-full px-3 py-1.5 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono">
+                </div>
+
+                <div>
+                    <label class="font-bold text-gray-700 block mb-1">3. GitHub Token（自动读取你手机已存 Token）：</label>
+                    <input type="password" id="inputToken" placeholder="ghp_... 或 github_pat_... (已自动关联 loveGacha)" class="w-full px-3 py-1.5 border border-gray-200 rounded-xl text-xs text-gray-600 font-mono">
+                    <p class="text-[10px] text-gray-400 mt-1">💡 若同浏览器登录过悄悄话，已自动共享 Token；若在新浏览器打开，填入 Token 即可开启跨设备云同步（不填也会完整保存在手机本地）。</p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="saveCloudConfig()" class="flex-1 py-2.5 bg-gradient-to-r from-emerald-400 to-teal-400 text-white text-xs font-bold rounded-xl shadow-md hover:shadow-lg transition">
+                    保存并从云端拉取进度 ☁️
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 随机复习弹窗 -->
+    <div id="memoryModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 hidden flex items-center justify-center p-4 transition-opacity opacity-0">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl transform scale-95 transition-transform" id="memoryModalContent">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-rose-500 font-bold text-base flex items-center gap-1.5" id="modalTitle">✨ 随机抽查往期笔记/录音</h3>
+                <button onclick="closeMemoryModal()" class="text-gray-400 hover:text-rose-500 text-xl font-bold">&times;</button>
+            </div>
+            <div id="memoryCard" class="bg-rose-50 p-4 rounded-xl border border-rose-100 min-h-[100px] flex flex-col justify-center relative"></div>
+            <button onclick="showRandomMemory()" class="mt-4 w-full py-2 bg-rose-400 text-white text-xs font-bold rounded-xl shadow-md hover:bg-rose-500 transition">
+                再抽一条复习 🎲
+            </button>
+        </div>
+    </div>
+
+    <!-- 图片大图查看器 -->
+    <div id="imageViewerModal" class="fixed inset-0 bg-black/90 z-50 hidden flex items-center justify-center p-2 transition-opacity opacity-0" onclick="closeImageViewer()">
+        <button class="absolute top-4 right-4 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/30 rounded-full w-10 h-10 flex items-center justify-center" onclick="closeImageViewer()">&times;</button>
+        <img id="fullSizeImage" src="" class="max-w-full max-h-full object-contain rounded-md transform scale-95 transition-transform duration-300" onclick="event.stopPropagation()">
+    </div>
+
+    <div id="toast" class="fixed top-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 text-white px-5 py-2.5 rounded-full shadow-lg text-xs font-medium hidden z-50 whitespace-nowrap"></div>
+
+    <script>
+        // =========================================================================
+        // 1. 完整 52 周 × 7 天课程数据库（具体到每一课标题、直达网址、内嵌视频ID、必背句块）
+        // =========================================================================
+        const VOA_L1_LESSONS = [
+            "Lesson 1: Welcome!", "Lesson 2: Hello, I'm Anna!", "Lesson 3: I'm Here!", "Lesson 4: What Is It?",
+            "Lesson 5: Where Are You?", "Lesson 6: Where Is the Gym?", "Lesson 7: What Are You Doing?", "Lesson 8: Are You Busy?",
+            "Lesson 9: Is It Cold?", "Lesson 10: Come Over to My Place", "Lesson 11: This Is My Neighborhood", "Lesson 12: Meet My Family",
+            "Lesson 13: Happy Birthday, William Shakespeare!", "Lesson 14: How About This?", "Lesson 15: I Love People-Watching!", "Lesson 16: Where Are You From?",
+            "Lesson 17: Are You Free on Friday?", "Lesson 18: She Always Does That", "Lesson 19: When Do I Start?", "Lesson 20: What Can You Do?",
+            "Lesson 21: Can You Come to the Party?", "Lesson 22: Next Summer...", "Lesson 23: What Do You Want?", "Lesson 24: Yesterday Was Amazing!",
+            "Lesson 25: Watch Out!", "Lesson 26: This Game Is Fun!", "Lesson 27: I Can't Come In", "Lesson 28: I Passed It!",
+            "Lesson 29: A Long Time Ago", "Lesson 30: Rolling on the River", "Lesson 31: Take Me Out to the Ball Game", "Lesson 32: Welcome to the Treehouse!",
+            "Lesson 33: Learning America's Sport", "Lesson 34: What Will I Do?", "Lesson 35: Let's Make Dinner!", "Lesson 36: I Can Fix This!",
+            "Lesson 37: Let's Agree to Disagree", "Lesson 38: She's My Best Friend!", "Lesson 39: It's Unbelievable!", "Lesson 40: The Woods Are Alive",
+            "Lesson 41: Teamwork Works Best With a Team", "Lesson 42: I Was Minding My Own Business", "Lesson 43: Time for Plan B", "Lesson 44: Making Healthy Choices",
+            "Lesson 45: This Land is Your Land", "Lesson 46: May I Borrow That?", "Lesson 47: How Can I Help?", "Lesson 48: Have You Ever ...?",
+            "Lesson 49: Operation Spy!", "Lesson 50: Back to School", "Lesson 51: A Good Habit", "Lesson 52: Taking Chances"
+        ];
+
+        const ESL_TRAVEL_LESSONS = [
+            "1. Visiting a Travel Agent (咨询旅行社)", "2. Making a Plane Reservation (预订机票)", "3. Booking a Flight Online (网购机票)", "4. Buying a Plane Ticket (购买机票)",
+            "5. Making a Hotel Reservation (预订酒店)", "6. Getting a Passport (办理护照签证)", "7. Luggage Limits (行李限额规定)", "8. Carry-on Luggage (随身登机行李)",
+            "9. Dropping Off at the Airport (机场送机)", "10. Picking Up at the Airport (机场接机)", "11. Going through the Customs (过海关边检问答)", "12. Talking to a Curbside Agent (航站楼托运沟通)",
+            "13. Talking to a Flight Attendant (机舱内与空乘沟通)", "14. Talking to a Seatmate (与邻座老外闲聊)", "15. Ordering Food and Drink (飞机与餐厅点餐)", "16. Missing Connecting Flight (误机与联程改签应急)",
+            "17. Ground Transportation (机场地面交通打车/大巴)", "18. Arranging a Tour of the City (安排城市一日游)", "19. Complaining about a Tour (旅行服务维权投诉)", "20. Sightseeing (景点观光与拍照请求)",
+            "21. Making Alternate Plans (行程变更沟通)", "22. Shopping for Souvenirs (纪念品购买与讲价)", "23. Trying to Find a Doctor (国外突发看病找医生)", "24. Losing the Wallet and Passport (丢失钱包护照挂失报警)",
+            "25. Being Cautious in a Big City (大城市安全问询)", "26. Local Customs (入乡随俗礼仪交流)", "27. Shuttle Bus at the Airport (询问机场接驳巴士)", "28. Arriving Home (平安返程总结)"
+        ];
+
+        const VOA_L2_LESSONS = [
+            "Level 2 Lesson 1: Budget Cuts", "Level 2 Lesson 2: The Interview", "Level 2 Lesson 3: He Said - She Said", "Level 2 Lesson 4: Run Away With the Circus!",
+            "Level 2 Lesson 5: Greatest Vacation of All Time", "Level 2 Lesson 6: Will It Float?", "Level 2 Lesson 7: Tip Your Tour Guide", "Level 2 Lesson 8: The Best Barbecue",
+            "Level 2 Lesson 9: Pets Are Family, Too!", "Level 2 Lesson 10: Visit to Peru", "Level 2 Lesson 11: The Big Snow", "Level 2 Lesson 12: Run! Bees!",
+            "Level 2 Lesson 13: Save the Bees!", "Level 2 Lesson 14: Made for Each Other", "Level 2 Lesson 15: Before and After", "Level 2 Lesson 16: Find Your Joy!",
+            "Level 2 Lesson 17: Flour Baby, Part 1", "Level 2 Lesson 18: Flour Baby, Part 2", "Level 2 Lesson 19: Movie Night", "Level 2 Lesson 20: The Test Drive",
+            "Level 2 Lesson 21: Trash to Treasure, Part 1", "Level 2 Lesson 22: Trash to Treasure, Part 2", "Level 2 Lesson 23: Rock Star", "Level 2 Lesson 24: I Feel Super!",
+            "Level 2 Lesson 25: Only Human", "Level 2 Lesson 26: Look-alikes", "Level 2 Lesson 27: Fish out of Water", "Level 2 Lesson 28: For the Birds",
+            "Level 2 Lesson 29: Where There's Smoke...", "Level 2 Lesson 30: Dream a Little Dream"
+        ];
+
+        // 真实经过验证的可内嵌 YouTube 视频库（按阶段智能匹配到每一天）
+        const EMBED_VIDEOS = {
+            rachel_intro: { id: "zash7H0eMQ4", channel: "Rachel's English (美音口型与弱读)" },
+            rachel_drivethru: { id: "3yrtsZDSZGQ", channel: "Rachel's English (点餐实景发音拆解)" },
+            rachel_accent: { id: "vhE7xjk-Zck", channel: "Rachel's English (美音连读核心技巧)" },
+            rachel_hardwords: { id: "C5SPWRC9NL0", channel: "Rachel's English (攻克难发元音辅音)" },
+            voa_l1_sample: { id: "h1ZEPZIh4to", channel: "VOA Let's Learn English 情景剧" },
+            voa_l1_speaking: { id: "IlBaOlsjyrY", channel: "VOA Speaking Practice 角色扮演跟读" },
+            voa_l1_speaking2: { id: "7twBgTvHU5k", channel: "VOA Speaking Practice 口语互动" },
+            vanessa_daily: { id: "0R22Fxe_SFE", channel: "Speak English With Vanessa (高频日常词)" },
+            vanessa_vocab: { id: "N_FFrgEioFM", channel: "Speak English With Vanessa (生活必备表达)" },
+            easy_street1: { id: "WwVywwXCVgw", channel: "Easy English (真实街头采访: 日常对话)" },
+            easy_street2: { id: "j1fh6RTIxx4", channel: "Easy English (真实街头采访: 生活与工作)" },
+            easy_street3: { id: "J-KKHoEQRHA", channel: "Easy English (真实街头母语者问答)" },
+            bbc_6min_anxiety: { id: "YAsDeXcYyTg", channel: "BBC 6 Minute English (如何克服开口恐惧)" },
+            bbc_6min_cities: { id: "LZYCjqAOhEE", channel: "BBC 6 Minute English (城市生活讨论)" },
+            bbc_6min_debt: { id: "dgFm7A8pyzo", channel: "BBC 6 Minute English (日常消费话题)" },
+            bbc_6min_recent: { id: "1VQNMDSzWpE", channel: "BBC 6 Minute English (日常科学生活)" },
+            listening_1hr: { id: "QNJRWGPcO7I", channel: "Learn English Lab (带字幕听力训练)" },
+            listening_slow: { id: "L6hLcb1t8eo", channel: "Slow English Podcast (脱字幕听力进阶)" }
+        };
+
+        // 阶段定义
+        const STAGES_META = [
+            {
+                num: 1, weeks: "第 1–12 周 (1–3月)", title: "阶段一：唤醒沉睡词汇与语音重塑期",
+                goal: "掌握美式连读、弱读与失爆规则，激活 300 个高频日常口语句块；能用简单句连贯自我介绍、聊日常作息、家庭与喜好（持续说满 2 分钟不卡壳）。",
+                checkpoints: [
+                    "打开手机录音，不看稿连续说 2 分钟《我的一天与周末爱好》无明显卡壳",
+                    "Randall's Easy Listening 随机抽取 3 篇新对话盲听，正确率 ≥ 80%",
+                    "累计激活并掌握 300 个高频整句口语词块"
+                ]
+            },
+            {
+                num: 2, weeks: "第 13–26 周 (4–6月)", title: "阶段二：出国旅游与生存高频场景突破期",
+                goal: "熟练掌握机场海关、酒店入住、餐厅点餐、交通问路、购物退税、看病买药 6 大旅游场景 400+ 句型；盲听能抓准数字、时间、价格与广播通知；遇到生词能用简单词流利降维解释（Paraphrase）。",
+                checkpoints: [
+                    "脱稿模拟“下飞机过海关→酒店入住→餐厅点餐忌口→药店买药”全流程自言自语通关",
+                    "ELLLO 分级听力库盲听 Level 3（多国口音）第一遍能听懂 80% 核心信息",
+                    "掌握至少 15 个生存救急与降维解释（Paraphrasing）句型框架"
+                ]
+            },
+            {
+                num: 3, weeks: "第 27–39 周 (7–9月)", title: "阶段三：海外生活深度沟通与流利度提速期",
+                goal: "适应母语者常速（150词/分钟）对话，脱字幕听懂率达 75% 以上；掌握租房、银行开户、社区社交、电话预约、投诉维权等海外生活表达；能围绕过去经历或观点连贯表达 3–5 分钟。",
+                checkpoints: [
+                    "Randall's Intermediate 中级常速听力盲听一次答题正确率 ≥ 80%",
+                    "围绕《我难忘的旅行经历》或《生活习惯对比》脱稿连续表达 4 分钟",
+                    "熟练在口语中使用 40 个美式高频短语动词（figure out, run out of, hang out 等）"
+                ]
+            },
+            {
+                num: 4, weeks: "第 40–52 周 (10–12月)", title: "阶段四：母语者真实语境实战与自如社交期",
+                goal: "听懂真实街头带背景噪音、吞音及不同口音的日常对话；掌握美式 Small Talk（破冰寒暄、接话、幽默回应）技巧；与真实英语母语语伴每周进行 2 次 20–30 分钟无障碍语音聊天。",
+                checkpoints: [
+                    "盲听 Easy English 街头真实路人采访或 BBC 6 Minute English 可直接理解 85% 内容",
+                    "在 Conversation Exchange 或 Tandem 上与母语语伴完成至少 8 次 25 分钟以上全英文语音通话",
+                    "达成全年终极目标：面对英语母语者不再紧张翻译，实现条件反射式日常交流"
+                ]
+            }
+        ];
+
+        // 16大核心免费资源目录
+        const ALL_FREE_RESOURCES = [
+            { name: "VOA Let's Learn English Level 1", tag: "阶段1主修 · 52课美式生活情景剧", url: "https://learningenglish.voanews.com/p/5644.html" },
+            { name: "VOA Let's Learn English Level 2", tag: "阶段3主修 · 30课中级生活情景剧", url: "https://learningenglish.voanews.com/p/6765.html" },
+            { name: "Rachel's English 美式发音频道", tag: "阶段1-2 · 口型/连读/弱读拆解", url: "https://www.youtube.com/user/rachelsenglish/videos" },
+            { name: "ESL Fast 出国旅游 28 篇专项对话", tag: "阶段2主修 · 机场/海关/酒店/点餐/应急", url: "https://www.eslfast.com/robot/travel.htm" },
+            { name: "ESL Fast 1500+ 海外生活全场景对话", tag: "阶段2-3 · 租房/银行/超市/看病25大主题", url: "https://www.eslfast.com/robot/" },
+            { name: "Randall's ESL 听力实验室 (Easy)", tag: "阶段1-2 · 美式日常作息与点餐交互听力", url: "https://www.esl-lab.com/easy/" },
+            { name: "Randall's ESL 听力实验室 (Intermediate)", tag: "阶段3 · 常速生活难题与电话预约听力", url: "https://www.esl-lab.com/intermediate/" },
+            { name: "ELLLO 全球分级自然对话听力库", tag: "阶段2-4 · 3000+篇全球口音分级音频与文本", url: "https://elllo.org/english/levels/index.htm" },
+            { name: "British Council A2 日常口语功能课", tag: "阶段1-2 · 表达兴趣/道歉/请求/日常寒暄", url: "https://learnenglish.britishcouncil.org/free-resources/speaking/a2" },
+            { name: "British Council B1 中级口语进阶专区", tag: "阶段3 · 独立出国生活与观点阐述", url: "https://learnenglish.britishcouncil.org/level/understand-your-level/b1-intermediate" },
+            { name: "Speak English With Vanessa", tag: "阶段2-4 · 地道美式日常短语动词与跟读", url: "https://www.youtube.com/user/theteachervanessa/playlists" },
+            { name: "BBC 6 Minute English 双人播客", tag: "阶段3-4 · 6分钟日常话题讨论与核心词汇", url: "https://podcasts.apple.com/us/podcast/6-minute-english/id262026947" },
+            { name: "Easy English 街头真实采访视频", tag: "阶段3-4 · 真实路人常速问答与多国口音", url: "https://www.youtube.com/watch?v=WwVywwXCVgw" },
+            { name: "All Ears English 美式闲聊播客", tag: "阶段4 · Small Talk 破冰寒暄与文化潜规则", url: "https://www.allearsenglish.com/episodes/" },
+            { name: "YouGlish 真实视频发音检索神器", tag: "全阶段工具 · 输入词句调取母语者真实视频片段", url: "https://play.google.com/store/apps/details?id=com.app.youglish&hl=en" },
+            { name: "Cambridge 剑桥在线词典 & Conversation Exchange 语伴", tag: "查音标例句 + 免费匹配英语母语语伴", url: "https://www.conversationexchange.com/search.php?lg=en" }
+        ];
+
+        // 6大出国生存救急句库
+        const SURVIVAL_TOOLKIT = [
+            {
+                title: "1. 对方语速太快或连读没听清（千万别假装听懂点头）",
+                sentences: [
+                    { en: "Sorry, I didn't quite catch that. Could you speak a little slower?", zh: "抱歉我没太听清，您能说慢一点点吗？" },
+                    { en: "Sorry, my English is a bit rusty. Could you say that in a simpler way?", zh: "抱歉我的英语有点生疏，您能用简单点的话再说一遍吗？" },
+                    { en: "Would you mind repeating the last part for me?", zh: "您介意把最后那部分再重复一遍吗？" }
+                ]
+            },
+            {
+                title: "2. 突然忘词卡壳、用简单词降维解释（Paraphrasing）",
+                sentences: [
+                    { en: "I don't know the exact word in English, but it's a thing you use to keep water hot.", zh: "我不知道那个词用英语怎么说，但它是一种用来保温热水的东西。" },
+                    { en: "The word is on the tip of my tongue, let me put it another way.", zh: "那个词就在嘴边想不起来了，我换个方式跟您解释。" },
+                    { en: "It looks kind of like a credit card, and you use it for the subway.", zh: "它看起来像张信用卡，是坐地铁刷卡用的。" }
+                ]
+            },
+            {
+                title: "3. 机场海关、行李与问路乘车高频句",
+                sentences: [
+                    { en: "I'm here on vacation for ten days, and I'll be staying at a hotel downtown.", zh: "我是来度假十天的，住在市中心的酒店。（过海关必用）" },
+                    { en: "Excuse me, could you tell me which platform goes to the city center?", zh: "打扰一下，请问去市中心在哪个站台乘车？" },
+                    { en: "Just to make sure I got it right, I need to transfer at the next station, right?", zh: "确认一下我没理解错，我需要在下一站换乘对吧？" }
+                ]
+            },
+            {
+                title: "4. 酒店入住、寄存行李与设施报修",
+                sentences: [
+                    { en: "Hi, I have a reservation under the name Zhang. Could I check in now?", zh: "您好，我有预订，名字是 Zhang，现在可以办理入住吗？" },
+                    { en: "Could I leave my luggage here at the front desk until check-in time?", zh: "我能先把行李寄存在前台直到入住时间吗？" },
+                    { en: "Excuse me, the hot water in my room isn't working properly. Could someone take a look?", zh: "打扰一下，我房间的热水不太正常，能派人来看看吗？" }
+                ]
+            },
+            {
+                title: "5. 餐厅点餐、咖啡馆定制与买单分账",
+                sentences: [
+                    { en: "Could I get an iced latte with oat milk, less ice, to go please?", zh: "请给我来一杯冰燕麦拿铁，少冰，打包带走。" },
+                    { en: "Does this dish contain any peanuts or seafood? I have a mild allergy.", zh: "这道菜里含有花生或海鲜吗？我有一点过敏。" },
+                    { en: "Could we get the check, please? And can we split the bill?", zh: "麻烦结一下账好吗？我们可以分开付（AA制）吗？" }
+                ]
+            },
+            {
+                title: "6. 母语者日常破冰闲聊（Small Talk 接话不冷场）",
+                sentences: [
+                    { en: "Pretty good! Just enjoying the nice weather today. How's your day going?", zh: "挺好的！正在享受今天的好天气呢。你今天过得怎么样？" },
+                    { en: "No way! Really? That sounds amazing! How did you get into that?", zh: "不会吧！真的吗？听起来太棒了！你是怎么开始接触那个的？" },
+                    { en: "It's actually my first time visiting here, do you have any local food recommendations?", zh: "这其实是我第一次来这儿，你有什么当地美食推荐吗？" }
+                ]
+            }
+        ];
+
+        // 动态生成任意 Week (1-52) + Day (1-7) 的具体课程详情（具体到某一课！）
+        function getDayCurriculum(week, day) {
+            const wIdx = week - 1; // 0..51
+            const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+            const dayName = dayNames[day - 1];
+
+            // STAGE 1: Weeks 1 - 12
+            if (week <= 12) {
+                const voaIdx1 = Math.min(51, (week - 1) * 4 + Math.min(day - 1, 3));
+                const voaLesson = VOA_L1_LESSONS[voaIdx1];
+                const eslLabTopics = [
+                    { title: "Daily Schedule (日常作息)", url: "https://www.esl-lab.com/easy/daily-schedule/" },
+                    { title: "Family Activities (家庭活动)", url: "https://www.esl-lab.com/easy/family-activities/" },
+                    { title: "A Day at School (校园与日常)", url: "https://www.esl-lab.com/easy/school-schedule/" }
+                ];
+                const labItem = eslLabTopics[(week + day) % eslLabTopics.length];
+                const vids = [EMBED_VIDEOS.rachel_intro, EMBED_VIDEOS.voa_l1_sample, EMBED_VIDEOS.voa_l1_speaking, EMBED_VIDEOS.rachel_accent, EMBED_VIDEOS.bbc_6min_anxiety];
+                const videoObj = vids[(week + day) % vids.length];
+
+                if (day <= 4) {
+                    return {
+                        stage: 1,
+                        badge: `阶段一 · 第${week}周${dayName} · 情景听说与连读`,
+                        title: `VOA Level 1 - ${voaLesson}`,
+                        video: videoObj,
+                        links: [
+                            { label: `👉 进入本课页面：VOA ${voaLesson}`, url: week === 1 && day === 1 ? "https://learningenglish.voanews.com/a/lets-learn-english-lesson-one/3111026.html" : "https://learningenglish.voanews.com/p/5644.html" },
+                            { label: "👉 辅助纠音：Rachel's English 美式发音视频库", url: "https://www.youtube.com/user/rachelsenglish/videos" },
+                            { label: "👉 权威查词：Cambridge 剑桥在线真人发音词典", url: "https://dictionary.cambridge.org/dictionary/english/" }
+                        ],
+                        phrases: [
+                            { en: "Hi there! It's nice to meet you. I'm currently living in...", zh: "你好呀！很高兴认识你，我目前住在……（注意 nice to 的弱读）" },
+                            { en: "What do you usually do in your free time on weekends?", zh: "你周末空闲时间通常喜欢干什么？（What do you 连读为 Whaddaya）" },
+                            { en: "I'm trying to pick up my English again for my upcoming trip.", zh: "为了接下来的旅行，我正在把英语重新捡起来。" }
+                        ],
+                        steps: [
+                            { name: "Step 1: 唤醒昨日句块 & 美音口型热身", t30: "5分钟", t60: "10分钟", desc: `朗读昨日积累的 3 个句块；观看上方内嵌视频模仿美式元音与弱读口型。` },
+                            { name: `Step 2: 盲听与精听《${voaLesson}》`, t30: "10分钟", t60: "15分钟", desc: `点击上方链接进入 VOA 第 ${voaIdx1 + 1} 课，前2遍不看字幕盲听抓大意，第3遍对照文本划出连读。` },
+                            { name: "Step 3: 影子跟读 (Shadowing) 与角色扮演", t30: "10分钟", t60: "20分钟", desc: `使用本页【今日必背口语词块】点读跟练 5 遍，再紧跟 VOA 原视频滞后 0.5 秒大声同步跟读。` },
+                            { name: "Step 4: 换词造句 & 1分钟自言自语录音打卡", t30: "5分钟", t60: "15分钟", desc: `结合你自己的真实生活在下方【打卡本】录一段 1 分钟口语并保存到云端。` }
+                        ]
+                    };
+                } else if (day === 5) {
+                    return {
+                        stage: 1,
+                        badge: `阶段一 · 第${week}周周五 · 场景听力突破`,
+                        title: `Randall's Easy 听力专练：${labItem.title} + British Council A2 交际课`,
+                        video: EMBED_VIDEOS.voa_l1_speaking2,
+                        links: [
+                            { label: `👉 直达本课听力：Randall's Lab - ${labItem.title}`, url: labItem.url },
+                            { label: "👉 直达口语课：British Council A2 Speaking (Showing Interest / Apologising)", url: "https://learnenglish.britishcouncil.org/free-resources/speaking/a2" }
+                        ],
+                        phrases: [
+                            { en: "Really? That sounds super interesting! Tell me more about it.", zh: "真的吗？听起来太有意思了！快跟我多聊聊。（British Council A2 黄金回应句）" },
+                            { en: "I usually wake up around seven thirty and grab a quick coffee.", zh: "我通常七点半左右起床，然后快速喝杯咖啡。" },
+                            { en: "Sorry about that, I didn't mean to interrupt you.", zh: "真抱歉，我不是故意打断你的。" }
+                        ],
+                        steps: [
+                            { name: "Step 1: 复习本周前4天核心词块", t30: "5分钟", t60: "10分钟", desc: "快速自测周一至周四的黄金句块，确保3秒内脱口而出。" },
+                            { name: `Step 2: 完成《${labItem.title}》盲听测验`, t30: "10分钟", t60: "15分钟", desc: "进入 Randall's 听力页，先盲听完成5道选择题，再看文本查漏补缺。" },
+                            { name: "Step 3: British Council A2 日常互动跟读", t30: "10分钟", t60: "20分钟", desc: "进入 British Council A2 页面跟读日常回应句型，改掉只会说 Yes/OK 的习惯。" },
+                            { name: "Step 4: 周五情景问答录音打卡", t30: "5分钟", t60: "15分钟", desc: "去打卡本录下你对今天听力话题的 1 分钟看法。" }
+                        ]
+                    };
+                } else if (day === 6) {
+                    return {
+                        stage: 1,
+                        badge: `阶段一 · 第${week}周周六 · 周末场景大串讲`,
+                        title: `第 ${week} 周口语通关模拟：一人分饰两角串讲本周4课场景`,
+                        video: EMBED_VIDEOS.rachel_hardwords,
+                        links: [
+                            { label: "👉 复习本周 VOA Level 1 课程列表", url: "https://learningenglish.voanews.com/p/5644.html" },
+                            { label: "👉 发音检索：YouGlish 真实语境发音核对", url: "https://play.google.com/store/apps/details?id=com.app.youglish&hl=en" }
+                        ],
+                        phrases: [
+                            { en: "Let me tell you a little bit about how my week went.", zh: "让我跟你聊聊我这一周是怎么过的。" },
+                            { en: "On weekdays, I tend to stay busy, but on weekends I like to relax.", zh: "工作日我通常比较忙，但到了周末我喜欢放松一下。" },
+                            { en: "What are your plans for the upcoming weekend?", zh: "你接下来的周末有什么安排呀？" }
+                        ],
+                        steps: [
+                            { name: "Step 1: 汇总本周 12 个核心口语句块", t30: "5分钟", t60: "10分钟", desc: "浏览本周打卡记录，挑出还不够熟练的句子大声朗读 5 遍。" },
+                            { name: "Step 2: 设定周末综合生活故事线", t30: "5分钟", t60: "15分钟", desc: "将本周学过的问候、作息、家庭与兴趣串联成一段完整对话场景。" },
+                            { name: "Step 3: 脱稿一人分饰两角演练", t30: "10分钟", t60: "20分钟", desc: "不看任何文字稿，自己扮演自己和外国朋友，出声对练3轮。" },
+                            { name: "Step 4: 录制本周2分钟通关语音存档", t30: "10分钟", t60: "15分钟", desc: "在【打卡本】录制 2 分钟通关音频上传云端，见证每周流利度提升！" }
+                        ]
+                    };
+                } else {
+                    return {
+                        stage: 1,
+                        badge: `阶段一 · 第${week}周周日 · 复盘与磨耳朵日`,
+                        title: `第 ${week} 周闪卡清空复盘 + Vanessa 自然美语轻松泛听`,
+                        video: EMBED_VIDEOS.vanessa_daily,
+                        links: [
+                            { label: "👉 打开 AnkiWeb 复习本周口语闪卡", url: "https://ankiweb.net/shared/decks" },
+                            { label: "👉 轻松泛听：Speak English With Vanessa 播放列表", url: "https://www.youtube.com/user/theteachervanessa/playlists" }
+                        ],
+                        phrases: [
+                            { en: "I feel like I'm making steady progress with my spoken English.", zh: "我觉得我的英语口语正在取得稳定的进步。" },
+                            { en: "Whenever I forget a word, I just try to explain it in a simple way.", zh: "每当我忘词时，我就试着用简单的方式把它解释出来。" },
+                            { en: "Consistency is way more important than perfection.", zh: "持续坚持远比追求完美重要得多。" }
+                        ],
+                        steps: [
+                            { name: "Step 1: 清空本周所有口语复习卡", t30: "10分钟", t60: "20分钟", desc: "使用【打卡本】中的『🎲 随机抽查复习』或 AnkiWeb 抽查过关。" },
+                            { name: "Step 2: 观看上方内嵌 Vanessa 日常口语视频", t30: "15分钟", t60: "25分钟", desc: "不带压力跟读母语者最常挂在嘴边的日常表达。" },
+                            { name: "Step 3: 摘抄 3 个最喜欢的地道表达", t30: "5分钟", t60: "15分钟", desc: "记录到云端打卡本中，为下一周充电！" }
+                        ]
+                    };
+                }
+            }
+
+            // STAGE 2: Weeks 13 - 26 (Travel & Survival Scenarios!)
+            if (week <= 26) {
+                const travelWeekIdx = week - 13; // 0..13
+                const lessonIdxA = Math.min(27, travelWeekIdx * 2);
+                const lessonIdxB = Math.min(27, travelWeekIdx * 2 + 1);
+                const chosenTravelLesson = (day % 2 === 1) ? ESL_TRAVEL_LESSONS[lessonIdxA] : ESL_TRAVEL_LESSONS[lessonIdxB];
+                const vids = [EMBED_VIDEOS.rachel_drivethru, EMBED_VIDEOS.vanessa_vocab, EMBED_VIDEOS.easy_street1, EMBED_VIDEOS.listening_1hr];
+                const videoObj = vids[(week + day) % vids.length];
+
+                return {
+                    stage: 2,
+                    badge: `阶段二 · 第${week}周${dayName} · 出国旅游生存实战`,
+                    title: day <= 5 ? `ESL Fast 旅游必背课：${chosenTravelLesson}` : `第 ${week} 周出国旅游全真模拟：机场/酒店/点餐/应急通关`,
+                    video: videoObj,
+                    links: [
+                        { label: `👉 直达本课对话：ESL Fast Travel - ${chosenTravelLesson}`, url: "https://www.eslfast.com/robot/travel.htm" },
+                        { label: "👉 多国口音听力：ELLLO 分级听力 Level 2-3 (旅游与生活)", url: "https://elllo.org/english/levels/index.htm" },
+                        { label: "👉 生活场景扩充：ESL Fast 1500+ 日常对话库 (餐饮/购物/就医)", url: "https://www.eslfast.com/robot/" }
+                    ],
+                    phrases: [
+                        { en: "Excuse me, could I leave my bags here until check-in time?", zh: "打扰一下，我能把行李寄存在这儿直到办理入住时间吗？" },
+                        { en: "I'd like to book a window seat if possible, and how many bags can I check?", zh: "如果可以的话我想订个靠窗座位，请问我可以托运几件行李？" },
+                        { en: "Could you recommend a popular local dish that isn't too spicy?", zh: "您能推荐一道不太辣的当地特色菜吗？" }
+                    ],
+                    steps: [
+                        { name: "Step 1: 旅游生存高频句块极速唤醒", t30: "5分钟", t60: "10分钟", desc: "点读本页上方 3 个旅游核心句块，做到不看屏幕3秒内脱口而出。" },
+                        { name: `Step 2: 盲听与精读《${chosenTravelLesson}》`, t30: "10分钟", t60: "15分钟", desc: "点击直达 ESL Fast 旅游专栏对应序号课文，盲听音频2遍后对照文本精读。" },
+                        { name: "Step 3: 影子跟读 + 突发状况降维解释 (Paraphrase)", t30: "10分钟", t60: "20分钟", desc: "同步影子跟读对话音频 5 遍；练习当忘词时用简单词解释（参考顶部『🧰救急句库』）。" },
+                        { name: "Step 4: 模拟今日旅游场景 1-2 分钟录音打卡", t30: "5分钟", t60: "15分钟", desc: "假装自己此刻就在国外机场/酒店/餐厅，在【打卡本】录下你的现场应对口语！" }
+                    ]
+                };
+            }
+
+            // STAGE 3: Weeks 27 - 39 (Living Abroad Deep Communication & VOA Level 2)
+            if (week <= 39) {
+                const l2WeekIdx = week - 27; // 0..12
+                const l2LessonIdx = Math.min(29, l2WeekIdx * 2 + (day % 2));
+                const voaL2Title = VOA_L2_LESSONS[l2LessonIdx];
+                const vids = [EMBED_VIDEOS.vanessa_daily, EMBED_VIDEOS.vanessa_vocab, EMBED_VIDEOS.listening_slow, EMBED_VIDEOS.bbc_6min_cities];
+                const videoObj = vids[(week + day) % vids.length];
+
+                return {
+                    stage: 3,
+                    badge: `阶段三 · 第${week}周${dayName} · 海外生活与常速突破`,
+                    title: day <= 5 ? `VOA 中级情景课：${voaL2Title} & 海外安居深度沟通` : `第 ${week} 周中级常速叙事与电话沟通演练`,
+                    video: videoObj,
+                    links: [
+                        { label: `👉 直达本课页面：VOA ${voaL2Title}`, url: "https://learningenglish.voanews.com/p/6765.html" },
+                        { label: "👉 常速抗噪听力：Randall's ESL Lab (Intermediate 中级专区)", url: "https://www.esl-lab.com/intermediate/" },
+                        { label: "👉 海外安居对话：ESL Fast 租房/银行/医疗/社交 1500 篇", url: "https://www.eslfast.com/robot/" },
+                        { label: "👉 观点表达训练：British Council B1 Intermediate 专区", url: "https://learnenglish.britishcouncil.org/level/understand-your-level/b1-intermediate" }
+                    ],
+                    phrases: [
+                        { en: "I'm calling to figure out why there's an extra charge on my monthly bill.", zh: "我打电话是想弄清楚为什么我的月度账单上有一笔额外扣费。" },
+                        { en: "Does the monthly rent include utilities like water, electricity, and Wi-Fi?", zh: "请问月租里包含水、电和无线网这些生活杂费吗？" },
+                        { en: "To be honest, it took me a couple of weeks to get used to the local pace of life.", zh: "说实话，我花了好几周才适应当地的生活节奏。" }
+                    ],
+                    steps: [
+                        { name: "Step 1: 美式短语动词 (Phrasal Verbs) 激活", t30: "5分钟", t60: "10分钟", desc: "跟读上方视频与今日必背句块，重点掌握 figure out / get used to / run out of 等地道词组。" },
+                        { name: `Step 2: 脱字幕盲听《${voaL2Title}》与中级听力`, t30: "10分钟", t60: "15分钟", desc: "进入 VOA Level 2 对应课程及 Randall's 中级专区，挑战 150词/分钟正常母语语速。" },
+                        { name: "Step 3: 常速影子跟读与情感语调模仿", t30: "10分钟", t60: "20分钟", desc: "跟读对话中的抱怨、协商、预约和逻辑连接词（actually, on top of that）。" },
+                        { name: "Step 4: 3分钟连贯观点/经历录音打卡", t30: "5分钟", t60: "15分钟", desc: "围绕今日主题（租房/账单/旅行故事）连续脱稿说满 3 分钟并上传云端打卡本。" }
+                    ]
+                };
+            }
+
+            // STAGE 4: Weeks 40 - 52 (Real Native Street English, Podcasts & Language Exchange)
+            const vids = [EMBED_VIDEOS.easy_street1, EMBED_VIDEOS.easy_street2, EMBED_VIDEOS.easy_street3, EMBED_VIDEOS.bbc_6min_recent, EMBED_VIDEOS.bbc_6min_debt];
+            const videoObj = vids[(week + day) % vids.length];
+            return {
+                stage: 4,
+                badge: `阶段四 · 第${week}周${dayName} · 母语者真实社交与实战`,
+                title: day <= 5 ? `Easy English 真实街访盲听 + BBC 6 Minute English 话题精讲` : `第 ${week} 周真人母语语伴 25 分钟语音实战日`,
+                video: videoObj,
+                links: [
+                    { label: "👉 街头真实语料：Easy English 路人无剧本采访视频", url: "https://www.youtube.com/watch?v=WwVywwXCVgw" },
+                    { label: "👉 6分钟话题播客：BBC Learning English - 6 Minute English", url: "https://podcasts.apple.com/us/podcast/6-minute-english/id262026947" },
+                    { label: "👉 美式寒暄潜规则：All Ears English 播客剧集库", url: "https://www.allearsenglish.com/episodes/" },
+                    { label: "👉 免费真人语伴匹配：Conversation Exchange 英语母语者检索", url: "https://www.conversationexchange.com/search.php?lg=en" }
+                ],
+                phrases: [
+                    { en: "How's your week going so far? Keeping busy or taking it easy?", zh: "你这周目前过得怎么样？挺忙的还是比较悠闲？（地道破冰寒暄）" },
+                    { en: "You know, that actually reminds me of something funny that happened last month.", zh: "你知道吗，这还真让我想起上个月发生的一件趣事。（自然接话技巧）" },
+                    { en: "I totally get where you're coming from, it's pretty much the same in my hometown.", zh: "我完全理解你的意思，在我老家情况也差不多是这样。" }
+                ],
+                steps: [
+                    { name: "Step 1: Small Talk 破冰接话热身", t30: "5分钟", t60: "10分钟", desc: "练习用今日必背句块自然接话，加上语气词（Right, totally, I mean, you know）。" },
+                    { name: "Step 2: 遮字幕盲听上方街头真实采访 / BBC 6分钟英语", t30: "10分钟", t60: "15分钟", desc: "直接播放上方内嵌视频，第一遍不看字幕适应路人的真实吞音与背景音。" },
+                    { name: "Step 3: 模仿母语者自然停顿与复述核心观点 (Paraphrase)", t30: "10分钟", t60: "20分钟", desc: "用自己的话把刚才视频里 2 位路人的回答复述出来。" },
+                    { name: "Step 4: 语伴实战通话或 3 分钟即兴脱口秀录音", t30: "5分钟", t60: "15分钟", desc: "周末在 Conversation Exchange 与语伴互助通话，平时在【打卡本】录下3分钟即兴总结！" }
+                ]
+            };
+        }
+
+        // =========================================================================
+        // 2. 全局状态与基于昵称的 GitHub 云端同步逻辑（完全兼容 diary.html）
+        // =========================================================================
+        let OWNER_REPO = localStorage.getItem('engPlan_repo') || '878481881-jpg/loveplan';
+        let GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || localStorage.getItem('engPlan_githubToken') || '';
+        let myNickname = localStorage.getItem('engPlan_nickname') || localStorage.getItem('loveGacha_myIdentity') || '哼哼';
+
+        let currentWeek = 1;
+        let currentDay = 1; // 1..7
+        let durationMode = '60m'; // '30m' or '60m'
+
+        // 云端数据结构（按昵称独立保存在 data/eng_<昵称>.json）
+        let cloudData = {
+            nickname: myNickname,
+            currentWeek: 1,
+            currentDay: 1,
+            durationMode: '60m',
+            completedSteps: {},   // { "W1_D1": { s0: true, s1: true, s2: false, s3: true } }
+            stageChecks: {},      // { "S1_0": true }
+            diaries: []           // 与 diary.html 完全一致的打卡记录数组（含文本、图片、录音、心情、胶囊）
+        };
+        let cloudFileSha = null;
+
+        // 录音与图片状态变量 (沿用 diary.html)
+        let currentImageBase64 = null;
+        let currentImageExt = 'jpg';
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let currentAudioBase64 = null;
+        let currentAudioExt = 'webm';
+        let recordTimerInterval = null;
+        let recordSeconds = 0;
+
+        const MOODS = [
+            { id: 'happy', icon: '🥰', label: '成就感满满' },
+            { id: 'fire', icon: '🔥', label: '状态火热' },
+            { id: 'chill', icon: '😎', label: '轻松拿捏' },
+            { id: 'tired', icon: '🥺', label: '有点烧脑' },
+            { id: 'sleepy', icon: '😴', label: '30m保底打卡' }
+        ];
+        let currentMood = 'happy';
+
+        function getCloudFilePath() {
+            const safeNick = encodeURIComponent(myNickname.trim() || 'default');
+            return `data/eng_${safeNick}.json`;
+        }
+
+        function getLocalCacheKey() {
+            return `engPlan_cache_${myNickname.trim() || 'default'}`;
+        }
+
+        function saveToLocalCache() {
+            cloudData.nickname = myNickname;
+            cloudData.currentWeek = currentWeek;
+            cloudData.currentDay = currentDay;
+            cloudData.durationMode = durationMode;
+            localStorage.setItem(getLocalCacheKey(), JSON.stringify(cloudData));
+        }
+
+        function loadFromLocalCache() {
+            const raw = localStorage.getItem(getLocalCacheKey());
+            if (raw) {
+                try {
+                    const parsed = JSON.parse(raw);
+                    cloudData = {
+                        nickname: myNickname,
+                        currentWeek: parsed.currentWeek || 1,
+                        currentDay: parsed.currentDay || 1,
+                        durationMode: parsed.durationMode || '60m',
+                        completedSteps: parsed.completedSteps || {},
+                        stageChecks: parsed.stageChecks || {},
+                        diaries: parsed.diaries || []
+                    };
+                    currentWeek = cloudData.currentWeek;
+                    currentDay = cloudData.currentDay;
+                    durationMode = cloudData.durationMode;
+                } catch (e) {}
+            }
+        }
+
+        // --- GitHub 云端 API 读写（与 diary.html 同构） ---
+        async function fetchCloudFile() {
+            if (!GITHUB_TOKEN) {
+                updateSyncBadge('local', '本地存档');
+                return false;
+            }
+            updateSyncBadge('syncing', '拉取中...');
+            const filePath = getCloudFilePath();
+            try {
+                const timestamp = new Date().getTime();
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`
+                    }
+                });
+                if (response.status === 401 || response.status === 403) {
+                    updateSyncBadge('error', 'Token待设');
+                    return false;
+                }
+                if (response.status === 404) {
+                    cloudFileSha = null;
+                    updateSyncBadge('ok', '云端就绪');
+                    return true;
+                }
+                if (!response.ok) {
+                    updateSyncBadge('error', '离线缓存');
+                    return false;
+                }
+                const result = await response.json();
+                const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+                const remoteData = JSON.parse(contentStr || '{}');
+                cloudFileSha = result.sha;
+
+                // 合并云端数据
+                cloudData = {
+                    nickname: myNickname,
+                    currentWeek: remoteData.currentWeek || currentWeek || 1,
+                    currentDay: remoteData.currentDay || currentDay || 1,
+                    durationMode: remoteData.durationMode || durationMode || '60m',
+                    completedSteps: remoteData.completedSteps || {},
+                    stageChecks: remoteData.stageChecks || {},
+                    diaries: remoteData.diaries || []
+                };
+                currentWeek = cloudData.currentWeek;
+                currentDay = cloudData.currentDay;
+                durationMode = cloudData.durationMode;
+                saveToLocalCache();
+                updateSyncBadge('ok', '已同步云端');
+                return true;
+            } catch (err) {
+                updateSyncBadge('error', '离线模式');
+                return false;
+            }
+        }
+
+        async function pushCloudFile(commitMsg = 'Update English study plan record') {
+            saveToLocalCache();
+            if (!GITHUB_TOKEN) {
+                updateSyncBadge('local', '已存手机');
+                return { success: true, localOnly: true };
+            }
+            updateSyncBadge('syncing', '保存云端...');
+            const filePath = getCloudFilePath();
+            try {
+                const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(cloudData, null, 2))));
+                const body = { message: `${commitMsg} [${myNickname}]`, content: encodedContent };
+                if (cloudFileSha) body.sha = cloudFileSha;
+
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) {
+                    // 若 SHA 冲突则重拉一次 SHA 再提交
+                    if (response.status === 409 || response.status === 422) {
+                        await fetchCloudFile();
+                    }
+                    updateSyncBadge('error', '仅存本地');
+                    return { success: false };
+                }
+                const result = await response.json();
+                cloudFileSha = result.content.sha;
+                updateSyncBadge('ok', '云端已存');
+                return { success: true };
+            } catch (err) {
+                updateSyncBadge('error', '离线已存');
+                return { success: false };
+            }
+        }
+
+        async function uploadMediaToGithub(base64Data, extension, folderName) {
+            if (!GITHUB_TOKEN) {
+                // 如果未配置 Token，直接返回 DataURL 以便本地也能直接听录音和看图！
+                const mime = folderName === 'voice' ? `audio/${extension === 'm4a' ? 'mp4' : extension}` : `image/${extension}`;
+                return `data:${mime};base64,${base64Data}`;
+            }
+            const timestamp = Date.now();
+            const filename = `eng_${timestamp}.${extension}`;
+            const path = `${folderName}/${filename}`;
+            try {
+                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${path}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: `Upload English study media ${filename} by ${myNickname}`,
+                        content: base64Data
+                    })
+                });
+                if (!response.ok) return null;
+                const result = await response.json();
+                return result.content.download_url;
+            } catch (error) {
+                return null;
+            }
+        }
+
+        function updateSyncBadge(state, text) {
+            const iconEl = document.getElementById('syncIcon');
+            const textEl = document.getElementById('syncText');
+            textEl.innerText = text;
+            if (state === 'ok') iconEl.innerText = '☁️✅';
+            else if (state === 'syncing') iconEl.innerText = '⏳';
+            else if (state === 'local') iconEl.innerText = '📱';
+            else iconEl.innerText = '☁️⚠️';
+        }
+
+        async function manualSyncCloud() {
+            if (!GITHUB_TOKEN) {
+                openCloudModal();
+                showToast("请确认昵称或填入 GitHub Token 开启云同步~");
+                return;
+            }
+            const ok = await fetchCloudFile();
+            renderAll();
+            if (ok) showToast(`已同步「${myNickname}」的云端学习档案 ☁️`);
+        }
+
+        // =========================================================================
+        // 3. 页面初始化与渲染逻辑
+        // =========================================================================
+        window.onload = async function() {
+            initWeekSelector();
+            initMoodSelector();
+            loadFromLocalCache();
+            updateHeaderIdentity();
+            renderAll();
+
+            // 如果有 Token，自动从云端拉取该昵称的最新进度
+            if (GITHUB_TOKEN) {
+                await fetchCloudFile();
+                renderAll();
+            } else {
+                updateSyncBadge('local', '手机本地');
+            }
+        };
+
+        function updateHeaderIdentity() {
+            document.getElementById('headerNickname').innerText = myNickname || '设置昵称';
+            document.getElementById('checkinNicknameLabel').innerText = myNickname || '未设置';
+        }
+
+        function initWeekSelector() {
+            const sel = document.getElementById('weekSelector');
+            let html = '';
+            for (let w = 1; w <= 52; w++) {
+                let stg = w <= 12 ? '阶段一·语音词汇唤醒' : (w <= 26 ? '阶段二·出国旅游通关' : (w <= 39 ? '阶段三·海外深度生活' : '阶段四·母语真实社交'));
+                html += `<option value="${w}">第 ${w} 周 (${stg})</option>`;
+            }
+            sel.innerHTML = html;
+        }
+
+        function renderAll() {
+            updateHeaderIdentity();
+            document.getElementById('weekSelector').value = currentWeek;
+            setDurationModeUI(durationMode);
+            renderBannerStats();
+            renderDayPills();
+            renderDailyContent();
+            renderDiaryUI();
+            renderRoadmapAndResources();
+            renderSurvivalToolkit();
+        }
+
+        function renderBannerStats() {
+            document.getElementById('bannerWeekNum').innerText = currentWeek;
+            const stgIdx = currentWeek <= 12 ? 0 : (currentWeek <= 26 ? 1 : (currentWeek <= 39 ? 2 : 3));
+            document.getElementById('bannerStageTitle').innerText = STAGES_META[stgIdx].title;
+
+            // 计算累计完成天数（某天只要勾选了至少2步就算当天打卡完成）
+            let completedDays = 0;
+            Object.keys(cloudData.completedSteps || {}).forEach(key => {
+                const stepsObj = cloudData.completedSteps[key] || {};
+                const cnt = Object.values(stepsObj).filter(Boolean).length;
+                if (cnt >= 2) completedDays++;
+            });
+            document.getElementById('totalCompletedDays').innerText = completedDays;
+            document.getElementById('totalDiaryCount').innerText = (cloudData.diaries || []).length;
+        }
+
+        function renderDayPills() {
+            const dayLabels = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+            const container = document.getElementById('dayPillsContainer');
+            container.innerHTML = dayLabels.map((label, idx) => {
+                const d = idx + 1;
+                const key = `W${currentWeek}_D${d}`;
+                const stepsObj = (cloudData.completedSteps && cloudData.completedSteps[key]) || {};
+                const doneCount = Object.values(stepsObj).filter(Boolean).length;
+                const isSelected = d === currentDay;
+                const isDone = doneCount >= 4;
+                const isPartial = doneCount > 0 && doneCount < 4;
+
+                let btnClass = isSelected
+                    ? 'bg-rose-500 text-white border-rose-500 shadow-md scale-105'
+                    : (isDone ? 'bg-emerald-50 text-emerald-600 border-emerald-200' : 'bg-white text-gray-600 border-rose-100 hover:bg-rose-50');
+
+                let dotHtml = isDone
+                    ? '<span class="text-[10px]">✅</span>'
+                    : (isPartial ? `<span class="text-[9px] text-amber-500 font-bold">${doneCount}/4</span>` : '<span class="text-[10px] opacity-40">○</span>');
+
+                return `
+                    <button onclick="selectDay(${d})" class="py-1.5 px-1 rounded-xl border text-xs font-bold flex flex-col items-center justify-center gap-0.5 transition-all ${btnClass}">
+                        <span>${label}</span>
+                        ${dotHtml}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        let lastLoadedVideoId = null;
+
+        function renderDailyContent() {
+            const curr = getDayCurriculum(currentWeek, currentDay);
+            const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
+            const key = `W${currentWeek}_D${currentDay}`;
+            const stepsObj = (cloudData.completedSteps && cloudData.completedSteps[key]) || {};
+            const doneCount = Object.values(stepsObj).filter(Boolean).length;
+
+            document.getElementById('dayFocusBadge').innerText = curr.badge;
+            document.getElementById('dailyLessonTitle').innerText = curr.title;
+            document.getElementById('recordContextTag').innerText = `📌 关联课程：第 ${currentWeek} 周 · ${dayNames[currentDay - 1]} (${curr.title.slice(0, 22)}...)`;
+
+            const statusTag = document.getElementById('dayStatusTag');
+            if (doneCount >= 4) {
+                statusTag.innerText = '🎉 今日已通关';
+                statusTag.className = 'shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-600';
+            } else if (doneCount > 0) {
+                statusTag.innerText = `进行中 ${doneCount}/4`;
+                statusTag.className = 'shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-600';
+            } else {
+                statusTag.innerText = '待打卡 0/4';
+                statusTag.className = 'shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500';
+            }
+
+            // 更新页内内嵌视频
+            document.getElementById('videoChannelLabel').innerText = `(${curr.video.channel})`;
+            if (lastLoadedVideoId !== curr.video.id) {
+                document.getElementById('lessonYoutubeIframe').src = `https://www.youtube.com/embed/${curr.video.id}?rel=0`;
+                lastLoadedVideoId = curr.video.id;
+            }
+
+            // 渲染直达某一课的按钮
+            const linksContainer = document.getElementById('directLinksContainer');
+            linksContainer.innerHTML = curr.links.map((lk, i) => `
+                <a href="${lk.url}" target="_blank" rel="noopener noreferrer"
+                   class="w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition shadow-sm border ${i === 0 ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white border-rose-400' : 'bg-rose-50/70 text-rose-600 border-rose-200 hover:bg-rose-100'}">
+                    <span class="truncate pr-2">${lk.label}</span>
+                    <span class="shrink-0 text-[11px] opacity-90">去上课 ↗</span>
+                </a>
+            `).join('');
+
+            // 渲染今日必背句块 + 原生发音按钮
+            const phrasesContainer = document.getElementById('dailyPhrasesList');
+            phrasesContainer.innerHTML = curr.phrases.map((p, idx) => {
+                const escapedEn = p.en.replace(/'/g, "\\'");
+                return `
+                    <div class="bg-white rounded-xl p-2.5 border border-rose-100 shadow-sm">
+                        <div class="text-xs font-bold text-gray-800 leading-snug mb-1">${idx + 1}. "${p.en}"</div>
+                        <div class="flex items-center justify-between gap-2 mt-1">
+                            <span class="text-[11px] text-gray-500">${p.zh}</span>
+                            <div class="flex gap-1 shrink-0">
+                                <button onclick="speakSentence('${escapedEn}', 0.72)" class="px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-200 rounded-full text-[10px] font-bold hover:bg-amber-100">🐢 慢速</button>
+                                <button onclick="speakSentence('${escapedEn}', 0.95)" class="px-2 py-0.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-full text-[10px] font-bold hover:bg-rose-100">🔊 常速</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 渲染 4 步打卡任务清单
+            const stepsContainer = document.getElementById('dailyStepsList');
+            stepsContainer.innerHTML = curr.steps.map((st, sIdx) => {
+                const checked = !!stepsObj[`s${sIdx}`];
+                const timeBadge = durationMode === '30m' ? st.t30 : st.t60;
+                return `
+                    <div onclick="toggleDailyStep(${sIdx})" class="p-3 rounded-xl border-2 transition-all cursor-pointer flex items-start gap-2.5 select-none ${checked ? 'bg-emerald-50/70 border-emerald-200' : 'bg-white border-rose-100 hover:border-rose-200'}">
+                        <div class="w-5 h-5 rounded-md mt-0.5 flex items-center justify-center text-xs font-bold shrink-0 ${checked ? 'bg-emerald-500 text-white' : 'border-2 border-rose-300 text-transparent'}">
+                            ✓
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-xs font-bold ${checked ? 'line-through text-emerald-700' : 'text-gray-800'}">${st.name}</span>
+                                <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${checked ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-500'}">⏱️ ${timeBadge}</span>
+                            </div>
+                            <p class="text-[11px] text-gray-500 mt-1 leading-relaxed">${st.desc}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 手机原生语音合成点读 (Web Speech API)
+        function speakSentence(text, rate = 0.95) {
+            if (!('speechSynthesis' in window)) {
+                showToast("当前浏览器不支持语音合成，请点击上方网页听原声~");
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const utter = new SpeechSynthesisUtterance(text);
+            utter.lang = 'en-US';
+            utter.rate = rate;
+            window.speechSynthesis.speak(utter);
+            showToast(rate < 0.8 ? "🐢 正在慢速示范跟读..." : "🔊 正在常速示范发音...");
+        }
+
+        function toggleVideoPlayer() {
+            const wrap = document.getElementById('videoPlayerWrap');
+            wrap.classList.toggle('hidden');
+        }
+
+        function changeWeek(delta) {
+            currentWeek = Math.max(1, Math.min(52, currentWeek + delta));
+            saveToLocalCache();
+            renderAll();
+        }
+
+        function onWeekSelectChange() {
+            currentWeek = parseInt(document.getElementById('weekSelector').value, 10) || 1;
+            saveToLocalCache();
+            renderAll();
+        }
+
+        function selectDay(d) {
+            currentDay = d;
+            saveToLocalCache();
+            renderAll();
+        }
+
+        function setDurationMode(mode) {
+            durationMode = mode;
+            setDurationModeUI(mode);
+            saveToLocalCache();
+            renderDailyContent();
+            showToast(mode === '30m' ? "已切换至【30分钟繁忙保底模式】⚡" : "已切换至【60分钟标准进阶模式】🚀");
+        }
+
+        function setDurationModeUI(mode) {
+            const btn30 = document.getElementById('modeBtn_30m');
+            const btn60 = document.getElementById('modeBtn_60m');
+            if (mode === '30m') {
+                btn30.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold transition-all bg-rose-500 text-white shadow-sm';
+                btn60.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold transition-all text-rose-500';
+            } else {
+                btn60.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold transition-all bg-rose-500 text-white shadow-sm';
+                btn30.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold transition-all text-rose-500';
+            }
+        }
+
+        async function toggleDailyStep(stepIdx) {
+            const key = `W${currentWeek}_D${currentDay}`;
+            if (!cloudData.completedSteps[key]) cloudData.completedSteps[key] = {};
+            cloudData.completedSteps[key][`s${stepIdx}`] = !cloudData.completedSteps[key][`s${stepIdx}`];
+            renderDayPills();
+            renderDailyContent();
+            renderBannerStats();
+            await pushCloudFile(`Check step W${currentWeek}_D${currentDay}`);
+        }
+
+        async function checkAllTodaySteps() {
+            const key = `W${currentWeek}_D${currentDay}`;
+            cloudData.completedSteps[key] = { s0: true, s1: true, s2: true, s3: true };
+            renderDayPills();
+            renderDailyContent();
+            renderBannerStats();
+            showToast("🎉 今日四步任务全部打卡完成！已同步云端");
+            await pushCloudFile(`Complete all steps W${currentWeek}_D${currentDay}`);
+        }
+
+        function jumpToRecordToday() {
+            switchTab('Checkin');
+            const curr = getDayCurriculum(currentWeek, currentDay);
+            const input = document.getElementById('diaryInput');
+            if (!input.value.trim()) {
+                input.value = `【第${currentWeek}周·Day${currentDay} 打卡】${curr.title}\n今日造句/笔记：`;
+            }
+            input.focus();
+        }
+
+        function switchTab(tabName) {
+            ['daily', 'Checkin', 'roadmap', 'toolkit'].forEach(t => {
+                const view = document.getElementById(`view_${t}`);
+                const btn = document.getElementById(`tab_${t}`);
+                if (t === tabName) {
+                    view.classList.remove('hidden');
+                    btn.className = 'py-2 bg-rose-500 text-white rounded-full font-bold shadow-md transition-all text-xs flex items-center justify-center gap-1';
+                } else {
+                    view.classList.add('hidden');
+                    btn.className = 'py-2 bg-white text-rose-500 rounded-full font-bold shadow-sm border border-rose-200 transition-all hover:bg-rose-50 text-xs flex items-center justify-center gap-1';
+                }
+            });
+        }
+
+        // =========================================================================
+        // 4. 四阶段蓝图与救急句库渲染
+        // =========================================================================
+        function renderRoadmapAndResources() {
+            const acc = document.getElementById('stagesAccordion');
+            acc.innerHTML = STAGES_META.map((stg, sIdx) => {
+                const checksHtml = stg.checkpoints.map((cp, cIdx) => {
+                    const ckKey = `S${stg.num}_${cIdx}`;
+                    const isChecked = !!(cloudData.stageChecks && cloudData.stageChecks[ckKey]);
+                    return `
+                        <div onclick="toggleStageCheck('${ckKey}')" class="flex items-start gap-2 p-2 rounded-lg cursor-pointer transition ${isChecked ? 'bg-emerald-50 text-emerald-700' : 'bg-white text-gray-700'} border border-rose-100">
+                            <span class="font-bold text-xs">${isChecked ? '✅' : '⬜'}</span>
+                            <span class="text-xs leading-snug ${isChecked ? 'line-through' : ''}">${cp}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="p-3.5 rounded-2xl bg-rose-50/50 border border-rose-200">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold text-rose-600">${stg.title}</span>
+                            <span class="text-[10px] bg-white px-2 py-0.5 rounded-full text-rose-400 border border-rose-100 font-bold">${stg.weeks}</span>
+                        </div>
+                        <p class="text-xs text-gray-600 leading-relaxed mb-2">${stg.goal}</p>
+                        <div class="text-[11px] font-bold text-gray-500 mb-1.5">阶段通关自测清单（点击可勾选）：</div>
+                        <div class="space-y-1.5">${checksHtml}</div>
+                    </div>
+                `;
+            }).join('');
+
+            const resGrid = document.getElementById('allResourcesGrid');
+            resGrid.innerHTML = ALL_FREE_RESOURCES.map(r => `
+                <a href="${r.url}" target="_blank" rel="noopener noreferrer" class="p-2.5 rounded-xl bg-rose-50/40 hover:bg-rose-50 border border-rose-100 flex items-center justify-between transition">
+                    <div class="pr-2">
+                        <div class="text-xs font-bold text-gray-800">${r.name}</div>
+                        <div class="text-[11px] text-rose-400">${r.tag}</div>
+                    </div>
+                    <span class="text-xs text-rose-500 font-bold shrink-0">直达 ↗</span>
+                </a>
+            `).join('');
+        }
+
+        async function toggleStageCheck(ckKey) {
+            if (!cloudData.stageChecks) cloudData.stageChecks = {};
+            cloudData.stageChecks[ckKey] = !cloudData.stageChecks[ckKey];
+            renderRoadmapAndResources();
+            await pushCloudFile(`Update stage checkpoint ${ckKey}`);
+        }
+
+        function renderSurvivalToolkit() {
+            const container = document.getElementById('survivalToolkitContainer');
+            container.innerHTML = SURVIVAL_TOOLKIT.map(group => {
+                const itemsHtml = group.sentences.map(s => {
+                    const escaped = s.en.replace(/'/g, "\\'");
+                    return `
+                        <div class="bg-white p-2.5 rounded-xl border border-rose-100 shadow-sm">
+                            <div class="flex items-start justify-between gap-2">
+                                <span class="text-xs font-bold text-gray-800 leading-snug">"${s.en}"</span>
+                                <button onclick="speakSentence('${escaped}', 0.9)" class="shrink-0 px-2 py-0.5 bg-rose-50 text-rose-500 rounded-full text-[10px] font-bold border border-rose-200 hover:bg-rose-100">🔊 朗读</button>
+                            </div>
+                            <div class="text-[11px] text-gray-500 mt-1">${s.zh}</div>
+                        </div>
+                    `;
+                }).join('');
+                return `
+                    <div class="bg-rose-50/50 p-3 rounded-2xl border border-rose-100">
+                        <h4 class="text-xs font-bold text-rose-600 mb-2">${group.title}</h4>
+                        <div class="space-y-2">${itemsHtml}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =========================================================================
+        // 5. 打卡本录音、晒图、时光胶囊与云端保存（100% 沿用 diary.html 逻辑）
+        // =========================================================================
+        function initMoodSelector() {
+            const container = document.getElementById('moodOptions');
+            container.innerHTML = MOODS.map(mood => `
+                <button onclick="selectMood('${mood.id}')" id="moodBtn_${mood.id}" 
+                    class="text-base px-2 py-0.5 rounded-full transition-all border border-transparent hover:bg-rose-50 ${mood.id === currentMood ? 'bg-rose-100 border-rose-300 scale-110 shadow-sm' : 'grayscale-[30%]'}"
+                    title="${mood.label}">
+                    ${mood.icon}
+                </button>
+            `).join('');
+        }
+
+        function selectMood(moodId) {
+            currentMood = moodId;
+            initMoodSelector();
+        }
+
+        function toggleCapsuleUI() {
+            const isChecked = document.getElementById('capsuleToggle').checked;
+            const dateInput = document.getElementById('capsuleDate');
+            if (isChecked) {
+                dateInput.classList.remove('hidden');
+                const future = new Date();
+                future.setDate(future.getDate() + 30); // 默认30天后验收口语进步
+                dateInput.value = future.toISOString().split('T')[0];
+            } else {
+                dateInput.classList.add('hidden');
+                dateInput.value = '';
+            }
+        }
+
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                showToast("图片太大了，请选择5MB以下的图片哦~");
+                event.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                document.getElementById('imagePreview').src = dataUrl;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                currentImageBase64 = dataUrl.split(',')[1];
+                currentImageExt = file.name.split('.').pop() || 'jpg';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            currentImageBase64 = null;
+            document.getElementById('imageInput').value = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('imagePreview').src = '';
+        }
+
+        function openImageViewer(url) {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            img.src = url;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                img.classList.remove('scale-95');
+                img.classList.add('scale-100');
+            });
+        }
+
+        function closeImageViewer() {
+            const modal = document.getElementById('imageViewerModal');
+            const img = document.getElementById('fullSizeImage');
+            modal.classList.add('opacity-0');
+            img.classList.remove('scale-100');
+            img.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        async function startRecording() {
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    showToast("您的浏览器不支持录音功能，请更换浏览器重试");
+                    return;
+                }
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
+                    if (mediaRecorder.mimeType.includes('mp4')) currentAudioExt = 'm4a';
+                    else if (mediaRecorder.mimeType.includes('ogg')) currentAudioExt = 'ogg';
+                    else currentAudioExt = 'webm';
+
+                    const reader = new FileReader();
+                    reader.onloadend = () => {
+                        const dataUrl = reader.result;
+                        currentAudioBase64 = dataUrl.split(',')[1];
+                        document.getElementById('audioPreview').src = dataUrl;
+                        document.getElementById('audioPreviewContainer').classList.remove('hidden');
+                    };
+                    reader.readAsDataURL(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+                document.getElementById('normalActions').classList.add('hidden');
+                document.getElementById('recordingUI').classList.remove('hidden');
+                document.getElementById('audioPreviewContainer').classList.add('hidden');
+
+                recordSeconds = 0;
+                document.getElementById('recordTimer').innerText = '00:00';
+                recordTimerInterval = setInterval(() => {
+                    recordSeconds++;
+                    const m = String(Math.floor(recordSeconds / 60)).padStart(2, '0');
+                    const s = String(recordSeconds % 60).padStart(2, '0');
+                    document.getElementById('recordTimer').innerText = `${m}:${s}`;
+                }, 1000);
+            } catch (err) {
+                showToast("无法访问麦克风，请检查手机权限设置！");
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            clearInterval(recordTimerInterval);
+            document.getElementById('recordingUI').classList.add('hidden');
+            document.getElementById('normalActions').classList.remove('hidden');
+        }
+
+        function cancelRecording() {
+            if (mediaRecorder && mediaRecorder.state !== "inactive") {
+                mediaRecorder.stop();
+            }
+            setTimeout(() => {
+                audioChunks = [];
+                clearAudio();
+            }, 100);
+            clearInterval(recordTimerInterval);
+            document.getElementById('recordingUI').classList.add('hidden');
+            document.getElementById('normalActions').classList.remove('hidden');
+        }
+
+        function clearAudio() {
+            currentAudioBase64 = null;
+            document.getElementById('audioPreviewContainer').classList.add('hidden');
+            document.getElementById('audioPreview').src = '';
+        }
+
+        function formatTime(timeValue) {
+            const date = new Date(timeValue);
+            const yyyy = date.getFullYear();
+            const MM = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const HH = String(date.getHours()).padStart(2, '0');
+            const mm = String(date.getMinutes()).padStart(2, '0');
+            return `${yyyy}-${MM}-${dd} ${HH}:${mm}`;
+        }
+
+        async function saveDiary() {
+            const input = document.getElementById('diaryInput');
+            const text = input.value.trim();
+            const btn = document.getElementById('saveDiaryBtn');
+            const isCapsule = document.getElementById('capsuleToggle').checked;
+            const capsuleDate = document.getElementById('capsuleDate').value;
+
+            if (!text && !currentImageBase64 && !currentAudioBase64) {
+                showToast("写句今日造句、晒张笔记或录段口语吧~");
+                return;
+            }
+            if (isCapsule && !capsuleDate) {
+                showToast("请选择阶段胶囊的解锁日期");
+                return;
+            }
+
+            btn.innerText = "正在打包学习记录...";
+            btn.disabled = true;
+
+            let uploadedImageUrl = null;
+            let uploadedAudioUrl = null;
+
+            if (currentImageBase64) {
+                btn.innerText = "正在上传笔记图片 🖼️...";
+                uploadedImageUrl = await uploadMediaToGithub(currentImageBase64, currentImageExt, 'picture');
+            }
+            if (currentAudioBase64) {
+                btn.innerText = "正在上传口语录音 🎤...";
+                uploadedAudioUrl = await uploadMediaToGithub(currentAudioBase64, currentAudioExt, 'voice');
+            }
+
+            const curr = getDayCurriculum(currentWeek, currentDay);
+            const newEntry = {
+                time: Date.now(),
+                author: myNickname,
+                week: currentWeek,
+                day: currentDay,
+                lessonTitle: curr.title,
+                content: text,
+                mood: currentMood,
+                liked: false
+            };
+
+            if (uploadedImageUrl) newEntry.image = uploadedImageUrl;
+            if (uploadedAudioUrl) newEntry.audio = uploadedAudioUrl;
+            if (isCapsule) {
+                newEntry.unlockTime = new Date(capsuleDate + 'T00:00:00').getTime();
+                newEntry.opened = false;
+            }
+
+            if (!cloudData.diaries) cloudData.diaries = [];
+            cloudData.diaries.unshift(newEntry);
+
+            // 自动勾选今日 Step 4 (录音/造句打卡)
+            const stepKey = `W${currentWeek}_D${currentDay}`;
+            if (!cloudData.completedSteps[stepKey]) cloudData.completedSteps[stepKey] = {};
+            cloudData.completedSteps[stepKey].s3 = true;
+
+            renderAll();
+            btn.innerText = "正在同步到云端 ☁️...";
+
+            const res = await pushCloudFile(`Add study checkin by ${myNickname}`);
+            if (res.success) {
+                showToast(res.localOnly ? "已保存到手机本地打卡本！📱" : `已保存到「${myNickname}」的云端档案！☁️`);
+                input.value = "";
+                document.getElementById('capsuleToggle').checked = false;
+                toggleCapsuleUI();
+                clearImage();
+                clearAudio();
+            } else {
+                showToast("已保存在本地缓存，待网络恢复自动同步~");
+            }
+            btn.innerHTML = "保存到云端打卡本 ✍️";
+            btn.disabled = false;
+        }
+
+        async function toggleLike(msgTime) {
+            const entry = (cloudData.diaries || []).find(d => d.time === msgTime);
+            if (!entry) return;
+            entry.liked = !entry.liked;
+            renderDiaryUI();
+            await pushCloudFile(`Toggle like on record ${msgTime}`);
+        }
+
+        async function openCapsule(msgTime) {
+            const entry = (cloudData.diaries || []).find(d => d.time === msgTime);
+            if (!entry) return;
+            entry.opened = true;
+            renderDiaryUI();
+            showToast("🎉 阶段口语胶囊已开启！听听当时的发音吧~");
+            await pushCloudFile(`Open capsule ${msgTime}`);
+        }
+
+        function renderDiaryUI() {
+            const list = cloudData.diaries || [];
+            const container = document.getElementById('ourDiaryList');
+            const now = Date.now();
+
+            if (list.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-400 text-center mt-10">还没有打卡记录哦，录下你的第一段英语跟读吧~ 🎤</p>';
+                return;
+            }
+
+            container.innerHTML = list.map(entry => {
+                const moodObj = entry.mood ? MOODS.find(m => m.id === entry.mood) : null;
+                const moodIconHtml = moodObj ? `<span class="text-sm" title="${moodObj.label}">${moodObj.icon}</span>` : '';
+                const displayTime = formatTime(entry.time);
+                const lessonBadge = entry.lessonTitle ? `<div class="text-[10px] text-emerald-600 bg-white/80 px-2 py-0.5 rounded-md border border-emerald-100 mb-1 inline-block">📘 W${entry.week || 1}·D${entry.day || 1}: ${entry.lessonTitle}</div>` : '';
+
+                const isCapsule = entry.unlockTime !== undefined && entry.unlockTime !== null;
+                const isLocked = isCapsule && now < entry.unlockTime;
+                const isReadyToOpen = isCapsule && !isLocked && !entry.opened;
+
+                let contentHtml = '';
+                if (isLocked) {
+                    const unlockDateStr = new Date(entry.unlockTime).toLocaleDateString();
+                    contentHtml = `
+                        <div class="flex flex-col items-center justify-center py-3 opacity-75">
+                            <span class="text-xl mb-1">🔒</span>
+                            <span class="text-xs font-bold text-gray-500">给未来自己的口语时光胶囊</span>
+                            <span class="text-[10px] text-gray-400 mt-0.5">将于 ${unlockDateStr} 解锁验收</span>
+                        </div>
+                    `;
+                } else if (isReadyToOpen) {
+                    contentHtml = `
+                        <div onclick="openCapsule(${entry.time})" class="flex flex-col items-center justify-center py-4 my-1 cursor-pointer bg-white/80 rounded-xl hover:bg-rose-50 transition-all border border-dashed border-rose-300">
+                            <span class="text-2xl mb-1">⏳</span>
+                            <span class="text-xs font-bold text-rose-500">阶段口语胶囊已成熟！点击拆开验收 ✨</span>
+                        </div>
+                    `;
+                } else {
+                    const textHtml = entry.content ? `<div class="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed select-text mt-0.5">${entry.content}</div>` : '';
+                    const imgHtml = entry.image ? `<img src="${entry.image}" class="mt-2 rounded-xl max-w-full max-h-44 object-cover border border-rose-100 shadow-sm cursor-zoom-in" onclick="openImageViewer('${entry.image}')" loading="lazy">` : '';
+                    const audioHtml = entry.audio ? `<audio controls src="${entry.audio}" class="mt-2 w-full h-8 shadow-sm rounded-full"></audio>` : '';
+                    contentHtml = `${lessonBadge}${textHtml}${imgHtml}${audioHtml}`;
+                }
+
+                return `
+                    <div class="w-full self-end relative animate-fade-in">
+                        <div class="p-3 rounded-2xl border bg-emerald-50/80 border-emerald-100 break-words shadow-sm flex flex-col relative">
+                            <div class="text-[11px] font-bold text-emerald-600 mb-1 flex items-center justify-between gap-2 border-b border-white/60 pb-1">
+                                <span class="flex items-center gap-1">🎓 ${entry.author || myNickname} ${moodIconHtml}</span>
+                                <span class="text-emerald-400 font-normal text-[10px] font-mono">${displayTime}</span>
+                            </div>
+                            ${contentHtml}
+                        </div>
+                        <button onclick="toggleLike(${entry.time})" class="absolute -bottom-2 -left-1 w-6 h-6 bg-white rounded-full shadow-sm border border-gray-100 flex items-center justify-center transition-transform hover:scale-110 z-10">
+                            <span class="text-[10px]">${entry.liked ? '❤️' : '🤍'}</span>
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 随机抽查复习弹窗
+        function showRandomMemory() {
+            const list = (cloudData.diaries || []).filter(d => !d.unlockTime || (d.unlockTime <= Date.now() && d.opened));
+            if (list.length === 0) {
+                showToast("还没有打卡记录可供抽查，先去录一段口语吧~");
+                return;
+            }
+            const memory = list[Math.floor(Math.random() * list.length)];
+            const memoryCard = document.getElementById('memoryCard');
+            const imgHtml = memory.image ? `<img src="${memory.image}" class="mt-2 rounded-lg max-h-32 object-cover border border-black/10">` : '';
+            const audioHtml = memory.audio ? `<audio controls src="${memory.audio}" class="mt-2 w-full h-8"></audio>` : '';
+            const textHtml = memory.content ? `<div class="text-gray-700 text-xs whitespace-pre-wrap leading-relaxed mt-1">${memory.content}</div>` : '';
+
+            memoryCard.innerHTML = `
+                <div class="flex justify-between items-center mb-1.5 border-b border-rose-200/50 pb-1">
+                    <span class="font-bold text-rose-500 text-xs">🎓 ${memory.author || myNickname} · W${memory.week || 1}D${memory.day || 1}</span>
+                    <span class="text-[10px] text-gray-400 font-mono">${formatTime(memory.time)}</span>
+                </div>
+                ${textHtml}
+                ${imgHtml}
+                ${audioHtml}
+            `;
+
+            const modal = document.getElementById('memoryModal');
+            const modalContent = document.getElementById('memoryModalContent');
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                modalContent.classList.remove('scale-95');
+                modalContent.classList.add('scale-100');
+            });
+        }
+
+        function closeMemoryModal() {
+            const modal = document.getElementById('memoryModal');
+            const modalContent = document.getElementById('memoryModalContent');
+            const modalAudio = document.getElementById('memoryCard').querySelector('audio');
+            if (modalAudio) modalAudio.pause();
+            modal.classList.add('opacity-0');
+            modalContent.classList.remove('scale-100');
+            modalContent.classList.add('scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        // =========================================================================
+        // 6. 昵称与云端设置弹窗控制
+        // =========================================================================
+        function openCloudModal() {
+            document.getElementById('inputNickname').value = myNickname;
+            document.getElementById('inputRepo').value = OWNER_REPO;
+            document.getElementById('inputToken').value = GITHUB_TOKEN;
+            document.getElementById('cloudModal').classList.remove('hidden');
+        }
+
+        function closeCloudModal() {
+            document.getElementById('cloudModal').classList.add('hidden');
+        }
+
+        function quickSetNick(nick) {
+            document.getElementById('inputNickname').value = nick;
+        }
+
+        async function saveCloudConfig() {
+            const newNick = document.getElementById('inputNickname').value.trim() || '哼哼';
+            const newRepo = document.getElementById('inputRepo').value.trim() || '878481881-jpg/loveplan';
+            const newToken = document.getElementById('inputToken').value.trim();
+
+            myNickname = newNick;
+            OWNER_REPO = newRepo;
+            GITHUB_TOKEN = newToken;
+
+            localStorage.setItem('engPlan_nickname', myNickname);
+            localStorage.setItem('engPlan_repo', OWNER_REPO);
+            if (GITHUB_TOKEN) {
+                localStorage.setItem('engPlan_githubToken', GITHUB_TOKEN);
+                localStorage.setItem('loveGacha_githubToken', GITHUB_TOKEN);
+            }
+
+            closeCloudModal();
+            loadFromLocalCache();
+            if (GITHUB_TOKEN) {
+                const ok = await fetchCloudFile();
+                if (ok) {
+                    // 如果云端还是空的（404），立刻把当前本地数据初始化推送到云端
+                    if (!cloudFileSha) {
+                        await pushCloudFile(`Initialize study archive for ${myNickname}`);
+                    }
+                    showToast(`🎉 已绑定昵称「${myNickname}」并开启云端同步！`);
+                }
+            } else {
+                showToast(`已切换昵称「${myNickname}」（当前为手机本地存储模式）`);
+            }
+            renderAll();
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('hidden');
+            toast.classList.add('toast-animate');
+            setTimeout(() => {
+                toast.classList.add('hidden');
+                toast.classList.remove('toast-animate');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
