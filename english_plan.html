@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="referrer" content="no-referrer">
     <title>我的英语蜕变手账 💖</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
@@ -126,69 +125,77 @@
                     <span id="dayStatusTag" class="shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">未完成</span>
                 </div>
 
-                <!-- 页内纯真人视听区（已彻底删除 YouTube 与一切机器合成音） -->
+                <!-- 页内直接播放「进入本课页面」中的原版视频与音频区 -->
                 <div class="mb-3">
                     <div class="flex items-center justify-between mb-2">
                         <span class="text-xs font-bold text-rose-500 flex items-center gap-1">
-                            🎬 页内真人视听 <span class="text-[10px] font-normal text-gray-400" id="videoChannelLabel"></span>
+                            🎬 本课原版视听 <span class="text-[10px] font-normal text-gray-400" id="videoChannelLabel"></span>
                         </span>
-                        <!-- 两大纯真人源切换（无 YouTube、无合成音） -->
+                        <!-- 两种页内直播方式切换：原生MP4视频解析直播 vs 页内直接内嵌「进入本课页面」完整网页 -->
                         <div class="flex bg-rose-50 p-0.5 rounded-full border border-rose-200">
-                            <button onclick="switchPlayerSource('theater')" id="srcBtn_theater" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-sm transition-all">🎧 母语真人实录对话</button>
-                            <button onclick="switchPlayerSource('bilibili')" id="srcBtn_bilibili" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-rose-500 transition-all">📺 B站外教视频</button>
+                            <button onclick="switchPlayerSource('nativeVideo')" id="srcBtn_nativeVideo" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-sm transition-all">📹 页内直播本课视频</button>
+                            <button onclick="switchPlayerSource('courseWeb')" id="srcBtn_courseWeb" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-rose-500 transition-all">📖 页内内嵌本课网页</button>
                         </div>
                     </div>
 
-                    <!-- 源 1（默认）：ELLLO 母语者真人实录对话 MP3 + 逐字对应原版台词 + 点词听牛津词典真人录音 -->
-                    <div id="playerMode_theater" class="w-full rounded-2xl overflow-hidden border-2 border-rose-200 bg-gradient-to-br from-slate-900 via-rose-950 to-slate-900 text-white p-3.5 shadow-md">
-                        <div class="flex items-center justify-between border-b border-white/15 pb-2 mb-2">
+                    <!-- 模式 1（默认）：自动从下方「进入本课页面」提取原版 .mp4 视频与 .mp3 音频在页内原生播放 -->
+                    <div id="playerMode_nativeVideo" class="w-full rounded-2xl overflow-hidden border-2 border-rose-200 bg-slate-900 text-white shadow-md">
+                        <!-- 顶部状态提示条 -->
+                        <div class="px-3 py-2 bg-slate-800/90 border-b border-white/10 flex items-center justify-between gap-2">
                             <div class="flex items-center gap-1.5 min-w-0">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0"></span>
-                                <span class="text-xs font-bold text-emerald-300 truncate" id="realMp3Label">🎧 ELLLO 母语者真人实录对话 MP3</span>
+                                <span id="extractStatusDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+                                <span id="extractStatusText" class="text-[11px] font-bold text-rose-200 truncate">正在从「本课页面」提取原版视频...</span>
                             </div>
-                            <button onclick="toggleTheaterSub()" id="btnToggleSub" class="text-[10px] underline text-rose-200 hover:text-white font-bold shrink-0 ml-2">显/隐中文翻译</button>
+                            <button onclick="forceReloadLessonMedia()" class="px-2 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-[10px] text-rose-200 shrink-0">🔄 重新提取</button>
                         </div>
 
-                        <!-- 100% 真人实录对话 MP3 播放器 -->
-                        <audio id="nativeMp3Player" controls preload="metadata" class="w-full h-9 rounded-full mb-2.5 shadow-inner" src="https://www.elllo.org/Audio/A0001/045-Tim-Oregon.mp3"></audio>
-
-                        <div class="text-[10px] text-amber-300 font-bold mb-1.5 flex items-center justify-between">
-                            <span>👇 录音原版逐句台词（点任意单词听<b class="text-white">牛津词典真人录音</b>）：</span>
-                            <a id="ellloOriginLink" href="https://elllo.org/english/0001/045-Tim-Oregon.htm" target="_blank" rel="noopener noreferrer" class="underline text-rose-200 shrink-0">ELLLO原课网页 ↗</a>
+                        <!-- 原生 HTML5 <video> 播放器（直接播放从 VOA 本课页面提取出的 av.voanews.com 原版 MP4） -->
+                        <div id="nativeVideoContainer" class="w-full bg-black aspect-video relative flex items-center justify-center">
+                            <video id="courseDirectVideoPlayer" controls playsinline preload="metadata" class="w-full h-full object-contain"></video>
                         </div>
-                        <div id="theaterScriptBox" class="space-y-2 max-h-48 overflow-y-auto pr-1 custom-scrollbar">
-                            <!-- JS 动态渲染与上方真人 MP3 完全对应的原版台词 -->
+
+                        <!-- 本课页面内包含的多个视频/音频分段切换按钮（主情景剧 / 口语跟读Speaking / 发音指导Pronunciation） -->
+                        <div class="p-2.5 bg-slate-900 border-t border-white/10">
+                            <div class="text-[10px] text-rose-300 font-bold mb-1.5">👇 点击切换「本课页面」内的分段教学视频与真人对话音频：</div>
+                            <div id="extractedMediaTracksBox" class="flex flex-wrap gap-1.5">
+                                <!-- JS 动态生成：🎬 主课程视频 | 🗣️ Speaking跟读视频 | 👄 Pronunciation发音视频 | 🎧 课文对话MP3 -->
+                            </div>
+
+                            <!-- 原生课文对话 MP3 音频播放条 -->
+                            <div id="extractedAudioWrap" class="mt-2 pt-2 border-t border-white/10">
+                                <div class="text-[10px] text-emerald-300 font-bold mb-1" id="extractedAudioTitle">🎧 本课真人对话实录音频 (MP3)：</div>
+                                <audio id="nativeMp3Player" controls preload="metadata" class="w-full h-8 rounded-full" src="https://www.elllo.org/Audio/A0001/045-Tim-Oregon.mp3"></audio>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- 源 2：Bilibili 官方内嵌真人外教视频播放器（已彻底移除 YouTube） -->
-                    <div id="playerMode_bilibili" class="hidden w-full rounded-2xl overflow-hidden border-2 border-rose-200 bg-black relative shadow-md">
-                        <div class="aspect-video w-full">
-                            <iframe id="lessonBiliIframe" class="w-full h-full" src="" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true"></iframe>
+                    <!-- 模式 2：直接在页面内嵌入下方的「进入本课页面」完整网页（无需跳出 HTML 即可直接点播原网页视频与做题） -->
+                    <div id="playerMode_courseWeb" class="hidden w-full rounded-2xl overflow-hidden border-2 border-rose-200 bg-white shadow-md">
+                        <div class="bg-rose-50 px-3 py-2 border-b border-rose-100 flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-rose-600 truncate pr-2" id="embeddedWebTitle">📖 本课原网页内嵌视图（可直接在框内点播放）</span>
+                            <a id="embeddedWebExternalLink" href="https://learningenglish.voanews.com/a/lets-learn-english-lesson-one/3111026.html" target="_blank" rel="noopener noreferrer" class="shrink-0 bg-rose-500 text-white px-2.5 py-0.5 rounded-full text-[10px] font-bold">全屏新窗口打开 ↗</a>
                         </div>
-                        <div class="bg-rose-50 px-3 py-2 flex items-center justify-between text-[11px] border-t border-rose-100">
-                            <span class="text-gray-700 font-bold truncate pr-2" id="biliTitleLabel">📺 B站外教中英字幕视频</span>
-                            <a id="biliAppLink" href="https://www.bilibili.com/video/BV1aBpQeEE2x/" target="_blank" rel="noopener noreferrer" class="shrink-0 bg-rose-500 text-white px-2.5 py-1 rounded-full text-[10px] font-bold shadow-sm hover:bg-rose-600">打开B站全屏看 ↗</a>
-                        </div>
+                        <iframe id="inPageCourseIframe" class="w-full h-[460px] border-0 bg-white" src="" sandbox="allow-scripts allow-same-origin allow-popups allow-forms"></iframe>
                     </div>
 
-                    <!-- 牛津词典真人录播室单词点读条（点击页面任意英文单词弹出，100% 牛津/维基词典真人 MP3） -->
+                    <!-- 逐词真人词典原声点读检视条（点击页面内任意英文单词触发，实时拉取 FreeDictionaryAPI 真人词典 MP3） -->
                     <div id="wordInspectorBar" class="hidden mt-2 p-2.5 rounded-xl bg-slate-900 text-white border-2 border-rose-300 flex flex-col gap-1.5 shadow-md animate-fade-in">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="text-sm font-bold text-amber-300" id="inspectedWordText">word</span>
-                                <span class="text-[11px] text-rose-200 font-mono" id="inspectedWordPhonetic">正在获取牛津真人音标...</span>
+                                <span class="text-[11px] text-rose-200 font-mono" id="inspectedWordPhonetic">正在查询词典真人原声...</span>
                             </div>
-                            <span class="text-[10px] bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/40">100% 牛津词典真人录音</span>
+                            <span class="text-[10px] bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-full border border-emerald-400/40" id="wordAudioStatusBadge">词典真人录音</span>
                         </div>
+                        <audio id="wordDirectAudioBar" controls class="w-full h-7 rounded-full my-0.5"></audio>
                         <div class="flex items-center justify-between gap-1.5 pt-1 border-t border-white/10">
                             <div class="flex gap-1.5">
-                                <button onclick="playOxfordWordHumanAudio(currentInspectedWord, 'us')" class="px-2.5 py-1 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold shadow">🇺🇸 牛津美音真人</button>
-                                <button onclick="playOxfordWordHumanAudio(currentInspectedWord, 'gb')" class="px-2.5 py-1 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold shadow">🇬🇧 牛津英音真人</button>
+                                <button onclick="playOxfordWordHumanAudio(currentInspectedWord, 'us')" class="px-2.5 py-1 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-[10px] font-bold shadow">🇺🇸 美音真人</button>
+                                <button onclick="playOxfordWordHumanAudio(currentInspectedWord, 'gb')" class="px-2.5 py-1 rounded-full bg-indigo-500 hover:bg-indigo-600 text-white text-[10px] font-bold shadow">🇬🇧 英音真人</button>
                             </div>
                             <div class="flex gap-1">
                                 <a id="inspectedCambridgeLink" href="https://dictionary.cambridge.org/dictionary/english/" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-full bg-white/15 hover:bg-white/25 text-white text-[10px] font-bold">📖 剑桥词典 ↗</a>
-                                <a id="inspectedYouglishLink" href="https://youglish.com/" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold">🎬 真人视频切片 ↗</a>
+                                <a id="inspectedYouglishLink" href="https://youglish.com/" target="_blank" rel="noopener noreferrer" class="px-2 py-1 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold">🎬 真人切片 ↗</a>
                             </div>
                         </div>
                     </div>
@@ -202,8 +209,8 @@
                 <!-- 页内今日必背句块 + 手机原生TTS慢速/常速发声跟读 -->
                 <div class="bg-rose-50/70 rounded-xl p-3 border border-rose-100">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-rose-600 flex items-center gap-1">🎙️ 今日必背母语者真人实录原声句（美国外教 Charles Kelly 实录 MP3）</span>
-                        <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">100% 真人麦克风录音 MP3 · 零合成音</span>
+                        <span class="text-xs font-bold text-rose-600 flex items-center gap-1">🎙️ 本课核心口语实景句（点单词听词典真人原声 · 点按钮播本课实录）</span>
+                        <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">关联本课原声视频 & 词典真人MP3</span>
                     </div>
                     <div id="dailyPhrasesList" class="space-y-2">
                         <!-- JS动态渲染今日3个核心句子+播放按钮 -->
@@ -458,104 +465,72 @@
             "Level 2 Lesson 29: Where There's Smoke...", "Level 2 Lesson 30: Dream a Little Dream"
         ];
 
-        // B站真人外教视频库（已彻底删除 YouTube）
-        const EMBED_VIDEOS = {
-            rachel_intro: { bvid: "BV1aBpQeEE2x", page: 1, channel: "Rachel's English 美式发音真人课 (第1讲)" },
-            rachel_drivethru: { bvid: "BV1aBpQeEE2x", page: 2, channel: "Rachel's English 美式发音真人课 (第2讲)" },
-            rachel_accent: { bvid: "BV1nb411F7Ts", page: 1, channel: "Rachel's English 美式音标真人精讲 (第1讲)" },
-            rachel_hardwords: { bvid: "BV1nb411F7Ts", page: 2, channel: "Rachel's English 美式音标真人精讲 (第2讲)" },
-            voa_l1_sample: { bvid: "BV1aBpQeEE2x", page: 3, channel: "Rachel's English 美语连读弱读真人拆解" },
-            voa_l1_speaking: { bvid: "BV1ASAZeiEap", page: 1, channel: "Speak English With Vanessa 真人日常口语 (第1讲)" },
-            voa_l1_speaking2: { bvid: "BV1ASAZeiEap", page: 2, channel: "Speak English With Vanessa 真人日常口语 (第2讲)" },
-            vanessa_daily: { bvid: "BV1ASAZeiEap", page: 3, channel: "Speak English With Vanessa 真人高频日常表达" },
-            vanessa_vocab: { bvid: "BV1fzVdzgEiP", page: 1, channel: "Vanessa 外教中英字幕口语课 (第1讲)" },
-            easy_street1: { bvid: "BV1Qx41127Zm", page: 1, channel: "Easy English 街头真实路人采访 (第1集)" },
-            easy_street2: { bvid: "BV1Qx41127Zm", page: 2, channel: "Easy English 街头真实路人采访 (第2集)" },
-            easy_street3: { bvid: "BV1Qx41127Zm", page: 3, channel: "Easy English 街头真实路人采访 (第3集)" },
-            bbc_6min_anxiety: { bvid: "BV1fzVdzgEiP", page: 2, channel: "Vanessa 外教日常会话精讲 (第2讲)" },
-            bbc_6min_cities: { bvid: "BV1fzVdzgEiP", page: 3, channel: "Vanessa 外教日常会话精讲 (第3讲)" },
-            bbc_6min_debt: { bvid: "BV1ASAZeiEap", page: 4, channel: "Speak English With Vanessa 沉浸式听说 (第4讲)" },
-            bbc_6min_recent: { bvid: "BV1Qx41127Zm", page: 4, channel: "Easy English 街头真实路人采访 (第4集)" },
-            listening_1hr: { bvid: "BV1ASAZeiEap", page: 5, channel: "Speak English With Vanessa 沉浸式听说 (第5讲)" },
-            listening_slow: { bvid: "BV1fzVdzgEiP", page: 4, channel: "Vanessa 外教慢速自然口语课 (第4讲)" }
+        // VOA Let's Learn English Level 1 每一课的具体网页地址（对应视频框下方的“进入本课页面”）
+        const VOA_L1_EXACT_URLS = {
+            0: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-one/3111026.html",
+            1: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-2-hello/3113733.html",
+            2: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-3-i-am-here/3126527.html",
+            3: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-4/3168920.html",
+            4: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-5-where-are-you/3168971.html",
+            5: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-6-where-is-the-gym/3225958.html",
+            6: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-7-what-are-you-doing/3240468.html",
+            7: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-8-are-you-busy/3253185.html",
+            8: "https://learningenglish.voanews.com/a/lets-learn-english-level-1-lesson-9/5181785.html",
+            9: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-10/3285228.html",
+            10: "https://learningenglish.voanews.com/a/3294378.html",
+            11: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-12-meet-my-family/3301733.html",
+            13: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-14-how-about-this/3323771.html",
+            14: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-15-i-love-people-watching/3343720.html",
+            15: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-16-where-are-you-from/3355849.html",
+            16: "https://learningenglish.voanews.com/a/are-you-free-on-friday-lets-learn-english/3355785.html",
+            17: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-18-she-always-does-that/3357748.html",
+            18: "https://learningenglish.voanews.com/a/lets-learn-english-level-1-lesson-19/5182258.html",
+            19: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-20-what-can-you-do/3399192.html",
+            20: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-21-can-you-come-to-the-party/3406732.html",
+            21: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-22/3397314.html",
+            22: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-23-what-do-you-want/3413753.html",
+            23: "https://learningenglish.voanews.com/a/let-s-learn-english---level-1---lesson-24-yesterday-was-amazing-/5780940.html",
+            24: "https://learningenglish.voanews.com/a/3467912.html",
+            25: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-26-this-game-is-fun/3457248.html",
+            26: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-27-i-cant-come-in/3457316.html",
+            28: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-29-a-long-time-ago/3509519.html",
+            29: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-30-rolling-river/3522798.html",
+            30: "https://learningenglish.voanews.com/a/let-s-learn-english---level-1---lesson-31-take-me-out-to-the-ball-game-/5780923.html",
+            31: "https://learningenglish.voanews.com/a/let-s-learn-english---level-1---lesson-32-welcome-to-the-treehouse-/5780922.html",
+            33: "https://learningenglish.voanews.com/a/3567404.html",
+            34: "https://learningenglish.voanews.com/a/let-s-learn-english---level-1---lesson-35-let-s-make-dinner-/5780912.html",
+            35: "https://learningenglish.voanews.com/a/3595539.html",
+            37: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-38-shes-my-best-friend/3591967.html",
+            38: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-39-its-unbelieveable/3598920.html",
+            39: "https://learningenglish.voanews.com/a/3940512.html",
+            41: "https://learningenglish.voanews.com/a/let-s-learn-english---level-1---lesson-42-i-was-minding-my-own-business/5780888.html",
+            42: "https://learningenglish.voanews.com/a/3681422.html",
+            45: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-46-may-i-borrow-that/3723588.html",
+            46: "https://learningenglish.voanews.com/a/3748838.html",
+            47: "https://learningenglish.voanews.com/a/3757461.html",
+            50: "https://learningenglish.voanews.com/a/lets-learn-english-lesson-51-a-good-habit/3773577.html"
         };
 
-        // 100% 真人麦克风实录句子 MP3 库（来自 Tatoeba 语料库美国母语者 Charles Kelly 实录 MP3，绝非机器合成！）
-        const TATOEBA_HUMAN_SENTENCES = [
-            { id: 256187, en: "I can speak English.", zh: "我会说英语。（美国外教 Charles Kelly 麦克风实录 MP3）" },
-            { id: 58568, en: "Are you free this weekend?", zh: "这个周末你有空吗？（日常邀约真人实录 MP3）" },
-            { id: 2648078, en: "Let's meet at 2:30.", zh: "我们两点半见吧。（日常约见真人实录 MP3）" },
-            { id: 2544846, en: "I'll make you some coffee.", zh: "我给你煮些咖啡吧。（日常待客真人实录 MP3）" },
-            { id: 39682, en: "Dinner is ready.", zh: "晚饭准备好了。（居家生活真人实录 MP3）" },
-            { id: 895382, en: "I want to eat pizza tonight.", zh: "我今晚想吃披萨。（注意 want to 的自然连读真人实录 MP3）" },
-            { id: 2499505, en: "Where is the hotel?", zh: "请问酒店在哪里？（出国问路必背真人实录 MP3）" },
-            { id: 22193, en: "When you travel abroad, you usually need a passport.", zh: "出国旅行时通常需要护照。（海关与旅行真人实录 MP3）" },
-            { id: 35310, en: "The bus hasn't come yet.", zh: "公交车还没来呢。（公共交通出行真人实录 MP3）" },
-            { id: 44828, en: "The train was crowded.", zh: "火车/地铁很拥挤。（出行交通真人实录 MP3）" },
-            { id: 423164, en: "Please wait a bit.", zh: "请稍等一下。（日常沟通高频真人实录 MP3）" },
-            { id: 506446, en: "Don't worry.", zh: "别担心 / 没关系。（日常回应真人实录 MP3）" },
-            { id: 3734355, en: "You understand me very well.", zh: "你非常理解我的意思。（确认沟通真人实录 MP3）" },
-            { id: 61583, en: "Let's take a 10-minute break.", zh: "我们休息十分钟吧。（日常交流真人实录 MP3）" },
-            { id: 243259, en: "It's going to rain this evening.", zh: "今天傍晚要下雨。（天气寒暄 Small Talk 真人实录 MP3）" },
-            { id: 244519, en: "It was hot yesterday.", zh: "昨天天气很热。（天气寒暄真人实录 MP3）" },
-            { id: 306386, en: "They live nearby.", zh: "他们就住在附近。（社区邻里真人实录 MP3）" },
-            { id: 3822354, en: "I don't work on Monday.", zh: "我周一不上班。（日常作息真人实录 MP3）" },
-            { id: 258284, en: "I am tired of my work.", zh: "我对工作感到疲倦了。（感受表达真人实录 MP3）" },
-            { id: 249932, en: "I can't afford to buy a new car.", zh: "我买不起新车。（消费与预算真人实录 MP3）" },
-            { id: 436453, en: "I'm visiting my grandmother in the hospital.", zh: "我正在医院看望奶奶。（医疗与探望真人实录 MP3）" },
-            { id: 417801, en: "My eyes hurt.", zh: "我的眼睛疼。（国外看病买药描述不适真人实录 MP3）" },
-            { id: 31155, en: "Have you cleaned your room yet?", zh: "你打扫好房间了吗？（住宿与居家真人实录 MP3）" },
-            { id: 38525, en: "Please turn on the television.", zh: "请把电视打开。（居家请求真人实录 MP3）" }
-        ];
-
-        // 100% 母语者真人实录对话库（ELLLO 原生 MP3 + 与录音逐字对应的真实逐句剧本）
-        const REAL_HUMAN_DIALOGUES = [
-            {
-                title: "🎧 ELLLO #45 母语者真人实录：Tim 与 Todd 聊美国各州生活与自然风光",
-                mp3: "https://www.elllo.org/Audio/A0001/045-Tim-Oregon.mp3",
-                pageUrl: "https://elllo.org/english/0001/045-Tim-Oregon.htm",
-                lines: [
-                    { role: "Todd (美国)", avatar: "👦", en: "OK. Hey, hello!", zh: "好的，嘿，你好！" },
-                    { role: "Tim (美国俄勒冈)", avatar: "🧑", en: "Hey, how's it going?", zh: "嘿，最近怎么样？" },
-                    { role: "Todd (美国)", avatar: "👦", en: "Doing pretty good. Could you introduce yourself please?", zh: "挺不错的。能请你做个自我介绍吗？" },
-                    { role: "Tim (美国俄勒冈)", avatar: "🧑", en: "Yeah, I'm Tim Peterson. I'm from Oregon in the United States.", zh: "好的，我是蒂姆·彼得森，来自美国俄勒冈州。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "OK, and were you born there? Did you ever live in any other states?", zh: "你是在那儿出生的吗？还在其他州住过吗？" },
-                    { role: "Tim (美国俄勒冈)", avatar: "🧑", en: "I lived in Wyoming for a really short time, and I've lived in California for a short time too.", zh: "我在怀俄明州住过很短一段时间，在加州也短暂住过。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "Of those three states, which one is the best?", zh: "在这三个州里面，哪一个最好？" },
-                    { role: "Tim (美国俄勒冈)", avatar: "🧑", en: "Oregon. It's got lots of nature. Good mountains, good streams, good water.", zh: "俄勒冈。那里有丰富的自然风光，好山、好溪流、好水。" }
-                ]
-            },
-            {
-                title: "🎧 ELLLO #09 母语者真人实录：Gabrielle 与 Todd 聊假期回家、海滩露营与宠物",
-                mp3: "https://www.elllo.org/Audio/A0001/009-Gabrielle-Goinghome.mp3",
-                pageUrl: "https://elllo.org/english/0001/009-Gabrielle-Goinghome.htm",
-                lines: [
-                    { role: "Todd (美国)", avatar: "👦", en: "Hello, Gabrielle! How are you doing today?", zh: "你好，加布里埃尔！你今天过得怎么样？" },
-                    { role: "Gabrielle (新西兰)", avatar: "👩", en: "Good thanks. I'm going home for summer.", zh: "挺好的谢谢。我准备回家过夏天。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "OK. What are your plans?", zh: "好的，你有什么度假计划？" },
-                    { role: "Gabrielle (新西兰)", avatar: "👩", en: "Probably a week relaxing, going camping and then I'm going back to work.", zh: "大概先放松一周、去露营，然后再回去工作。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "Are you going to the beach or the mountains?", zh: "你是打算去海滩还是去山里？" },
-                    { role: "Gabrielle (新西兰)", avatar: "👩", en: "Probably to the beach and camping for about a week with friends.", zh: "可能会和朋友们去海滩露营一个星期左右。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "Any other plans when you go home?", zh: "回家还有其他计划吗？" },
-                    { role: "Gabrielle (新西兰)", avatar: "👩", en: "Yeah, I'm looking forward to catching up with friends and family and animals.", zh: "有的，我特别期待和朋友、家人还有家里的动物们叙旧团聚。" }
-                ]
-            },
-            {
-                title: "🎧 ELLLO #70 母语者真人实录：Jamon 与 Todd 聊做饭、沙拉、唱歌与乐器",
-                mp3: "https://www.elllo.org/Audio/A0051/070-Jamon-Abilities.mp3",
-                pageUrl: "https://elllo.org/english/0051/070-Jamon-Abilities.htm",
-                lines: [
-                    { role: "Todd (美国)", avatar: "👦", en: "OK, Jamon, we're going to talk about abilities. Can you cook?", zh: "好的 Jamon，我们来聊聊日常技能。你会做饭吗？" },
-                    { role: "Jamon (受访者)", avatar: "🧑", en: "I can cook a little bit. I like cooking.", zh: "我会做一点点。我很喜欢做饭。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "What do you like to make when you cook?", zh: "你做饭的时候喜欢做什么菜？" },
-                    { role: "Jamon (受访者)", avatar: "🧑", en: "Just simple things. I love salad. I make a huge salad.", zh: "只是些简单的食物。我超爱沙拉，我会做一大盆沙拉。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "OK, can you sing?", zh: "好嘞，那你会唱歌吗？" },
-                    { role: "Jamon (受访者)", avatar: "🧑", en: "No, I can't sing. I just sing for me, when I have a shower.", zh: "不会，我唱不好。我只在洗澡的时候唱给自己听。" },
-                    { role: "Todd (美国)", avatar: "👦", en: "Can you play any musical instruments?", zh: "你会演奏什么乐器吗？" },
-                    { role: "Jamon (受访者)", avatar: "🧑", en: "Didgeridoo! It's an Australian instrument. I learned in Switzerland.", zh: "迪吉里杜管！那是一种澳大利亚乐器，我在瑞士学的。" }
-                ]
-            }
-        ];
+        const EMBED_VIDEOS = {
+            rachel_intro: { channel: "本课原版视频直播" },
+            rachel_drivethru: { channel: "本课原版视频直播" },
+            rachel_accent: { channel: "本课原版视频直播" },
+            rachel_hardwords: { channel: "本课原版视频直播" },
+            voa_l1_sample: { channel: "VOA Let's Learn English 本课视频" },
+            voa_l1_speaking: { channel: "VOA Speaking Practice 本课视频" },
+            voa_l1_speaking2: { channel: "VOA Speaking Practice 本课视频" },
+            vanessa_daily: { channel: "本课原版视听" },
+            vanessa_vocab: { channel: "本课原版视听" },
+            easy_street1: { channel: "本课原版视听" },
+            easy_street2: { channel: "本课原版视听" },
+            easy_street3: { channel: "本课原版视听" },
+            bbc_6min_anxiety: { channel: "本课原版视听" },
+            bbc_6min_cities: { channel: "本课原版视听" },
+            bbc_6min_debt: { channel: "本课原版视听" },
+            bbc_6min_recent: { channel: "本课原版视听" },
+            listening_1hr: { channel: "本课原版视听" },
+            listening_slow: { channel: "本课原版视听" }
+        };
 
         // 阶段定义
         const STAGES_META = [
@@ -617,49 +592,60 @@
             { name: "Cambridge 剑桥在线词典 & Conversation Exchange 语伴", tag: "查音标例句 + 免费匹配英语母语语伴", url: "https://www.conversationexchange.com/search.php?lg=en" }
         ];
 
-        // 6大出国生存救急句库（全部绑定 Tatoeba 美国母语者 Charles Kelly 麦克风真人实录 MP3！）
+        // 6大出国生存救急句库（点击任意单词直接播放词典真人录音，或跳转 YouGlish 听母语者原片切片）
         const SURVIVAL_TOOLKIT = [
             {
-                title: "1. 沟通救急与请对方稍等（真人实录 MP3 + 逐词牛津原声）",
+                title: "1. 对方语速太快或连读没听清（点任意单词听词典真人原声）",
                 sentences: [
-                    { id: 423164, en: "Please wait a bit.", zh: "请稍等一下。（当你没反应过来或需要查词时必说）" },
-                    { id: 3734355, en: "You understand me very well.", zh: "你非常理解我的意思。" },
-                    { id: 256187, en: "I can speak English.", zh: "我会说英语。" },
-                    { id: 506446, en: "Don't worry.", zh: "别担心 / 没关系。" }
+                    { en: "Sorry, I didn't quite catch that. Could you speak a little slower?", zh: "抱歉我没太听清，您能说慢一点点吗？" },
+                    { en: "Sorry, my English is a bit rusty. Could you say that in a simpler way?", zh: "抱歉我的英语有点生疏，您能用简单点的话再说一遍吗？" },
+                    { en: "Would you mind repeating the last part for me?", zh: "您介意把最后那部分再重复一遍吗？" }
                 ]
             },
             {
-                title: "2. 出国酒店、护照与交通出行（真人实录 MP3 + 逐词牛津原声）",
+                title: "2. 突然忘词卡壳、用简单词降维解释（Paraphrasing）",
                 sentences: [
-                    { id: 2499505, en: "Where is the hotel?", zh: "请问酒店在哪里？" },
-                    { id: 22193, en: "When you travel abroad, you usually need a passport.", zh: "当你出国旅行时，通常需要护照。" },
-                    { id: 35310, en: "The bus hasn't come yet.", zh: "公交车还没来呢。" },
-                    { id: 44828, en: "The train was crowded.", zh: "火车/地铁上很拥挤。" }
+                    { en: "I don't know the exact word in English, but it's a thing you use to keep water hot.", zh: "我不知道那个词用英语怎么说，但它是一种用来保温热水的东西。" },
+                    { en: "The word is on the tip of my tongue, let me put it another way.", zh: "那个词就在嘴边想不起来了，我换个方式跟您解释。" },
+                    { en: "It looks kind of like a credit card, and you use it for the subway.", zh: "它看起来像张信用卡，是坐地铁刷卡用的。" }
                 ]
             },
             {
-                title: "3. 餐饮咖啡、日常起居与购物消费（真人实录 MP3 + 逐词牛津原声）",
+                title: "3. 机场海关、行李与问路乘车高频句",
                 sentences: [
-                    { id: 2544846, en: "I'll make you some coffee.", zh: "我给你煮些咖啡吧。" },
-                    { id: 895382, en: "I want to eat pizza tonight.", zh: "我今晚想吃披萨。" },
-                    { id: 39682, en: "Dinner is ready.", zh: "晚饭准备好了。" },
-                    { id: 249932, en: "I can't afford to buy a new car.", zh: "我买不起新车。（掌握 can't afford to 句型）" }
+                    { en: "I'm here on vacation for ten days, and I'll be staying at a hotel downtown.", zh: "我是来度假十天的，住在市中心的酒店。（过海关必用）" },
+                    { en: "Excuse me, could you tell me which platform goes to the city center?", zh: "打扰一下，请问去市中心在哪个站台乘车？" },
+                    { en: "Just to make sure I got it right, I need to transfer at the next station, right?", zh: "确认一下我没理解错，我需要在下一站换乘对吧？" }
                 ]
             },
             {
-                title: "4. 周末邀约、天气寒暄与看病就医（真人实录 MP3 + 逐词牛津原声）",
+                title: "4. 酒店入住、寄存行李与设施报修",
                 sentences: [
-                    { id: 58568, en: "Are you free this weekend?", zh: "这个周末你有空吗？" },
-                    { id: 2648078, en: "Let's meet at 2:30.", zh: "我们两点半见吧。" },
-                    { id: 243259, en: "It's going to rain this evening.", zh: "今天傍晚要下雨。" },
-                    { id: 417801, en: "My eyes hurt.", zh: "我的眼睛疼。（去药店或诊所描述症状）" }
+                    { en: "Hi, I have a reservation under the name Zhang. Could I check in now?", zh: "您好，我有预订，名字是 Zhang，现在可以办理入住吗？" },
+                    { en: "Could I leave my luggage here at the front desk until check-in time?", zh: "我能先把行李寄存在前台直到入住时间吗？" },
+                    { en: "Excuse me, the hot water in my room isn't working properly. Could someone take a look?", zh: "打扰一下，我房间的热水不太正常，能派人来看看吗？" }
+                ]
+            },
+            {
+                title: "5. 餐厅点餐、咖啡馆定制与买单分账",
+                sentences: [
+                    { en: "Could I get an iced latte with oat milk, less ice, to go please?", zh: "请给我来一杯冰燕麦拿铁，少冰，打包带走。" },
+                    { en: "Does this dish contain any peanuts or seafood? I have a mild allergy.", zh: "这道菜里含有花生或海鲜吗？我有一点过敏。" },
+                    { en: "Could we get the check, please? And can we split the bill?", zh: "麻烦结一下账好吗？我们可以分开付（AA制）吗？" }
+                ]
+            },
+            {
+                title: "6. 母语者日常破冰闲聊（Small Talk 接话不冷场）",
+                sentences: [
+                    { en: "Pretty good! Just enjoying the nice weather today. How's your day going?", zh: "挺好的！正在享受今天的好天气呢。你今天过得怎么样？" },
+                    { en: "No way! Really? That sounds amazing! How did you get into that?", zh: "不会吧！真的吗？听起来太棒了！你是怎么开始接触那个的？" },
+                    { en: "It's actually my first time visiting here, do you have any local food recommendations?", zh: "这其实是我第一次来这儿，你有什么当地美食推荐吗？" }
                 ]
             }
         ];
 
         // 动态生成任意 Week (1-52) + Day (1-7) 的具体课程详情（具体到某一课！）
         function getDayCurriculum(week, day) {
-            const wIdx = week - 1; // 0..51
             const dayNames = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"];
             const dayName = dayNames[day - 1];
 
@@ -667,35 +653,35 @@
             if (week <= 12) {
                 const voaIdx1 = Math.min(51, (week - 1) * 4 + Math.min(day - 1, 3));
                 const voaLesson = VOA_L1_LESSONS[voaIdx1];
+                const exactVoaUrl = VOA_L1_EXACT_URLS[voaIdx1] || "https://learningenglish.voanews.com/a/lets-learn-english-lesson-one/3111026.html";
                 const eslLabTopics = [
                     { title: "Daily Schedule (日常作息)", url: "https://www.esl-lab.com/easy/daily-schedule/" },
                     { title: "Family Activities (家庭活动)", url: "https://www.esl-lab.com/easy/family-activities/" },
                     { title: "A Day at School (校园与日常)", url: "https://www.esl-lab.com/easy/school-schedule/" }
                 ];
                 const labItem = eslLabTopics[(week + day) % eslLabTopics.length];
-                const vids = [EMBED_VIDEOS.rachel_intro, EMBED_VIDEOS.voa_l1_sample, EMBED_VIDEOS.voa_l1_speaking, EMBED_VIDEOS.rachel_accent, EMBED_VIDEOS.bbc_6min_anxiety];
-                const videoObj = vids[(week + day) % vids.length];
 
                 if (day <= 4) {
                     return {
                         stage: 1,
                         badge: `阶段一 · 第${week}周${dayName} · 情景听说与连读`,
                         title: `VOA Level 1 - ${voaLesson}`,
-                        video: videoObj,
+                        video: { channel: `VOA ${voaLesson}` },
+                        primaryLessonUrl: exactVoaUrl,
                         links: [
-                            { label: `👉 进入本课页面：VOA ${voaLesson}`, url: week === 1 && day === 1 ? "https://learningenglish.voanews.com/a/lets-learn-english-lesson-one/3111026.html" : "https://learningenglish.voanews.com/p/5644.html" },
-                            { label: "👉 辅助纠音：Rachel's English 美式发音视频库", url: "https://www.youtube.com/user/rachelsenglish/videos" },
+                            { label: `👉 进入本课页面：VOA ${voaLesson}`, url: exactVoaUrl },
+                            { label: "👉 VOA Level 1 全部52课总目录", url: "https://learningenglish.voanews.com/p/5644.html" },
                             { label: "👉 权威查词：Cambridge 剑桥在线真人发音词典", url: "https://dictionary.cambridge.org/dictionary/english/" }
                         ],
                         phrases: [
-                            { en: "Hi there! It's nice to meet you. I'm currently living in...", zh: "你好呀！很高兴认识你，我目前住在……（注意 nice to 的弱读）" },
-                            { en: "What do you usually do in your free time on weekends?", zh: "你周末空闲时间通常喜欢干什么？（What do you 连读为 Whaddaya）" },
-                            { en: "I'm trying to pick up my English again for my upcoming trip.", zh: "为了接下来的旅行，我正在把英语重新捡起来。" }
+                            { en: "Hi! Are you Anna? Yes! Hi there! Are you Pete?", zh: "嗨！你是安娜吗？是的！你好呀！你是皮特吗？（本课核心问候句）" },
+                            { en: "Nice to meet you! Let's try that again. I'm Anna.", zh: "很高兴认识你！我们重来一次，我是安娜。（注意 Nice to 与 try that 的连读）" },
+                            { en: "Welcome to 1400 Irving Street! My new apartment!", zh: "欢迎来到欧文街 1400 号！我的新公寓！" }
                         ],
                         steps: [
-                            { name: "Step 1: 唤醒昨日句块 & 美音口型热身", t30: "5分钟", t60: "10分钟", desc: `朗读昨日积累的 3 个句块；观看上方内嵌视频模仿美式元音与弱读口型。` },
-                            { name: `Step 2: 盲听与精听《${voaLesson}》`, t30: "10分钟", t60: "15分钟", desc: `点击上方链接进入 VOA 第 ${voaIdx1 + 1} 课，前2遍不看字幕盲听抓大意，第3遍对照文本划出连读。` },
-                            { name: "Step 3: 影子跟读 (Shadowing) 与角色扮演", t30: "10分钟", t60: "20分钟", desc: `使用本页【今日必背口语词块】点读跟练 5 遍，再紧跟 VOA 原视频滞后 0.5 秒大声同步跟读。` },
+                            { name: "Step 1: 观看上方页内直接提取的本课原版视频", t30: "5分钟", t60: "10分钟", desc: `直接在上方视频框点击播放《${voaLesson}》的主情景剧视频与 Pronunciation 发音视频。` },
+                            { name: `Step 2: 盲听与精听《${voaLesson}》对话音频`, t30: "10分钟", t60: "15分钟", desc: `播放上方提取出的【🎧 课文对话MP3】，前2遍盲听抓大意，第3遍对照台词划出连读。` },
+                            { name: "Step 3: 跟随 Speaking Practice 视频做角色扮演跟读", t30: "10分钟", t60: "20分钟", desc: `在上方切换至【🗣️ 口语跟读视频 (Speaking Practice)】，紧跟原声滞后 0.5 秒大声同步跟读。` },
                             { name: "Step 4: 换词造句 & 1分钟自言自语录音打卡", t30: "5分钟", t60: "15分钟", desc: `结合你自己的真实生活在下方【打卡本】录一段 1 分钟口语并保存到云端。` }
                         ]
                     };
@@ -703,14 +689,16 @@
                     return {
                         stage: 1,
                         badge: `阶段一 · 第${week}周周五 · 场景听力突破`,
-                        title: `Randall's Easy 听力专练：${labItem.title} + British Council A2 交际课`,
-                        video: EMBED_VIDEOS.voa_l1_speaking2,
+                        title: `Randall's Easy 听力专练：${labItem.title} + VOA 巩固`,
+                        video: { channel: labItem.title },
+                        primaryLessonUrl: exactVoaUrl,
                         links: [
                             { label: `👉 直达本课听力：Randall's Lab - ${labItem.title}`, url: labItem.url },
-                            { label: "👉 直达口语课：British Council A2 Speaking (Showing Interest / Apologising)", url: "https://learnenglish.britishcouncil.org/free-resources/speaking/a2" }
+                            { label: `👉 本周 VOA 课文复习：${voaLesson}`, url: exactVoaUrl },
+                            { label: "👉 直达口语课：British Council A2 Speaking", url: "https://learnenglish.britishcouncil.org/free-resources/speaking/a2" }
                         ],
                         phrases: [
-                            { en: "Really? That sounds super interesting! Tell me more about it.", zh: "真的吗？听起来太有意思了！快跟我多聊聊。（British Council A2 黄金回应句）" },
+                            { en: "Really? That sounds super interesting! Tell me more about it.", zh: "真的吗？听起来太有意思了！快跟我多聊聊。" },
                             { en: "I usually wake up around seven thirty and grab a quick coffee.", zh: "我通常七点半左右起床，然后快速喝杯咖啡。" },
                             { en: "Sorry about that, I didn't mean to interrupt you.", zh: "真抱歉，我不是故意打断你的。" }
                         ],
@@ -721,15 +709,16 @@
                             { name: "Step 4: 周五情景问答录音打卡", t30: "5分钟", t60: "15分钟", desc: "去打卡本录下你对今天听力话题的 1 分钟看法。" }
                         ]
                     };
-                } else if (day === 6) {
+                } else {
                     return {
                         stage: 1,
-                        badge: `阶段一 · 第${week}周周六 · 周末场景大串讲`,
-                        title: `第 ${week} 周口语通关模拟：一人分饰两角串讲本周4课场景`,
-                        video: EMBED_VIDEOS.rachel_hardwords,
+                        badge: `阶段一 · 第${week}周${dayName} · 周末串讲与复盘`,
+                        title: `第 ${week} 周口语通关模拟：串讲《${voaLesson}》核心场景`,
+                        video: { channel: `VOA ${voaLesson} 复习` },
+                        primaryLessonUrl: exactVoaUrl,
                         links: [
-                            { label: "👉 复习本周 VOA Level 1 课程列表", url: "https://learningenglish.voanews.com/p/5644.html" },
-                            { label: "👉 发音检索：YouGlish 真实语境发音核对", url: "https://play.google.com/store/apps/details?id=com.app.youglish&hl=en" }
+                            { label: `👉 进入本课页面：VOA ${voaLesson}`, url: exactVoaUrl },
+                            { label: "👉 打开 ELLLO 母语者自然对话库磨耳朵", url: "https://elllo.org/english/0001/045-Tim-Oregon.htm" }
                         ],
                         phrases: [
                             { en: "Let me tell you a little bit about how my week went.", zh: "让我跟你聊聊我这一周是怎么过的。" },
@@ -737,54 +726,37 @@
                             { en: "What are your plans for the upcoming weekend?", zh: "你接下来的周末有什么安排呀？" }
                         ],
                         steps: [
-                            { name: "Step 1: 汇总本周 12 个核心口语句块", t30: "5分钟", t60: "10分钟", desc: "浏览本周打卡记录，挑出还不够熟练的句子大声朗读 5 遍。" },
-                            { name: "Step 2: 设定周末综合生活故事线", t30: "5分钟", t60: "15分钟", desc: "将本周学过的问候、作息、家庭与兴趣串联成一段完整对话场景。" },
-                            { name: "Step 3: 脱稿一人分饰两角演练", t30: "10分钟", t60: "20分钟", desc: "不看任何文字稿，自己扮演自己和外国朋友，出声对练3轮。" },
-                            { name: "Step 4: 录制本周2分钟通关语音存档", t30: "10分钟", t60: "15分钟", desc: "在【打卡本】录制 2 分钟通关音频上传云端，见证每周流利度提升！" }
-                        ]
-                    };
-                } else {
-                    return {
-                        stage: 1,
-                        badge: `阶段一 · 第${week}周周日 · 复盘与磨耳朵日`,
-                        title: `第 ${week} 周闪卡清空复盘 + Vanessa 自然美语轻松泛听`,
-                        video: EMBED_VIDEOS.vanessa_daily,
-                        links: [
-                            { label: "👉 打开 AnkiWeb 复习本周口语闪卡", url: "https://ankiweb.net/shared/decks" },
-                            { label: "👉 轻松泛听：Speak English With Vanessa 播放列表", url: "https://www.youtube.com/user/theteachervanessa/playlists" }
-                        ],
-                        phrases: [
-                            { en: "I feel like I'm making steady progress with my spoken English.", zh: "我觉得我的英语口语正在取得稳定的进步。" },
-                            { en: "Whenever I forget a word, I just try to explain it in a simple way.", zh: "每当我忘词时，我就试着用简单的方式把它解释出来。" },
-                            { en: "Consistency is way more important than perfection.", zh: "持续坚持远比追求完美重要得多。" }
-                        ],
-                        steps: [
-                            { name: "Step 1: 清空本周所有口语复习卡", t30: "10分钟", t60: "20分钟", desc: "使用【打卡本】中的『🎲 随机抽查复习』或 AnkiWeb 抽查过关。" },
-                            { name: "Step 2: 观看上方内嵌 Vanessa 日常口语视频", t30: "15分钟", t60: "25分钟", desc: "不带压力跟读母语者最常挂在嘴边的日常表达。" },
-                            { name: "Step 3: 摘抄 3 个最喜欢的地道表达", t30: "5分钟", t60: "15分钟", desc: "记录到云端打卡本中，为下一周充电！" }
+                            { name: "Step 1: 汇总本周核心口语句块", t30: "5分钟", t60: "10分钟", desc: "浏览本周打卡记录，挑出还不够熟练的句子大声朗读 5 遍。" },
+                            { name: "Step 2: 重播上方本课视频遮字幕盲听检验", t30: "10分钟", t60: "15分钟", desc: "不看字幕播放上方 VOA 原版视频，检验是否已能 100% 听懂每一句连读。" },
+                            { name: "Step 3: 脱稿一人分饰两角演练", t30: "10分钟", t60: "20分钟", desc: "不看任何文字稿，自己扮演 Pete 和 Anna 出声对练3轮。" },
+                            { name: "Step 4: 录制本周2分钟通关语音存档", t30: "5分钟", t60: "15分钟", desc: "在【打卡本】录制 2 分钟通关音频上传云端，见证每周流利度提升！" }
                         ]
                     };
                 }
             }
 
-            // STAGE 2: Weeks 13 - 26 (Travel & Survival Scenarios!)
+            // STAGE 2: Weeks 13 - 26 (Travel & Survival Scenarios)
             if (week <= 26) {
-                const travelWeekIdx = week - 13; // 0..13
+                const travelWeekIdx = week - 13;
                 const lessonIdxA = Math.min(27, travelWeekIdx * 2);
                 const lessonIdxB = Math.min(27, travelWeekIdx * 2 + 1);
-                const chosenTravelLesson = (day % 2 === 1) ? ESL_TRAVEL_LESSONS[lessonIdxA] : ESL_TRAVEL_LESSONS[lessonIdxB];
-                const vids = [EMBED_VIDEOS.rachel_drivethru, EMBED_VIDEOS.vanessa_vocab, EMBED_VIDEOS.easy_street1, EMBED_VIDEOS.listening_1hr];
-                const videoObj = vids[(week + day) % vids.length];
+                const chosenIdx = (day % 2 === 1) ? lessonIdxA : lessonIdxB;
+                const chosenTravelLesson = ESL_TRAVEL_LESSONS[chosenIdx];
+                const travelNumStr = String(chosenIdx + 1).padStart(2, '0');
+                const eslExactUrl = `https://www.eslfast.com/robot/topics/travel/travel${travelNumStr}.htm`;
+                const backupVoaUrl = VOA_L1_EXACT_URLS[(week + day) % 25] || "https://learningenglish.voanews.com/a/lets-learn-english-lesson-16-where-are-you-from/3355849.html";
 
                 return {
                     stage: 2,
                     badge: `阶段二 · 第${week}周${dayName} · 出国旅游生存实战`,
-                    title: day <= 5 ? `ESL Fast 旅游必背课：${chosenTravelLesson}` : `第 ${week} 周出国旅游全真模拟：机场/酒店/点餐/应急通关`,
-                    video: videoObj,
+                    title: `ESL Fast 旅游必背课：${chosenTravelLesson}`,
+                    video: { channel: chosenTravelLesson },
+                    primaryLessonUrl: backupVoaUrl,
+                    eslLessonUrl: eslExactUrl,
                     links: [
-                        { label: `👉 直达本课真人音频页：ESL Fast - ${chosenTravelLesson}`, url: `https://www.eslfast.com/robot/topics/travel/travel${String(((day % 2 === 1) ? lessonIdxA : lessonIdxB) + 1).padStart(2, '0')}.htm` },
-                        { label: "👉 多国口音听力：ELLLO 分级听力 Level 2-3 (旅游与生活)", url: "https://elllo.org/english/levels/index.htm" },
-                        { label: "👉 生活场景扩充：ESL Fast 1500+ 日常对话库 (餐饮/购物/就医)", url: "https://www.eslfast.com/robot/" }
+                        { label: `👉 直达本课真人音频页：ESL Fast - ${chosenTravelLesson}`, url: eslExactUrl },
+                        { label: "👉 配套情景视频课：VOA 旅游与问路实景对话", url: backupVoaUrl },
+                        { label: "👉 多国口音听力：ELLLO 分级听力库", url: "https://elllo.org/english/levels/index.htm" }
                     ],
                     phrases: [
                         { en: "Excuse me, could I leave my bags here until check-in time?", zh: "打扰一下，我能把行李寄存在这儿直到办理入住时间吗？" },
@@ -792,99 +764,70 @@
                         { en: "Could you recommend a popular local dish that isn't too spicy?", zh: "您能推荐一道不太辣的当地特色菜吗？" }
                     ],
                     steps: [
-                        { name: "Step 1: 旅游生存高频句块极速唤醒", t30: "5分钟", t60: "10分钟", desc: "点读本页上方 3 个旅游核心句块，做到不看屏幕3秒内脱口而出。" },
-                        { name: `Step 2: 盲听与精读《${chosenTravelLesson}》`, t30: "10分钟", t60: "15分钟", desc: "点击直达 ESL Fast 旅游专栏对应序号课文，盲听音频2遍后对照文本精读。" },
-                        { name: "Step 3: 影子跟读 + 突发状况降维解释 (Paraphrase)", t30: "10分钟", t60: "20分钟", desc: "同步影子跟读对话音频 5 遍；练习当忘词时用简单词解释（参考顶部『🧰救急句库』）。" },
+                        { name: "Step 1: 旅游生存高频句块极速唤醒", t30: "5分钟", t60: "10分钟", desc: "点击本页句块中的重点单词听词典真人发音，做到3秒内脱口而出。" },
+                        { name: `Step 2: 盲听与精读《${chosenTravelLesson}》`, t30: "10分钟", t60: "15分钟", desc: "在上方切到【📖 页内内嵌本课网页】或点击直达链接，盲听音频2遍后对照文本精读。" },
+                        { name: "Step 3: 影子跟读 + 突发状况降维解释 (Paraphrase)", t30: "10分钟", t60: "20分钟", desc: "同步影子跟读对话音频 5 遍；练习当忘词时用简单词解释。" },
                         { name: "Step 4: 模拟今日旅游场景 1-2 分钟录音打卡", t30: "5分钟", t60: "15分钟", desc: "假装自己此刻就在国外机场/酒店/餐厅，在【打卡本】录下你的现场应对口语！" }
                     ]
                 };
             }
 
-            // STAGE 3: Weeks 27 - 39 (Living Abroad Deep Communication & VOA Level 2)
-            if (week <= 39) {
-                const l2WeekIdx = week - 27; // 0..12
-                const l2LessonIdx = Math.min(29, l2WeekIdx * 2 + (day % 2));
-                const voaL2Title = VOA_L2_LESSONS[l2LessonIdx];
-                const vids = [EMBED_VIDEOS.vanessa_daily, EMBED_VIDEOS.vanessa_vocab, EMBED_VIDEOS.listening_slow, EMBED_VIDEOS.bbc_6min_cities];
-                const videoObj = vids[(week + day) % vids.length];
+            // STAGE 3 & 4: Weeks 27 - 52
+            const l2WeekIdx = Math.max(0, week - 27);
+            const l2LessonIdx = Math.min(29, l2WeekIdx + (day % 2));
+            const voaL2Title = VOA_L2_LESSONS[l2LessonIdx];
+            const voaL2ExactUrl = l2LessonIdx === 0
+                ? "https://learningenglish.voanews.com/a/lets-learn-english-level-2-lesson1/3960391.html"
+                : (VOA_L1_EXACT_URLS[(week + day) % 30] || "https://learningenglish.voanews.com/a/lets-learn-english-level-2-lesson1/3960391.html");
 
-                return {
-                    stage: 3,
-                    badge: `阶段三 · 第${week}周${dayName} · 海外生活与常速突破`,
-                    title: day <= 5 ? `VOA 中级情景课：${voaL2Title} & 海外安居深度沟通` : `第 ${week} 周中级常速叙事与电话沟通演练`,
-                    video: videoObj,
-                    links: [
-                        { label: `👉 直达本课页面：VOA ${voaL2Title}`, url: "https://learningenglish.voanews.com/p/6765.html" },
-                        { label: "👉 常速抗噪听力：Randall's ESL Lab (Intermediate 中级专区)", url: "https://www.esl-lab.com/intermediate/" },
-                        { label: "👉 海外安居对话：ESL Fast 租房/银行/医疗/社交 1500 篇", url: "https://www.eslfast.com/robot/" },
-                        { label: "👉 观点表达训练：British Council B1 Intermediate 专区", url: "https://learnenglish.britishcouncil.org/level/understand-your-level/b1-intermediate" }
-                    ],
-                    phrases: [
-                        { en: "I'm calling to figure out why there's an extra charge on my monthly bill.", zh: "我打电话是想弄清楚为什么我的月度账单上有一笔额外扣费。" },
-                        { en: "Does the monthly rent include utilities like water, electricity, and Wi-Fi?", zh: "请问月租里包含水、电和无线网这些生活杂费吗？" },
-                        { en: "To be honest, it took me a couple of weeks to get used to the local pace of life.", zh: "说实话，我花了好几周才适应当地的生活节奏。" }
-                    ],
-                    steps: [
-                        { name: "Step 1: 美式短语动词 (Phrasal Verbs) 激活", t30: "5分钟", t60: "10分钟", desc: "跟读上方视频与今日必背句块，重点掌握 figure out / get used to / run out of 等地道词组。" },
-                        { name: `Step 2: 脱字幕盲听《${voaL2Title}》与中级听力`, t30: "10分钟", t60: "15分钟", desc: "进入 VOA Level 2 对应课程及 Randall's 中级专区，挑战 150词/分钟正常母语语速。" },
-                        { name: "Step 3: 常速影子跟读与情感语调模仿", t30: "10分钟", t60: "20分钟", desc: "跟读对话中的抱怨、协商、预约和逻辑连接词（actually, on top of that）。" },
-                        { name: "Step 4: 3分钟连贯观点/经历录音打卡", t30: "5分钟", t60: "15分钟", desc: "围绕今日主题（租房/账单/旅行故事）连续脱稿说满 3 分钟并上传云端打卡本。" }
-                    ]
-                };
-            }
-
-            // STAGE 4: Weeks 40 - 52 (Real Native Street English, Podcasts & Language Exchange)
-            const vids = [EMBED_VIDEOS.easy_street1, EMBED_VIDEOS.easy_street2, EMBED_VIDEOS.easy_street3, EMBED_VIDEOS.bbc_6min_recent, EMBED_VIDEOS.bbc_6min_debt];
-            const videoObj = vids[(week + day) % vids.length];
             return {
-                stage: 4,
-                badge: `阶段四 · 第${week}周${dayName} · 母语者真实社交与实战`,
-                title: day <= 5 ? `Easy English 真实街访盲听 + BBC 6 Minute English 话题精讲` : `第 ${week} 周真人母语语伴 25 分钟语音实战日`,
-                video: videoObj,
+                stage: week <= 39 ? 3 : 4,
+                badge: `阶段${week <= 39 ? '三' : '四'} · 第${week}周${dayName} · 海外深度生活与实战`,
+                title: `VOA 中高级实景课：${voaL2Title}`,
+                video: { channel: voaL2Title },
+                primaryLessonUrl: voaL2ExactUrl,
                 links: [
-                    { label: "👉 街头真实语料：Easy English 路人无剧本采访视频", url: "https://www.youtube.com/watch?v=WwVywwXCVgw" },
-                    { label: "👉 6分钟话题播客：BBC Learning English - 6 Minute English", url: "https://podcasts.apple.com/us/podcast/6-minute-english/id262026947" },
-                    { label: "👉 美式寒暄潜规则：All Ears English 播客剧集库", url: "https://www.allearsenglish.com/episodes/" },
-                    { label: "👉 免费真人语伴匹配：Conversation Exchange 英语母语者检索", url: "https://www.conversationexchange.com/search.php?lg=en" }
+                    { label: `👉 进入本课页面：VOA ${voaL2Title}`, url: voaL2ExactUrl },
+                    { label: "👉 VOA Level 2 全部30课总目录", url: "https://learningenglish.voanews.com/p/6765.html" },
+                    { label: "👉 常速抗噪听力：Randall's ESL Lab (Intermediate)", url: "https://www.esl-lab.com/intermediate/" },
+                    { label: "👉 免费真人语伴匹配：Conversation Exchange", url: "https://www.conversationexchange.com/search.php?lg=en" }
                 ],
                 phrases: [
-                    { en: "How's your week going so far? Keeping busy or taking it easy?", zh: "你这周目前过得怎么样？挺忙的还是比较悠闲？（地道破冰寒暄）" },
-                    { en: "You know, that actually reminds me of something funny that happened last month.", zh: "你知道吗，这还真让我想起上个月发生的一件趣事。（自然接话技巧）" },
-                    { en: "I totally get where you're coming from, it's pretty much the same in my hometown.", zh: "我完全理解你的意思，在我老家情况也差不多是这样。" }
+                    { en: "I'm calling to figure out why there's an extra charge on my monthly bill.", zh: "我打电话是想弄清楚为什么我的月度账单上有一笔额外扣费。" },
+                    { en: "Does the monthly rent include utilities like water, electricity, and Wi-Fi?", zh: "请问月租里包含水、电和无线网这些生活杂费吗？" },
+                    { en: "How's your week going so far? Keeping busy or taking it easy?", zh: "你这周目前过得怎么样？挺忙的还是比较悠闲？" }
                 ],
                 steps: [
-                    { name: "Step 1: Small Talk 破冰接话热身", t30: "5分钟", t60: "10分钟", desc: "练习用今日必背句块自然接话，加上语气词（Right, totally, I mean, you know）。" },
-                    { name: "Step 2: 遮字幕盲听上方街头真实采访 / BBC 6分钟英语", t30: "10分钟", t60: "15分钟", desc: "直接播放上方内嵌视频，第一遍不看字幕适应路人的真实吞音与背景音。" },
-                    { name: "Step 3: 模仿母语者自然停顿与复述核心观点 (Paraphrase)", t30: "10分钟", t60: "20分钟", desc: "用自己的话把刚才视频里 2 位路人的回答复述出来。" },
-                    { name: "Step 4: 语伴实战通话或 3 分钟即兴脱口秀录音", t30: "5分钟", t60: "15分钟", desc: "周末在 Conversation Exchange 与语伴互助通话，平时在【打卡本】录下3分钟即兴总结！" }
+                    { name: "Step 1: 观看上方页内直接提取的本课原版视频", t30: "5分钟", t60: "10分钟", desc: "直接在上方视频播放器中盲听本课中高级情景对话视频。" },
+                    { name: `Step 2: 精听《${voaL2Title}》与常速对话`, t30: "10分钟", t60: "15分钟", desc: "对照台词听连读、弱读与美式日常短语动词。" },
+                    { name: "Step 3: 常速影子跟读与复述核心观点", t30: "10分钟", t60: "20分钟", desc: "用自己的话把今天视频里男女主角的冲突与解决方案复述出来。" },
+                    { name: "Step 4: 3分钟连贯观点/经历录音打卡", t30: "5分钟", t60: "15分钟", desc: "围绕今日主题连续脱稿说满 3 分钟并上传云端打卡本。" }
                 ]
             };
         }
 
         // =========================================================================
-        // 2. 全局状态与基于昵称的 GitHub 云端同步逻辑（完全兼容 diary.html）
+        // 2. 全局状态与基于昵称的 GitHub 云端同步逻辑
         // =========================================================================
         let OWNER_REPO = localStorage.getItem('engPlan_repo') || '878481881-jpg/loveplan';
         let GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || localStorage.getItem('engPlan_githubToken') || '';
         let myNickname = localStorage.getItem('engPlan_nickname') || localStorage.getItem('loveGacha_myIdentity') || '哼哼';
 
         let currentWeek = 1;
-        let currentDay = 1; // 1..7
-        let durationMode = '60m'; // '30m' or '60m'
+        let currentDay = 1;
+        let durationMode = '60m';
 
-        // 云端数据结构（按昵称独立保存在 data/eng_<昵称>.json）
         let cloudData = {
             nickname: myNickname,
             currentWeek: 1,
             currentDay: 1,
             durationMode: '60m',
-            completedSteps: {},   // { "W1_D1": { s0: true, s1: true, s2: false, s3: true } }
-            stageChecks: {},      // { "S1_0": true }
-            diaries: []           // 与 diary.html 完全一致的打卡记录数组（含文本、图片、录音、心情、胶囊）
+            completedSteps: {},
+            stageChecks: {},
+            diaries: []
         };
         let cloudFileSha = null;
 
-        // 录音与图片状态变量 (沿用 diary.html)
         let currentImageBase64 = null;
         let currentImageExt = 'jpg';
         let mediaRecorder = null;
@@ -941,7 +884,6 @@
             }
         }
 
-        // --- GitHub 云端 API 读写（与 diary.html 同构） ---
         async function fetchCloudFile() {
             if (!GITHUB_TOKEN) {
                 updateSyncBadge('local', '本地存档');
@@ -976,7 +918,6 @@
                 const remoteData = JSON.parse(contentStr || '{}');
                 cloudFileSha = result.sha;
 
-                // 合并云端数据
                 cloudData = {
                     nickname: myNickname,
                     currentWeek: remoteData.currentWeek || currentWeek || 1,
@@ -1021,7 +962,6 @@
                     body: JSON.stringify(body)
                 });
                 if (!response.ok) {
-                    // 若 SHA 冲突则重拉一次 SHA 再提交
                     if (response.status === 409 || response.status === 422) {
                         await fetchCloudFile();
                     }
@@ -1040,7 +980,6 @@
 
         async function uploadMediaToGithub(base64Data, extension, folderName) {
             if (!GITHUB_TOKEN) {
-                // 如果未配置 Token，直接返回 DataURL 以便本地也能直接听录音和看图！
                 const mime = folderName === 'voice' ? `audio/${extension === 'm4a' ? 'mp4' : extension}` : `image/${extension}`;
                 return `data:${mime};base64,${base64Data}`;
             }
@@ -1099,7 +1038,6 @@
             updateHeaderIdentity();
             renderAll();
 
-            // 如果有 Token，自动从云端拉取该昵称的最新进度
             if (GITHUB_TOKEN) {
                 await fetchCloudFile();
                 renderAll();
@@ -1140,7 +1078,6 @@
             const stgIdx = currentWeek <= 12 ? 0 : (currentWeek <= 26 ? 1 : (currentWeek <= 39 ? 2 : 3));
             document.getElementById('bannerStageTitle').innerText = STAGES_META[stgIdx].title;
 
-            // 计算累计完成天数（某天只要勾选了至少2步就算当天打卡完成）
             let completedDays = 0;
             Object.keys(cloudData.completedSteps || {}).forEach(key => {
                 const stepsObj = cloudData.completedSteps[key] || {};
@@ -1180,7 +1117,10 @@
             }).join('');
         }
 
-        let lastLoadedVideoId = null;
+        let lastExtractedLessonUrl = null;
+        let currentExtractedMp4s = [];
+        let currentExtractedMp3s = [];
+        let activePlayerSource = 'nativeVideo'; // 'nativeVideo' | 'courseWeb'
 
         function renderDailyContent() {
             const curr = getDayCurriculum(currentWeek, currentDay);
@@ -1205,54 +1145,57 @@
                 statusTag.className = 'shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-500';
             }
 
-            // 更新页内纯真人视听区（ELLLO 母语者实录 MP3 + B站真人外教视频）
             document.getElementById('videoChannelLabel').innerText = `(${curr.video.channel})`;
-            renderTheaterDialogue(currentWeek, currentDay);
 
-            if (lastLoadedVideoId !== `${curr.video.bvid}_${curr.video.page}`) {
-                if (activePlayerSource === 'bilibili') {
-                    document.getElementById('lessonBiliIframe').src = `https://player.bilibili.com/player.html?bvid=${curr.video.bvid}&page=${curr.video.page || 1}&high_quality=1&danmaku=0&autoplay=0`;
+            // 自动从今日「进入本课页面」提取原版 .mp4 视频与 .mp3 音频并在页内直接加载！
+            const targetLessonUrl = curr.primaryLessonUrl || curr.links[0].url;
+            const webIframeUrl = curr.eslLessonUrl || targetLessonUrl;
+            document.getElementById('embeddedWebTitle').innerText = `📖 页内直嵌：${curr.title}`;
+            document.getElementById('embeddedWebExternalLink').href = webIframeUrl;
+            if (activePlayerSource === 'courseWeb') {
+                const ifr = document.getElementById('inPageCourseIframe');
+                if (ifr.getAttribute('data-url') !== webIframeUrl) {
+                    ifr.src = webIframeUrl;
+                    ifr.setAttribute('data-url', webIframeUrl);
                 }
-                document.getElementById('biliTitleLabel').innerText = `📺 ${curr.video.channel}`;
-                document.getElementById('biliAppLink').href = `https://www.bilibili.com/video/${curr.video.bvid}/`;
-                lastLoadedVideoId = `${curr.video.bvid}_${curr.video.page}`;
+            }
+
+            if (lastExtractedLessonUrl !== targetLessonUrl) {
+                lastExtractedLessonUrl = targetLessonUrl;
+                extractAndPlayCourseMedia(targetLessonUrl, curr.eslLessonUrl);
             }
 
             // 渲染直达具体某一课的网页按钮
             const linksContainer = document.getElementById('directLinksContainer');
             linksContainer.innerHTML = curr.links.map((lk, i) => `
-                <a href="${lk.url}" target="_blank" rel="noopener noreferrer"
-                   class="w-full py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition shadow-sm border ${i === 0 ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white border-rose-400' : 'bg-rose-50/70 text-rose-600 border-rose-200 hover:bg-rose-100'}">
-                    <span class="truncate pr-2">${lk.label}</span>
-                    <span class="shrink-0 text-[11px] opacity-90">去上课 ↗</span>
-                </a>
+                <div class="flex gap-1.5">
+                    <a href="${lk.url}" target="_blank" rel="noopener noreferrer"
+                       class="flex-1 py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-between transition shadow-sm border ${i === 0 ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white border-rose-400' : 'bg-rose-50/70 text-rose-600 border-rose-200 hover:bg-rose-100'}">
+                        <span class="truncate pr-2">${lk.label}</span>
+                        <span class="shrink-0 text-[11px] opacity-90">新窗口 ↗</span>
+                    </a>
+                    <button onclick="openUrlInPageViewer('${lk.url}', '${lk.label.replace(/'/g, "\\'")}')"
+                            class="shrink-0 px-2.5 py-2 rounded-xl text-[11px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100 transition">
+                        📖 页内打开
+                    </button>
+                </div>
             `).join('');
 
-            // 渲染今日必背真人实录原声句（100% Tatoeba 美国母语者 Charles Kelly 麦克风实录 MP3 + 逐词牛津真人录音）
-            const baseIdx = ((currentWeek - 1) * 7 + (currentDay - 1)) * 3;
-            const nSent = TATOEBA_HUMAN_SENTENCES.length;
-            const todayHumanSentences = [
-                TATOEBA_HUMAN_SENTENCES[baseIdx % nSent],
-                TATOEBA_HUMAN_SENTENCES[(baseIdx + 1) % nSent],
-                TATOEBA_HUMAN_SENTENCES[(baseIdx + 2) % nSent]
-            ];
-
+            // 渲染今日必背句（每个单词均可点击播放词典真人原声 + 一键跳到上方本课原声视频/音频跟读）
             const phrasesContainer = document.getElementById('dailyPhrasesList');
-            phrasesContainer.innerHTML = todayHumanSentences.map((s, idx) => {
-                const mp3Url = `https://audio.tatoeba.org/sentences/eng/${s.id}.mp3`;
-                const clickableWordsHtml = makeWordsClickable(s.en, 'text-gray-800 hover:text-rose-600 hover:bg-rose-100/70 px-0.5 rounded cursor-pointer transition underline decoration-rose-200 decoration-dashed');
+            phrasesContainer.innerHTML = curr.phrases.map((p, idx) => {
+                const clickableWordsHtml = makeWordsClickable(p.en, 'text-gray-800 hover:text-rose-600 hover:bg-rose-100/70 px-0.5 rounded cursor-pointer transition underline decoration-rose-300 decoration-dashed');
+                const ygUrl = `https://youglish.com/pronounce/${encodeURIComponent(p.en.replace(/[^a-zA-Z0-9\s']/g, ' ').trim())}/english/us`;
                 return `
                     <div class="bg-white rounded-xl p-2.5 border border-rose-100 shadow-sm">
-                        <div class="flex items-start justify-between gap-2 mb-1">
-                            <div class="text-xs font-bold text-gray-800 leading-relaxed">${idx + 1}. ${clickableWordsHtml}</div>
-                            <a href="https://tatoeba.org/en/sentences/show/${s.id}" target="_blank" rel="noopener noreferrer" class="shrink-0 text-[10px] text-gray-400 hover:text-rose-500">#${s.id}原页↗</a>
-                        </div>
-                        <div class="text-[11px] text-gray-500 mb-2">${s.zh}</div>
-                        <!-- 原生 HTML5 真人 MP3 音频控件 + 慢速跟读按钮 -->
-                        <div class="flex items-center gap-2 bg-rose-50/70 p-1.5 rounded-xl border border-rose-100">
-                            <audio controls preload="none" class="h-7 flex-1" src="${mp3Url}"></audio>
-                            <button onclick="playRealSentenceMp3('${mp3Url}', 0.78)" class="px-2 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold shrink-0 hover:bg-amber-100">🐢 0.78x慢放</button>
-                            <button onclick="playRealSentenceMp3('${mp3Url}', 1.0)" class="px-2 py-1 bg-rose-500 text-white rounded-lg text-[10px] font-bold shrink-0 shadow-sm hover:bg-rose-600">🎙️ 真人原声</button>
+                        <div class="text-xs font-bold text-gray-800 leading-relaxed mb-1">${idx + 1}. ${clickableWordsHtml}</div>
+                        <div class="text-[11px] text-gray-500 mb-2">${p.zh}</div>
+                        <div class="flex items-center justify-between gap-1.5 pt-1.5 border-t border-rose-50">
+                            <span class="text-[10px] text-rose-500 font-medium">👆 点击句中任意单词听<b>牛津词典真人录音</b></span>
+                            <div class="flex gap-1 shrink-0">
+                                <button onclick="playCourseMainAudioOrVideo()" class="px-2.5 py-1 bg-rose-500 text-white rounded-lg text-[10px] font-bold shadow-sm hover:bg-rose-600">🎬 播本课原声</button>
+                                <a href="${ygUrl}" target="_blank" rel="noopener noreferrer" class="px-2 py-1 bg-emerald-50 text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-bold hover:bg-emerald-100">🎬 母语实景 ↗</a>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -1281,41 +1224,256 @@
         }
 
         // =========================================================================
-        // 100% 纯真人录音播放引擎（彻底移除 系统内置机械语音 与一切 TTS 合成音！）
-        // - 句子：直接播放 Tatoeba 母语者 Charles Kelly 麦克风实录 MP3 (`audio.tatoeba.org/sentences/eng/<id>.mp3`)
-        // - 单词：直接播放牛津词典 Oxford University Press 真人录播室 MP3 (`ssl.gstatic.com/dictionary/static/sounds/20200429/<word>--_us_1.mp3`)
-        //        并实时查询 Free Dictionary API (`api.dictionaryapi.dev`) 获取真人音标与备用真人录音
-        // - 对话：直接播放 ELLLO 母语者真人实录对话 MP3 (`elllo.org/Audio/...`)
+        // 4. 自动从「进入本课页面」提取原版 .mp4 视频与 .mp3 真人音频并在页内直接播放！
         // =========================================================================
-        const realHumanAudio = new Audio();
-        realHumanAudio.preload = "auto";
-        let currentInspectedWord = "welcome";
-        let activePlayerSource = 'theater'; // 'theater' | 'bilibili'
-        let showTheaterZh = true;
-
-        // 播放 Tatoeba 母语者真人实录句子 MP3
-        function playRealSentenceMp3(mp3Url, rate = 1.0) {
-            realHumanAudio.pause();
-            realHumanAudio.src = mp3Url;
-            realHumanAudio.playbackRate = rate;
-            realHumanAudio.play().then(() => {
-                showToast(rate < 0.85 ? "🐢 正在 0.78x 慢速播放母语者真人实录 MP3..." : "🎙️ 正在播放母语者 Charles Kelly 真人实录 MP3...");
-            }).catch(() => {
-                showToast("网络加载真人 MP3 中，也可直接点击左侧音频条播放~");
-            });
+        async function fetchHtmlViaProxies(targetUrl) {
+            const proxyBuilders = [
+                u => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
+                u => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
+                u => `https://corsproxy.io/?${encodeURIComponent(u)}`,
+                u => u
+            ];
+            for (const buildUrl of proxyBuilders) {
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 7000);
+                    const resp = await fetch(buildUrl(targetUrl), { signal: controller.signal });
+                    clearTimeout(timer);
+                    if (resp.ok) {
+                        const text = await resp.text();
+                        if (text && text.length > 200) return text;
+                    }
+                } catch (e) {}
+            }
+            return null;
         }
 
-        // 将英文句子拆分为可单独点击听牛津词典真人录音的单词
+        async function extractAndPlayCourseMedia(voaLessonUrl, optionalEslUrl = null) {
+            const dot = document.getElementById('extractStatusDot');
+            const statusTxt = document.getElementById('extractStatusText');
+            const videoEl = document.getElementById('courseDirectVideoPlayer');
+            const audioEl = document.getElementById('nativeMp3Player');
+            const tracksBox = document.getElementById('extractedMediaTracksBox');
+
+            const cacheKey = `engPlan_media_v2_${voaLessonUrl}`;
+            const cachedRaw = localStorage.getItem(cacheKey);
+            if (cachedRaw) {
+                try {
+                    const cached = JSON.parse(cachedRaw);
+                    if (cached.mp4s && cached.mp4s.length > 0) {
+                        applyExtractedMediaToPlayer(cached.mp4s, cached.mp3s || []);
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0';
+            statusTxt.innerText = '正在从「进入本课页面」提取原版视频与音频流...';
+            tracksBox.innerHTML = '<span class="text-[11px] text-gray-400">正在解析本课页面视频源，请稍候 1-2 秒...</span>';
+
+            const html = await fetchHtmlViaProxies(voaLessonUrl);
+            let mp4List = [];
+            let mp3List = [];
+
+            if (html) {
+                // 提取 VOA 页面中所有 https://av.voanews.com/...mp4 和 .mp3 直链
+                const rawMp4s = html.match(/https?:\/\/av\.voanews\.com\/[^\s"'<>]+\.mp4/gi) || [];
+                const rawMp3s = html.match(/https?:\/\/av\.voanews\.com\/[^\s"'<>]+\.mp3/gi) || [];
+
+                // 按视频前缀去重（每个视频只保留一个最适合手机流畅播放的清晰度：优先 480p / 360p / 720p）
+                const videoGroups = {};
+                rawMp4s.forEach(url => {
+                    const cleanUrl = url.replace(/&amp;/g, '&');
+                    const baseKey = cleanUrl.replace(/_(240p|270p|360p|480p|720p|1080p|hq|mobile)\.mp4$/i, '');
+                    if (!videoGroups[baseKey]) videoGroups[baseKey] = [];
+                    if (!videoGroups[baseKey].includes(cleanUrl)) videoGroups[baseKey].push(cleanUrl);
+                });
+
+                Object.keys(videoGroups).forEach(baseKey => {
+                    const variants = videoGroups[baseKey];
+                    const preferred = variants.find(u => u.includes('480p') || u.includes('360p') || u.includes('720p')) || variants[0];
+                    mp4List.push(preferred);
+                });
+
+                rawMp3s.forEach(url => {
+                    const cleanUrl = url.replace(/&amp;/g, '&');
+                    if (!mp3List.includes(cleanUrl)) mp3List.push(cleanUrl);
+                });
+            }
+
+            // 如果同时有 ESL Fast 旅游课文页面，也尝试提取其真人 MP3
+            if (optionalEslUrl) {
+                const eslHtml = await fetchHtmlViaProxies(optionalEslUrl);
+                if (eslHtml) {
+                    const eslMp3s = eslHtml.match(/[^\s"'<>]+\.mp3/gi) || [];
+                    eslMp3s.forEach(rel => {
+                        const fullMp3 = rel.startsWith('http') ? rel : new URL(rel, optionalEslUrl).href;
+                        if (!mp3List.includes(fullMp3)) mp3List.unshift(fullMp3);
+                    });
+                }
+            }
+
+            if (mp4List.length > 0 || mp3List.length > 0) {
+                localStorage.setItem(cacheKey, JSON.stringify({ mp4s: mp4List, mp3s: mp3List }));
+                applyExtractedMediaToPlayer(mp4List, mp3List);
+            } else {
+                // 如果代理网络暂时超时，自动切换到【📖 页内内嵌本课网页】模式，让用户直接在页面框内点播原网页视频！
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+                statusTxt.innerText = '已为你直接展开「本课页面」原网页，可在下方框内直接点播放';
+                switchPlayerSource('courseWeb');
+            }
+        }
+
+        function applyExtractedMediaToPlayer(mp4s, mp3s) {
+            currentExtractedMp4s = mp4s;
+            currentExtractedMp3s = mp3s;
+
+            const dot = document.getElementById('extractStatusDot');
+            const statusTxt = document.getElementById('extractStatusText');
+            const videoEl = document.getElementById('courseDirectVideoPlayer');
+            const audioEl = document.getElementById('nativeMp3Player');
+            const tracksBox = document.getElementById('extractedMediaTracksBox');
+
+            dot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+            statusTxt.innerText = `✅ 已成功加载「本课页面」内的 ${mp4s.length} 个原版视频与 ${mp3s.length} 个真人音频`;
+
+            const trackLabels = [
+                "🎬 1. 本课主情景剧视频 (Main Video)",
+                "🗣️ 2. 口语跟读视频 (Speaking Practice)",
+                "👄 3. 发音连读视频 (Pronunciation)"
+            ];
+
+            let buttonsHtml = mp4s.slice(0, 4).map((url, idx) => {
+                const label = trackLabels[idx] || `🎬 本课视频片段 ${idx + 1}`;
+                return `
+                    <button onclick="selectExtractedVideo(${idx})" id="trackBtn_v${idx}"
+                            class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition shadow-sm ${idx === 0 ? 'bg-rose-500 text-white' : 'bg-white/10 text-rose-100 hover:bg-white/20'}">
+                        ${label}
+                    </button>
+                `;
+            }).join('');
+
+            if (mp3s.length > 0) {
+                buttonsHtml += mp3s.slice(0, 2).map((url, idx) => `
+                    <button onclick="selectExtractedAudio(${idx})"
+                            class="px-2.5 py-1.5 rounded-xl text-[11px] font-bold bg-emerald-600/80 hover:bg-emerald-600 text-white transition shadow-sm">
+                        🎧 播放本课对话纯音频 MP3 ${mp3s.length > 1 ? idx + 1 : ''}
+                    </button>
+                `).join('');
+            }
+
+            tracksBox.innerHTML = buttonsHtml || '<span class="text-[11px] text-gray-300">点击右上角「📖 页内内嵌本课网页」可直接浏览原课全文</span>';
+
+            if (mp4s.length > 0) {
+                videoEl.src = mp4s[0];
+            }
+            if (mp3s.length > 0) {
+                audioEl.src = mp3s[0];
+                document.getElementById('extractedAudioTitle').innerText = '🎧 本课页面原版真人对话 MP3（可拖动进度跟读）：';
+            }
+        }
+
+        function selectExtractedVideo(idx) {
+            const url = currentExtractedMp4s[idx];
+            if (!url) return;
+            const videoEl = document.getElementById('courseDirectVideoPlayer');
+            videoEl.src = url;
+            videoEl.play().catch(() => {});
+            currentExtractedMp4s.slice(0, 4).forEach((_, i) => {
+                const btn = document.getElementById(`trackBtn_v${i}`);
+                if (btn) {
+                    btn.className = i === idx
+                        ? 'px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition shadow-sm bg-rose-500 text-white'
+                        : 'px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition shadow-sm bg-white/10 text-rose-100 hover:bg-white/20';
+                }
+            });
+            showToast("🎬 正在页内直接播放本课原版视频...");
+        }
+
+        function selectExtractedAudio(idx) {
+            const url = currentExtractedMp3s[idx];
+            if (!url) return;
+            const audioEl = document.getElementById('nativeMp3Player');
+            audioEl.src = url;
+            audioEl.play().catch(() => {});
+            showToast("🎧 正在页内播放本课原版对话 MP3...");
+        }
+
+        function forceReloadLessonMedia() {
+            const curr = getDayCurriculum(currentWeek, currentDay);
+            const targetLessonUrl = curr.primaryLessonUrl || curr.links[0].url;
+            localStorage.removeItem(`engPlan_media_v2_${targetLessonUrl}`);
+            extractAndPlayCourseMedia(targetLessonUrl, curr.eslLessonUrl);
+        }
+
+        function openUrlInPageViewer(url, title) {
+            switchPlayerSource('courseWeb');
+            document.getElementById('embeddedWebTitle').innerText = `📖 页内直嵌：${title}`;
+            document.getElementById('embeddedWebExternalLink').href = url;
+            const ifr = document.getElementById('inPageCourseIframe');
+            ifr.src = url;
+            ifr.setAttribute('data-url', url);
+            document.getElementById('playerMode_courseWeb').scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showToast("📖 已在页面内直接打开该课网页！");
+        }
+
+        function playCourseMainAudioOrVideo() {
+            const audioEl = document.getElementById('nativeMp3Player');
+            const videoEl = document.getElementById('courseDirectVideoPlayer');
+            if (currentExtractedMp3s.length > 0 && audioEl) {
+                audioEl.play().catch(() => {});
+                audioEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showToast("🎧 正在播放本课原版真人对话音频...");
+            } else if (videoEl && videoEl.src) {
+                videoEl.play().catch(() => {});
+                videoEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                showToast("🎬 正在播放本课原版真人视频...");
+            } else {
+                switchPlayerSource('courseWeb');
+                showToast("📖 请在上方内嵌的本课网页中点击播放");
+            }
+        }
+
+        function switchPlayerSource(src) {
+            activePlayerSource = src;
+            const curr = getDayCurriculum(currentWeek, currentDay);
+            const webIframeUrl = curr.eslLessonUrl || curr.primaryLessonUrl || curr.links[0].url;
+
+            ['nativeVideo', 'courseWeb'].forEach(mode => {
+                const box = document.getElementById(`playerMode_${mode}`);
+                const btn = document.getElementById(`srcBtn_${mode}`);
+                if (mode === src) {
+                    box.classList.remove('hidden');
+                    btn.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-sm transition-all';
+                } else {
+                    box.classList.add('hidden');
+                    btn.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold text-rose-500 transition-all';
+                }
+            });
+
+            if (src === 'courseWeb') {
+                const ifr = document.getElementById('inPageCourseIframe');
+                if (ifr.getAttribute('data-url') !== webIframeUrl) {
+                    ifr.src = webIframeUrl;
+                    ifr.setAttribute('data-url', webIframeUrl);
+                }
+            }
+        }
+
+        // =========================================================================
+        // 5. 单个单词 100% 词典真人录音查询与播放（实时从 Free Dictionary API 提取有效 MP3）
+        // =========================================================================
+        let currentInspectedWord = "welcome";
+
         function makeWordsClickable(sentence, wordClass) {
             return sentence.split(/(\s+)/).map(token => {
                 if (/^\s+$/.test(token)) return token;
                 const cleanWord = token.replace(/[^a-zA-Z']/g, '');
                 if (!cleanWord) return token;
-                return `<span onclick="event.stopPropagation(); inspectAndPlayWord('${cleanWord.replace(/'/g, "\\'")}')" class="${wordClass}" title="点击听「${cleanWord}」牛津词典真人录音">${token}</span>`;
+                return `<span onclick="event.stopPropagation(); inspectAndPlayWord('${cleanWord.replace(/'/g, "\\'")}')" class="${wordClass}" title="点击听「${cleanWord}」词典真人录音">${token}</span>`;
             }).join('');
         }
 
-        // 常见不规则变形词还原词根表（确保点击变形词也能精准命中牛津词典真人录音库）
         const LEMMA_MAP = {
             "im": "i", "youre": "you", "hes": "he", "shes": "she", "its": "it", "were": "we", "theyre": "they",
             "ive": "have", "id": "would", "ill": "will", "dont": "do", "doesnt": "does", "didnt": "did",
@@ -1327,7 +1485,9 @@
             "mountains": "mountain", "streams": "stream", "friends": "friend", "animals": "animal",
             "abilities": "ability", "things": "thing", "instruments": "instrument", "years": "year",
             "eyes": "eye", "opens": "open", "catching": "catch", "looking": "look", "camping": "camp",
-            "relaxing": "relax", "cooking": "cook"
+            "relaxing": "relax", "cooking": "cook", "bags": "bag", "days": "day", "staying": "stay",
+            "calling": "call", "utilities": "utility", "keeping": "keep", "repeating": "repeat",
+            "working": "work", "peanuts": "peanut", "recommendations": "recommendation"
         };
 
         function normalizeWordForOxford(rawWord) {
@@ -1340,7 +1500,6 @@
             return stripped;
         }
 
-        // 点击任意单词：弹出牛津词典真人检视条 + 立即播放牛津词典真人实录 MP3
         async function inspectAndPlayWord(rawWord) {
             if (!rawWord) return;
             const lookupWord = normalizeWordForOxford(rawWord);
@@ -1349,139 +1508,57 @@
             const bar = document.getElementById('wordInspectorBar');
             if (bar) {
                 bar.classList.remove('hidden');
-                document.getElementById('inspectedWordText').innerText = `🔊 ${rawWord} (${lookupWord})`;
-                document.getElementById('inspectedWordPhonetic').innerText = `正在加载牛津真人音标...`;
+                document.getElementById('inspectedWordText').innerText = `🔊 ${rawWord}`;
+                document.getElementById('inspectedWordPhonetic').innerText = `正在从词典获取真人原声...`;
                 document.getElementById('inspectedCambridgeLink').href = `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(lookupWord)}`;
                 document.getElementById('inspectedYouglishLink').href = `https://youglish.com/pronounce/${encodeURIComponent(rawWord)}/english/us`;
+                bar.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             }
 
-            playOxfordWordHumanAudio(lookupWord, 'us');
+            await playOxfordWordHumanAudio(lookupWord, 'us');
         }
 
-        // 播放牛津词典（Oxford / Google gstatic CDN + Free Dictionary API）100% 真人录播室单词 MP3
         async function playOxfordWordHumanAudio(word, accent = 'us') {
             const clean = normalizeWordForOxford(word);
-            // 1. 先直接尝试牛津词典官方静态真人录音 CDN (ssl.gstatic.com/dictionary/static/sounds/20200429/)
-            const oxfordStaticUrl = `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${clean}--_${accent}_1.mp3`;
-            const oxfordBackupUrl = `https://ssl.gstatic.com/dictionary/static/sounds/oxford/${clean}--_${accent}_1.mp3`;
+            const wordAudioEl = document.getElementById('wordDirectAudioBar');
+            const phEl = document.getElementById('inspectedWordPhonetic');
+            const badgeEl = document.getElementById('wordAudioStatusBadge');
 
-            realHumanAudio.pause();
-            realHumanAudio.src = oxfordStaticUrl;
-            realHumanAudio.playbackRate = 1.0;
-
+            // 1. 先通过 Free Dictionary API 查询经过验证的真人词典 MP3 URL
             try {
-                await realHumanAudio.play();
-                showToast(`${accent === 'us' ? '🇺🇸' : '🇬🇧'} 正在播放牛津词典「${clean}」真人录播室原声`);
-                // 异步拉取音标展示
-                fetchWordPhoneticOnly(clean);
-                return;
-            } catch (err1) {
-                // 2. 尝试牛津备用静态路径或从 Free Dictionary API 获取真人 MP3
-                try {
-                    const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`);
-                    if (res.ok) {
-                        const data = await res.json();
-                        const entry = data[0] || {};
-                        const phonetics = entry.phonetics || [];
-                        const phText = entry.phonetic || (phonetics.find(p => p.text) || {}).text || '/真人录音/';
-                        const phEl = document.getElementById('inspectedWordPhonetic');
-                        if (phEl) phEl.innerText = phText;
+                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(clean)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    const entry = data[0] || {};
+                    const phonetics = entry.phonetics || [];
+                    const phText = entry.phonetic || (phonetics.find(p => p.text) || {}).text || '';
+                    if (phEl && phText) phEl.innerText = phText;
 
-                        // 优先匹配对应口音 (us / uk) 的真人 mp3
-                        let audioObj = phonetics.find(p => p.audio && p.audio.includes(`-${accent}.mp3`))
-                                    || phonetics.find(p => p.audio && p.audio.includes(`_${accent}_`))
-                                    || phonetics.find(p => p.audio && p.audio.endsWith('.mp3'));
-                        if (audioObj && audioObj.audio) {
-                            const apiMp3 = audioObj.audio.startsWith('//') ? `https:${audioObj.audio}` : audioObj.audio;
-                            realHumanAudio.src = apiMp3;
-                            await realHumanAudio.play();
-                            showToast(`🎙️ 正在播放词典「${clean}」真人录播室原声`);
-                            return;
-                        }
+                    let audioObj = phonetics.find(p => p.audio && p.audio.includes(`-${accent}.mp3`))
+                                || phonetics.find(p => p.audio && p.audio.includes(`_${accent}_`))
+                                || phonetics.find(p => p.audio && p.audio.endsWith('.mp3'));
+                    if (audioObj && audioObj.audio) {
+                        const apiMp3 = audioObj.audio.startsWith('//') ? `https:${audioObj.audio}` : audioObj.audio;
+                        wordAudioEl.src = apiMp3;
+                        await wordAudioEl.play();
+                        if (badgeEl) badgeEl.innerText = `✅ 词典真人实录 (${accent.toUpperCase()})`;
+                        showToast(`🎙️ 正在播放「${clean}」词典真人实录原声`);
+                        return;
                     }
-                } catch (err2) {}
-
-                // 3. 尝试牛津 oxford 目录静态 MP3
-                realHumanAudio.src = oxfordBackupUrl;
-                realHumanAudio.play().catch(() => {
-                    showToast(`请点击右侧「📖 剑桥词典」或「🎬 真人视频切片」收听「${clean}」`);
-                });
-            }
-        }
-
-        async function fetchWordPhoneticOnly(word) {
-            try {
-                const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
-                if (!res.ok) return;
-                const data = await res.json();
-                const entry = data[0] || {};
-                const phText = entry.phonetic || ((entry.phonetics || []).find(p => p.text) || {}).text || '';
-                const phEl = document.getElementById('inspectedWordPhonetic');
-                if (phEl && phText) phEl.innerText = phText;
+                }
             } catch (e) {}
-        }
 
-        function switchPlayerSource(src) {
-            activePlayerSource = src;
-            const curr = getDayCurriculum(currentWeek, currentDay);
-
-            ['theater', 'bilibili'].forEach(mode => {
-                const box = document.getElementById(`playerMode_${mode}`);
-                const btn = document.getElementById(`srcBtn_${mode}`);
-                if (mode === src) {
-                    box.classList.remove('hidden');
-                    btn.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white shadow-sm transition-all';
-                } else {
-                    box.classList.add('hidden');
-                    btn.className = 'px-2.5 py-0.5 rounded-full text-[10px] font-bold text-rose-500 transition-all';
-                }
-            });
-
-            if (src === 'bilibili') {
-                const targetSrc = `https://player.bilibili.com/player.html?bvid=${curr.video.bvid}&page=${curr.video.page || 1}&high_quality=1&danmaku=0&autoplay=0`;
-                if (document.getElementById('lessonBiliIframe').src !== targetSrc) {
-                    document.getElementById('lessonBiliIframe').src = targetSrc;
-                }
+            // 2. 备用：直接加载牛津词典 Google gstatic CDN 真人录音
+            const gstaticUrl = `https://ssl.gstatic.com/dictionary/static/sounds/20200429/${clean}--_${accent}_1.mp3`;
+            wordAudioEl.src = gstaticUrl;
+            try {
+                await wordAudioEl.play();
+                if (badgeEl) badgeEl.innerText = `✅ 牛津真人实录 (${accent.toUpperCase()})`;
+                showToast(`🎙️ 正在播放牛津词典「${clean}」真人原声`);
+            } catch (e2) {
+                if (phEl) phEl.innerText = '该变形词请点右侧「剑桥词典」听原声';
+                showToast(`请点击检视条右侧「📖 剑桥词典」收听「${clean}」`);
             }
-        }
-
-        function renderTheaterDialogue(week, day) {
-            const dlgObj = REAL_HUMAN_DIALOGUES[(week + day) % REAL_HUMAN_DIALOGUES.length];
-            const mp3Label = document.getElementById('realMp3Label');
-            const mp3Player = document.getElementById('nativeMp3Player');
-            const originLink = document.getElementById('ellloOriginLink');
-
-            if (mp3Label) mp3Label.innerText = dlgObj.title;
-            if (originLink) originLink.href = dlgObj.pageUrl;
-            if (mp3Player && mp3Player.getAttribute('data-src') !== dlgObj.mp3) {
-                mp3Player.src = dlgObj.mp3;
-                mp3Player.setAttribute('data-src', dlgObj.mp3);
-            }
-
-            const box = document.getElementById('theaterScriptBox');
-            box.innerHTML = dlgObj.lines.map((line, idx) => {
-                const clickableWords = makeWordsClickable(line.en, 'hover:text-amber-300 underline decoration-white/30 decoration-dashed px-0.5 rounded cursor-pointer transition');
-                return `
-                    <div id="dlgLine_${idx}" class="p-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 transition-all flex items-start gap-2">
-                        <span class="text-base shrink-0 mt-0.5">${line.avatar}</span>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center justify-between">
-                                <span class="text-[10px] font-bold text-rose-300">${line.role}</span>
-                                <span class="text-[9px] text-amber-200/90">👆 点击任意单词听牛津真人录音</span>
-                            </div>
-                            <div class="text-xs font-bold text-white leading-relaxed mt-0.5">${clickableWords}</div>
-                            <div class="theater-zh text-[11px] text-rose-100/75 mt-0.5 ${showTheaterZh ? '' : 'hidden'}">${line.zh}</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function toggleTheaterSub() {
-            showTheaterZh = !showTheaterZh;
-            document.querySelectorAll('.theater-zh').forEach(el => {
-                el.classList.toggle('hidden', !showTheaterZh);
-            });
         }
 
         function changeWeek(delta) {
@@ -1619,16 +1696,15 @@
             const container = document.getElementById('survivalToolkitContainer');
             container.innerHTML = SURVIVAL_TOOLKIT.map(group => {
                 const itemsHtml = group.sentences.map(s => {
-                    const mp3Url = `https://audio.tatoeba.org/sentences/eng/${s.id}.mp3`;
                     const clickableWords = makeWordsClickable(s.en, 'hover:text-rose-600 hover:bg-rose-50 px-0.5 rounded cursor-pointer transition underline decoration-rose-200 decoration-dashed');
+                    const ygUrl = `https://youglish.com/pronounce/${encodeURIComponent(s.en.replace(/[^a-zA-Z0-9\s']/g, ' ').trim())}/english/us`;
                     return `
                         <div class="bg-white p-2.5 rounded-xl border border-rose-100 shadow-sm">
                             <div class="flex items-start justify-between gap-2 mb-1">
                                 <span class="text-xs font-bold text-gray-800 leading-relaxed">"${clickableWords}"</span>
-                                <button onclick="playRealSentenceMp3('${mp3Url}', 1.0)" class="shrink-0 px-2.5 py-0.5 bg-rose-500 text-white rounded-full text-[10px] font-bold shadow-sm hover:bg-rose-600">🎙️ 真人实录MP3</button>
+                                <a href="${ygUrl}" target="_blank" rel="noopener noreferrer" class="shrink-0 px-2.5 py-0.5 bg-emerald-500 text-white rounded-full text-[10px] font-bold shadow-sm hover:bg-emerald-600">🎬 听母语原片 ↗</a>
                             </div>
-                            <div class="text-[11px] text-gray-500 mb-1.5">${s.zh}</div>
-                            <audio controls preload="none" class="w-full h-7 rounded-full" src="${mp3Url}"></audio>
+                            <div class="text-[11px] text-gray-500">${s.zh}</div>
                         </div>
                     `;
                 }).join('');
