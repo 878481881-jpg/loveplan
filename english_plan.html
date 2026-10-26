@@ -3241,22 +3241,322 @@
             return new Blob([buffer], { type: 'audio/wav' });
         }
 
-        // 分析真实录制的 PCM 语音波形：计算每个目标单词对应时间窗的能量、过零率(辅音清晰度)与音节匹配度
-        function analyzePcmAcousticAlignment(pcmChunks, sampleRate, targetTokens) {
-            let totalLen = 0;
-            pcmChunks.forEach(c => { totalLen += c.length; });
-            if (totalLen === 0) {
-                return { hasVoice: false, wordScores: targetTokens.map(() => 65), fluency: 65, completeness: 65 };
+        // =========================================================================
+        // 🛡️ 严格版 AI 语音识别 + 四频带共振峰/音素骨架双重核验评分引擎（彻底杜绝乱讲话给分）
+        // 核心机制：
+        // 1. 实时调用浏览器 SpeechRecognition (en-US, maxAlternatives=5) 转写用户说的英文词，平滑停止收集尾音；
+        // 2. 逐词进行「精确词匹配 + 同音词匹配 + 英语音素骨架(Phonetic Skeleton)编辑距离对齐」；
+        // 3. 若识别结果与目标句匹配度低于 35% 或全为无关词/中文，严格判定为「朗读内容不符」，直接给 0 分！
+        // 4. 同时对 16kHz PCM 音频执行 Goertzel 四频带频谱分析（F1低频元音、F2中频前后元音舌位、高频齿龈擦音 s/sh/th/f）
+        //    与目标句逐词音素蓝图 (Phonetic Blueprint) + 严格音节核数量 (±1音节) + 频谱多样性反作弊校验，
+        //    即使在无语音识别网络的环境下，乱讲话、说中文、哼鸣、单音重复也会被严格拦截并判低分/0分！
+        // =========================================================================
+
+        const HOMOPHONE_GROUPS = [
+            ["to", "too", "two", "2"],
+            ["for", "four", "4"],
+            ["are", "r", "our"],
+            ["you", "u"],
+            ["your", "youre"],
+            ["meet", "meat"],
+            ["week", "weak"],
+            ["weekend", "weekends", "weakened"],
+            ["right", "write"],
+            ["see", "sea", "c"],
+            ["here", "hear"],
+            ["know", "no"],
+            ["there", "their", "theyre"],
+            ["weather", "whether"],
+            ["buy", "by", "bye"],
+            ["one", "won", "1"],
+            ["eight", "ate", "8"],
+            ["hour", "our"],
+            ["mail", "male"],
+            ["peace", "piece"],
+            ["wait", "weight"],
+            ["wear", "where"],
+            ["whole", "hole"],
+            ["would", "wood"]
+        ];
+
+        function normalizeWordForCompare(w) {
+            return (w || '').toLowerCase().replace(/[^a-z0-9']/g, '').replace(/^'+|'+$/g, '').replace(/'/g, '');
+        }
+
+        // 计算单个英文词的音节数（用于声学音节数量严格核验）
+        function countEnglishSyllables(word) {
+            let w = normalizeWordForCompare(word).replace(/[^a-z]/g, '');
+            if (!w) return 1;
+            if (w.length <= 3) return 1;
+            // 处理复合词如 weekend, something, everything, afternoon
+            const compoundMap = {
+                weekend: 2, something: 2, anything: 3, everything: 3, afternoon: 3,
+                excuse: 2, repeat: 2, slowly: 2, station: 2,Subway: 2, subway: 2,
+                prefer: 2, coffee: 2, weather: 2,Getting: 2, getting: 2, warmer: 2,
+                lately: 2, message: 2, moment: 2,project: 2, working: 2, headache: 2,
+                looking: 2, forward: 2, meeting: 2, together: 3, tomorrow: 3, restaurant: 3
+            };
+            if (compoundMap[w]) return compoundMap[w];
+            w = w.replace(/(?:[^laeiouy]es|ed|[^laeiouy]e)$/, '');
+            w = w.replace(/^y/, '');
+            const vowelMatches = w.match(/[aeiouy]{1,2}/g);
+            return Math.max(1, vowelMatches ? vowelMatches.length : 1);
+        }
+
+        // 提取每个英文单词的预期音素声学蓝图（是否含高频擦音、塞音、前元音、后元音、预期音节数）
+        function getWordPhoneticBlueprint(rawWord) {
+            const w = normalizeWordForCompare(rawWord);
+            const syllables = countEnglishSyllables(w);
+            // 强高频齿龈擦音/塞擦音: s, z, sh, ch, tch, x, ce, ci, cy
+            const hasStrongSibilant = /[szx]|sh|ch|tch|ce|ci|cy/i.test(w);
+            // 软擦音或清塞音爆破: f, ph, th, v, t, k, ck, p, q
+            const hasFricOrPlosive = /[fvtkpq]|th|ph|ck/i.test(w);
+            // 前高/前中元音 (/i:/, /I/, /eI/, /E/): ee, ea, ie, ey, ay, ai, i, e
+            const hasFrontVowel = /ee|ea|ie|ey|ay|ai|e|i|y/i.test(w);
+            // 后元音/开口元音 (/u:/, /oU/, /a:/, /O:/): oo, ou, ow, au, aw, ar, or, oa, u, o, a
+            const hasBackOpenVowel = /oo|ou|ow|au|aw|ar|or|oa|u|o|a/i.test(w);
+            // 是否为纯响音词（无任何清擦音或清塞音，如 are, you, we, in, on, more, how, long, my, our）
+            const isPureSonorant = !hasStrongSibilant && !/[ftkpq]|th|ph|ck/i.test(w);
+            return {
+                clean: w,
+                syllables,
+                hasStrongSibilant,
+                hasFricOrPlosive,
+                hasFrontVowel,
+                hasBackOpenVowel,
+                isPureSonorant
+            };
+        }
+
+        // 将英文单词转换为发音骨架 (Phonetic Skeleton)，用于检测发音近似词（如 free / three, this / dis）
+        function toPhoneticSkeleton(word) {
+            let w = normalizeWordForCompare(word);
+            if (!w) return '';
+            const numMap = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine', '10': 'ten' };
+            if (numMap[w]) w = numMap[w];
+            return w
+                .replace(/ph/g, 'f')
+                .replace(/ght/g, 't')
+                .replace(/kn/g, 'n')
+                .replace(/wr/g, 'r')
+                .replace(/wh/g, 'w')
+                .replace(/sh|ch|tch/g, 'x')
+                .replace(/th/g, 'd')
+                .replace(/ck|qu|c(?=[aou])/g, 'k')
+                .replace(/c(?=[eiy])/g, 's')
+                .replace(/dg/g, 'j')
+                .replace(/[aeiouy]+/g, 'a')
+                .replace(/(.)\1+/g, '$1');
+        }
+
+        // 计算两个字符串的归一化编辑距离相似度 (0.0 ~ 1.0)
+        function calcStringSimilarity(a, b) {
+            if (!a || !b) return 0;
+            if (a === b) return 1.0;
+            const m = a.length, n = b.length;
+            const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+            for (let i = 0; i <= m; i++) dp[i][0] = i;
+            for (let j = 0; j <= n; j++) dp[0][j] = j;
+            for (let i = 1; i <= m; i++) {
+                for (let j = 1; j <= n; j++) {
+                    const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,
+                        dp[i][j - 1] + 1,
+                        dp[i - 1][j - 1] + cost
+                    );
+                }
             }
+            return 1.0 - (dp[m][n] / Math.max(m, n));
+        }
+
+        // 判断两个词属于精确匹配、同音词匹配、发音近似还是不匹配
+        function compareTargetAndSpokenWord(targetClean, spokenClean) {
+            if (!targetClean || !spokenClean) return { similarity: 0, type: 'none' };
+            if (targetClean === spokenClean) return { similarity: 1.0, type: 'exact' };
+
+            // 常见发音偏误近音词对（计为 near 偏音，给 65~75 分并提示纠音）
+            const nearConfusablePairs = [
+                ["free", "three"], ["free", "tree"], ["this", "dis"], ["this", "these"],
+                ["that", "dat"], ["think", "sink"], ["thank", "sank"], ["with", "wiz"],
+                ["work", "walk"], ["feel", "fill"], ["leave", "live"], ["late", "let"]
+            ];
+            for (const [a, b] of nearConfusablePairs) {
+                if ((targetClean === a && spokenClean === b) || (targetClean === b && spokenClean === a)) {
+                    return { similarity: 0.76, type: 'near' };
+                }
+            }
+
+            // 词形还原匹配（如复数 s / 过去式 ed / 进行时 ing）
+            if (targetClean.length >= 4 && spokenClean.length >= 4) {
+                if (targetClean + 's' === spokenClean || spokenClean + 's' === targetClean ||
+                    targetClean + 'd' === spokenClean || spokenClean + 'd' === targetClean ||
+                    targetClean + 'ed' === spokenClean || spokenClean + 'ed' === targetClean) {
+                    return { similarity: 0.88, type: 'near' };
+                }
+            }
+
+            // 同音词检查
+            for (const grp of HOMOPHONE_GROUPS) {
+                if (grp.includes(targetClean) && grp.includes(spokenClean)) {
+                    return { similarity: 0.95, type: 'homophone' };
+                }
+            }
+
+            const rawSim = calcStringSimilarity(targetClean, spokenClean);
+            const skelA = toPhoneticSkeleton(targetClean);
+            const skelB = toPhoneticSkeleton(spokenClean);
+            const skelSim = calcStringSimilarity(skelA, skelB);
+
+            const combined = Math.max(rawSim, skelSim * 0.92);
+            if (combined >= 0.85 && Math.abs(targetClean.length - spokenClean.length) <= 2) {
+                return { similarity: combined, type: 'near' };
+            }
+            if (combined >= 0.72 && targetClean.length >= 4 && spokenClean.length >= 4 && (targetClean[0] === spokenClean[0] || skelA[0] === skelB[0])) {
+                return { similarity: combined, type: 'near' };
+            }
+            return { similarity: combined, type: 'none' };
+        }
+
+        // 将识别出的英文句子与目标句做严格保序对齐
+        function alignTranscriptWithTarget(targetTokens, transcriptStr) {
+            const targetCleanList = targetTokens.map(normalizeWordForCompare);
+            const spokenTokens = (transcriptStr || '')
+                .toLowerCase()
+                .replace(/[^a-z0-9'\s]/g, ' ')
+                .trim()
+                .split(/\s+/)
+                .map(normalizeWordForCompare)
+                .filter(Boolean);
+
+            const n = targetCleanList.length;
+            const m = spokenTokens.length;
+
+            if (m === 0) {
+                return {
+                    spokenTokens: [],
+                    wordMatches: targetTokens.map((raw, i) => ({
+                        raw,
+                        clean: targetCleanList[i],
+                        matchedSpoken: null,
+                        matchType: 'none',
+                        similarity: 0
+                    })),
+                    matchedWordCount: 0,
+                    exactMatchCount: 0,
+                    extraWordCount: 0,
+                    matchRatio: 0
+                };
+            }
+
+            const usedSpoken = new Set();
+            const wordMatches = [];
+            let lastSpokenIdx = -1;
+
+            for (let i = 0; i < n; i++) {
+                const tClean = targetCleanList[i];
+                let bestIdx = -1;
+                let bestCmp = { similarity: 0, type: 'none' };
+
+                for (let j = 0; j < m; j++) {
+                    if (usedSpoken.has(j)) continue;
+                    const cmp = compareTargetAndSpokenWord(tClean, spokenTokens[j]);
+                    if (cmp.type === 'none') continue;
+                    const orderBonus = (j > lastSpokenIdx && j - lastSpokenIdx <= 4) ? 0.04 : 0;
+                    if (cmp.similarity + orderBonus > bestCmp.similarity) {
+                        bestCmp = cmp;
+                        bestIdx = j;
+                    }
+                }
+
+                if (bestIdx >= 0 && bestCmp.type !== 'none') {
+                    usedSpoken.add(bestIdx);
+                    lastSpokenIdx = Math.max(lastSpokenIdx, bestIdx);
+                    wordMatches.push({
+                        raw: targetTokens[i],
+                        clean: tClean,
+                        matchedSpoken: spokenTokens[bestIdx],
+                        matchType: bestCmp.type,
+                        similarity: bestCmp.similarity
+                    });
+                } else {
+                    wordMatches.push({
+                        raw: targetTokens[i],
+                        clean: tClean,
+                        matchedSpoken: null,
+                        matchType: 'none',
+                        similarity: 0
+                    });
+                }
+            }
+
+            const matchedWordCount = wordMatches.filter(w => w.matchType !== 'none').length;
+            const exactMatchCount = wordMatches.filter(w => w.matchType === 'exact' || w.matchType === 'homophone').length;
+            const extraWordCount = Math.max(0, m - usedSpoken.size);
+            const matchRatio = matchedWordCount / Math.max(1, n);
+
+            return {
+                spokenTokens,
+                wordMatches,
+                matchedWordCount,
+                exactMatchCount,
+                extraWordCount,
+                matchRatio
+            };
+        }
+
+        // Goertzel 单频点能量探针（用于提取 F1/F2 元音共振峰与高频擦音能量）
+        function goertzelBandMagnitude(frame, startIdx, length, targetFreq, sampleRate) {
+            const k = Math.round((length * targetFreq) / sampleRate);
+            const omega = (2 * Math.PI * k) / length;
+            const coeff = 2 * Math.cos(omega);
+            let q1 = 0, q2 = 0;
+            for (let i = 0; i < length; i++) {
+                const q0 = coeff * q1 - q2 + frame[startIdx + i];
+                q2 = q1;
+                q1 = q0;
+            }
+            const magSq = q1 * q1 + q2 * q2 - q1 * q2 * coeff;
+            return Math.sqrt(Math.max(0, magSq)) / length;
+        }
+
+        // 分析真实录制的 PCM 语音波形：四频带共振峰 + 音节核数量 + 辅音摩擦过零率 + 反乱读门控
+        function analyzePcmAcousticAlignment(pcmChunks, sampleRate, targetTokens) {
+            const nWords = Math.max(1, targetTokens.length);
+            const blueprints = targetTokens.map(getWordPhoneticBlueprint);
+            const expectedSyllables = blueprints.reduce((acc, b) => acc + b.syllables, 0);
+
+            let totalLen = 0;
+            (pcmChunks || []).forEach(c => { totalLen += c.length; });
+            if (totalLen === 0) {
+                return {
+                    hasVoice: false,
+                    isNoiseOrGibberish: true,
+                    failReason: "未录制到任何音频数据",
+                    activeDurationSec: 0,
+                    voicedRatio: 0,
+                    detectedSyllables: 0,
+                    expectedSyllables,
+                    wordScores: targetTokens.map(() => 0),
+                    wordNotes: targetTokens.map(() => '未读'),
+                    fluency: 0,
+                    completeness: 0
+                };
+            }
+
             const full = new Float32Array(totalLen);
             let off = 0;
             pcmChunks.forEach(c => { full.set(c, off); off += c.length; });
 
-            // 1. 按 25ms 帧计算 RMS 能量包络与过零率 (ZCR)
+            // 1. 按 25ms 帧计算 RMS 能量、过零率 (ZCR) 与四频带频谱特征
             const frameSize = Math.max(256, Math.floor(sampleRate * 0.025));
             const energies = [];
             const zcrs = [];
-            let maxRms = 0.001;
+            const bandLow = [];     // F1: 350~650Hz
+            const bandMidLow = [];  // F2 back: 1150~1500Hz
+            const bandMidHigh = []; // F2 front: 2200~2800Hz
+            const bandHigh = [];    // Fricative/Sibilant: 4200~6000Hz
+            let maxRms = 0.0001;
 
             for (let i = 0; i + frameSize <= full.length; i += frameSize) {
                 let sumSq = 0;
@@ -3272,30 +3572,124 @@
                 if (rms > maxRms) maxRms = rms;
                 energies.push(rms);
                 zcrs.push(zeroCross / frameSize);
+
+                const f1 = goertzelBandMagnitude(full, i, frameSize, 480, sampleRate);
+                const f2Back = goertzelBandMagnitude(full, i, frameSize, 1300, sampleRate);
+                const f2Front = goertzelBandMagnitude(full, i, frameSize, 2450, sampleRate);
+                const fHigh = goertzelBandMagnitude(full, i, frameSize, 4800, sampleRate);
+                bandLow.push(f1);
+                bandMidLow.push(f2Back);
+                bandMidHigh.push(f2Front);
+                bandHigh.push(fHigh);
+            }
+
+            // 绝对音量门限：若全段最大 RMS 低于 0.02（环境底噪或未说话），直接判为无人声 0 分
+            if (maxRms < 0.020 || energies.length < 10) {
+                return {
+                    hasVoice: false,
+                    isNoiseOrGibberish: true,
+                    failReason: "未检测到清晰人声（音量过小或未说话）",
+                    activeDurationSec: 0,
+                    voicedRatio: 0,
+                    detectedSyllables: 0,
+                    expectedSyllables,
+                    wordScores: targetTokens.map(() => 0),
+                    wordNotes: targetTokens.map(() => '未读'),
+                    fluency: 0,
+                    completeness: 0
+                };
             }
 
             // 2. 归一化并切除首尾静音段
             const normE = energies.map(e => e / maxRms);
-            const voiceThreshold = 0.14;
+            const voiceThreshold = 0.16;
             let firstVoice = normE.findIndex(e => e >= voiceThreshold);
             let lastVoice = normE.length - 1;
             while (lastVoice > firstVoice && normE[lastVoice] < voiceThreshold) lastVoice--;
 
-            if (firstVoice < 0 || lastVoice <= firstVoice) {
-                return { hasVoice: false, wordScores: targetTokens.map(() => 52), fluency: 55, completeness: 50 };
+            if (firstVoice < 0 || lastVoice - firstVoice < 10) {
+                return {
+                    hasVoice: false,
+                    isNoiseOrGibberish: true,
+                    failReason: "有效发音时长过短（不足 0.3 秒）",
+                    activeDurationSec: 0.1,
+                    voicedRatio: 0,
+                    detectedSyllables: 0,
+                    expectedSyllables,
+                    wordScores: targetTokens.map(() => 0),
+                    wordNotes: targetTokens.map(() => '未读'),
+                    fluency: 0,
+                    completeness: 0
+                };
             }
 
             const activeFrames = normE.slice(firstVoice, lastVoice + 1);
             const activeZcrs = zcrs.slice(firstVoice, lastVoice + 1);
-            const voicedRatio = activeFrames.filter(e => e >= voiceThreshold).length / Math.max(1, activeFrames.length);
-            const activeDurationSec = (activeFrames.length * 0.025);
+            const actLow = bandLow.slice(firstVoice, lastVoice + 1);
+            const actMidLow = bandMidLow.slice(firstVoice, lastVoice + 1);
+            const actMidHigh = bandMidHigh.slice(firstVoice, lastVoice + 1);
+            const actHigh = bandHigh.slice(firstVoice, lastVoice + 1);
 
-            // 3. 按每个单词的字符音节权重切分有效语音区间，计算每个词的发音饱满度与辅音清晰度
-            const weights = targetTokens.map(t => Math.max(2, t.replace(/[^a-zA-Z]/g, '').length));
+            const voicedFrames = activeFrames.filter(e => e >= voiceThreshold).length;
+            const voicedRatio = voicedFrames / Math.max(1, activeFrames.length);
+            const activeDurationSec = activeFrames.length * 0.025;
+
+            // 3. 检测真实音节峰值数（3帧平滑 + 局部峰值与波谷校验，间距 >= 4帧即100ms）
+            const smoothE = activeFrames.map((v, i) => {
+                const prev = activeFrames[Math.max(0, i - 1)];
+                const next = activeFrames[Math.min(activeFrames.length - 1, i + 1)];
+                return (prev + v * 2 + next) / 4;
+            });
+
+            let detectedSyllables = 0;
+            let lastPeakFrame = -10;
+            let minValleySinceLastPeak = 0;
+            for (let i = 1; i < smoothE.length - 1; i++) {
+                minValleySinceLastPeak = Math.min(minValleySinceLastPeak, smoothE[i]);
+                if (smoothE[i] >= 0.24 && smoothE[i] >= smoothE[i - 1] && smoothE[i] >= smoothE[i + 1]) {
+                    if (i - lastPeakFrame >= 4 && (lastPeakFrame < 0 || smoothE[i] - minValleySinceLastPeak >= 0.08)) {
+                        detectedSyllables++;
+                        lastPeakFrame = i;
+                        minValleySinceLastPeak = smoothE[i];
+                    }
+                }
+            }
+            if (detectedSyllables === 0 && voicedFrames >= 6) detectedSyllables = 1;
+
+            // 4. 计算能量调制深度、过零率方差与共振峰多样性（拦截吹麦、哼鸣、“啊啊啊”重复单音、乱读）
+            const meanE = activeFrames.reduce((a, b) => a + b, 0) / activeFrames.length;
+            const stdE = Math.sqrt(activeFrames.reduce((a, b) => a + (b - meanE) ** 2, 0) / activeFrames.length);
+            const modulationIndex = stdE / Math.max(0.05, meanE);
+
+            const meanZ = activeZcrs.reduce((a, b) => a + b, 0) / activeZcrs.length;
+            const stdZ = Math.sqrt(activeZcrs.reduce((a, b) => a + (b - meanZ) ** 2, 0) / activeZcrs.length);
+
+            // 严格音节核数量门控：允许误差最多 ±1 个音节
+            const allowedSylTolerance = 1;
+            const sylDiff = Math.abs(detectedSyllables - expectedSyllables);
+            const minValidSec = Math.max(0.80, expectedSyllables * 0.20);
+            const maxValidSec = Math.max(3.0, expectedSyllables * 0.52);
+
+            let globalPenalty = 1.0;
+            let failReason = "";
+
+            if (modulationIndex < 0.25 || stdZ < 0.028 || meanZ > 0.38) {
+                globalPenalty = 0.0;
+                failReason = "检测到单调哼鸣、重复单音或麦克风杂音，未检测到真实英语元辅音交替特征";
+            } else if (sylDiff > allowedSylTolerance || activeDurationSec < minValidSec || activeDurationSec > maxValidSec) {
+                globalPenalty = 0.0;
+                failReason = `发音音节数或语速时长与目标句不符（检测到 ${detectedSyllables} 个音节 / ${activeDurationSec.toFixed(1)}s，目标句应为 ${expectedSyllables} 个音节）`;
+            }
+
+            // 5. 逐词进行音素声学蓝图核验（检验每个词时间窗的元音峰值、前/后元音共振峰 F2、高频擦音 s/sh/th/f 与清塞音特征）
+            const weights = blueprints.map(b => Math.max(2, b.syllables * 2.2 + b.clean.length * 0.35));
             const totalWeight = weights.reduce((a, b) => a + b, 0) || 1;
 
             let accWeight = 0;
-            const wordScores = targetTokens.map((tok, idx) => {
+            let phoneticMismatchCount = 0;
+            const wordNotes = [];
+            const wordAcousticScores = targetTokens.map((tok, idx) => {
+                const bp = blueprints[idx];
                 const startRatio = accWeight / totalWeight;
                 accWeight += weights[idx];
                 const endRatio = accWeight / totalWeight;
@@ -3304,36 +3698,461 @@
                 const fEnd = Math.max(fStart + 1, Math.ceil(endRatio * activeFrames.length));
                 const sliceE = activeFrames.slice(fStart, fEnd);
                 const sliceZ = activeZcrs.slice(fStart, fEnd);
+                const sliceHigh = actHigh.slice(fStart, fEnd);
+                const sliceMidHigh = actMidHigh.slice(fStart, fEnd);
+                const sliceMidLow = actMidLow.slice(fStart, fEnd);
+                const sliceLow = actLow.slice(fStart, fEnd);
 
                 const peakE = sliceE.length ? Math.max(...sliceE) : 0;
-                const meanE = sliceE.length ? (sliceE.reduce((a, b) => a + b, 0) / sliceE.length) : 0;
+                const wMeanE = sliceE.length ? (sliceE.reduce((a, b) => a + b, 0) / sliceE.length) : 0;
                 const maxZ = sliceZ.length ? Math.max(...sliceZ) : 0;
+                const maxHigh = sliceHigh.length ? Math.max(...sliceHigh) : 0;
+                const maxMidHigh = sliceMidHigh.length ? Math.max(...sliceMidHigh) : 0;
+                const maxMidLow = sliceMidLow.length ? Math.max(...sliceMidLow) : 0.0001;
+                const maxLow = sliceLow.length ? Math.max(...sliceLow) : 0.0001;
 
-                // 若该词时间窗有清晰元音峰值(peakE)与辅音摩擦特征(maxZ)，得高分；若能量断层则提示微瑕或漏读
-                let score = 58 + Math.round(peakE * 26 + meanE * 14 + Math.min(0.25, maxZ) * 28);
-                if (peakE < 0.16) score = Math.min(score, 62);
-                return Math.max(48, Math.min(98, score));
+                if (globalPenalty === 0) {
+                    wordNotes.push('内容不符');
+                    return 0;
+                }
+
+                // 若该词时间窗无明显声能，直接判为漏读 (0分)
+                if (peakE < 0.20) {
+                    phoneticMismatchCount++;
+                    wordNotes.push('漏读');
+                    return 0;
+                }
+
+                let score = 68 + Math.round(peakE * 18 + wMeanE * 10);
+                let note = '发音清晰';
+
+                // 校验 1：该词要求强齿龈擦音 (s/z/sh/ch，如 this, station, slowly, excuse)，必须同时具备高频过零率与高频擦音能量
+                if (bp.hasStrongSibilant && (maxZ < 0.14 || maxHigh < maxLow * 0.18)) {
+                    score -= 42;
+                    phoneticMismatchCount++;
+                    note = '缺齿擦音(s/sh/z)';
+                }
+                // 校验 2：该词要求擦音/清塞音 (f/th/t/k/p，如 free, weekend, repeat)，但过零率过低
+                else if (bp.hasFricOrPlosive && maxZ < 0.105) {
+                    score -= 32;
+                    phoneticMismatchCount++;
+                    note = '辅音缺失';
+                }
+                // 校验 3：该词是纯元音/响音词（如 are, you, we, more），但出现了强烈的高频清擦音（如乱说中文“四/十/吃”）
+                else if (bp.isPureSonorant && maxZ > 0.22) {
+                    score -= 42;
+                    phoneticMismatchCount++;
+                    note = '音素不符';
+                }
+                // 校验 4：纯前高元音词（如 free, this, week, meet, see, please），其前元音 F2 (2450Hz) 能量不能远低于后元音 F2 (1300Hz)
+                else if (bp.hasFrontVowel && !bp.hasBackOpenVowel && maxMidHigh < maxMidLow * 0.35) {
+                    score -= 35;
+                    phoneticMismatchCount++;
+                    note = '元音舌位不符';
+                }
+
+                const finalWScore = Math.max(0, Math.min(96, Math.round(score * globalPenalty)));
+                if (finalWScore < 60 && note === '发音清晰') note = '音节不符';
+                wordNotes.push(note);
+                return finalWScore;
             });
 
-            const expectedSec = Math.max(1.0, targetTokens.length * 0.36);
-            const speedMatch = Math.min(activeDurationSec / expectedSec, expectedSec / Math.max(0.4, activeDurationSec));
-            const fluency = Math.max(60, Math.min(98, Math.round(voicedRatio * 55 + speedMatch * 43)));
-            const completeness = Math.max(60, Math.min(100, Math.round((wordScores.filter(s => s >= 70).length / Math.max(1, wordScores.length)) * 100)));
+            // 若有 >= 38% 的单词音素特征不匹配（例如 5 个词里有 2 个词音素对不上），直接判定为乱读或说中文，总分判 0 分！
+            if (phoneticMismatchCount >= Math.max(1, Math.ceil(nWords * 0.38))) {
+                return {
+                    hasVoice: true,
+                    isNoiseOrGibberish: true,
+                    failReason: failReason || "发音的元辅音结构与目标英文句不匹配（请勿说中文或随意乱读）",
+                    activeDurationSec,
+                    voicedRatio,
+                    detectedSyllables,
+                    expectedSyllables,
+                    wordScores: wordAcousticScores.map(s => Math.min(18, s)),
+                    wordNotes: wordNotes.map(n => n === '发音清晰' ? '音素不符' : n),
+                    fluency: 0,
+                    completeness: 0
+                };
+            }
 
-            return { hasVoice: true, activeDurationSec, voicedRatio, wordScores, fluency, completeness };
+            const expectedSec = Math.max(1.1, expectedSyllables * 0.28);
+            const speedMatch = Math.min(activeDurationSec / expectedSec, expectedSec / Math.max(0.3, activeDurationSec));
+            const rawFluency = Math.round((voicedRatio * 52 + speedMatch * 48) * globalPenalty);
+            const fluency = Math.max(0, Math.min(98, rawFluency));
+            const completeness = Math.round((wordAcousticScores.filter(s => s >= 65).length / nWords) * 100);
+
+            return {
+                hasVoice: true,
+                isNoiseOrGibberish: globalPenalty < 0.5,
+                failReason,
+                activeDurationSec,
+                voicedRatio,
+                detectedSyllables,
+                expectedSyllables,
+                wordScores: wordAcousticScores,
+                wordNotes,
+                fluency,
+                completeness
+            };
         }
 
-        // 随堂测试第4题的快捷录音评测
+        // 综合「语音识别文本对齐 (ASR)」与「四频带声学音素核验 (Acoustic)」得出最终严格评分
+        function evaluateSpeechStrictCombined(targetSentence, pcmChunks, sampleRate, asrState) {
+            const targetTokens = (targetSentence || '').trim().split(/\s+/).filter(Boolean);
+            const acoustic = analyzePcmAcousticAlignment(pcmChunks || [], sampleRate || 44100, targetTokens);
+
+            // 1. 根本没声音或音量极低 -> 直接 0 分
+            if (!acoustic.hasVoice) {
+                return {
+                    hasVoice: false,
+                    engineLabel: "🛡️ 严格语音核验引擎（未检测到人声）",
+                    recognizedText: "",
+                    verdictReason: acoustic.failReason || "未检测到有效人声，请靠近麦克风朗读英文句子",
+                    totalScore: 0,
+                    accuracyScore: 0,
+                    fluencyScore: 0,
+                    prosodyScore: 0,
+                    completenessScore: 0,
+                    matchedWordCount: 0,
+                    totalWordCount: targetTokens.length,
+                    wordDiagnostics: targetTokens.map(raw => ({
+                        raw,
+                        clean: normalizeWordForCompare(raw),
+                        score: 0,
+                        status: 'poor',
+                        note: '未读'
+                    }))
+                };
+            }
+
+            // 收集所有候选识别文本（取同目标句对齐度最高的一条候选）
+            const candidateTranscripts = [];
+            if (asrState && Array.isArray(asrState.candidates) && asrState.candidates.length > 0) {
+                candidateTranscripts.push(...asrState.candidates);
+            }
+            if (asrState && asrState.primaryTranscript) {
+                candidateTranscripts.unshift(asrState.primaryTranscript);
+            }
+
+            let bestAlignment = null;
+            let bestTranscript = "";
+            for (const cand of candidateTranscripts) {
+                if (!cand || !cand.trim()) continue;
+                const aln = alignTranscriptWithTarget(targetTokens, cand);
+                if (!bestAlignment || aln.matchedWordCount > bestAlignment.matchedWordCount ||
+                    (aln.matchedWordCount === bestAlignment.matchedWordCount && aln.exactMatchCount > bestAlignment.exactMatchCount)) {
+                    bestAlignment = aln;
+                    bestTranscript = cand.trim();
+                }
+            }
+
+            const asrWorkedWithoutServiceError = !!(asrState && asrState.asrSupported && !asrState.serviceUnavailable);
+
+            // 2. 如果拿到 ASR 识别文本，进行严格逐词比对与反乱读拦截
+            if (bestAlignment && bestTranscript.length > 0) {
+                const matchedCount = bestAlignment.matchedWordCount;
+                const exactCount = bestAlignment.exactMatchCount;
+                const nWords = Math.max(1, targetTokens.length);
+                const matchRatio = matchedCount / nWords;
+
+                // 反乱读门控：如果一个词都没匹配上，或者仅偶然撞上 1 个近音词且夹杂大量无关词（如 "hello one two three"），直接判 0 分！
+                const isIrrelevantBabble =
+                    matchedCount === 0 ||
+                    (matchedCount === 1 && exactCount === 0 && bestAlignment.extraWordCount >= 2) ||
+                    (matchRatio < 0.30 && bestAlignment.extraWordCount > matchedCount);
+
+                if (isIrrelevantBabble) {
+                    return {
+                        hasVoice: true,
+                        engineLabel: "🛡️ 英语语音识别 + 逐词音素核验引擎",
+                        recognizedText: bestTranscript,
+                        verdictReason: `识别到你说的内容为 "${bestTranscript}"，与目标英文句不符（仅有效匹配 0/${nWords} 词），乱读不予计分`,
+                        totalScore: 0,
+                        accuracyScore: 0,
+                        fluencyScore: 0,
+                        prosodyScore: 0,
+                        completenessScore: 0,
+                        matchedWordCount: 0,
+                        totalWordCount: nWords,
+                        wordDiagnostics: targetTokens.map(raw => ({
+                            raw,
+                            clean: normalizeWordForCompare(raw),
+                            score: 0,
+                            status: 'poor',
+                            note: '未读/不符'
+                        }))
+                    };
+                }
+
+                const wordDiagnostics = targetTokens.map((rawToken, idx) => {
+                    const wm = bestAlignment.wordMatches[idx];
+                    const acScore = acoustic.wordScores[idx] || 78;
+                    let wScore = 0;
+                    let status = 'poor';
+                    let note = '未读出';
+
+                    if (wm.matchType === 'exact' || wm.matchType === 'homophone') {
+                        wScore = Math.max(85, Math.min(98, Math.round(83 + (acScore / 100) * 15)));
+                        status = 'good';
+                        note = '发音准确';
+                    } else if (wm.matchType === 'near') {
+                        wScore = Math.max(64, Math.min(78, Math.round(wm.similarity * 88)));
+                        status = 'fair';
+                        note = `听感近似 "${wm.matchedSpoken}"`;
+                    } else {
+                        wScore = 0;
+                        status = 'poor';
+                        note = '未读出';
+                    }
+                    return {
+                        raw: rawToken,
+                        clean: wm.clean,
+                        score: wScore,
+                        status,
+                        note
+                    };
+                });
+
+                const completenessScore = Math.round((matchedCount / nWords) * 100);
+                const rawAccuracy = Math.round(wordDiagnostics.reduce((a, b) => a + b.score, 0) / nWords);
+                const extraPenalty = Math.min(45, bestAlignment.extraWordCount * 12);
+                const accuracyScore = Math.max(0, rawAccuracy - extraPenalty);
+
+                const baseFluency = acoustic.fluency > 0 ? acoustic.fluency : 82;
+                const fluencyScore = Math.max(15, Math.min(98, Math.round(baseFluency * (0.35 + 0.65 * (matchedCount / nWords)) - extraPenalty * 0.5)));
+                const prosodyScore = Math.max(15, Math.min(98, Math.round(accuracyScore * 0.55 + fluencyScore * 0.45)));
+                const totalScore = Math.max(0, Math.min(99, Math.round(accuracyScore * 0.45 + completenessScore * 0.25 + fluencyScore * 0.15 + prosodyScore * 0.15)));
+
+                return {
+                    hasVoice: true,
+                    engineLabel: "🛡️ 英语语音识别 + 逐词音素核验引擎",
+                    recognizedText: bestTranscript,
+                    verdictReason: `已识别 ${matchedCount}/${nWords} 个目标词（识别内容："${bestTranscript}"）`,
+                    totalScore,
+                    accuracyScore,
+                    fluencyScore,
+                    prosodyScore,
+                    completenessScore,
+                    matchedWordCount: matchedCount,
+                    totalWordCount: nWords,
+                    wordDiagnostics
+                };
+            }
+
+            // 3. 如果浏览器 ASR 正常运行（无 network 错误），但用户说话后识别出的英文为空（说明用户在说中文、方言或含糊乱读）
+            if (asrWorkedWithoutServiceError) {
+                return {
+                    hasVoice: true,
+                    engineLabel: "🛡️ 英语语音识别 + 逐词音素核验引擎",
+                    recognizedText: "",
+                    verdictReason: "检测到声音，但未识别出任何有效英语单词（请勿说中文或随意乱读，请清晰朗读目标英文句）",
+                    totalScore: 0,
+                    accuracyScore: 0,
+                    fluencyScore: 0,
+                    prosodyScore: 0,
+                    completenessScore: 0,
+                    matchedWordCount: 0,
+                    totalWordCount: targetTokens.length,
+                    wordDiagnostics: targetTokens.map(raw => ({
+                        raw,
+                        clean: normalizeWordForCompare(raw),
+                        score: 0,
+                        status: 'poor',
+                        note: '未识别出英文'
+                    }))
+                };
+            }
+
+            // 4. 当浏览器无语音识别服务时，启用严格四频带声学音素蓝图 + 音节数量 (±1) + 反乱读门控
+            if (acoustic.isNoiseOrGibberish) {
+                return {
+                    hasVoice: true,
+                    engineLabel: "🛡️ 严格四频带音素与音节核验引擎",
+                    recognizedText: "",
+                    verdictReason: acoustic.failReason || "发音音节数、元辅音共振峰或擦音特征与目标英文句不符（乱读不计分）",
+                    totalScore: 0,
+                    accuracyScore: 0,
+                    fluencyScore: 0,
+                    prosodyScore: 0,
+                    completenessScore: 0,
+                    matchedWordCount: 0,
+                    totalWordCount: targetTokens.length,
+                    wordDiagnostics: targetTokens.map((raw, i) => ({
+                        raw,
+                        clean: normalizeWordForCompare(raw),
+                        score: 0,
+                        status: 'poor',
+                        note: (acoustic.wordNotes && acoustic.wordNotes[i]) || '音素不符'
+                    }))
+                };
+            }
+
+            const wordDiagnostics = targetTokens.map((rawToken, idx) => {
+                const wScore = acoustic.wordScores[idx] || 0;
+                const wNote = (acoustic.wordNotes && acoustic.wordNotes[idx]) || (wScore >= 82 ? '音素吻合' : (wScore >= 65 ? '重音偏弱' : '音素不符'));
+                return {
+                    raw: rawToken,
+                    clean: normalizeWordForCompare(rawToken),
+                    score: wScore,
+                    status: wScore >= 82 ? 'good' : (wScore >= 65 ? 'fair' : 'poor'),
+                    note: wNote
+                };
+            });
+
+            const accuracyScore = Math.round(wordDiagnostics.reduce((a, b) => a + b.score, 0) / Math.max(1, wordDiagnostics.length));
+            const fluencyScore = acoustic.fluency;
+            const completenessScore = acoustic.completeness;
+            const prosodyScore = Math.round(accuracyScore * 0.5 + fluencyScore * 0.5);
+            const totalScore = Math.round(accuracyScore * 0.45 + completenessScore * 0.25 + fluencyScore * 0.15 + prosodyScore * 0.15);
+
+            return {
+                hasVoice: true,
+                engineLabel: "🛡️ 严格四频带音素与音节核验引擎",
+                recognizedText: `[音素声学核验通过：${acoustic.detectedSyllables}/${acoustic.expectedSyllables} 个音节吻合]`,
+                verdictReason: `声学音素核验完成（检测到 ${acoustic.detectedSyllables} 个有效音节，时长 ${acoustic.activeDurationSec.toFixed(1)}s）`,
+                totalScore,
+                accuracyScore,
+                fluencyScore,
+                prosodyScore,
+                completenessScore,
+                matchedWordCount: wordDiagnostics.filter(w => w.score >= 65).length,
+                totalWordCount: targetTokens.length,
+                wordDiagnostics
+            };
+        }
+
+        // 创建并启动实时英语语音识别器（支持多候选 hypotheses 与平滑停止收集）
+        function createLiveEnglishRecognizer(onInterimUpdate) {
+            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const state = {
+                asrSupported: !!SpeechRec,
+                serviceUnavailable: false,
+                primaryTranscript: "",
+                candidates: ["", "", "", "", ""],
+                finalSegments: [],
+                interimAlts: [],
+                recInstance: null,
+                isStopping: false
+            };
+
+            if (!SpeechRec) return state;
+
+            try {
+                const rec = new SpeechRec();
+                rec.lang = 'en-US';
+                rec.continuous = true;
+                rec.interimResults = true;
+                rec.maxAlternatives = 5;
+
+                function rebuildCandidates() {
+                    const built = [];
+                    for (let k = 0; k < 5; k++) {
+                        const parts = [];
+                        state.finalSegments.forEach(segAlts => {
+                            if (segAlts && segAlts[Math.min(k, segAlts.length - 1)]) {
+                                parts.push(segAlts[Math.min(k, segAlts.length - 1)]);
+                            }
+                        });
+                        if (state.interimAlts && state.interimAlts[Math.min(k, state.interimAlts.length - 1)]) {
+                            parts.push(state.interimAlts[Math.min(k, state.interimAlts.length - 1)]);
+                        }
+                        built.push(parts.join(' ').trim());
+                    }
+                    state.candidates = built;
+                    state.primaryTranscript = built[0] || "";
+                    if (typeof onInterimUpdate === 'function') {
+                        onInterimUpdate(state.primaryTranscript);
+                    }
+                }
+
+                rec.onresult = (event) => {
+                    const finals = [];
+                    let interims = [];
+                    for (let i = 0; i < event.results.length; i++) {
+                        const res = event.results[i];
+                        const alts = [];
+                        for (let k = 0; k < res.length; k++) {
+                            if (res[k] && res[k].transcript) alts.push(res[k].transcript.trim());
+                        }
+                        if (res.isFinal) {
+                            finals.push(alts);
+                        } else {
+                            interims.push(...alts);
+                        }
+                    }
+                    if (finals.length > 0) state.finalSegments = finals;
+                    state.interimAlts = interims;
+                    rebuildCandidates();
+                };
+
+                rec.onerror = (ev) => {
+                    const err = (ev && ev.error) || '';
+                    if (err === 'network' || err === 'service-not-allowed' || err === 'not-allowed' || err === 'language-not-supported') {
+                        state.serviceUnavailable = true;
+                    }
+                };
+
+                rec.onend = () => {
+                    if (!state.isStopping && !state.serviceUnavailable) {
+                        try { rec.start(); } catch (e) {}
+                    }
+                };
+
+                rec.start();
+                state.recInstance = rec;
+            } catch (e) {
+                state.serviceUnavailable = true;
+            }
+            return state;
+        }
+
+        function stopLiveEnglishRecognizerGracefully(asrState, timeoutMs = 420) {
+            return new Promise((resolve) => {
+                if (!asrState || !asrState.recInstance) {
+                    resolve(asrState);
+                    return;
+                }
+                asrState.isStopping = true;
+                let settled = false;
+                const finish = () => {
+                    if (settled) return;
+                    settled = true;
+                    try {
+                        asrState.recInstance.onresult = null;
+                        asrState.recInstance.onend = null;
+                        asrState.recInstance.onerror = null;
+                    } catch (e) {}
+                    resolve(asrState);
+                };
+                const timer = setTimeout(finish, timeoutMs);
+                try {
+                    const prevOnEnd = asrState.recInstance.onend;
+                    asrState.recInstance.onend = () => {
+                        clearTimeout(timer);
+                        if (typeof prevOnEnd === 'function') {
+                            try { prevOnEnd(); } catch (e) {}
+                        }
+                        finish();
+                    };
+                    asrState.recInstance.stop();
+                } catch (e) {
+                    clearTimeout(timer);
+                    finish();
+                }
+            });
+        }
+
+        // 随堂测试第5题的快捷录音评测（同样启用严格语音识别+声学核验）
         let isQuizPronRecording = false;
         let quizPronStream = null;
         let quizPronAudioCtx = null;
         let quizPronProcessor = null;
         let quizPronPcmChunks = [];
+        let quizPronAsrState = null;
 
         async function toggleQuickQuizPronunciation(sentId, sentEn = "") {
             const text = resolveSentenceText(sentId, sentEn);
             if (isQuizPronRecording) {
-                stopQuickQuizPronunciation(text);
+                await stopQuickQuizPronunciation(text);
             } else {
                 await startQuickQuizPronunciation(text);
             }
@@ -3361,16 +4180,23 @@
                 src.connect(quizPronProcessor);
                 quizPronProcessor.connect(quizPronAudioCtx.destination);
 
+                quizPronAsrState = createLiveEnglishRecognizer((liveTxt) => {
+                    const badge = document.getElementById('quizPronStatusBadge');
+                    if (badge && liveTxt) {
+                        badge.innerText = `🎙️ 识别中: "${liveTxt.slice(0, 22)}..."`;
+                    }
+                });
+
                 const btn = document.getElementById('btnQuizPronRecord');
                 const txt = document.getElementById('btnQuizPronText');
                 if (btn) btn.className = 'flex-1 py-2 px-3 rounded-xl bg-amber-500 text-white text-xs font-bold shadow-md animate-pulse flex items-center justify-center gap-1.5';
-                if (txt) txt.innerText = '⏹ 读完了，点击出分';
+                if (txt) txt.innerText = '⏹ 读完了，点击严格评测';
             } catch (e) {
                 showToast("请允许浏览器麦克风权限后重试~");
             }
         }
 
-        function stopQuickQuizPronunciation(sentEn) {
+        async function stopQuickQuizPronunciation(sentEn) {
             isQuizPronRecording = false;
             const sampleRate = (quizPronAudioCtx && quizPronAudioCtx.sampleRate) || 44100;
             if (quizPronProcessor) {
@@ -3388,6 +4214,10 @@
 
             const btn = document.getElementById('btnQuizPronRecord');
             const txt = document.getElementById('btnQuizPronText');
+            if (txt) txt.innerText = '⏳ 正在识别并核验每个单词...';
+
+            await stopLiveEnglishRecognizerGracefully(quizPronAsrState, 420);
+
             if (btn) btn.className = 'flex-1 py-2 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-md flex items-center justify-center gap-1.5';
             if (txt) txt.innerText = '🎤 重新录音测发音';
 
@@ -3401,10 +4231,8 @@
             };
             reader.readAsDataURL(wavBlob);
 
-            const tokens = sentEn.trim().split(/\s+/);
-            const analysis = analyzePcmAcousticAlignment(quizPronPcmChunks, sampleRate, tokens);
-            const avgScore = Math.round(analysis.wordScores.reduce((a, b) => a + b, 0) / Math.max(1, analysis.wordScores.length));
-            const finalScore = analysis.hasVoice ? Math.max(80, avgScore) : 55;
+            const evalResult = evaluateSpeechStrictCombined(sentEn, quizPronPcmChunks, sampleRate, quizPronAsrState);
+            const finalScore = evalResult.totalScore;
 
             const badge = document.getElementById('quizPronStatusBadge');
             const fbBox = document.getElementById('quizPronFeedbackBox');
@@ -3417,30 +4245,35 @@
                     badge.innerText = `✅ 脱稿发音通关 ${finalScore}分`;
                     badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-emerald-500 text-white font-bold';
                 }
-                if (fbTxt) fbTxt.innerText = `🎉 脱稿发音评测 ${finalScore} 分（≥80分通关）！原句：${sentEn}`;
+                if (fbTxt) {
+                    fbTxt.innerText = `🎉 严格评测通过：${finalScore} 分（匹配 ${evalResult.matchedWordCount}/${evalResult.totalWordCount} 词）！${evalResult.recognizedText ? '识别内容："' + evalResult.recognizedText + '"' : ''}`;
+                }
             } else {
                 dailyQuizState.q4 = false;
                 if (badge) {
-                    badge.innerText = `⚠️ ${finalScore}分 · 需满80分`;
-                    badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold';
+                    badge.innerText = `❌ ${finalScore}分 · 需满80分`;
+                    badge.className = 'text-[10px] px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold';
                 }
-                if (fbTxt) fbTxt.innerText = `当前得分 ${finalScore} 分（要求 ≥80分），请靠近麦克风连贯朗读：`;
+                if (fbTxt) {
+                    fbTxt.innerText = `⚠️ 严格评测未通过：当前 ${finalScore} 分（要求 ≥80分）。原因：${evalResult.verdictReason}`;
+                }
             }
             saveQuizProgressState();
             updateQuizScoreUI();
         }
 
         // =========================================================================
-        // 🤖 专项 AI 评分室核心逻辑（WAV 无损回放 + 声学音节对齐 & 语音识别双引擎）
+        // 🤖 专项 AI 评分室核心逻辑（WAV 无损回放 + 真实语音识别 & 严格音素/声学双重核验）
         // =========================================================================
         let currentAiSentenceObj = {
-            id: 58568,
+            id: 101,
             en: "Are you free this weekend?",
             zh: "这个周末你有空吗？",
             tip: "注意 free this 舌尖音自然过渡，句尾语调上扬。"
         };
         let isAiEvaluating = false;
         let aiSpeechRecognizer = null;
+        let aiLiveAsrState = null;
         let aiFinalTranscriptSegments = [];
         let aiInterimTranscript = "";
         let aiRecognizedTranscript = "";
@@ -3465,6 +4298,15 @@
             if (aiMeterInterval) {
                 clearInterval(aiMeterInterval);
                 aiMeterInterval = null;
+            }
+            if (aiLiveAsrState && aiLiveAsrState.recInstance) {
+                aiLiveAsrState.isStopping = true;
+                try {
+                    aiLiveAsrState.recInstance.onresult = null;
+                    aiLiveAsrState.recInstance.onend = null;
+                    aiLiveAsrState.recInstance.onerror = null;
+                    aiLiveAsrState.recInstance.abort();
+                } catch (e) {}
             }
             if (aiSpeechRecognizer) {
                 try {
@@ -3492,6 +4334,7 @@
 
         function resetAiUiForNewSentence() {
             cleanupAiRecordingSession();
+            aiLiveAsrState = null;
             aiFinalTranscriptSegments = [];
             aiInterimTranscript = "";
             aiRecognizedTranscript = "";
@@ -3511,7 +4354,7 @@
             if (btn) btn.className = 'px-5 py-2.5 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold shadow-md shadow-rose-200 hover:opacity-95 active:scale-95 transition-all flex items-center gap-2';
             if (icon) icon.innerText = '🎤';
             if (txt) txt.innerText = '点击开始跟读评测';
-            if (hint) hint.innerText = '点击下方麦克风按钮，大声朗读上方英文句子，完成后点击停止即可出分';
+            if (hint) hint.innerText = '点击下方麦克风按钮，清晰朗读上方英文句子（说中文或乱读将被严格判0分）';
             if (waveBox) waveBox.classList.add('hidden');
             if (recBox) recBox.classList.add('hidden');
             if (recTxt) recTxt.innerText = '""';
@@ -3632,19 +4475,21 @@
         }
 
         function renderAiTargetCard() {
-            const dispEl = document.getElementById('aiTargetSentenceDisplay');
-            const zhEl = document.getElementById('aiTargetSentenceZh');
-            const tipEl = document.getElementById('aiTargetPhoneticTip');
-            const bestEl = document.getElementById('aiTargetBestBadge');
+            const enBox = document.getElementById('aiTargetEnText');
+            const zhBox = document.getElementById('aiTargetZhText');
+            const tipBox = document.getElementById('aiPhoneticTipsText');
+            const bestEl = document.getElementById('aiBestHistoryBadge');
 
-            if (dispEl) {
-                dispEl.innerHTML = makeWordsClickable(currentAiSentenceObj.en, 'hover:text-amber-300 underline decoration-white/30 decoration-dashed px-0.5 rounded cursor-pointer transition');
+            if (enBox) {
+                enBox.innerHTML = makeWordsClickable(
+                    currentAiSentenceObj.en,
+                    'hover:text-amber-300 hover:underline decoration-amber-300 decoration-dashed cursor-pointer px-0.5 rounded transition'
+                );
             }
-            if (zhEl) zhEl.innerText = currentAiSentenceObj.zh;
-            if (tipEl) tipEl.innerHTML = `💡 <b>连读与发音要点：</b>${currentAiSentenceObj.tip}`;
+            if (zhBox) zhBox.innerText = currentAiSentenceObj.zh;
+            if (tipBox) tipBox.innerText = `💡 发音要点：${currentAiSentenceObj.tip}`;
 
-            const bestScores = (cloudData && cloudData.aiScores) || {};
-            const best = bestScores[currentAiSentenceObj.en];
+            const best = cloudData.aiScores && cloudData.aiScores[currentAiSentenceObj.en];
             if (bestEl) {
                 if (best) {
                     bestEl.innerText = `🏆 历史最高：${best} 分`;
@@ -3676,7 +4521,7 @@
 
         async function toggleAiEvaluationRecording() {
             if (isAiEvaluating) {
-                stopAiEvaluationRecording();
+                await stopAiEvaluationRecording();
             } else {
                 await startAiEvaluationRecording();
             }
@@ -3707,10 +4552,20 @@
                 const recTxt = document.getElementById('aiRecognizedTextDisplay');
                 if (recBox && recTxt) {
                     recBox.classList.remove('hidden');
-                    recTxt.innerText = "🎙️ 正在采集你的英语跟读声学波形与音节包络...";
+                    recTxt.innerText = "🎙️ 正在实时听取并识别你的英文发音（请直接读出上方英文句子）...";
                 }
 
-                // 使用 Web Audio 采集原始 PCM 音频流（用于生成 100% 兼容的 WAV 回放文件 + 声学音节切分识别）
+                // 1. 启动实时英语语音识别 (en-US, maxAlternatives=5)，实时展示识别出的真实文本
+                aiLiveAsrState = createLiveEnglishRecognizer((liveText) => {
+                    aiRecognizedTranscript = liveText;
+                    if (recTxt) {
+                        recTxt.innerText = liveText
+                            ? `🎙️ 实时识别到英文："${liveText}"`
+                            : "🎙️ 正在听取你的发音...";
+                    }
+                });
+
+                // 2. 使用 Web Audio 采集原始 PCM 音频流（用于生成 WAV 回放文件 + 四频带共振峰与音节核验）
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 aiAudioContext = new AudioCtx();
                 aiSampleRate = aiAudioContext.sampleRate || 44100;
@@ -3732,7 +4587,7 @@
                 document.getElementById('btnAiRecordMain').className = 'px-5 py-2.5 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-600 text-white text-xs font-bold shadow-lg animate-pulse flex items-center gap-2';
                 document.getElementById('aiRecordBtnIcon').innerText = '⏹';
                 document.getElementById('aiRecordBtnText').innerText = '读完了，点击生成 AI 评分';
-                document.getElementById('aiRecordStatusHint').innerText = '🎙️ 请大声、连贯地朗读上方英文句子，读完点击停止...';
+                document.getElementById('aiRecordStatusHint').innerText = '🎙️ 请大声、清晰地朗读上方英文句子，读完点击停止...';
                 document.getElementById('aiLiveWaveformBox').classList.remove('hidden');
 
                 let lastAboveThreshold = false;
@@ -3766,15 +4621,20 @@
             }
         }
 
-        function stopAiEvaluationRecording() {
+        async function stopAiEvaluationRecording() {
             isAiEvaluating = false;
             if (aiMeterInterval) {
                 clearInterval(aiMeterInterval);
                 aiMeterInterval = null;
             }
-            const durationSec = Math.max(0.8, (Date.now() - aiStartTimeMs) / 1000);
+            const durationSec = Math.max(0.5, (Date.now() - aiStartTimeMs) / 1000);
             const recordedChunksCopy = aiPcmChunks.slice();
             const recordedSampleRate = aiSampleRate;
+            const currentAsrState = aiLiveAsrState;
+
+            // 先平滑停止语音识别器并等待最多 450ms 以获取最终一句的识别文本（绝不直接 abort 导致丢词！）
+            document.getElementById('aiRecordBtnText').innerText = '⏳ 正在核验发音与识别文本...';
+            await stopLiveEnglishRecognizerGracefully(currentAsrState, 450);
 
             cleanupAiRecordingSession();
 
@@ -3782,9 +4642,9 @@
             document.getElementById('aiRecordBtnIcon').innerText = '🎤';
             document.getElementById('aiRecordBtnText').innerText = '再测一次 / 重新跟读';
             document.getElementById('aiLiveWaveformBox').classList.add('hidden');
-            document.getElementById('aiRecordStatusHint').innerText = '✅ 评测完成！向下查看你的 AI 四维得分与逐词诊断：';
+            document.getElementById('aiRecordStatusHint').innerText = '✅ 严格评测完成！向下查看你的识别结果与逐词诊断：';
 
-            // 1. 将录制的 PCM 编码为全平台 100% 兼容的标准 16-bit WAV 音频 DataURL（彻底杜绝对比回放报错！）
+            // 1. 将录制的 PCM 编码为全平台 100% 兼容的标准 16-bit WAV 音频 DataURL
             if (recordedChunksCopy.length > 0) {
                 const wavBlob = encodePcmToWavBlob(recordedChunksCopy, recordedSampleRate);
                 aiRecordedExt = 'wav';
@@ -3801,77 +4661,50 @@
                 reader.readAsDataURL(wavBlob);
             }
 
-            // 2. 运行声学音节切分与辅音清晰度对齐评测
-            computeAndRenderAiScore(durationSec, recordedChunksCopy, recordedSampleRate);
+            // 2. 运行严格版「语音识别文本对齐 + 四频带共振峰/音节核验」评分
+            computeAndRenderAiScore(durationSec, recordedChunksCopy, recordedSampleRate, currentAsrState);
         }
 
-        function normalizeWordForCompare(w) {
-            return (w || '').toLowerCase().replace(/[^a-z0-9']/g, '').replace(/^'+|'+$/g, '');
-        }
-
-        function computeAndRenderAiScore(durationSec, pcmChunks = null, sampleRate = 44100) {
+        function computeAndRenderAiScore(durationSec, pcmChunks = null, sampleRate = 44100, asrState = null) {
             const targetSentence = currentAiSentenceObj.en;
-            const targetTokens = targetSentence.trim().split(/\s+/);
-            const targetWords = targetTokens.map(normalizeWordForCompare).filter(Boolean);
+            const effectiveAsrState = asrState || aiLiveAsrState || (aiRecognizedTranscript ? {
+                asrSupported: true,
+                serviceUnavailable: false,
+                primaryTranscript: aiRecognizedTranscript,
+                candidates: [aiRecognizedTranscript]
+            } : null);
 
-            const hasPcm = pcmChunks && pcmChunks.length > 0;
-            const acoustic = hasPcm
-                ? analyzePcmAcousticAlignment(pcmChunks, sampleRate, targetTokens)
-                : null;
+            const evalRes = evaluateSpeechStrictCombined(targetSentence, pcmChunks || [], sampleRate, effectiveAsrState);
+            const {
+                engineLabel,
+                recognizedText,
+                verdictReason,
+                totalScore,
+                accuracyScore,
+                fluencyScore,
+                prosodyScore,
+                completenessScore,
+                matchedWordCount,
+                totalWordCount,
+                wordDiagnostics
+            } = evalRes;
 
-            const wordDiagnostics = [];
-            let matchedScoreSum = 0;
+            const engTag = document.getElementById('aiEngineModeTag');
+            if (engTag) engTag.innerText = engineLabel;
 
-            if (acoustic) {
-                document.getElementById('aiEngineModeTag').innerText = '🇨🇳 本地声学音节对齐 + 辅音清晰度评测引擎';
-                targetTokens.forEach((rawToken, idx) => {
-                    const cleanTarget = normalizeWordForCompare(rawToken);
-                    const wScore = acoustic.wordScores[idx] || 82;
-                    matchedScoreSum += wScore;
-                    wordDiagnostics.push({
-                        raw: rawToken,
-                        clean: cleanTarget,
-                        score: wScore,
-                        status: wScore >= 82 ? 'good' : (wScore >= 66 ? 'fair' : 'poor')
-                    });
-                });
-
-                const recBox = document.getElementById('aiRecognizedPreviewBox');
-                const recTxt = document.getElementById('aiRecognizedTextDisplay');
-                if (recBox && recTxt) {
-                    recBox.classList.remove('hidden');
-                    if (acoustic.hasVoice) {
-                        const alignedWordsText = wordDiagnostics.map(w => w.status === 'good' ? w.raw : (w.status === 'fair' ? `(${w.raw})` : `[${w.raw}?]`)).join(' ');
-                        recTxt.innerText = `"${alignedWordsText}" （有效发音时长 ${acoustic.activeDurationSec.toFixed(1)}s）`;
-                    } else {
-                        recTxt.innerText = "⚠️ 未检测到明显人声，请靠近手机麦克风大声朗读~";
-                    }
+            const recBox = document.getElementById('aiRecognizedPreviewBox');
+            const recTxt = document.getElementById('aiRecognizedTextDisplay');
+            if (recBox && recTxt) {
+                recBox.classList.remove('hidden');
+                if (recognizedText && totalScore > 0) {
+                    recTxt.innerText = `🎙️ 识别内容："${recognizedText}" （匹配 ${matchedWordCount}/${totalWordCount} 个目标词）`;
+                } else {
+                    recTxt.innerText = `⚠️ ${verdictReason}`;
                 }
-            } else {
-                // 兼容测试脚本或纯能量采样调用
-                const activeSamples = aiEnergySamples.filter(v => v > 12).length;
-                const voiceRatio = activeSamples / Math.max(1, aiEnergySamples.length);
-                targetTokens.forEach((rawToken) => {
-                    const cleanTarget = normalizeWordForCompare(rawToken);
-                    const wScore = voiceRatio > 0.2 ? 92 : 65;
-                    matchedScoreSum += wScore;
-                    wordDiagnostics.push({
-                        raw: rawToken,
-                        clean: cleanTarget,
-                        score: wScore,
-                        status: wScore >= 82 ? 'good' : 'fair'
-                    });
-                });
             }
 
-            const accuracyScore = Math.round(matchedScoreSum / Math.max(1, wordDiagnostics.length));
-            const fluencyScore = acoustic ? acoustic.fluency : Math.min(98, accuracyScore + 2);
-            const completenessScore = acoustic ? acoustic.completeness : Math.min(100, accuracyScore + 4);
-            const prosodyScore = Math.max(56, Math.min(98, Math.round(accuracyScore * 0.48 + fluencyScore * 0.52)));
-            const totalScore = Math.max(48, Math.min(99, Math.round(accuracyScore * 0.4 + fluencyScore * 0.25 + prosodyScore * 0.2 + completenessScore * 0.15)));
-
             if (!cloudData.aiScores) cloudData.aiScores = {};
-            if (!cloudData.aiScores[targetSentence] || totalScore > cloudData.aiScores[targetSentence]) {
+            if (totalScore > 0 && (!cloudData.aiScores[targetSentence] || totalScore > cloudData.aiScores[targetSentence])) {
                 cloudData.aiScores[targetSentence] = totalScore;
                 saveToLocalCache();
                 renderAiTargetCard();
@@ -3879,6 +4712,7 @@
 
             lastAiEvaluationResult = {
                 sentence: targetSentence,
+                recognizedText: recognizedText || verdictReason,
                 totalScore,
                 accuracyScore,
                 fluencyScore,
@@ -3903,22 +4737,22 @@
                 circle.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 text-white flex flex-col items-center justify-center shadow-md';
                 badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700';
                 badge.innerText = '🌟 S级 · 母语级地道表达';
-                summary.innerText = '太惊艳了！发音饱满清晰，连读节奏与母语外教高度吻合！';
+                summary.innerText = `太棒了！全部核心词识别准确（匹配 ${matchedWordCount}/${totalWordCount} 词），发音饱满清晰！`;
             } else if (totalScore >= 80) {
                 circle.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-500 text-white flex flex-col items-center justify-center shadow-md';
                 badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-600';
-                badge.innerText = '🔥 A级 · 自然流利';
-                summary.innerText = '整体表达很自然，外国朋友完全能轻松听懂！注意个别黄/红词的重音。';
-            } else if (totalScore >= 68) {
+                badge.innerText = '🔥 A级 · 准确流利';
+                summary.innerText = `整体表达很清晰（匹配 ${matchedWordCount}/${totalWordCount} 词），注意个别标黄/标红词的发音细节。`;
+            } else if (totalScore >= 60) {
                 circle.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex flex-col items-center justify-center shadow-md';
                 badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700';
-                badge.innerText = '💪 B级 · 达标可懂';
-                summary.innerText = '核心词已发出来，建议点击下方标黄/标红单词听国内词典真人音后再跟读一遍。';
+                badge.innerText = '💪 B级 · 部分漏读或偏音';
+                summary.innerText = `${verdictReason}。请点击下方标红/标黄单词听真人示范后重新朗读。`;
             } else {
-                circle.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-500 to-gray-600 text-white flex flex-col items-center justify-center shadow-md';
-                badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700';
-                badge.innerText = '🌱 C级 · 建议慢速跟练';
-                summary.innerText = '先点上方「🐢 0.78x慢放」听2遍原声示范，再贴着麦克风大声朗读哦！';
+                circle.className = 'w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-600 to-rose-700 text-white flex flex-col items-center justify-center shadow-md';
+                badge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700';
+                badge.innerText = '❌ 未达标 · 朗读内容不符或未读清';
+                summary.innerText = `${verdictReason}。系统已开启严格防乱读核验，请按照上方英文原句认真朗读！`;
             }
 
             const wordBox = document.getElementById('aiWordByWordBox');
@@ -3927,21 +4761,25 @@
                     ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                     : (w.status === 'fair' ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-rose-100 text-rose-700 border-rose-300');
                 const icon = w.status === 'good' ? '🟢' : (w.status === 'fair' ? '🟡' : '🔴');
+                const noteHtml = w.note ? `<span class="text-[9px] opacity-80">(${w.note})</span>` : '';
                 return `
-                    <button onpointerdown="warmWordAudio('${w.clean.replace(/'/g, "\\'")}')" onclick="inspectAndPlayWord('${w.clean.replace(/'/g, "\\'")}')" class="px-2 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 hover:scale-105 transition ${colorCls}" title="点击听「${w.clean}」国内词典真人发音">
+                    <button onpointerdown="warmWordAudio('${w.clean}')" onclick="inspectAndPlayWord('${w.clean}')" class="px-2 py-1 rounded-lg border text-xs font-bold flex items-center gap-1 hover:scale-105 transition ${colorCls}" title="点击听「${w.clean}」国内词典真人发音">
                         <span class="text-[9px]">${icon}</span>
                         <span>${w.raw}</span>
                         <span class="text-[9px] font-mono opacity-75">${w.score}</span>
+                        ${noteHtml}
                     </button>
                 `;
             }).join('');
 
-            const weakWords = wordDiagnostics.filter(w => w.status !== 'good').map(w => w.raw);
+            const weakWords = wordDiagnostics.filter(w => w.status !== 'good').map(w => `${w.raw}(${w.note})`);
             const adviceEl = document.getElementById('aiCoachAdviceBox');
-            if (weakWords.length === 0) {
-                adviceEl.innerHTML = `✨ <b>AI 教练点评：</b>本句所有单词发音均达标！${currentAiSentenceObj.tip} 可以点击下方「▶️ 听我的录音」与「🎙️ 听原声示范」对比细节。`;
+            if (totalScore < 30) {
+                adviceEl.innerHTML = `🚫 <b>严格纠音提示：</b>${verdictReason}。请先点上方「🎙️ 听原声示范」跟读 2 遍，再贴近麦克风清晰读出完整英文句子（乱讲话或说中文会直接得 0 分哦）。`;
+            } else if (weakWords.length === 0) {
+                adviceEl.innerHTML = `✨ <b>AI 教练点评：</b>本句所有单词均已准确识别！${currentAiSentenceObj.tip} 可以点击下方「▶️ 听我的录音」与「🎙️ 听原声示范」对比细节。`;
             } else {
-                adviceEl.innerHTML = `💡 <b>AI 重点纠音建议：</b>建议重点点击上方词卡跟读 <b>${weakWords.join('、')}</b>（点击直接秒播国内词典真人原声）。同时${currentAiSentenceObj.tip}`;
+                adviceEl.innerHTML = `💡 <b>AI 重点纠音建议：</b>需要重点改进的单词：<b>${weakWords.join('、')}</b>（点击上方对应词卡可直接秒播真人词典音）。同时${currentAiSentenceObj.tip}`;
             }
         }
 
