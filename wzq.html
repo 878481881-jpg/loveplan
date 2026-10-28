@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>心动五子棋 🌸</title>
+    <title>心动五子棋 v2.0 🌸 浪漫技能大乱斗</title>
     
     <!-- 引入腾讯云开发 Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Tone.js 用于生成音效 -->
+    <!-- 引入 Tone.js 用于生成多维合成音效 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
@@ -22,9 +22,8 @@
             -webkit-tap-highlight-color: transparent;
         }
         @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-            100% { transform: translateY(0px); }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
         }
         .animate-float { animation: float 3s ease-in-out infinite; }
         @keyframes slideUpFade {
@@ -34,216 +33,2290 @@
             100% { opacity: 0; transform: translate(-50%, -20px); }
         }
         .toast-animate { animation: slideUpFade 3s forwards; }
-        
-        /* 木质棋盘阴影效果 */
+
+        @keyframes shakeBoard {
+            0%, 100% { transform: translate(0, 0); }
+            20% { transform: translate(-4px, 3px); }
+            40% { transform: translate(4px, -3px); }
+            60% { transform: translate(-3px, -2px); }
+            80% { transform: translate(3px, 2px); }
+        }
+        .shake-effect { animation: shakeBoard 0.4s ease-in-out; }
+
+        @keyframes propFly {
+            0% { transform: translateY(40px) scale(0.5) rotate(-15deg); opacity: 0; }
+            30% { transform: translateY(-10px) scale(1.25) rotate(10deg); opacity: 1; }
+            70% { transform: translateY(-25px) scale(1.1) rotate(-5deg); opacity: 1; }
+            100% { transform: translateY(-60px) scale(0.8) rotate(15deg); opacity: 0; }
+        }
+        .prop-fly-anim { animation: propFly 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        /* 棋盘阴影与状态特效 */
         .board-shadow {
             box-shadow: 
-                0 10px 15px -3px rgba(225, 29, 72, 0.1), 
-                0 4px 6px -2px rgba(225, 29, 72, 0.05),
-                inset 0 0 20px rgba(251, 207, 232, 0.5);
+                0 12px 20px -5px rgba(225, 29, 72, 0.14), 
+                0 4px 8px -2px rgba(225, 29, 72, 0.08),
+                inset 0 0 24px rgba(251, 207, 232, 0.45);
         }
-        canvas { touch-action: none; } /* 阻止在画布上滑动屏幕，减少落子延迟 */
-        
+        .urgent-border {
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.75), 0 0 25px rgba(239, 68, 68, 0.6) !important;
+        }
+        canvas { touch-action: none; }
+
         /* 自定义滚动条 */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3 sm:px-6">
+<body class="min-h-screen flex flex-col items-center justify-start py-3 px-3 sm:px-6 relative">
+
+    <!-- 粒子特效画布（樱花/爱心雨） -->
+    <canvas id="particleCanvas" class="fixed inset-0 pointer-events-none z-40 hidden"></canvas>
 
     <!-- 全局加载遮罩 -->
     <div id="globalLoading" class="fixed inset-0 bg-white/90 backdrop-blur-md z-[100] flex flex-col items-center justify-center transition-opacity duration-500">
         <div class="text-6xl animate-bounce mb-4">🌸</div>
         <div class="text-rose-500 font-bold text-lg flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-rose-400 animate-ping"></span>
-            正在连接心动棋室...
+            正在连接心动棋室 v2.0...
         </div>
     </div>
 
-    <header class="w-full max-w-lg flex justify-between items-center mb-6 animate-float px-2">
-        <button onclick="location.reload()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
-        </button>
-        <div class="flex items-center gap-2">
-            <span class="text-3xl">🌸</span>
+    <!-- 顶部导航栏 -->
+    <header class="w-full max-w-lg flex justify-between items-center mb-3 animate-float px-1">
+        <div class="flex items-center gap-1.5">
+            <button onclick="handleBackBtn()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors" title="返回大厅/刷新">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+            </button>
+            <button onclick="toggleMute()" id="muteBtn" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors text-sm" title="音效开关">
+                🔊
+            </button>
+        </div>
+
+        <div class="flex items-center gap-1.5">
+            <span class="text-2xl sm:text-3xl">🌸</span>
             <div>
-                <h1 class="text-xl sm:text-2xl font-bold text-rose-500 flex items-center gap-1">
-                    心动五子棋 💖
-                </h1>
-                <p class="text-[11px] text-rose-400 font-medium text-center">黑白交错的浪漫对决</p>
+                <div class="flex items-center gap-1">
+                    <h1 class="text-lg sm:text-xl font-black text-rose-500">心动五子棋</h1>
+                    <span class="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full font-bold shadow-xs">v2.0</span>
+                </div>
+                <p id="rankTitleDisplay" class="text-[10px] text-rose-400 font-bold text-center">🌱 初心棋童 · 胜率 0%</p>
             </div>
         </div>
-        <!-- 增加了网络状态指示灯 -->
-        <div class="flex flex-col items-end gap-1">
-            <div class="flex items-center gap-1.5 bg-white/90 px-3 py-1.5 rounded-full border border-rose-200 shadow-sm text-xs" title="网络状态">
-                <span id="playerRoleDisplay" class="font-bold text-rose-500 shadow-xs">加载中</span>
-            </div>
-            <span id="networkIndicator" class="text-[9px] text-gray-400 flex items-center gap-1">
+
+        <!-- 玩家身份与网络状态 -->
+        <div class="flex flex-col items-end gap-0.5">
+            <button onclick="changePlayerName()" class="flex items-center gap-1 bg-white/90 px-2.5 py-1 rounded-full border border-rose-200 shadow-sm text-xs hover:bg-rose-50 transition-colors" title="点击修改昵称">
+                <span id="playerRoleDisplay" class="font-bold text-rose-500 max-w-[72px] truncate">加载中</span>
+                <span class="text-[10px] text-rose-300">✎</span>
+            </button>
+            <span id="networkIndicator" class="text-[9px] text-gray-400 flex items-center gap-1 pr-1">
                 <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
             </span>
         </div>
     </header>
 
-    <main class="w-full max-w-lg flex flex-col items-center gap-4 relative">
+    <main class="w-full max-w-lg flex flex-col items-center gap-3 relative pb-8">
         
-        <!-- 房间大厅 UI -->
-        <div id="lobbyUI" class="w-full flex flex-col gap-4 transition-all duration-500">
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-3xl p-6 border border-rose-100 shadow-sm flex flex-col items-center text-center">
-                <div class="w-20 h-20 bg-rose-100 rounded-full flex items-center justify-center text-4xl mb-4 shadow-inner">
-                    🏠
-                </div>
-                <h2 class="text-lg font-black text-rose-600 mb-2">欢迎来到心动棋室</h2>
-                <p class="text-xs text-rose-400 mb-6">创建一个专属房间，或者输入TA的房间号加入对局吧！</p>
-
-                <div class="w-full space-y-3">
-                    <button onclick="createRoom()" class="w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold rounded-2xl shadow hover:opacity-95 active:scale-95 transition-transform flex justify-center items-center gap-2">
-                        <span>✨ 创建专属房间</span>
-                    </button>
-                    
-                    <div class="flex items-center gap-2 text-rose-200 py-2">
-                        <div class="h-px bg-rose-100 flex-1"></div>
-                        <span class="text-xs font-medium">或者</span>
-                        <div class="h-px bg-rose-100 flex-1"></div>
+        <!-- ==================== 房间大厅 UI ==================== -->
+        <div id="lobbyUI" class="w-full flex flex-col gap-3 transition-all duration-500">
+            <div class="w-full bg-white/95 backdrop-blur-md rounded-3xl p-5 border border-rose-100 shadow-sm flex flex-col items-center text-center">
+                
+                <!-- 顶部模式与皮肤预设区 -->
+                <div class="w-full bg-rose-50/70 rounded-2xl p-3.5 border border-rose-100 mb-4 text-left space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black text-rose-600 flex items-center gap-1">⚙️ 开局玩法配置</span>
+                        <span class="text-[10px] text-rose-400">创建房间或单机均生效</span>
                     </div>
 
-                    <div class="flex gap-2">
-                        <input id="roomCodeInput" type="text" maxlength="4" placeholder="输入4位房间号" 
-                               class="flex-1 px-4 py-3 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 text-center tracking-[0.5em] font-bold text-gray-700 placeholder-rose-300 uppercase">
-                        <button onclick="joinRoom()" class="px-6 py-3 bg-white border border-rose-200 text-rose-500 font-bold rounded-2xl shadow-sm hover:bg-rose-50 active:scale-95 transition-transform">
-                            加入
+                    <!-- 玩法模式选择 -->
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="selectLobbyConfig('mode', 'skill')" id="cfg_mode_skill" class="py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 bg-rose-500 text-white border-rose-500 shadow-sm">
+                            <span>⚡ 技能盲盒乱斗</span>
+                        </button>
+                        <button onclick="selectLobbyConfig('mode', 'classic')" id="cfg_mode_classic" class="py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 bg-white text-gray-600 border-rose-200 hover:bg-rose-50">
+                            <span>♟️ 传统竞技五子</span>
                         </button>
                     </div>
 
-                    <!-- 历史战斗按钮暂时隐藏，云开发版待后续单独实现 -->
-                    <!-- <button onclick="showHistory()" class="w-full py-3 mt-2 bg-white text-rose-500 font-bold rounded-2xl shadow-sm border border-rose-200 hover:bg-rose-50 active:scale-95 transition-transform flex justify-center items-center gap-2">
-                        <span>📜 历史战斗记录</span>
-                    </button> -->
+                    <!-- 赛制、限时与三手交换 -->
+                    <div class="grid grid-cols-3 gap-2 text-[11px]">
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">番棋赛制</label>
+                            <select id="cfg_bo" class="w-full bg-white border border-rose-200 rounded-lg px-2 py-1.5 font-bold text-gray-700 focus:outline-none focus:border-rose-400">
+                                <option value="1">BO1 一局定胜负</option>
+                                <option value="3" selected>BO3 三局两胜</option>
+                                <option value="5">BO5 五局三胜</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">步时读秒</label>
+                            <select id="cfg_timer" class="w-full bg-white border border-rose-200 rounded-lg px-2 py-1.5 font-bold text-gray-700 focus:outline-none focus:border-rose-400">
+                                <option value="15">⚡ 15秒快棋</option>
+                                <option value="30" selected>⏱️ 30秒标准</option>
+                                <option value="0">♾️ 不限时间</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 block mb-1">平衡规则</label>
+                            <select id="cfg_swap3" class="w-full bg-white border border-rose-200 rounded-lg px-2 py-1.5 font-bold text-gray-700 focus:outline-none focus:border-rose-400">
+                                <option value="true" selected>🔄 开启三手交换</option>
+                                <option value="false">🔒 关闭三手交换</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 棋盘皮肤选择 -->
+                    <div>
+                        <label class="text-[10px] text-gray-400 block mb-1">🎨 主题棋子皮肤</label>
+                        <div class="grid grid-cols-4 gap-1.5">
+                            <button onclick="selectSkin('classic')" id="skin_btn_classic" class="py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-rose-500 text-white border-rose-500">⚫ 经典</button>
+                            <button onclick="selectSkin('pet')" id="skin_btn_pet" class="py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-white text-gray-600 border-rose-200">🐈‍⬛ 萌宠</button>
+                            <button onclick="selectSkin('dessert')" id="skin_btn_dessert" class="py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-white text-gray-600 border-rose-200">🍓 甜品</button>
+                            <button onclick="selectSkin('starry')" id="skin_btn_starry" class="py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-white text-gray-600 border-rose-200">🌙 星河</button>
+                        </div>
+                    </div>
+
+                    <!-- 赛前心动赌约 -->
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <label class="text-[10px] text-gray-400">💌 本局心动赌约（败者彩头）</label>
+                            <button onclick="spinWagerWheel()" class="text-[10px] text-rose-500 font-bold hover:underline flex items-center gap-0.5">
+                                🎰 随机抽签
+                            </button>
+                        </div>
+                        <div class="flex gap-1.5">
+                            <input id="cfg_wager" type="text" value="🍲 输的人包揽今晚洗碗！" maxlength="28"
+                                   class="flex-1 px-3 py-1.5 bg-white border border-rose-200 rounded-lg text-xs font-bold text-rose-600 focus:outline-none focus:border-rose-400">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 联机与单机入口按钮组 -->
+                <div class="w-full space-y-2.5">
+                    <button onclick="createRoom()" class="w-full py-3 bg-gradient-to-r from-rose-400 via-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-md hover:opacity-95 active:scale-95 transition-transform flex justify-center items-center gap-2 text-sm">
+                        <span>✨ 创建双人联机房间</span>
+                    </button>
+
+                    <div class="flex gap-2">
+                        <input id="roomCodeInput" type="text" maxlength="4" placeholder="输入4位房间号" 
+                               class="flex-1 px-4 py-2.5 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 text-center tracking-[0.4em] font-black text-gray-700 placeholder-rose-300 uppercase text-sm">
+                        <button onclick="joinRoom()" class="px-6 py-2.5 bg-rose-50 border border-rose-300 text-rose-600 font-black rounded-2xl shadow-xs hover:bg-rose-100 active:scale-95 transition-transform text-sm">
+                            加入房间
+                        </button>
+                    </div>
+
+                    <div class="flex items-center gap-2 text-rose-200 py-1">
+                        <div class="h-px bg-rose-100 flex-1"></div>
+                        <span class="text-[10px] font-bold text-rose-300">TA不在？单人也能嗨</span>
+                        <div class="h-px bg-rose-100 flex-1"></div>
+                    </div>
+
+                    <!-- 单机 AI 陪练 & 残局闯关 & 历史战绩 -->
+                    <div class="grid grid-cols-3 gap-2">
+                        <button onclick="openModal('aiModal')" class="py-2.5 px-2 bg-white text-rose-500 font-bold rounded-2xl shadow-xs border border-rose-200 hover:bg-rose-50 active:scale-95 transition-transform flex flex-col items-center gap-0.5 text-xs">
+                            <span class="text-lg">🤖</span>
+                            <span>AI 陪练</span>
+                        </button>
+                        <button onclick="openModal('puzzleModal')" class="py-2.5 px-2 bg-white text-amber-600 font-bold rounded-2xl shadow-xs border border-amber-200 hover:bg-amber-50 active:scale-95 transition-transform flex flex-col items-center gap-0.5 text-xs">
+                            <span class="text-lg">🧩</span>
+                            <span>残局闯关</span>
+                        </button>
+                        <button onclick="showHistory()" class="py-2.5 px-2 bg-white text-pink-600 font-bold rounded-2xl shadow-xs border border-pink-200 hover:bg-pink-50 active:scale-95 transition-transform flex flex-col items-center gap-0.5 text-xs">
+                            <span class="text-lg">📜</span>
+                            <span>战绩复盘</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <!-- 游戏对局 UI -->
-        <div id="gameUI" class="w-full flex flex-col gap-3 hidden opacity-0 transition-opacity duration-500">
-            <!-- 状态看板 -->
-            <div class="w-full bg-white/90 backdrop-blur-md rounded-2xl p-3 border border-rose-100 shadow-sm flex items-center justify-between">
-                <div class="flex flex-col">
-                    <span class="text-[10px] text-gray-400 font-medium">房间号</span>
-                    <span id="roomCodeDisplay" class="text-lg font-black text-rose-500 tracking-wider">0000</span>
-                </div>
+        <!-- ==================== 游戏对局 UI ==================== -->
+        <div id="gameUI" class="w-full flex flex-col gap-2.5 hidden opacity-0 transition-opacity duration-500">
+            
+            <!-- 顶部状态看板：房间/模式 + 读秒状态 + 赌约横幅 -->
+            <div class="w-full bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-rose-100 shadow-sm flex flex-col gap-1.5">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="flex flex-col">
+                            <span class="text-[9px] text-gray-400 font-medium" id="roomLabelTitle">房间号</span>
+                            <span id="roomCodeDisplay" class="text-base font-black text-rose-500 tracking-wider leading-tight">0000</span>
+                        </div>
+                        <span id="modeBadge" class="text-[10px] px-2 py-0.5 bg-rose-100 text-rose-600 rounded-lg font-bold">⚡技能乱斗</span>
+                    </div>
 
-                <div class="flex-1 text-center px-2">
-                    <div id="gameStatusText" class="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-bold inline-block border border-rose-100 animate-pulse">
-                        等待TA加入...
+                    <!-- 中央回合与步时读秒器 -->
+                    <div class="flex items-center gap-1.5">
+                        <div id="gameStatusText" class="px-3 py-1 bg-rose-50 text-rose-600 rounded-full text-xs font-bold inline-block border border-rose-100">
+                            等待TA加入...
+                        </div>
+                        <div id="timerBadge" class="hidden px-2 py-1 bg-gray-800 text-white rounded-full text-xs font-black min-w-[42px] text-center shadow-xs">
+                            30s
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                        <button onclick="cycleSkinInGame()" class="px-2 py-1 bg-rose-50 text-rose-500 font-bold text-[10px] rounded-lg border border-rose-100 hover:bg-rose-100" title="切换棋盘皮肤">
+                            🎨 皮肤
+                        </button>
+                        <button onclick="leaveRoom()" class="px-2.5 py-1 bg-gray-100 text-gray-600 font-bold text-[10px] rounded-lg hover:bg-gray-200 transition-colors">
+                            退出
+                        </button>
                     </div>
                 </div>
 
-                <div class="flex flex-col items-end">
-                    <button onclick="leaveRoom()" class="px-3 py-1.5 bg-gray-100 text-gray-600 font-bold text-[10px] rounded-lg shadow-sm hover:bg-gray-200 transition-colors">
-                        退出房间
-                    </button>
+                <!-- 赌约与番棋比分条 -->
+                <div class="flex items-center justify-between bg-rose-50/60 px-2.5 py-1 rounded-xl border border-rose-100/80 text-[11px]">
+                    <div class="flex items-center gap-1 truncate max-w-[65%]">
+                        <span>💌 赌约:</span>
+                        <span id="activeWagerText" class="font-bold text-rose-600 truncate">输的人包揽今晚洗碗！</span>
+                    </div>
+                    <div id="seriesScoreBadge" class="font-black text-pink-600 whitespace-nowrap">
+                        BO3 · 第1局 (0 : 0)
+                    </div>
                 </div>
             </div>
 
-            <!-- 玩家对阵信息 -->
-            <div class="flex justify-between items-center px-2">
-                <div id="playerBlackInfo" class="flex items-center gap-2 opacity-50 transition-opacity">
-                    <div class="w-8 h-8 rounded-full bg-gray-800 shadow-md border-2 border-white flex items-center justify-center text-xs">⚫</div>
-                    <div class="text-sm font-bold text-gray-700" id="playerBlackName">等待中</div>
+            <!-- 玩家对阵信息 + 能量槽 + 飘屏气泡挂载点 -->
+            <div class="w-full flex justify-between items-center px-2 relative">
+                <!-- 黑方信息 -->
+                <div id="playerBlackInfo" class="flex items-center gap-2 opacity-60 transition-all bg-white/80 px-2.5 py-1.5 rounded-2xl border border-rose-100 shadow-xs relative">
+                    <div id="blackAvatarIcon" class="w-8 h-8 rounded-full bg-gray-800 shadow-md border-2 border-white flex items-center justify-center text-sm">⚫</div>
+                    <div class="flex flex-col">
+                        <div class="text-xs font-black text-gray-800 max-w-[90px] truncate" id="playerBlackName">等待中</div>
+                        <div class="text-[10px] font-bold text-amber-500 flex items-center gap-0.5" id="blackEnergyDisplay">
+                            ⚡ 0/6
+                        </div>
+                    </div>
+                    <!-- 聊天气泡浮层 -->
+                    <div id="blackChatBubble" class="hidden absolute -top-9 left-0 bg-gray-900/90 text-white text-[11px] font-bold px-3 py-1 rounded-2xl rounded-bl-none shadow-lg whitespace-nowrap z-30 animate-bounce"></div>
                 </div>
-                <div class="text-xl font-black text-rose-300 italic">VS</div>
-                <div id="playerWhiteInfo" class="flex items-center gap-2 flex-row-reverse opacity-50 transition-opacity">
-                    <div class="w-8 h-8 rounded-full bg-white shadow-md border-2 border-gray-200 flex items-center justify-center text-xs">⚪</div>
-                    <div class="text-sm font-bold text-gray-700" id="playerWhiteName">等待中</div>
+
+                <div class="flex flex-col items-center">
+                    <div class="text-base font-black text-rose-300 italic leading-none">VS</div>
+                    <span id="stepCounterText" class="text-[9px] text-gray-400 font-bold mt-0.5">第 0 手</span>
+                </div>
+
+                <!-- 白方信息 -->
+                <div id="playerWhiteInfo" class="flex items-center gap-2 flex-row-reverse opacity-60 transition-all bg-white/80 px-2.5 py-1.5 rounded-2xl border border-rose-100 shadow-xs relative">
+                    <div id="whiteAvatarIcon" class="w-8 h-8 rounded-full bg-white shadow-md border-2 border-gray-200 flex items-center justify-center text-sm">⚪</div>
+                    <div class="flex flex-col items-end">
+                        <div class="text-xs font-black text-gray-800 max-w-[90px] truncate" id="playerWhiteName">等待中</div>
+                        <div class="text-[10px] font-bold text-amber-500 flex items-center gap-0.5" id="whiteEnergyDisplay">
+                            ⚡ 0/6
+                        </div>
+                    </div>
+                    <!-- 聊天气泡浮层 -->
+                    <div id="whiteChatBubble" class="hidden absolute -top-9 right-0 bg-rose-500/95 text-white text-[11px] font-bold px-3 py-1 rounded-2xl rounded-br-none shadow-lg whitespace-nowrap z-30 animate-bounce"></div>
                 </div>
             </div>
 
             <!-- 棋盘区域 -->
-            <div class="w-full aspect-square bg-[#fae1d2] rounded-xl relative overflow-hidden border-4 border-[#e6b399] board-shadow">
-                <!-- 棋盘背景网格由 Canvas 绘制 -->
+            <div id="boardContainer" class="w-full aspect-square bg-[#fae1d2] rounded-2xl relative overflow-hidden border-4 border-[#e6b399] board-shadow transition-all duration-300">
                 <canvas id="boardCanvas" class="w-full h-full block cursor-pointer"></canvas>
 
-                <!-- 胜利庆祝遮罩 -->
-                <div id="celebrationOverlay" class="absolute inset-0 bg-white/80 backdrop-blur-sm hidden flex flex-col items-center justify-center animate-fade-in z-20">
-                    <div class="text-6xl animate-bounce">🏆</div>
-                    <div class="text-2xl font-black text-rose-600 mt-4" id="winAnnouncement">黑子胜！</div>
-                    <button onclick="requestRestart()" class="mt-6 px-6 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white font-bold rounded-full shadow-md hover:opacity-95 active:scale-95 transition-transform">
-                        再来一局
+                <!-- 技能瞄准提示条 -->
+                <div id="skillTargetingBanner" class="hidden absolute top-2 left-1/2 -translate-x-1/2 bg-indigo-600/95 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-lg z-20 flex items-center gap-2 whitespace-nowrap">
+                    <span id="skillTargetingText">❄️ 请点击棋盘任意位置释放【冰冻封印】</span>
+                    <button onclick="cancelSkillTargeting()" class="bg-white/20 px-2 py-0.5 rounded-full text-[10px] hover:bg-white/30">取消</button>
+                </div>
+
+                <!-- 互动道具飞行特效层 -->
+                <div id="propEffectLayer" class="absolute inset-0 pointer-events-none flex items-center justify-center z-30 overflow-hidden"></div>
+
+                <!-- 复盘回放控制遮罩条 -->
+                <div id="replayControlBar" class="hidden absolute bottom-3 left-1/2 -translate-x-1/2 bg-gray-900/90 backdrop-blur-md text-white px-4 py-2 rounded-2xl shadow-xl z-30 flex items-center gap-2.5 text-xs">
+                    <span class="text-rose-400 font-bold" id="replayProgressText">复盘 0/0</span>
+                    <button onclick="replayStepTo(0)" class="p-1 hover:text-rose-300" title="开局">⏮</button>
+                    <button onclick="replayStepDelta(-1)" class="p-1 hover:text-rose-300" title="上一步">⏪</button>
+                    <button onclick="toggleReplayAuto()" id="replayPlayBtn" class="px-2 py-0.5 bg-rose-500 rounded-lg font-bold">▶ 播放</button>
+                    <button onclick="replayStepDelta(1)" class="p-1 hover:text-rose-300" title="下一步">⏩</button>
+                    <button onclick="exitReplayMode()" class="ml-1 px-2 py-0.5 bg-gray-700 rounded-lg text-[10px] hover:bg-gray-600">退出复盘</button>
+                </div>
+
+                <!-- 胜利结算与胜负凭证遮罩 -->
+                <div id="celebrationOverlay" class="absolute inset-0 bg-white/90 backdrop-blur-md hidden flex flex-col items-center justify-center p-4 z-30 text-center">
+                    <div class="text-5xl animate-bounce mb-1" id="winTrophyIcon">🏆</div>
+                    <div class="text-xl sm:text-2xl font-black text-rose-600" id="winAnnouncement">黑子胜！</div>
+                    <div class="text-xs font-bold text-gray-500 mt-0.5" id="winSubAnnouncement">五子连珠 · 绝杀定乾坤</div>
+
+                    <!-- 心动胜负凭证卡片 -->
+                    <div class="w-full max-w-xs bg-gradient-to-br from-rose-50 to-pink-50 border-2 border-rose-200 rounded-2xl p-3.5 mt-3 shadow-sm text-left space-y-1.5">
+                        <div class="flex justify-between items-center border-b border-rose-200/60 pb-1">
+                            <span class="text-[11px] font-black text-rose-500">💖 心动胜负凭证卡</span>
+                            <span class="text-[10px] text-gray-400" id="certTimeText">刚刚</span>
+                        </div>
+                        <div class="text-xs text-gray-700">
+                            <span class="text-gray-400">对局双方：</span>
+                            <span class="font-bold" id="certPlayersText">黑方 VS 白方</span>
+                        </div>
+                        <div class="text-xs text-gray-700">
+                            <span class="text-gray-400">番棋比分：</span>
+                            <span class="font-black text-rose-500" id="certScoreText">1 : 0</span>
+                        </div>
+                        <div class="bg-white/90 rounded-xl p-2 border border-rose-100 mt-1">
+                            <div class="text-[10px] text-gray-400">🎁 本局兑现赌约：</div>
+                            <div class="text-xs font-black text-rose-600 mt-0.5" id="certWagerText">🍲 输的人包揽今晚洗碗！</div>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap justify-center gap-2 mt-4">
+                        <button onclick="copyCertificate()" class="px-4 py-2 bg-white border border-rose-300 text-rose-500 text-xs font-bold rounded-full shadow-xs hover:bg-rose-50 active:scale-95 transition-transform">
+                            📋 复制凭证催TA兑现
+                        </button>
+                        <button onclick="startInGameReplay()" class="px-4 py-2 bg-amber-50 border border-amber-300 text-amber-600 text-xs font-bold rounded-full shadow-xs hover:bg-amber-100 active:scale-95 transition-transform">
+                            🎬 慢镜回放
+                        </button>
+                        <button onclick="requestRestart()" id="nextRoundBtn" class="px-5 py-2 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-black rounded-full shadow-md hover:opacity-95 active:scale-95 transition-transform">
+                            再来一局
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ==================== 技能卡牌栏 (技能模式专属) ==================== -->
+            <div id="skillBarSection" class="w-full bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-rose-100 shadow-sm">
+                <div class="flex justify-between items-center mb-1.5 px-1">
+                    <span class="text-[11px] font-black text-rose-600 flex items-center gap-1">
+                        ✨ 心动技能卡 <span class="text-[10px] font-normal text-gray-400">(每落1子 +1⚡，踩中奇遇格有惊喜)</span>
+                    </span>
+                    <span id="myEnergyBadge" class="text-[11px] font-black text-amber-500 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        我的能量: ⚡ 0 / 6
+                    </span>
+                </div>
+                <div class="grid grid-cols-4 gap-1.5">
+                    <button onclick="useSkill('sandstorm')" id="skill_sandstorm" class="flex flex-col items-center p-2 rounded-xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 active:scale-95 transition-all text-center group">
+                        <span class="text-lg">🌪️</span>
+                        <span class="text-[11px] font-black text-gray-700 mt-0.5">飞沙走石</span>
+                        <span class="text-[9px] text-gray-400 leading-tight">吹偏对方末子</span>
+                        <span class="mt-1 text-[10px] font-black text-amber-600 bg-amber-100/80 px-1.5 rounded-full">2 ⚡</span>
+                    </button>
+                    <button onclick="useSkill('freeze')" id="skill_freeze" class="flex flex-col items-center p-2 rounded-xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 active:scale-95 transition-all text-center group">
+                        <span class="text-lg">❄️</span>
+                        <span class="text-[11px] font-black text-gray-700 mt-0.5">冰冻封印</span>
+                        <span class="text-[9px] text-gray-400 leading-tight">封锁3×3区域</span>
+                        <span class="mt-1 text-[10px] font-black text-amber-600 bg-amber-100/80 px-1.5 rounded-full">3 ⚡</span>
+                    </button>
+                    <button onclick="useSkill('mist')" id="skill_mist" class="flex flex-col items-center p-2 rounded-xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 active:scale-95 transition-all text-center group">
+                        <span class="text-lg">🌫️</span>
+                        <span class="text-[11px] font-black text-gray-700 mt-0.5">迷雾暗棋</span>
+                        <span class="text-[9px] text-gray-400 leading-tight">隐身落子1回合</span>
+                        <span class="mt-1 text-[10px] font-black text-amber-600 bg-amber-100/80 px-1.5 rounded-full">3 ⚡</span>
+                    </button>
+                    <button onclick="useSkill('double')" id="skill_double" class="flex flex-col items-center p-2 rounded-xl border border-rose-100 bg-rose-50/40 hover:bg-rose-50 active:scale-95 transition-all text-center group">
+                        <span class="text-lg">💕</span>
+                        <span class="text-[11px] font-black text-gray-700 mt-0.5">双子连心</span>
+                        <span class="text-[9px] text-gray-400 leading-tight">本回合连落2子</span>
+                        <span class="mt-1 text-[10px] font-black text-amber-600 bg-amber-100/80 px-1.5 rounded-full">5 ⚡</span>
                     </button>
                 </div>
             </div>
-            
-            <div class="text-center text-[10px] text-gray-400 mt-1">
-                点击棋盘交叉点落子，率先连成5子获胜
+
+            <!-- ==================== 局内操作与社交互动栏 ==================== -->
+            <div class="w-full bg-white/95 backdrop-blur-md rounded-2xl p-2.5 border border-rose-100 shadow-sm space-y-2">
+                <!-- 悔棋 / 求和 / 投降 / 提示 -->
+                <div class="flex items-center justify-between gap-1.5">
+                    <button onclick="requestUndo()" class="flex-1 py-1.5 px-2 bg-pink-50 hover:bg-pink-100 text-pink-600 border border-pink-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform">
+                        <span>🥺 撒娇悔棋</span>
+                        <span id="undoCountBadge" class="text-[10px] bg-pink-200/70 px-1.5 rounded-full">2</span>
+                    </button>
+                    <button onclick="useAiHint()" class="flex-1 py-1.5 px-2 bg-amber-50 hover:bg-amber-100 text-amber-600 border border-amber-200 rounded-xl text-xs font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform">
+                        <span>💡 军师支招</span>
+                    </button>
+                    <button onclick="requestDraw()" class="py-1.5 px-3 bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 rounded-xl text-xs font-bold active:scale-95 transition-transform">
+                        🤝 求和
+                    </button>
+                    <button onclick="surrenderGame()" class="py-1.5 px-3 bg-gray-50 hover:bg-red-50 text-gray-500 hover:text-red-500 border border-gray-200 rounded-xl text-xs font-bold active:scale-95 transition-transform">
+                        🏳️ 认输
+                    </button>
+                </div>
+
+                <!-- 快捷吐槽弹幕 & 丢互动特效 -->
+                <div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5">
+                    <button onclick="sendQuickInteraction('prop', '🌹', '送你一朵浪漫红玫瑰~')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full text-[11px] font-bold whitespace-nowrap border border-rose-100">🌹 送玫瑰</button>
+                    <button onclick="sendQuickInteraction('prop', '🔨', '吃我一记爱心小锤锤！')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full text-[11px] font-bold whitespace-nowrap border border-rose-100">🔨 敲小锤</button>
+                    <button onclick="sendQuickInteraction('prop', '💋', 'mua~ 亲亲加持！')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-full text-[11px] font-bold whitespace-nowrap border border-rose-100">💋 飞吻</button>
+                    <button onclick="sendQuickInteraction('chat', '🌸', '快点啦，花儿都谢了~')" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full text-[11px] font-medium whitespace-nowrap border border-gray-200">🌸 快点啦</button>
+                    <button onclick="sendQuickInteraction('chat', '😎', '这步棋暗藏杀机！')" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full text-[11px] font-medium whitespace-nowrap border border-gray-200">😎 暗藏杀机</button>
+                    <button onclick="sendQuickInteraction('chat', '😭', '手下留情呀呜呜~')" class="px-2.5 py-1 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-full text-[11px] font-medium whitespace-nowrap border border-gray-200">😭 手下留情</button>
+                </div>
             </div>
         </div>
 
     </main>
 
-    <!-- 弹窗 Toast -->
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-medium hidden z-50 whitespace-nowrap"></div>
+    <!-- ==================== 弹窗组件库 ==================== -->
+
+    <!-- 1. 单机 AI 陪练选择弹窗 -->
+    <div id="aiModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-xl space-y-3 border border-rose-100">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base font-black text-rose-600">🤖 选择 AI 陪练难度</h3>
+                <button onclick="closeModal('aiModal')" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-gray-400">TA 不在线也能随时过瘾！AI 同样支持技能乱斗模式哦~</p>
+            <div class="space-y-2">
+                <button onclick="startAiGame('easy')" class="w-full p-3 rounded-2xl border border-green-200 bg-green-50/50 hover:bg-green-50 text-left flex items-center gap-3 transition-colors">
+                    <span class="text-2xl">🐾</span>
+                    <div>
+                        <div class="text-sm font-black text-green-700">呆萌小猫（轻松让子）</div>
+                        <div class="text-[11px] text-green-600/80">偶尔会犯迷糊，还会冲你撒娇夸奖</div>
+                    </div>
+                </button>
+                <button onclick="startAiGame('medium')" class="w-full p-3 rounded-2xl border border-rose-200 bg-rose-50/50 hover:bg-rose-50 text-left flex items-center gap-3 transition-colors">
+                    <span class="text-2xl">🌸</span>
+                    <div>
+                        <div class="text-sm font-black text-rose-700">心动伴侣（旗鼓相当）</div>
+                        <div class="text-[11px] text-rose-600/80">攻守兼备，懂得拦截活三与冲四</div>
+                    </div>
+                </button>
+                <button onclick="startAiGame('hard')" class="w-full p-3 rounded-2xl border border-purple-200 bg-purple-50/50 hover:bg-purple-50 text-left flex items-center gap-3 transition-colors">
+                    <span class="text-2xl">👑</span>
+                    <div>
+                        <div class="text-sm font-black text-purple-700">冷酷棋圣（大师算路）</div>
+                        <div class="text-[11px] text-purple-600/80">深度评估四三杀招，且会主动释放技能卡！</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. 经典残局闯关弹窗 -->
+    <div id="puzzleModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-xl space-y-3 border border-amber-100">
+            <div class="flex justify-between items-center">
+                <h3 class="text-base font-black text-amber-600">🧩 经典残局闯关</h3>
+                <button onclick="closeModal('puzzleModal')" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <p class="text-xs text-gray-400">执黑先行，破解绝境杀局，成为真正的心动棋圣！</p>
+            <div id="puzzleListContainer" class="space-y-2"></div>
+        </div>
+    </div>
+
+    <!-- 3. 历史战斗记录弹窗 -->
+    <div id="historyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl p-5 shadow-xl flex flex-col max-h-[80vh] border border-rose-100">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-base font-black text-rose-600">📜 历史战斗与复盘</h3>
+                <button onclick="closeModal('historyModal')" class="text-gray-400 hover:text-gray-600 font-bold">✕</button>
+            </div>
+            <div id="historyList" class="flex-1 overflow-y-auto space-y-2.5 pr-1 custom-scrollbar"></div>
+        </div>
+    </div>
+
+    <!-- 4. 双端实时请求审批弹窗（悔棋 / 求和 / 三手交换） -->
+    <div id="approvalModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-3 border-2 border-rose-200 animate-bounce-once">
+            <div class="text-4xl" id="approvalIcon">🥺</div>
+            <h4 class="text-base font-black text-rose-600" id="approvalTitle">来自 TA 的撒娇悔棋</h4>
+            <p class="text-xs text-gray-600 bg-rose-50 p-3 rounded-2xl border border-rose-100 font-medium" id="approvalDesc">
+                “人家手滑点错啦，让一步嘛~”
+            </p>
+            <div class="flex gap-2 pt-1">
+                <button onclick="respondPendingRequest(false)" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold hover:bg-gray-200">
+                    😈 休想！拒绝
+                </button>
+                <button onclick="respondPendingRequest(true)" class="flex-1 py-2.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-xl text-xs font-black shadow-md hover:opacity-95">
+                    💖 宠TA！准许
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 全局轻提示 Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-900/90 backdrop-blur text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-bold hidden z-[90] whitespace-nowrap"></div>
 
     <script type="module">
         // ==========================================
-        // 配置与初始化 (腾讯云开发 CloudBase)
+        // 1. 配置与初始化 (腾讯云开发 CloudBase)
         // ==========================================
-        const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; // 替换为你的云开发环境ID
+        const ENV_ID = "lovegame-d0g3xo4h8d1addad2";
         const REGION = "ap-shanghai"; 
         const ROOM_COLLECTION = "wzqRooms";
 
-        const fallbackTimer = setTimeout(() => hideGlobalLoading(), 800);
+        setTimeout(() => hideGlobalLoading(), 800);
 
         let app, auth, db, _;
         let currentUser = null;
         let hasCloudBase = false;
 
         try {
-            app = cloudbase.init({ env: ENV_ID, region: REGION });
-            auth = app.auth;
-            db = app.database();
-            _ = db.command;
-            hasCloudBase = true;
+            if (typeof cloudbase !== 'undefined') {
+                app = cloudbase.init({ env: ENV_ID, region: REGION });
+                auth = app.auth;
+                db = app.database();
+                _ = db.command;
+                hasCloudBase = true;
+            }
         } catch(e) {
-            console.error("CloudBase init failed", e);
+            console.warn("CloudBase init skipped or failed:", e);
         }
 
         // ==========================================
-        // 身份验证逻辑
+        // 2. 玩家身份、段位与全局配置
         // ==========================================
-        let myIdentity = "玩家" + Math.floor(Math.random() * 1000); 
+        let myName = "玩家" + Math.floor(Math.random() * 900 + 100);
         try {
-            const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
-            if (savedIdentity) myIdentity = savedIdentity;
-        } catch(e) {
-            console.warn('当前环境禁止访问 localStorage, 使用随机名字');
-        }
-        
-        let myName = myIdentity; 
+            const saved = localStorage.getItem('loveGacha_myIdentity');
+            if (saved) myName = saved;
+        } catch(e) {}
         document.getElementById('playerRoleDisplay').innerText = myName;
+
+        const WAGER_PRESETS = [
+            "🍲 输的人包揽今晚洗碗！",
+            "🧧 发一个 5.20 元专属红包",
+            "🎤 录一段30秒彩虹屁夸夸语音",
+            "🧋 请赢家喝一杯全糖奶茶",
+            "💆 给赢家捏肩按摩10分钟",
+            "💌 无条件答应一个合理小要求",
+            "🍎 去洗一盘水果喂到嘴边"
+        ];
+
+        const SKIN_THEMES = {
+            classic: {
+                name: '经典黑白',
+                boardBg: '#fae1d2',
+                boardBorder: '#e6b399',
+                gridColor: '#c48f73',
+                blackIcon: '⚫',
+                whiteIcon: '⚪'
+            },
+            pet: {
+                name: '萌宠对决',
+                boardBg: '#fef3c7',
+                boardBorder: '#f59e0b',
+                gridColor: '#d97706',
+                blackIcon: '🐈‍⬛',
+                whiteIcon: '🐇'
+            },
+            dessert: {
+                name: '甜品茶会',
+                boardBg: '#fce7f3',
+                boardBorder: '#f472b6',
+                gridColor: '#db2777',
+                blackIcon: '🍓',
+                whiteIcon: '🍵'
+            },
+            starry: {
+                name: '星河夜光',
+                boardBg: '#1e1b4b',
+                boardBorder: '#6366f1',
+                gridColor: '#4f46e5',
+                blackIcon: '🌑',
+                whiteIcon: '🌕'
+            }
+        };
+
+        const PUZZLES = [
+            {
+                id: 1,
+                title: "第一关：双三绝杀",
+                desc: "黑棋先行，一步同时构造两个活三，让白棋防不胜防！",
+                board: [
+                    {x: 7, y: 7, color: 'black'}, {x: 6, y: 6, color: 'white'},
+                    {x: 7, y: 8, color: 'black'}, {x: 8, y: 6, color: 'white'},
+                    {x: 8, y: 9, color: 'black'}, {x: 7, y: 6, color: 'white'},
+                    {x: 9, y: 9, color: 'black'}, {x: 10, y: 9, color: 'white'}
+                ]
+            },
+            {
+                id: 2,
+                title: "第二关：冲四活三连环",
+                desc: "黑棋先行，先冲四逼迫白棋应手，再一举形成四三杀局！",
+                board: [
+                    {x: 7, y: 7, color: 'black'}, {x: 6, y: 7, color: 'white'},
+                    {x: 8, y: 7, color: 'black'}, {x: 6, y: 8, color: 'white'},
+                    {x: 9, y: 7, color: 'black'}, {x: 5, y: 9, color: 'white'},
+                    {x: 8, y: 8, color: 'black'}, {x: 5, y: 7, color: 'white'},
+                    {x: 8, y: 9, color: 'black'}, {x: 8, y: 6, color: 'white'}
+                ]
+            },
+            {
+                id: 3,
+                title: "第三关：绝境反击",
+                desc: "白棋已有三子连线威胁，黑棋如何化守为攻一击必杀？",
+                board: [
+                    {x: 7, y: 7, color: 'black'}, {x: 6, y: 5, color: 'white'},
+                    {x: 6, y: 6, color: 'black'}, {x: 7, y: 5, color: 'white'},
+                    {x: 5, y: 7, color: 'black'}, {x: 8, y: 5, color: 'white'},
+                    {x: 8, y: 8, color: 'black'}, {x: 9, y: 9, color: 'white'},
+                    {x: 6, y: 8, color: 'black'}, {x: 5, y: 5, color: 'white'}
+                ]
+            }
+        ];
+
+        let lobbyConfig = {
+            mode: 'skill',
+            bo: 3,
+            timer: 30,
+            swap3: true,
+            skin: 'classic',
+            wager: WAGER_PRESETS[0]
+        };
 
         let currentRoomCode = null;
         let unsubscribe = null; 
         let myColor = null; 
         let pingInterval = null;
+        let turnTimerInterval = null;
+        let isSinglePlayer = false;
+        let aiDifficulty = 'medium';
+        let currentPuzzleId = null;
 
-        let gameState = {
-            status: 'waiting', 
-            turn: 'black',
-            players: { black: null, white: null },
-            board: [], 
-            winner: null
-        };
-        
+        // 技能瞄准与本地辅助状态
+        let activeSkillTargetMode = null; // 'freeze' | 'mist'
+        let pendingMistMove = false;
+        let aiHintCoord = null;
+        let winningLineCoords = null;
         let lastBoardLength = 0;
+        let lastChatTimestamp = 0;
+        let lastHandledRequestId = null;
+        let localMatchStatus = 'waiting';
         let currentThreats = new Set();
-        let localMatchStatus = 'waiting'; 
 
-        // 工具函数：获取文档引用
+        // 复盘状态
+        let isReplayMode = false;
+        let replayFullBoard = [];
+        let replayIndex = 0;
+        let replayTimer = null;
+
+        // 核心房间同步状态结构 (完全兼容 CloudBase 文档更新)
+        function createDefaultGameState() {
+            return {
+                status: 'waiting', // 'waiting' | 'playing' | 'won' | 'draw'
+                mode: lobbyConfig.mode,
+                skin: lobbyConfig.skin,
+                wager: lobbyConfig.wager,
+                bo: lobbyConfig.bo,
+                round: 1,
+                seriesScore: { black: 0, white: 0 },
+                stepTimeLimit: lobbyConfig.timer,
+                turnDeadline: 0,
+                swap3Rule: lobbyConfig.swap3,
+                swap3Offered: false,
+                turn: 'black',
+                extraMoves: 0,
+                players: { black: null, white: null },
+                energy: { black: 1, white: 1 },
+                undoLeft: { black: 2, white: 2 },
+                board: [],
+                mysteryBoxes: [], // [{x, y, type: 'gift'|'energy'|'bomb'}]
+                frozenZones: [],  // [{x, y, expiresAtStep}]
+                pendingRequest: null, // { id, type: 'undo'|'draw'|'swap3', fromColor, fromName, text, status: 'pending'|'accepted'|'rejected' }
+                chatEvent: null,  // { id, kind: 'chat'|'prop', icon, text, fromColor }
+                winner: null,
+                winReason: ''
+            };
+        }
+
+        let gameState = createDefaultGameState();
+
+        // 更新段位头衔展示
+        function refreshRankTitle() {
+            try {
+                const records = JSON.parse(localStorage.getItem('wzq_history_v2') || '[]');
+                const total = records.length;
+                const wins = records.filter(r => r.result === 'win').length;
+                const rate = total > 0 ? Math.round((wins / total) * 100) : 0;
+                let title = "🌱 初心棋童";
+                if (wins >= 20) title = "👑 浪漫棋圣";
+                else if (wins >= 10) title = "🔥 恋爱棋王";
+                else if (wins >= 3) title = "🌸 心动棋手";
+                document.getElementById('rankTitleDisplay').innerText = `${title} · ${wins}胜/${total}局 (${rate}%)`;
+            } catch(e) {}
+        }
+        refreshRankTitle();
+
+        window.changePlayerName = function() {
+            const input = prompt("请输入你的专属心动昵称：", myName);
+            if (input && input.trim()) {
+                myName = input.trim().slice(0, 12);
+                document.getElementById('playerRoleDisplay').innerText = myName;
+                try { localStorage.setItem('loveGacha_myIdentity', myName); } catch(e) {}
+                showToast(`昵称已更新为：${myName}`);
+            }
+        };
+
+        // ==========================================
+        // 3. 多维合成音效引擎 (Tone.js)
+        // ==========================================
+        let audioInitialized = false;
+        let isMuted = false;
+        let dropSynth, polySynth, tickSynth, noiseSynth;
+
+        async function initAudio() {
+            if (audioInitialized) return;
+            try {
+                await Tone.start();
+                dropSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.02, octaves: 3, oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.14, sustain: 0, release: 0.08 }
+                }).toDestination();
+                dropSynth.volume.value = -5;
+
+                polySynth = new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
+                }).toDestination();
+                polySynth.volume.value = -8;
+
+                tickSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.01, octaves: 2,
+                    envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.03 }
+                }).toDestination();
+                tickSynth.volume.value = -10;
+
+                audioInitialized = true;
+            } catch (e) {
+                console.warn("音效初始化失败:", e);
+            }
+        }
+
+        window.addEventListener('click', initAudio, { once: true });
+        window.addEventListener('touchstart', initAudio, { once: true });
+
+        window.toggleMute = function() {
+            isMuted = !isMuted;
+            document.getElementById('muteBtn').innerText = isMuted ? '🔇' : '🔊';
+            showToast(isMuted ? "已静音" : "音效已开启");
+        };
+
+        function playSound(type) {
+            if (isMuted || !audioInitialized) return;
+            try {
+                if (Tone.context.state !== 'running') Tone.context.resume();
+                const now = Tone.now();
+                if (type === 'drop') {
+                    dropSynth.triggerAttackRelease("E2", "16n", now);
+                } else if (type === 'tick') {
+                    tickSynth.triggerAttackRelease("C2", "32n", now);
+                } else if (type === 'threat') {
+                    polySynth.triggerAttackRelease(["E4", "B4"], "16n", now);
+                } else if (type === 'skill') {
+                    polySynth.triggerAttackRelease("C5", "16n", now);
+                    polySynth.triggerAttackRelease("E5", "16n", now + 0.07);
+                    polySynth.triggerAttackRelease("G5", "8n", now + 0.14);
+                } else if (type === 'box') {
+                    polySynth.triggerAttackRelease(["G4", "D5"], "16n", now);
+                } else if (type === 'win') {
+                    polySynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
+                    polySynth.triggerAttackRelease(["E4", "G4", "C5"], "4n", now + 0.18);
+                } else if (type === 'prop') {
+                    polySynth.triggerAttackRelease(["A4", "E5"], "16n", now);
+                }
+            } catch(e) {}
+        }
+
+        // ==========================================
+        // 4. 大厅配置交互与赌约轮盘
+        // ==========================================
+        window.selectLobbyConfig = function(key, val) {
+            lobbyConfig[key] = val;
+            if (key === 'mode') {
+                const isSkill = val === 'skill';
+                document.getElementById('cfg_mode_skill').className = `py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${isSkill ? 'bg-rose-500 text-white border-rose-500 shadow-sm' : 'bg-white text-gray-600 border-rose-200 hover:bg-rose-50'}`;
+                document.getElementById('cfg_mode_classic').className = `py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${!isSkill ? 'bg-rose-500 text-white border-rose-500 shadow-sm' : 'bg-white text-gray-600 border-rose-200 hover:bg-rose-50'}`;
+            }
+        };
+
+        window.selectSkin = function(skinKey) {
+            lobbyConfig.skin = skinKey;
+            ['classic', 'pet', 'dessert', 'starry'].forEach(k => {
+                const btn = document.getElementById(`skin_btn_${k}`);
+                if (btn) {
+                    btn.className = k === skinKey
+                        ? "py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-rose-500 text-white border-rose-500 shadow-xs"
+                        : "py-1.5 px-1 rounded-lg text-[11px] font-bold border bg-white text-gray-600 border-rose-200";
+                }
+            });
+            applySkinVisuals(skinKey);
+        };
+
+        window.cycleSkinInGame = function() {
+            const keys = Object.keys(SKIN_THEMES);
+            const cur = gameState.skin || 'classic';
+            const next = keys[(keys.indexOf(cur) + 1) % keys.length];
+            gameState.skin = next;
+            applySkinVisuals(next);
+            showToast(`已切换棋盘主题：${SKIN_THEMES[next].name}`);
+            syncRoomPatch({ skin: next });
+        };
+
+        function applySkinVisuals(skinKey) {
+            const theme = SKIN_THEMES[skinKey] || SKIN_THEMES.classic;
+            const container = document.getElementById('boardContainer');
+            if (container) {
+                container.style.backgroundColor = theme.boardBg;
+                container.style.borderColor = theme.boardBorder;
+            }
+            const bIcon = document.getElementById('blackAvatarIcon');
+            const wIcon = document.getElementById('whiteAvatarIcon');
+            if (bIcon) bIcon.innerText = theme.blackIcon;
+            if (wIcon) wIcon.innerText = theme.whiteIcon;
+            drawBoard();
+        }
+
+        window.spinWagerWheel = function() {
+            initAudio();
+            const input = document.getElementById('cfg_wager');
+            let count = 0;
+            const timer = setInterval(() => {
+                input.value = WAGER_PRESETS[count % WAGER_PRESETS.length];
+                playSound('tick');
+                count++;
+                if (count > 10) {
+                    clearInterval(timer);
+                    const picked = WAGER_PRESETS[Math.floor(Math.random() * WAGER_PRESETS.length)];
+                    input.value = picked;
+                    lobbyConfig.wager = picked;
+                    playSound('box');
+                    showToast(`🎰 抽中心动赌约：${picked}`);
+                }
+            }, 70);
+        };
+
+        function readLobbyForm() {
+            lobbyConfig.bo = parseInt(document.getElementById('cfg_bo').value, 10) || 3;
+            lobbyConfig.timer = parseInt(document.getElementById('cfg_timer').value, 10) || 0;
+            lobbyConfig.swap3 = document.getElementById('cfg_swap3').value === 'true';
+            lobbyConfig.wager = document.getElementById('cfg_wager').value.trim() || WAGER_PRESETS[0];
+        }
+
+        // ==========================================
+        // 5. 棋盘 Canvas 渲染引擎 (支持皮肤/盲盒/冰冻/迷雾/流光连珠)
+        // ==========================================
+        const canvas = document.getElementById('boardCanvas');
+        const ctx = canvas.getContext('2d');
+        const GRID_SIZE = 15;
+        let cellSize = 0;
+        let margin = 0;
+
+        function resizeCanvas() {
+            if (!canvas.parentElement) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            if (rect.width === 0) return;
+            canvas.width = rect.width * 2;
+            canvas.height = rect.height * 2;
+            ctx.setTransform(2, 0, 0, 2, 0, 0);
+            cellSize = rect.width / GRID_SIZE;
+            margin = cellSize / 2;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function animateLoop() {
+            if (!document.getElementById('gameUI').classList.contains('hidden')) {
+                drawBoard();
+            }
+            updateParticles();
+            requestAnimationFrame(animateLoop);
+        }
+
+        function drawBoard() {
+            if (!canvas.parentElement || cellSize === 0) return;
+            const w = canvas.parentElement.getBoundingClientRect().width;
+            const skinKey = gameState.skin || 'classic';
+            const theme = SKIN_THEMES[skinKey] || SKIN_THEMES.classic;
+
+            ctx.clearRect(0, 0, w, w);
+
+            // 1. 绘制网格线
+            ctx.beginPath();
+            ctx.strokeStyle = theme.gridColor;
+            ctx.lineWidth = 1;
+            for (let i = 0; i < GRID_SIZE; i++) {
+                ctx.moveTo(margin, margin + i * cellSize);
+                ctx.lineTo(w - margin, margin + i * cellSize);
+                ctx.moveTo(margin + i * cellSize, margin);
+                ctx.lineTo(margin + i * cellSize, w - margin);
+            }
+            ctx.stroke();
+
+            // 2. 绘制星位点
+            const starPoints = [{x:3,y:3}, {x:11,y:3}, {x:7,y:7}, {x:3,y:11}, {x:11,y:11}];
+            ctx.fillStyle = theme.gridColor;
+            starPoints.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(margin + p.x * cellSize, margin + p.y * cellSize, 3, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            const stepNow = gameState.board ? gameState.board.length : 0;
+
+            // 3. 绘制冰冻封印区域 (3x3)
+            if (gameState.frozenZones && gameState.frozenZones.length > 0) {
+                gameState.frozenZones.forEach(fz => {
+                    if (fz.expiresAtStep > stepNow) {
+                        const left = margin + Math.max(0, fz.x - 1) * cellSize - cellSize * 0.42;
+                        const top = margin + Math.max(0, fz.y - 1) * cellSize - cellSize * 0.42;
+                        const right = margin + Math.min(GRID_SIZE - 1, fz.x + 1) * cellSize + cellSize * 0.42;
+                        const bottom = margin + Math.min(GRID_SIZE - 1, fz.y + 1) * cellSize + cellSize * 0.42;
+                        ctx.save();
+                        ctx.fillStyle = 'rgba(56, 189, 248, 0.25)';
+                        ctx.strokeStyle = 'rgba(14, 165, 233, 0.8)';
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.roundRect(left, top, right - left, bottom - top, 8);
+                        ctx.fill();
+                        ctx.stroke();
+                        ctx.font = `${Math.max(12, cellSize * 0.55)}px sans-serif`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('❄️', margin + fz.x * cellSize, margin + fz.y * cellSize);
+                        ctx.restore();
+                    }
+                });
+            }
+
+            // 4. 绘制棋盘奇遇盲盒格
+            if (gameState.mysteryBoxes && gameState.mysteryBoxes.length > 0 && !isReplayMode) {
+                const bounceOffset = Math.sin(Date.now() / 220) * 2;
+                gameState.mysteryBoxes.forEach(box => {
+                    const px = margin + box.x * cellSize;
+                    const py = margin + box.y * cellSize + bounceOffset;
+                    ctx.save();
+                    ctx.font = `${Math.max(13, cellSize * 0.62)}px sans-serif`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    const icon = box.type === 'gift' ? '🎁' : (box.type === 'energy' ? '⚡' : '💣');
+                    ctx.fillText(icon, px, py);
+                    ctx.restore();
+                });
+            }
+
+            // 5. 绘制 AI 军师提示点
+            if (aiHintCoord && gameState.status === 'playing') {
+                const hx = margin + aiHintCoord.x * cellSize;
+                const hy = margin + aiHintCoord.y * cellSize;
+                const alpha = 0.4 + (Math.sin(Date.now() / 150) + 1) * 0.3;
+                ctx.save();
+                ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([4, 3]);
+                ctx.beginPath();
+                ctx.arc(hx, hy, cellSize * 0.45, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // 6. 绘制棋子（支持复盘切片 & 迷雾暗棋）
+            const boardToDraw = isReplayMode ? replayFullBoard.slice(0, replayIndex) : (gameState.board || []);
+            boardToDraw.forEach((move, index) => {
+                const isLast = index === boardToDraw.length - 1;
+                const isThreat = !isReplayMode && currentThreats.has(`${move.x},${move.y}`);
+                const isHiddenForMe = !isReplayMode && move.hiddenUntilStep && move.hiddenUntilStep > stepNow && move.color !== myColor;
+
+                if (isHiddenForMe) {
+                    // 对手视角只显示迷雾区
+                    drawFogZone(move.fogCenterX ?? move.x, move.fogCenterY ?? move.y);
+                } else {
+                    drawPiece(move.x, move.y, move.color, isLast, isThreat, skinKey, move.hiddenUntilStep > stepNow);
+                }
+            });
+
+            // 7. 绘制五子连珠金色流光连线
+            if (winningLineCoords && winningLineCoords.length >= 2 && (gameState.status === 'won' || isReplayMode)) {
+                const first = winningLineCoords[0];
+                const last = winningLineCoords[winningLineCoords.length - 1];
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(margin + first.x * cellSize, margin + first.y * cellSize);
+                ctx.lineTo(margin + last.x * cellSize, margin + last.y * cellSize);
+                ctx.strokeStyle = '#fbbf24';
+                ctx.lineWidth = 5;
+                ctx.lineCap = 'round';
+                ctx.shadowColor = '#f59e0b';
+                ctx.shadowBlur = 12;
+                ctx.stroke();
+                ctx.restore();
+            }
+        }
+
+        function drawFogZone(cx, cy) {
+            const left = margin + Math.max(0, cx - 1) * cellSize - cellSize * 0.4;
+            const top = margin + Math.max(0, cy - 1) * cellSize - cellSize * 0.4;
+            const right = margin + Math.min(GRID_SIZE - 1, cx + 1) * cellSize + cellSize * 0.4;
+            const bottom = margin + Math.min(GRID_SIZE - 1, cy + 1) * cellSize + cellSize * 0.4;
+            ctx.save();
+            ctx.fillStyle = 'rgba(147, 51, 234, 0.28)';
+            ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.roundRect(left, top, right - left, bottom - top, 10);
+            ctx.fill();
+            ctx.stroke();
+            ctx.font = `bold ${Math.max(12, cellSize * 0.5)}px sans-serif`;
+            ctx.fillStyle = '#7e22ce';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🌫️迷雾暗棋', margin + cx * cellSize, margin + cy * cellSize);
+            ctx.restore();
+        }
+
+        function drawPiece(x, y, color, isLast, isThreat, skinKey, isStealthSelf) {
+            const px = margin + x * cellSize;
+            const py = margin + y * cellSize;
+            const radius = cellSize * 0.43;
+
+            ctx.save();
+            if (isStealthSelf) ctx.globalAlpha = 0.72;
+
+            ctx.beginPath();
+            ctx.arc(px, py, radius, 0, Math.PI * 2);
+
+            if (skinKey === 'starry') {
+                const grad = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
+                if (color === 'black') {
+                    grad.addColorStop(0, '#6366f1');
+                    grad.addColorStop(1, '#1e1b4b');
+                } else {
+                    grad.addColorStop(0, '#fef08a');
+                    grad.addColorStop(1, '#f59e0b');
+                }
+                ctx.fillStyle = grad;
+                ctx.shadowColor = color === 'black' ? '#818cf8' : '#fde047';
+                ctx.shadowBlur = 8;
+                ctx.fill();
+            } else {
+                if (color === 'black') {
+                    const grad = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
+                    grad.addColorStop(0, '#555');
+                    grad.addColorStop(1, '#18181b');
+                    ctx.fillStyle = grad;
+                } else {
+                    const grad = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(1, '#e4e4e7');
+                    ctx.fillStyle = grad;
+                    ctx.lineWidth = 0.8;
+                    ctx.strokeStyle = '#d4d4d8';
+                    ctx.stroke();
+                }
+                ctx.shadowColor = 'rgba(0,0,0,0.28)';
+                ctx.shadowBlur = 4;
+                ctx.shadowOffsetX = 1.5;
+                ctx.shadowOffsetY = 1.5;
+                ctx.fill();
+            }
+            ctx.shadowColor = 'transparent';
+
+            // 皮肤图标绘制
+            if (skinKey === 'pet' || skinKey === 'dessert') {
+                const theme = SKIN_THEMES[skinKey];
+                ctx.font = `${Math.max(10, radius * 1.15)}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(color === 'black' ? theme.blackIcon : theme.whiteIcon, px, py + 0.5);
+            }
+
+            // 活三/冲四威胁红圈脉冲
+            if (isThreat && gameState.status === 'playing') {
+                const pulseAlpha = 0.25 + (Math.sin(Date.now() / 180) + 1) / 2 * 0.55;
+                ctx.beginPath();
+                ctx.arc(px, py, radius * 1.28, 0, Math.PI * 2);
+                ctx.strokeStyle = `rgba(244, 63, 94, ${pulseAlpha})`;
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+            }
+
+            // 最新一手标记点
+            if (isLast) {
+                ctx.beginPath();
+                ctx.arc(px, py, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#e11d48';
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        // ==========================================
+        // 6. 威胁检测与胜负判定 (返回五子连珠坐标)
+        // ==========================================
+        function findWinningLine(move, currentBoard) {
+            if (!move || !currentBoard) return null;
+            const dirs = [ [[1, 0], [-1, 0]], [[0, 1], [0, -1]], [[1, 1], [-1, -1]], [[1, -1], [-1, 1]] ];
+            const hasPiece = (x, y) => currentBoard.some(m => m.x === x && m.y === y && m.color === move.color);
+
+            for (const dirPair of dirs) {
+                let line = [{x: move.x, y: move.y}];
+                for (const dir of dirPair) {
+                    let step = 1;
+                    while (true) {
+                        const nx = move.x + dir[0] * step;
+                        const ny = move.y + dir[1] * step;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && hasPiece(nx, ny)) {
+                            line.push({x: nx, y: ny});
+                            step++;
+                        } else { break; }
+                    }
+                }
+                if (line.length >= 5) {
+                    line.sort((a, b) => (a.x !== b.x ? a.x - b.x : a.y - b.y));
+                    return line;
+                }
+            }
+            return null;
+        }
+
+        function calculateThreats(board) {
+            const threatSet = new Set();
+            if (!board || board.length === 0) return threatSet;
+            const getColor = (x, y) => {
+                const p = board.find(m => m.x === x && m.y === y);
+                return p ? p.color : null;
+            };
+            const dirs = [ [1, 0], [0, 1], [1, 1], [1, -1] ];
+
+            board.forEach(piece => {
+                dirs.forEach(dir => {
+                    let count = 1;
+                    let line = [{x: piece.x, y: piece.y}];
+                    let stepF = 1;
+                    while (true) {
+                        const nx = piece.x + dir[0] * stepF;
+                        const ny = piece.y + dir[1] * stepF;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
+                            count++; line.push({x: nx, y: ny}); stepF++;
+                        } else { break; }
+                    }
+                    let fEmpty = 0, checkF = stepF;
+                    while (checkF < stepF + 5) {
+                        const nx = piece.x + dir[0] * checkF, ny = piece.y + dir[1] * checkF;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
+                            fEmpty++; checkF++;
+                        } else { break; }
+                    }
+                    let stepB = 1;
+                    while (true) {
+                        const nx = piece.x - dir[0] * stepB, ny = piece.y - dir[1] * stepB;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
+                            count++; line.push({x: nx, y: ny}); stepB++;
+                        } else { break; }
+                    }
+                    let bEmpty = 0, checkB = stepB;
+                    while (checkB < stepB + 5) {
+                        const nx = piece.x - dir[0] * checkB, ny = piece.y - dir[1] * checkB;
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
+                            bEmpty++; checkB++;
+                        } else { break; }
+                    }
+                    if ((count === 4 && (fEmpty > 0 || bEmpty > 0)) || (count === 3 && fEmpty > 0 && bEmpty > 0 && (count + fEmpty + bEmpty >= 5))) {
+                        line.forEach(p => threatSet.add(`${p.x},${p.y}`));
+                    }
+                });
+            });
+            return threatSet;
+        }
+
+        // ==========================================
+        // 7. 奇遇盲盒生成与踩中效果
+        // ==========================================
+        function generateMysteryBoxes(board, count = 3) {
+            const boxes = [];
+            const types = ['gift', 'energy', 'bomb'];
+            let tries = 0;
+            while (boxes.length < count && tries < 60) {
+                tries++;
+                const rx = Math.floor(Math.random() * 11) + 2;
+                const ry = Math.floor(Math.random() * 11) + 2;
+                if (rx === 7 && ry === 7) continue;
+                const occupied = board.some(m => m.x === rx && m.y === ry) || boxes.some(b => b.x === rx && b.y === ry);
+                if (!occupied) {
+                    boxes.push({ x: rx, y: ry, type: types[boxes.length % types.length] });
+                }
+            }
+            return boxes;
+        }
+
+        function triggerMysteryBox(box, moverColor, board, energyObj) {
+            playSound('box');
+            if (box.type === 'energy') {
+                energyObj[moverColor] = Math.min(6, (energyObj[moverColor] || 0) + 2);
+                showToast("⚡ 踩中能量泉！心动能量 +2！");
+            } else if (box.type === 'gift') {
+                energyObj[moverColor] = Math.min(6, (energyObj[moverColor] || 0) + 2);
+                showToast("🎁 开启神秘礼盒！获得 +2⚡ 心动能量！");
+            } else if (box.type === 'bomb') {
+                // 小炸弹：震屏 + 把周围1格内随机一枚对方棋子震退1格
+                const container = document.getElementById('boardContainer');
+                container.classList.add('shake-effect');
+                setTimeout(() => container.classList.remove('shake-effect'), 500);
+                const oppColor = moverColor === 'black' ? 'white' : 'black';
+                const nearbyOpp = board.filter(m => m.color === oppColor && Math.abs(m.x - box.x) <= 2 && Math.abs(m.y - box.y) <= 2);
+                if (nearbyOpp.length > 0) {
+                    const target = nearbyOpp[Math.floor(Math.random() * nearbyOpp.length)];
+                    const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1]];
+                    for (const d of dirs) {
+                        const nx = target.x + d[0], ny = target.y + d[1];
+                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !board.some(m => m.x === nx && m.y === ny)) {
+                            target.x = nx;
+                            target.y = ny;
+                            showToast("💣 踩中调皮小炸弹！震偏了周围一枚对方棋子！");
+                            return;
+                        }
+                    }
+                }
+                showToast("💣 踩中调皮小炸弹！棋盘震动了一下~");
+            }
+        }
+
+        // ==========================================
+        // 8. 技能卡牌系统 (4大主动技能)
+        // ==========================================
+        window.cancelSkillTargeting = function() {
+            activeSkillTargetMode = null;
+            pendingMistMove = false;
+            document.getElementById('skillTargetingBanner').classList.add('hidden');
+        };
+
+        window.useSkill = async function(skillKey) {
+            if (gameState.status !== 'playing' || isReplayMode) return;
+            if (gameState.mode !== 'skill') {
+                showToast("当前为传统模式，无法使用技能哦~");
+                return;
+            }
+            if (gameState.turn !== myColor) {
+                showToast("还没轮到你的回合哦！");
+                return;
+            }
+
+            const myEnergy = (gameState.energy && gameState.energy[myColor]) || 0;
+            const costs = { sandstorm: 2, freeze: 3, mist: 3, double: 5 };
+            const cost = costs[skillKey];
+            if (myEnergy < cost) {
+                showToast(`⚡ 能量不足！需要 ${cost} 点能量（当前 ${myEnergy} 点）`);
+                return;
+            }
+
+            if (skillKey === 'sandstorm') {
+                // 飞沙走石：将对方最新一枚棋子随机吹到相邻空位
+                const oppColor = myColor === 'black' ? 'white' : 'black';
+                const newBoard = JSON.parse(JSON.stringify(gameState.board));
+                let lastOppIdx = -1;
+                for (let i = newBoard.length - 1; i >= 0; i--) {
+                    if (newBoard[i].color === oppColor) { lastOppIdx = i; break; }
+                }
+                if (lastOppIdx === -1) {
+                    showToast("棋盘上还没有对方的棋子哦！");
+                    return;
+                }
+                const target = newBoard[lastOppIdx];
+                const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,-1],[1,-1],[-1,1]].sort(() => Math.random() - 0.5);
+                let moved = false;
+                for (const d of dirs) {
+                    const nx = target.x + d[0], ny = target.y + d[1];
+                    if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !newBoard.some(m => m.x === nx && m.y === ny)) {
+                        target.x = nx;
+                        target.y = ny;
+                        moved = true;
+                        break;
+                    }
+                }
+                if (!moved) {
+                    showToast("对方末子周围没有空位可吹动！");
+                    return;
+                }
+                const newEnergy = { ...gameState.energy, [myColor]: myEnergy - cost };
+                playSound('skill');
+                const chatEvt = { id: Date.now(), kind: 'prop', icon: '🌪️', text: '发动【飞沙走石】吹偏了你的棋子！', fromColor: myColor };
+                await commitStateUpdate({ board: newBoard, energy: newEnergy, chatEvent: chatEvt });
+            } else if (skillKey === 'freeze') {
+                activeSkillTargetMode = 'freeze';
+                const banner = document.getElementById('skillTargetingBanner');
+                document.getElementById('skillTargetingText').innerText = "❄️ 请点击棋盘任意交叉点释放 3×3【冰冻封印】";
+                banner.classList.remove('hidden');
+            } else if (skillKey === 'mist') {
+                pendingMistMove = true;
+                activeSkillTargetMode = 'mist';
+                const banner = document.getElementById('skillTargetingBanner');
+                document.getElementById('skillTargetingText').innerText = "🌫️ 请点击落子位置，该子将隐身1回合";
+                banner.classList.remove('hidden');
+            } else if (skillKey === 'double') {
+                if (gameState.extraMoves > 0) {
+                    showToast("已经处于双子连心状态啦！");
+                    return;
+                }
+                const newEnergy = { ...gameState.energy, [myColor]: myEnergy - cost };
+                playSound('skill');
+                const chatEvt = { id: Date.now(), kind: 'prop', icon: '💕', text: '发动【双子连心】本回合连下两子！', fromColor: myColor };
+                await commitStateUpdate({ energy: newEnergy, extraMoves: 1, chatEvent: chatEvt });
+            }
+        };
+
+        // ==========================================
+        // 9. 点击棋盘落子与技能释放逻辑
+        // ==========================================
+        canvas.addEventListener('click', async (e) => {
+            if (isReplayMode) return;
+            if (gameState.status !== 'playing') return;
+            if (gameState.turn !== myColor) {
+                showToast("还没轮到你落子哦！");
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const clickY = e.clientY - rect.top;
+            const gridX = Math.round((clickX - margin) / cellSize);
+            const gridY = Math.round((clickY - margin) / cellSize);
+
+            if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
+
+            // 处理【冰冻封印】选点
+            if (activeSkillTargetMode === 'freeze') {
+                const myEnergy = (gameState.energy && gameState.energy[myColor]) || 0;
+                const newEnergy = { ...gameState.energy, [myColor]: myEnergy - 3 };
+                const expiresAtStep = (gameState.board ? gameState.board.length : 0) + 2;
+                const newFrozen = [...(gameState.frozenZones || []), { x: gridX, y: gridY, expiresAtStep }];
+                cancelSkillTargeting();
+                playSound('skill');
+                const chatEvt = { id: Date.now(), kind: 'prop', icon: '❄️', text: '释放【冰冻封印】冻结了3×3区域！', fromColor: myColor };
+                await commitStateUpdate({ frozenZones: newFrozen, energy: newEnergy, chatEvent: chatEvt });
+                return;
+            }
+
+            await executeMoveAt(gridX, gridY);
+        });
+
+        async function executeMoveAt(gridX, gridY, isAutoTimeout = false) {
+            const stepNow = gameState.board ? gameState.board.length : 0;
+
+            // 检查是否已有棋子
+            if (gameState.board.some(m => m.x === gridX && m.y === gridY)) {
+                if (!isAutoTimeout) showToast("这里已经有棋子啦！");
+                return false;
+            }
+
+            // 检查是否处于冰冻封印区内
+            const activeFreeze = (gameState.frozenZones || []).find(fz =>
+                fz.expiresAtStep > stepNow && Math.abs(fz.x - gridX) <= 1 && Math.abs(fz.y - gridY) <= 1
+            );
+            if (activeFreeze && !isAutoTimeout) {
+                showToast("❄️ 该区域正被冰冻封印中，下回合解封！");
+                return false;
+            }
+
+            aiHintCoord = null;
+            const newMove = { x: gridX, y: gridY, color: myColor };
+            const newEnergy = { ...(gameState.energy || { black: 1, white: 1 }) };
+
+            // 处理迷雾暗棋状态
+            if (pendingMistMove) {
+                newEnergy[myColor] = Math.max(0, (newEnergy[myColor] || 0) - 3);
+                newMove.hiddenUntilStep = stepNow + 2;
+                newMove.fogCenterX = Math.min(GRID_SIZE - 2, Math.max(1, gridX + (Math.random() > 0.5 ? 1 : -1)));
+                newMove.fogCenterY = Math.min(GRID_SIZE - 2, Math.max(1, gridY + (Math.random() > 0.5 ? 1 : -1)));
+                cancelSkillTargeting();
+                playSound('skill');
+            } else if (gameState.mode === 'skill') {
+                newEnergy[myColor] = Math.min(6, (newEnergy[myColor] || 0) + 1);
+            }
+
+            const newBoard = [...gameState.board, newMove];
+
+            // 检查是否踩中盲盒奇遇格
+            let newBoxes = [...(gameState.mysteryBoxes || [])];
+            if (gameState.mode === 'skill') {
+                const hitIdx = newBoxes.findIndex(b => b.x === gridX && b.y === gridY);
+                if (hitIdx !== -1) {
+                    const hitBox = newBoxes[hitIdx];
+                    newBoxes.splice(hitIdx, 1);
+                    triggerMysteryBox(hitBox, myColor, newBoard, newEnergy);
+                }
+                if (newBoard.length % 6 === 0 && newBoxes.length < 2) {
+                    newBoxes = [...newBoxes, ...generateMysteryBoxes(newBoard, 2)];
+                }
+            }
+
+            // 判定胜负（双子连心第一子不允许直接获胜）
+            const winLine = findWinningLine(newMove, newBoard);
+            const hasExtraMove = (gameState.extraMoves || 0) > 0;
+
+            if (winLine && hasExtraMove) {
+                showToast("💕 双子连心第一子不可直接绝杀，请落布置子！");
+                return false;
+            }
+
+            const nextTurn = hasExtraMove ? myColor : (myColor === 'black' ? 'white' : 'black');
+            const nextExtraMoves = hasExtraMove ? 0 : 0;
+
+            const updates = {
+                board: newBoard,
+                energy: newEnergy,
+                mysteryBoxes: newBoxes,
+                turn: nextTurn,
+                extraMoves: nextExtraMoves,
+                turnDeadline: gameState.stepTimeLimit > 0 ? Date.now() + gameState.stepTimeLimit * 1000 : 0
+            };
+
+            // 检查是否触发三手交换询问
+            if (gameState.swap3Rule && !gameState.swap3Offered && newBoard.length === 3 && !winLine) {
+                updates.swap3Offered = true;
+                updates.pendingRequest = {
+                    id: Date.now(),
+                    type: 'swap3',
+                    fromColor: 'black',
+                    fromName: gameState.players.black || '黑方',
+                    text: '黑方已落第3手！根据【三手交换】平衡规则，白方可以选择是否互换黑白身份。',
+                    status: 'pending'
+                };
+            }
+
+            if (winLine) {
+                updates.status = 'won';
+                updates.winner = myName;
+                updates.winReason = '五子连珠';
+                const newScore = { ...(gameState.seriesScore || { black: 0, white: 0 }) };
+                newScore[myColor] = (newScore[myColor] || 0) + 1;
+                updates.seriesScore = newScore;
+            } else if (newBoard.length >= GRID_SIZE * GRID_SIZE) {
+                updates.status = 'draw';
+                updates.winner = '平局';
+            }
+
+            await commitStateUpdate(updates);
+            return true;
+        }
+
+        // 统一提交状态更新（支持乐观更新 + 云端同步 + 单机 AI 触发）
+        async function commitStateUpdate(updates) {
+            const prevState = JSON.parse(JSON.stringify(gameState));
+            const merged = { ...gameState, ...updates };
+            applyNewState(merged);
+
+            if (hasCloudBase && currentRoomCode && !isSinglePlayer) {
+                try {
+                    await getRoomRef(currentRoomCode).update(updates);
+                } catch (err) {
+                    console.error("状态同步失败:", err);
+                    showToast("网络波动，同步重试中...");
+                    applyNewState(prevState);
+                }
+            } else if (isSinglePlayer) {
+                checkAndTriggerAiTurn();
+            }
+        }
+
+        // ==========================================
+        // 10. 智能 AI 陪练与军师支招算法 (启发式评分)
+        // ==========================================
+        function evaluatePoint(board, x, y, color) {
+            const dirs = [[1,0],[0,1],[1,1],[1,-1]];
+            let totalScore = 0;
+            // 中心偏好分
+            totalScore += (7 - Math.abs(7 - x)) + (7 - Math.abs(7 - y));
+
+            const getCell = (cx, cy) => {
+                if (cx < 0 || cx >= GRID_SIZE || cy < 0 || cy >= GRID_SIZE) return 'wall';
+                const found = board.find(m => m.x === cx && m.y === cy);
+                return found ? found.color : null;
+            };
+
+            for (const [dx, dy] of dirs) {
+                let count = 1;
+                let openEnds = 0;
+
+                let s1 = 1;
+                while (getCell(x + dx * s1, y + dy * s1) === color) { count++; s1++; }
+                if (getCell(x + dx * s1, y + dy * s1) === null) openEnds++;
+
+                let s2 = 1;
+                while (getCell(x - dx * s2, y - dy * s2) === color) { count++; s2++; }
+                if (getCell(x - dx * s2, y - dy * s2) === null) openEnds++;
+
+                if (count >= 5) totalScore += 100000;
+                else if (count === 4 && openEnds === 2) totalScore += 15000;
+                else if (count === 4 && openEnds === 1) totalScore += 3500;
+                else if (count === 3 && openEnds === 2) totalScore += 2200;
+                else if (count === 3 && openEnds === 1) totalScore += 300;
+                else if (count === 2 && openEnds === 2) totalScore += 200;
+                else if (count === 2 && openEnds === 1) totalScore += 40;
+            }
+            return totalScore;
+        }
+
+        function computeBestMove(board, aiColor, difficulty = 'hard') {
+            if (!board || board.length === 0) return { x: 7, y: 7 };
+            const humanColor = aiColor === 'black' ? 'white' : 'black';
+            const stepNow = board.length;
+            const candidates = [];
+
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    if (board.some(m => m.x === x && m.y === y)) continue;
+                    // 检查冰冻区
+                    const frozen = (gameState.frozenZones || []).some(fz =>
+                        fz.expiresAtStep > stepNow && Math.abs(fz.x - x) <= 1 && Math.abs(fz.y - y) <= 1
+                    );
+                    if (frozen) continue;
+
+                    const hasNeighbor = board.some(m => Math.abs(m.x - x) <= 2 && Math.abs(m.y - y) <= 2);
+                    if (!hasNeighbor && board.length > 1) continue;
+
+                    const attackScore = evaluatePoint(board, x, y, aiColor);
+                    const defendScore = evaluatePoint(board, x, y, humanColor);
+
+                    // 盲盒加分
+                    const boxBonus = (gameState.mysteryBoxes || []).some(b => b.x === x && b.y === y) ? 280 : 0;
+
+                    let score = attackScore + defendScore * (difficulty === 'hard' ? 1.15 : 0.95) + boxBonus;
+                    if (attackScore >= 100000) score = 999999;
+                    else if (defendScore >= 100000) score = 500000;
+
+                    if (difficulty === 'easy') {
+                        score += (Math.random() - 0.5) * 1200;
+                    }
+                    candidates.push({ x, y, score });
+                }
+            }
+
+            if (candidates.length === 0) return { x: 7, y: 7 };
+            candidates.sort((a, b) => b.score - a.score);
+            return candidates[0];
+        }
+
+        window.useAiHint = function() {
+            if (gameState.status !== 'playing' || isReplayMode) return;
+            const best = computeBestMove(gameState.board, myColor, 'hard');
+            if (best) {
+                aiHintCoord = best;
+                playSound('box');
+                showToast(`💡 军师建议落子位置：(${best.x + 1}, ${best.y + 1})，已在棋盘闪烁标出！`);
+            }
+        };
+
+        function checkAndTriggerAiTurn() {
+            if (!isSinglePlayer || gameState.status !== 'playing') return;
+            const aiColor = myColor === 'black' ? 'white' : 'black';
+
+            // 如果有挂起的审批请求发给 AI，AI 自动审批
+            if (gameState.pendingRequest && gameState.pendingRequest.status === 'pending' && gameState.pendingRequest.fromColor === myColor) {
+                setTimeout(() => {
+                    handleRequestResolution(true);
+                }, 600);
+                return;
+            }
+
+            if (gameState.turn !== aiColor) return;
+
+            setTimeout(async () => {
+                if (gameState.status !== 'playing' || gameState.turn !== aiColor) return;
+
+                // 大师 AI 在技能模式下有概率释放飞沙走石
+                const aiEnergy = (gameState.energy && gameState.energy[aiColor]) || 0;
+                if (gameState.mode === 'skill' && aiDifficulty === 'hard' && aiEnergy >= 3 && currentThreats.size >= 3 && Math.random() < 0.45) {
+                    const newBoard = JSON.parse(JSON.stringify(gameState.board));
+                    let lastHumanIdx = -1;
+                    for (let i = newBoard.length - 1; i >= 0; i--) {
+                        if (newBoard[i].color === myColor) { lastHumanIdx = i; break; }
+                    }
+                    if (lastHumanIdx !== -1) {
+                        const t = newBoard[lastHumanIdx];
+                        const dirs = [[1,0],[-1,0],[0,1],[0,-1]];
+                        for (const d of dirs) {
+                            const nx = t.x + d[0], ny = t.y + d[1];
+                            if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !newBoard.some(m => m.x === nx && m.y === ny)) {
+                                t.x = nx; t.y = ny;
+                                playSound('skill');
+                                showChatBubble(aiColor, "🌪️ 看招！飞沙走石！");
+                                gameState.board = newBoard;
+                                gameState.energy[aiColor] -= 2;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                const best = computeBestMove(gameState.board, aiColor, aiDifficulty);
+                const aiMove = { x: best.x, y: best.y, color: aiColor };
+                const newBoard = [...gameState.board, aiMove];
+                const newEnergy = { ...(gameState.energy || { black: 1, white: 1 }) };
+                if (gameState.mode === 'skill') {
+                    newEnergy[aiColor] = Math.min(6, (newEnergy[aiColor] || 0) + 1);
+                }
+
+                // AI 偶发趣味气泡
+                if (Math.random() < 0.28) {
+                    const lines = aiDifficulty === 'easy'
+                        ? ["🐾 喵~ 这步下哪好呢", "🌸 你下得好厉害呀！", "🥺 别欺负小猫咪嘛~"]
+                        : ["😎 小心我的连环杀招哦", "🌸 棋逢对手，真开心~", "🤔 让我想想怎么破局"];
+                    showChatBubble(aiColor, lines[Math.floor(Math.random() * lines.length)]);
+                }
+
+                const winLine = findWinningLine(aiMove, newBoard);
+                const updates = {
+                    board: newBoard,
+                    energy: newEnergy,
+                    turn: myColor,
+                    turnDeadline: gameState.stepTimeLimit > 0 ? Date.now() + gameState.stepTimeLimit * 1000 : 0
+                };
+
+                if (winLine) {
+                    updates.status = 'won';
+                    updates.winner = gameState.players[aiColor];
+                    updates.winReason = '五子连珠';
+                    const newScore = { ...(gameState.seriesScore || { black: 0, white: 0 }) };
+                    newScore[aiColor] = (newScore[aiColor] || 0) + 1;
+                    updates.seriesScore = newScore;
+                }
+                applyNewState({ ...gameState, ...updates });
+            }, 550);
+        }
+
+        // ==========================================
+        // 11. 步时读秒器与超时自动处理
+        // ==========================================
+        function startTurnCountdown() {
+            if (turnTimerInterval) clearInterval(turnTimerInterval);
+            const badge = document.getElementById('timerBadge');
+            const boardBox = document.getElementById('boardContainer');
+
+            if (gameState.status !== 'playing' || !gameState.stepTimeLimit || gameState.stepTimeLimit <= 0 || isReplayMode) {
+                badge.classList.add('hidden');
+                boardBox.classList.remove('urgent-border');
+                return;
+            }
+
+            badge.classList.remove('hidden');
+
+            turnTimerInterval = setInterval(() => {
+                if (gameState.status !== 'playing' || isReplayMode) {
+                    clearInterval(turnTimerInterval);
+                    boardBox.classList.remove('urgent-border');
+                    return;
+                }
+                const deadline = gameState.turnDeadline || (Date.now() + gameState.stepTimeLimit * 1000);
+                const remainSec = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+                badge.innerText = `${remainSec}s`;
+
+                if (remainSec <= 5 && remainSec > 0) {
+                    badge.className = "px-2.5 py-1 bg-red-600 text-white rounded-full text-xs font-black min-w-[42px] text-center shadow-md animate-bounce";
+                    if (gameState.turn === myColor) {
+                        boardBox.classList.add('urgent-border');
+                        playSound('tick');
+                    }
+                } else {
+                    badge.className = "px-2.5 py-1 bg-gray-800 text-white rounded-full text-xs font-black min-w-[42px] text-center shadow-xs";
+                    boardBox.classList.remove('urgent-border');
+                }
+
+                if (remainSec <= 0 && gameState.turn === myColor) {
+                    clearInterval(turnTimerInterval);
+                    boardBox.classList.remove('urgent-border');
+                    showToast("⏰ 读秒超时！系统自动帮落一子！");
+                    const autoCoord = computeBestMove(gameState.board, myColor, 'easy');
+                    executeMoveAt(autoCoord.x, autoCoord.y, true);
+                }
+            }, 1000);
+        }
+
+        // ==========================================
+        // 12. 撒娇悔棋 / 求和 / 三手交换 / 认输
+        // ==========================================
+        window.requestUndo = async function() {
+            if (gameState.status !== 'playing' || isReplayMode) return;
+            if (!gameState.board || gameState.board.length === 0) {
+                showToast("还没有落子，不需要悔棋哦~");
+                return;
+            }
+            const left = (gameState.undoLeft && gameState.undoLeft[myColor]) ?? 2;
+            if (left <= 0) {
+                showToast("🥺 本局撒娇悔棋次数已经用完啦！");
+                return;
+            }
+            const pleas = [
+                "人家刚才手滑点错啦，让一步好不好嘛~ 🥺",
+                "看在我这么可爱的份上，准我悔一步棋呗！🌸",
+                "哎呀眼神飘了一下，这步不算数嘛~ 💖"
+            ];
+            const req = {
+                id: Date.now(),
+                type: 'undo',
+                fromColor: myColor,
+                fromName: myName,
+                text: pleas[Math.floor(Math.random() * pleas.length)],
+                status: 'pending'
+            };
+            showToast("🥺 已向对方发送撒娇悔棋请求...");
+            await commitStateUpdate({ pendingRequest: req });
+        };
+
+        window.requestDraw = async function() {
+            if (gameState.status !== 'playing' || isReplayMode) return;
+            const req = {
+                id: Date.now(),
+                type: 'draw',
+                fromColor: myColor,
+                fromName: myName,
+                text: "棋逢对手难解难分，不如这局握手言和？🤝",
+                status: 'pending'
+            };
+            showToast("🤝 已发送求和请求...");
+            await commitStateUpdate({ pendingRequest: req });
+        };
+
+        window.surrenderGame = async function() {
+            if (gameState.status !== 'playing' || isReplayMode) return;
+            if (!confirm("确定要本局投子认输吗？")) return;
+            const oppColor = myColor === 'black' ? 'white' : 'black';
+            const oppName = gameState.players[oppColor] || '对方';
+            const newScore = { ...(gameState.seriesScore || { black: 0, white: 0 }) };
+            newScore[oppColor] = (newScore[oppColor] || 0) + 1;
+            await commitStateUpdate({
+                status: 'won',
+                winner: oppName,
+                winReason: '对方投子认输',
+                seriesScore: newScore
+            });
+        };
+
+        window.respondPendingRequest = async function(accepted) {
+            closeModal('approvalModal');
+            await handleRequestResolution(accepted);
+        };
+
+        async function handleRequestResolution(accepted) {
+            const req = gameState.pendingRequest;
+            if (!req) return;
+
+            if (!accepted) {
+                await commitStateUpdate({
+                    pendingRequest: { ...req, status: 'rejected' },
+                    chatEvent: { id: Date.now(), kind: 'chat', icon: '😈', text: '落子无悔，休想悔棋！', fromColor: myColor }
+                });
+                return;
+            }
+
+            if (req.type === 'undo') {
+                const newBoard = [...gameState.board];
+                // 如果当前轮到请求方自己，回退2步；如果轮到对方，回退1步
+                const popCount = (gameState.turn === req.fromColor && newBoard.length >= 2) ? 2 : 1;
+                for (let i = 0; i < popCount; i++) newBoard.pop();
+
+                const newUndoLeft = { ...(gameState.undoLeft || { black: 2, white: 2 }) };
+                newUndoLeft[req.fromColor] = Math.max(0, (newUndoLeft[req.fromColor] ?? 2) - 1);
+
+                await commitStateUpdate({
+                    board: newBoard,
+                    turn: req.fromColor,
+                    undoLeft: newUndoLeft,
+                    pendingRequest: { ...req, status: 'accepted' },
+                    turnDeadline: gameState.stepTimeLimit > 0 ? Date.now() + gameState.stepTimeLimit * 1000 : 0,
+                    chatEvent: { id: Date.now(), kind: 'prop', icon: '💖', text: '宠溺准许了悔棋！', fromColor: myColor }
+                });
+            } else if (req.type === 'draw') {
+                await commitStateUpdate({
+                    status: 'draw',
+                    winner: '平局',
+                    winReason: '双方握手言和',
+                    pendingRequest: { ...req, status: 'accepted' }
+                });
+            } else if (req.type === 'swap3') {
+                // 互换黑白玩家名字与本地身份
+                const swappedPlayers = {
+                    black: gameState.players.white,
+                    white: gameState.players.black
+                };
+                await commitStateUpdate({
+                    players: swappedPlayers,
+                    pendingRequest: { ...req, status: 'accepted' },
+                    chatEvent: { id: Date.now(), kind: 'prop', icon: '🔄', text: '发动【三手交换】互换了黑白执子！', fromColor: myColor }
+                });
+            }
+        }
+
+        // ==========================================
+        // 13. 快捷弹幕与互动特效投掷
+        // ==========================================
+        window.sendQuickInteraction = async function(kind, icon, text) {
+            if (!currentRoomCode && !isSinglePlayer) return;
+            const evt = {
+                id: Date.now(),
+                kind,
+                icon,
+                text,
+                fromColor: myColor || 'black'
+            };
+            await commitStateUpdate({ chatEvent: evt });
+        };
+
+        function showChatBubble(color, text) {
+            const elId = color === 'black' ? 'blackChatBubble' : 'whiteChatBubble';
+            const el = document.getElementById(elId);
+            if (!el) return;
+            el.innerText = text;
+            el.classList.remove('hidden');
+            clearTimeout(el._hideTimer);
+            el._hideTimer = setTimeout(() => el.classList.add('hidden'), 3200);
+        }
+
+        function triggerPropAnimation(icon, text, fromColor) {
+            playSound('prop');
+            showChatBubble(fromColor, `${icon} ${text}`);
+            const layer = document.getElementById('propEffectLayer');
+            if (!layer) return;
+            const badge = document.createElement('div');
+            badge.className = "prop-fly-anim flex flex-col items-center pointer-events-none";
+            badge.innerHTML = `<div class="text-6xl drop-shadow-lg">${icon}</div><div class="mt-1 px-3 py-1 bg-rose-500/90 text-white text-xs font-black rounded-full shadow-lg">${text}</div>`;
+            layer.appendChild(badge);
+            setTimeout(() => badge.remove(), 2200);
+        }
+
+        // ==========================================
+        // 14. 樱花与爱心胜利粒子雨系统
+        // ==========================================
+        const pCanvas = document.getElementById('particleCanvas');
+        const pCtx = pCanvas.getContext('2d');
+        let particles = [];
+
+        function startVictoryParticles() {
+            pCanvas.width = window.innerWidth;
+            pCanvas.height = window.innerHeight;
+            pCanvas.classList.remove('hidden');
+            particles = [];
+            const emojis = ['🌸', '💖', '✨', '🌷', '🎉'];
+            for (let i = 0; i < 38; i++) {
+                particles.push({
+                    x: Math.random() * pCanvas.width,
+                    y: -Math.random() * pCanvas.height,
+                    vy: 1.8 + Math.random() * 2.5,
+                    vx: (Math.random() - 0.5) * 1.5,
+                    size: 16 + Math.random() * 14,
+                    icon: emojis[i % emojis.length]
+                });
+            }
+            setTimeout(() => {
+                particles = [];
+                pCanvas.classList.add('hidden');
+            }, 5500);
+        }
+
+        function updateParticles() {
+            if (particles.length === 0) return;
+            pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                if (p.y > pCanvas.height) p.y = -20;
+                pCtx.font = `${p.size}px sans-serif`;
+                pCtx.fillText(p.icon, p.x, p.y);
+            });
+        }
+
+        // ==========================================
+        // 15. 状态同步与 UI 驱动核心 (applyNewState)
+        // ==========================================
+        function applyNewState(newState) {
+            if (!newState) return;
+
+            // 防抖：忽略比本地乐观更新落后的旧云端快照
+            if (!isSinglePlayer && newState.board && gameState.board &&
+                newState.board.length < gameState.board.length &&
+                newState.status === gameState.status &&
+                newState.board.length !== 0 &&
+                (!newState.pendingRequest || newState.pendingRequest.status !== 'accepted')) {
+                return;
+            }
+
+            // 根据玩家名字动态校准黑白归属（支持三手交换与番棋轮换）
+            if (newState.players) {
+                if (newState.players.black === myName) myColor = 'black';
+                else if (newState.players.white === myName) myColor = 'white';
+            }
+
+            const newLen = newState.board ? newState.board.length : 0;
+            if (newLen > lastBoardLength) {
+                playSound('drop');
+            }
+
+            // 检测聊天与互动特效事件
+            if (newState.chatEvent && newState.chatEvent.id && newState.chatEvent.id !== lastChatTimestamp) {
+                lastChatTimestamp = newState.chatEvent.id;
+                const ce = newState.chatEvent;
+                if (ce.kind === 'prop') {
+                    triggerPropAnimation(ce.icon, ce.text, ce.fromColor);
+                } else {
+                    showChatBubble(ce.fromColor, `${ce.icon} ${ce.text}`);
+                }
+            }
+
+            // 检测挂起的审批请求（悔棋/求和/三手交换）
+            if (newState.pendingRequest && newState.pendingRequest.id !== lastHandledRequestId) {
+                const pr = newState.pendingRequest;
+                if (pr.status === 'pending') {
+                    const isTargetMe = (pr.type === 'swap3' && myColor === 'white') || (pr.type !== 'swap3' && pr.fromColor !== myColor);
+                    if (isTargetMe) {
+                        lastHandledRequestId = pr.id;
+                        openApprovalModal(pr);
+                    }
+                } else if (pr.status === 'accepted' || pr.status === 'rejected') {
+                    lastHandledRequestId = pr.id;
+                    if (pr.fromColor === myColor) {
+                        showToast(pr.status === 'accepted' ? "💖 对方同意了你的请求！" : "😈 对方拒绝了你的请求！");
+                    }
+                }
+            }
+
+            // 检测威胁形成并播放预警音效
+            const prevThreatCount = currentThreats.size;
+            currentThreats = calculateThreats(newState.board);
+            if (currentThreats.size > prevThreatCount && newState.status === 'playing') {
+                playSound('threat');
+            }
+
+            // 检测获胜或平局结算
+            if ((newState.status === 'won' || newState.status === 'draw') && localMatchStatus !== newState.status) {
+                if (newState.board && newState.board.length > 0) {
+                    winningLineCoords = findWinningLine(newState.board[newState.board.length - 1], newState.board);
+                }
+                if (newState.status === 'won') {
+                    playSound('win');
+                    startVictoryParticles();
+                }
+                recordMatchResult(newState);
+            } else if (newState.status === 'playing') {
+                winningLineCoords = null;
+            }
+            localMatchStatus = newState.status;
+
+            gameState = newState;
+            lastBoardLength = newLen;
+            applySkinVisuals(gameState.skin || 'classic');
+            updateGameUI();
+            startTurnCountdown();
+        }
+
+        function openApprovalModal(pr) {
+            const iconMap = { undo: '🥺', draw: '🤝', swap3: '🔄' };
+            const titleMap = {
+                undo: `来自 ${pr.fromName} 的撒娇悔棋`,
+                draw: `来自 ${pr.fromName} 的求和提议`,
+                swap3: `🔄 三手交换决策`
+            };
+            document.getElementById('approvalIcon').innerText = iconMap[pr.type] || '💌';
+            document.getElementById('approvalTitle').innerText = titleMap[pr.type] || '互动请求';
+            document.getElementById('approvalDesc').innerText = `“${pr.text}”`;
+            openModal('approvalModal');
+        }
+
+        function updateGameUI() {
+            document.getElementById('playerBlackName').innerText = gameState.players?.black || '等待中...';
+            document.getElementById('playerWhiteName').innerText = gameState.players?.white || '等待中...';
+
+            const bEnergy = (gameState.energy && gameState.energy.black) ?? 0;
+            const wEnergy = (gameState.energy && gameState.energy.white) ?? 0;
+            document.getElementById('blackEnergyDisplay').innerText = `⚡ ${bEnergy}/6`;
+            document.getElementById('whiteEnergyDisplay').innerText = `⚡ ${wEnergy}/6`;
+            document.getElementById('myEnergyBadge').innerText = `我的能量: ⚡ ${(gameState.energy && gameState.energy[myColor]) ?? 0} / 6`;
+
+            document.getElementById('stepCounterText').innerText = `第 ${gameState.board ? gameState.board.length : 0} 手`;
+            document.getElementById('activeWagerText').innerText = gameState.wager || WAGER_PRESETS[0];
+
+            const bo = gameState.bo || 1;
+            const round = gameState.round || 1;
+            const sBlack = gameState.seriesScore?.black || 0;
+            const sWhite = gameState.seriesScore?.white || 0;
+            document.getElementById('seriesScoreBadge').innerText = `BO${bo} · 第${round}局 (${sBlack} : ${sWhite})`;
+
+            const isSkillMode = gameState.mode === 'skill';
+            document.getElementById('modeBadge').innerText = isSkillMode ? '⚡技能乱斗' : '♟️传统竞技';
+            document.getElementById('skillBarSection').classList.toggle('hidden', !isSkillMode);
+
+            const myUndo = (gameState.undoLeft && gameState.undoLeft[myColor]) ?? 2;
+            document.getElementById('undoCountBadge').innerText = myUndo;
+
+            const pBlackInfo = document.getElementById('playerBlackInfo');
+            const pWhiteInfo = document.getElementById('playerWhiteInfo');
+            const statusText = document.getElementById('gameStatusText');
+
+            if (gameState.status === 'waiting') {
+                statusText.innerText = "等待TA加入房间...";
+                statusText.className = "px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold inline-block border border-gray-200 animate-pulse";
+                pBlackInfo.classList.add('opacity-50');
+                pWhiteInfo.classList.add('opacity-50');
+                document.getElementById('celebrationOverlay').classList.add('hidden');
+            } else if (gameState.status === 'playing') {
+                pBlackInfo.classList.remove('opacity-50');
+                pWhiteInfo.classList.remove('opacity-50');
+
+                if (gameState.turn === myColor) {
+                    statusText.innerText = gameState.extraMoves > 0 ? "💕 双子连心：请再落一子！" : "轮到你落子啦！";
+                    statusText.className = "px-3 py-1 bg-rose-500 text-white rounded-full text-xs font-bold inline-block shadow-sm";
+                } else {
+                    statusText.innerText = "TA 正在思考中...";
+                    statusText.className = "px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-xs font-bold inline-block border border-rose-200";
+                }
+
+                if (gameState.turn === 'black') {
+                    pBlackInfo.classList.add('ring-2', 'ring-rose-400', 'scale-105');
+                    pWhiteInfo.classList.remove('ring-2', 'ring-rose-400', 'scale-105');
+                } else {
+                    pWhiteInfo.classList.add('ring-2', 'ring-rose-400', 'scale-105');
+                    pBlackInfo.classList.remove('ring-2', 'ring-rose-400', 'scale-105');
+                }
+                document.getElementById('celebrationOverlay').classList.add('hidden');
+            } else if (gameState.status === 'won' || gameState.status === 'draw') {
+                statusText.innerText = "本局结束";
+                statusText.className = "px-3 py-1 bg-gray-800 text-white rounded-full text-xs font-bold inline-block shadow-sm";
+
+                if (!isReplayMode) {
+                    const overlay = document.getElementById('celebrationOverlay');
+                    const winMsg = document.getElementById('winAnnouncement');
+                    const subMsg = document.getElementById('winSubAnnouncement');
+
+                    if (gameState.status === 'draw') {
+                        document.getElementById('winTrophyIcon').innerText = '🤝';
+                        winMsg.innerText = "本局握手言和！";
+                        subMsg.innerText = gameState.winReason || "平分秋色 · 心有灵犀";
+                    } else {
+                        const iWon = gameState.winner === myName;
+                        document.getElementById('winTrophyIcon').innerText = iWon ? '🏆' : '💌';
+                        winMsg.innerText = iWon ? "🎉 恭喜你赢下本局！" : `💖 ${gameState.winner} 获胜！`;
+                        subMsg.innerText = `${gameState.winReason || '五子连珠'} · 共 ${gameState.board.length} 手`;
+                    }
+
+                    document.getElementById('certTimeText').innerText = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+                    document.getElementById('certPlayersText').innerText = `${gameState.players.black || '黑方'} VS ${gameState.players.white || '白方'}`;
+                    document.getElementById('certScoreText').innerText = `BO${bo} (${sBlack} : ${sWhite})`;
+                    document.getElementById('certWagerText').innerText = gameState.wager || WAGER_PRESETS[0];
+
+                    const neededWins = Math.ceil(bo / 2);
+                    const seriesDone = sBlack >= neededWins || sWhite >= neededWins;
+                    document.getElementById('nextRoundBtn').innerText = seriesDone ? "🏆 开启新番棋" : `⚡ 下一局 (互换先后手)`;
+
+                    overlay.classList.remove('hidden');
+                }
+            }
+        }
+
+        window.copyCertificate = function() {
+            const text = `🌸【心动五子棋·胜负凭证】🌸\n🏆 获胜方：${gameState.winner}\n⚔️ 对阵：${gameState.players.black} VS ${gameState.players.white}\n📊 比分：${gameState.seriesScore?.black || 0} : ${gameState.seriesScore?.white || 0} (共${gameState.board?.length || 0}手)\n🎁 待兑现赌约：${gameState.wager}\n—— 愿赌服输，快快兑现吧💖`;
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(text).then(() => showToast("📋 胜负凭证已复制，快去发给TA吧！"));
+            } else {
+                showToast("📋 凭证已生成：" + gameState.wager);
+            }
+        };
+
+        // ==========================================
+        // 16. 历史战斗记录 & 慢镜复盘回放器
+        // ==========================================
+        function recordMatchResult(state) {
+            if (!myColor || currentPuzzleId) return;
+            try {
+                const isWin = state.winner === myName;
+                const opponent = myColor === 'black' ? state.players.white : state.players.black;
+                const record = {
+                    id: Date.now(),
+                    roomCode: currentRoomCode || 'AI陪练',
+                    date: Date.now(),
+                    opponent: opponent || '神秘对手',
+                    result: state.status === 'draw' ? 'draw' : (isWin ? 'win' : 'loss'),
+                    myColor,
+                    wager: state.wager || '',
+                    mode: state.mode || 'skill',
+                    skin: state.skin || 'classic',
+                    steps: state.board ? state.board.length : 0,
+                    board: state.board || []
+                };
+                const list = JSON.parse(localStorage.getItem('wzq_history_v2') || '[]');
+                list.unshift(record);
+                localStorage.setItem('wzq_history_v2', JSON.stringify(list.slice(0, 30)));
+                refreshRankTitle();
+            } catch(e) {
+                console.warn("保存战绩失败:", e);
+            }
+        }
+
+        window.showHistory = function() {
+            openModal('historyModal');
+            const listEl = document.getElementById('historyList');
+            let records = [];
+            try {
+                records = JSON.parse(localStorage.getItem('wzq_history_v2') || '[]');
+            } catch(e) {}
+
+            if (records.length === 0) {
+                listEl.innerHTML = '<div class="text-center text-xs text-gray-400 py-8">暂无对局记录，快去开启第一局浪漫对决吧！🌸</div>';
+                return;
+            }
+
+            listEl.innerHTML = records.map((r, idx) => {
+                const dateStr = new Date(r.date).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                const badge = r.result === 'win' ? '🏆 胜利' : (r.result === 'draw' ? '🤝 平局' : '💔 惜败');
+                const colorCls = r.result === 'win' ? 'text-rose-500 bg-rose-50 border-rose-200' : 'text-gray-600 bg-gray-50 border-gray-200';
+                return `
+                    <div class="p-3 rounded-2xl border ${colorCls} flex items-center justify-between gap-2">
+                        <div class="flex flex-col text-left overflow-hidden">
+                            <div class="text-xs font-black text-gray-800 truncate">VS ${r.opponent} <span class="text-[10px] font-bold text-rose-500 ml-1">${badge}</span></div>
+                            <div class="text-[10px] text-gray-400">${dateStr} · ${r.steps}手 · ${r.mode === 'skill' ? '⚡技能' : '♟️传统'}</div>
+                            <div class="text-[10px] text-rose-500 truncate mt-0.5">${r.wager || ''}</div>
+                        </div>
+                        <button onclick="launchHistoryReplay(${idx})" class="px-3 py-1.5 bg-white border border-rose-200 text-rose-500 rounded-xl text-[11px] font-bold shadow-xs hover:bg-rose-50 whitespace-nowrap">
+                            🎬 复盘
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.launchHistoryReplay = function(idx) {
+            const records = JSON.parse(localStorage.getItem('wzq_history_v2') || '[]');
+            const rec = records[idx];
+            if (!rec || !rec.board || rec.board.length === 0) {
+                showToast("该对局没有保存详细棋谱哦");
+                return;
+            }
+            closeModal('historyModal');
+            isSinglePlayer = true;
+            gameState = createDefaultGameState();
+            gameState.skin = rec.skin || 'classic';
+            gameState.wager = rec.wager || '历史对局回放';
+            gameState.players = { black: rec.myColor === 'black' ? myName : rec.opponent, white: rec.myColor === 'white' ? myName : rec.opponent };
+            gameState.board = rec.board;
+            gameState.status = 'won';
+
+            document.getElementById('lobbyUI').classList.add('hidden', 'opacity-0');
+            const gameUI = document.getElementById('gameUI');
+            gameUI.classList.remove('hidden');
+            setTimeout(() => {
+                gameUI.classList.remove('opacity-0');
+                resizeCanvas();
+                startInGameReplay();
+            }, 50);
+        };
+
+        window.startInGameReplay = function() {
+            if (!gameState.board || gameState.board.length === 0) return;
+            isReplayMode = true;
+            replayFullBoard = JSON.parse(JSON.stringify(gameState.board));
+            replayIndex = 0;
+            document.getElementById('celebrationOverlay').classList.add('hidden');
+            document.getElementById('replayControlBar').classList.remove('hidden');
+            updateReplayUI();
+            toggleReplayAuto(true);
+        };
+
+        function updateReplayUI() {
+            document.getElementById('replayProgressText').innerText = `复盘 ${replayIndex}/${replayFullBoard.length}`;
+            drawBoard();
+        }
+
+        window.replayStepTo = function(step) {
+            if (replayTimer) { clearInterval(replayTimer); replayTimer = null; document.getElementById('replayPlayBtn').innerText = '▶ 播放'; }
+            replayIndex = Math.max(0, Math.min(replayFullBoard.length, step));
+            updateReplayUI();
+        };
+
+        window.replayStepDelta = function(delta) {
+            replayStepTo(replayIndex + delta);
+            playSound('drop');
+        };
+
+        window.toggleReplayAuto = function(forceStart = false) {
+            const btn = document.getElementById('replayPlayBtn');
+            if (replayTimer && !forceStart) {
+                clearInterval(replayTimer);
+                replayTimer = null;
+                btn.innerText = '▶ 播放';
+                return;
+            }
+            if (replayIndex >= replayFullBoard.length) replayIndex = 0;
+            btn.innerText = '⏸ 暂停';
+            if (replayTimer) clearInterval(replayTimer);
+            replayTimer = setInterval(() => {
+                if (replayIndex < replayFullBoard.length) {
+                    replayIndex++;
+                    playSound('drop');
+                    updateReplayUI();
+                } else {
+                    clearInterval(replayTimer);
+                    replayTimer = null;
+                    btn.innerText = '▶ 重播';
+                }
+            }, 650);
+        };
+
+        window.exitReplayMode = function() {
+            if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+            isReplayMode = false;
+            document.getElementById('replayControlBar').classList.add('hidden');
+            updateGameUI();
+        };
+
+        // ==========================================
+        // 17. 单机 AI 陪练 & 残局闯关启动逻辑
+        // ==========================================
+        window.startAiGame = function(diff) {
+            closeModal('aiModal');
+            initAudio();
+            readLobbyForm();
+            isSinglePlayer = true;
+            aiDifficulty = diff;
+            currentPuzzleId = null;
+            currentRoomCode = "AI陪练";
+            myColor = 'black';
+
+            const aiNames = { easy: '🐾 呆萌小猫AI', medium: '🌸 心动伴侣AI', hard: '👑 冷酷棋圣AI' };
+            const initData = createDefaultGameState();
+            initData.status = 'playing';
+            initData.players = { black: myName, white: aiNames[diff] };
+            initData.turnDeadline = initData.stepTimeLimit > 0 ? Date.now() + initData.stepTimeLimit * 1000 : 0;
+            if (initData.mode === 'skill') {
+                initData.mysteryBoxes = generateMysteryBoxes([], 3);
+            }
+
+            enterGameScreen("AI对局", 'black', initData);
+            showToast(`已开启与 ${aiNames[diff]} 的对决！`);
+        };
+
+        function renderPuzzleList() {
+            const container = document.getElementById('puzzleListContainer');
+            container.innerHTML = PUZZLES.map(p => `
+                <button onclick="startPuzzle(${p.id})" class="w-full p-3 rounded-2xl border border-amber-200 bg-amber-50/50 hover:bg-amber-50 text-left flex items-center justify-between transition-colors">
+                    <div>
+                        <div class="text-sm font-black text-amber-800">${p.title}</div>
+                        <div class="text-[11px] text-amber-600/90 mt-0.5">${p.desc}</div>
+                    </div>
+                    <span class="px-3 py-1 bg-amber-500 text-white text-xs font-bold rounded-xl">挑战</span>
+                </button>
+            `).join('');
+        }
+        renderPuzzleList();
+
+        window.startPuzzle = function(puzzleId) {
+            const puzzle = PUZZLES.find(p => p.id === puzzleId);
+            if (!puzzle) return;
+            closeModal('puzzleModal');
+            initAudio();
+            readLobbyForm();
+            isSinglePlayer = true;
+            aiDifficulty = 'hard';
+            currentPuzzleId = puzzleId;
+            currentRoomCode = `残局#${puzzleId}`;
+            myColor = 'black';
+
+            const initData = createDefaultGameState();
+            initData.mode = 'classic';
+            initData.bo = 1;
+            initData.stepTimeLimit = 0;
+            initData.swap3Rule = false;
+            initData.status = 'playing';
+            initData.wager = `通关【${puzzle.title}】`;
+            initData.players = { black: myName, white: '👑 残局守关人' };
+            initData.board = JSON.parse(JSON.stringify(puzzle.board));
+
+            enterGameScreen(`残局${puzzleId}`, 'black', initData);
+            showToast(`🧩 ${puzzle.title}：请落黑子破局！`);
+        };
+
+        // ==========================================
+        // 18. 云端房间创建、加入、重开与网络监控 (CloudBase)
+        // ==========================================
         function getRoomRef(code) {
             return db.collection(ROOM_COLLECTION).doc(String(code));
         }
 
-        // 工具函数：处理文档快照
         function pickDoc(snapshot, code) {
             if (!snapshot) return null;
             const docs = snapshot.docs;
@@ -254,26 +2327,28 @@
             return null;
         }
 
-        // ==========================================
-        // 网络状态指示器管理与测速
-        // ==========================================
+        async function syncRoomPatch(patch) {
+            if (hasCloudBase && currentRoomCode && !isSinglePlayer) {
+                try { await getRoomRef(currentRoomCode).update(patch); } catch(e) {}
+            }
+        }
+
         function startPingLoop() {
             if (pingInterval) clearInterval(pingInterval);
             measurePing();
-            pingInterval = setInterval(measurePing, 4000);
+            pingInterval = setInterval(measurePing, 4500);
         }
 
         async function measurePing() {
             if (!hasCloudBase) return;
             const start = Date.now();
             try {
-                if (currentRoomCode) {
+                if (currentRoomCode && !isSinglePlayer) {
                     await getRoomRef(currentRoomCode).get();
                 } else {
                     await db.collection(ROOM_COLLECTION).limit(1).get();
                 }
-                const ping = Date.now() - start;
-                updateNetworkStatus(ping);
+                updateNetworkStatus(Date.now() - start);
             } catch(e) {
                 updateNetworkStatus(-1);
             }
@@ -287,432 +2362,64 @@
             }
             let colorStr = 'bg-green-500 shadow-[0_0_4px_#22c55e]';
             let textColor = 'text-green-500';
-            
-            if (ping > 200) { colorStr = 'bg-yellow-500 shadow-[0_0_4px_#eab308]'; textColor = 'text-yellow-500'; }
-            if (ping > 500) { colorStr = 'bg-red-500 shadow-[0_0_4px_#ef4444]'; textColor = 'text-red-500'; }
-
+            if (ping > 200) { colorStr = 'bg-yellow-500'; textColor = 'text-yellow-500'; }
+            if (ping > 500) { colorStr = 'bg-red-500'; textColor = 'text-red-500'; }
             indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorStr}"></span> 在线 <span class="${textColor} ml-1 font-bold">${ping}ms</span>`;
         }
 
-        window.addEventListener('offline', () => {
-            updateNetworkStatus(-1);
-            showToast("网络好像断开了...");
-        });
-
-        window.addEventListener('online', () => {
-            measurePing();
-            showToast("网络已恢复 📡");
-            forceSyncRoomState();
-        });
-
-        document.addEventListener("visibilitychange", () => {
-            if (document.visibilityState === "visible" && navigator.onLine) {
-                forceSyncRoomState();
-            }
-        });
-
-        async function forceSyncRoomState() {
-            if (currentRoomCode && hasCloudBase) {
-                try {
-                    const res = await getRoomRef(currentRoomCode).get();
-                    const data = res.data && res.data[0];
-                    if (data) {
-                        applyNewState(data);
-                    }
-                } catch (e) {
-                    console.warn("前台同步失败", e);
-                }
-            }
-        }
-
-        // ==========================================
-        // 音效配置 (Tone.js)
-        // ==========================================
-        let placeSound = null;
-        let audioInitialized = false;
-
-        async function initAudio() {
-            if (audioInitialized) return;
-            try {
-                await Tone.start(); 
-                placeSound = new Tone.MembraneSynth({
-                    pitchDecay: 0.02,
-                    octaves: 3,
-                    oscillator: { type: "sine" },
-                    envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.1 }
-                }).toDestination();
-                placeSound.volume.value = -6; 
-                audioInitialized = true;
-            } catch (e) {
-                console.warn("音效初始化失败:", e);
-            }
-        }
-
-        window.addEventListener('click', initAudio, { once: true });
-        window.addEventListener('touchstart', initAudio, { once: true });
-
-        function playDropSound() {
-            if (audioInitialized && placeSound) {
-                if (Tone.context.state !== 'running') Tone.context.resume();
-                placeSound.triggerAttackRelease("E2", "16n");
-            }
-        }
-
-        // ==========================================
-        // 棋盘 Canvas 设置
-        // ==========================================
-        const canvas = document.getElementById('boardCanvas');
-        const ctx = canvas.getContext('2d');
-        const GRID_SIZE = 15;
-        let cellSize = 0;
-        let margin = 0;
-
-        function resizeCanvas() {
-            if (!canvas.parentElement) return;
-            const rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width = rect.width * 2;
-            canvas.height = rect.height * 2;
-            ctx.scale(2, 2);
-            
-            cellSize = rect.width / GRID_SIZE;
-            margin = cellSize / 2;
-        }
-        window.addEventListener('resize', resizeCanvas);
-
-        function animateLoop() {
-            if (!document.getElementById('gameUI').classList.contains('hidden')) {
-                drawBoard();
-            }
-            requestAnimationFrame(animateLoop);
-        }
-
-        function drawBoard() {
-            if(!canvas.parentElement) return;
-            const w = canvas.parentElement.getBoundingClientRect().width;
-            
-            ctx.clearRect(0, 0, w, w);
-
-            ctx.beginPath();
-            ctx.strokeStyle = '#c48f73';
-            ctx.lineWidth = 1;
-
-            for (let i = 0; i < GRID_SIZE; i++) {
-                ctx.moveTo(margin, margin + i * cellSize);
-                ctx.lineTo(w - margin, margin + i * cellSize);
-                ctx.moveTo(margin + i * cellSize, margin);
-                ctx.lineTo(margin + i * cellSize, w - margin);
-            }
-            ctx.stroke();
-
-            const starPoints = [
-                {x: 3, y: 3}, {x: 11, y: 3}, 
-                {x: 7, y: 7}, 
-                {x: 3, y: 11}, {x: 11, y: 11}
-            ];
-            ctx.fillStyle = '#c48f73';
-            starPoints.forEach(p => {
-                ctx.beginPath();
-                ctx.arc(margin + p.x * cellSize, margin + p.y * cellSize, 3, 0, Math.PI * 2);
-                ctx.fill();
-            });
-
-            if (gameState.board && gameState.board.length > 0) {
-                gameState.board.forEach((move, index) => {
-                    const isLast = index === gameState.board.length - 1;
-                    const isThreat = currentThreats.has(`${move.x},${move.y}`);
-                    drawPiece(move.x, move.y, move.color, isLast, isThreat);
-                });
-            }
-        }
-
-        function drawPiece(x, y, color, isLast = false, isThreat = false) {
-            const px = margin + x * cellSize;
-            const py = margin + y * cellSize;
-            const radius = cellSize * 0.42;
-
-            ctx.beginPath();
-            ctx.arc(px, py, radius, 0, Math.PI * 2);
-            
-            if (color === 'black') {
-                const gradient = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
-                gradient.addColorStop(0, '#555');
-                gradient.addColorStop(1, '#111');
-                ctx.fillStyle = gradient;
-            } else {
-                const gradient = ctx.createRadialGradient(px - radius*0.3, py - radius*0.3, radius*0.1, px, py, radius);
-                gradient.addColorStop(0, '#fff');
-                gradient.addColorStop(1, '#ddd');
-                ctx.fillStyle = gradient;
-                ctx.lineWidth = 0.5;
-                ctx.strokeStyle = '#ccc';
-                ctx.stroke();
-            }
-            ctx.shadowColor = 'rgba(0,0,0,0.3)';
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.fill();
-            ctx.shadowColor = 'transparent';
-
-            if (isThreat && gameState.status === 'playing') {
-                const time = Date.now();
-                const pulseAlpha = 0.2 + (Math.sin(time / 200) + 1) / 2 * 0.6; 
-                ctx.beginPath();
-                ctx.arc(px, py, radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha})`; 
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(px, py, radius * 1.35, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(244, 63, 94, ${pulseAlpha * 0.4})`;
-                ctx.fill();
-            }
-
-            if (isLast) {
-                ctx.beginPath();
-                ctx.arc(px, py, 2.5, 0, Math.PI * 2);
-                ctx.fillStyle = '#e11d48'; 
-                ctx.fill();
-            }
-        }
-
-        function calculateThreats(board) {
-            const threatSet = new Set();
-            if(!board || board.length === 0) return threatSet;
-
-            const getColor = (x, y) => {
-                const p = board.find(m => m.x === x && m.y === y);
-                return p ? p.color : null;
-            };
-
-            const dirs = [ [1, 0], [0, 1], [1, 1], [1, -1] ];
-
-            board.forEach(piece => {
-                dirs.forEach(dir => {
-                    let count = 1;
-                    let line = [{x: piece.x, y: piece.y}];
-
-                    let stepF = 1;
-                    while (true) {
-                        const nx = piece.x + dir[0] * stepF;
-                        const ny = piece.y + dir[1] * stepF;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
-                            count++; line.push({x: nx, y: ny}); stepF++;
-                        } else { break; }
-                    }
-                    
-                    let fEmpty = 0;
-                    let checkF = stepF;
-                    while (checkF < stepF + 5) {
-                        const nx = piece.x + dir[0] * checkF;
-                        const ny = piece.y + dir[1] * checkF;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
-                            fEmpty++; checkF++;
-                        } else { break; }
-                    }
-
-                    let stepB = 1;
-                    while (true) {
-                        const nx = piece.x - dir[0] * stepB;
-                        const ny = piece.y - dir[1] * stepB;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === piece.color) {
-                            count++; line.push({x: nx, y: ny}); stepB++;
-                        } else { break; }
-                    }
-                    
-                    let bEmpty = 0;
-                    let checkB = stepB;
-                    while (checkB < stepB + 5) {
-                        const nx = piece.x - dir[0] * checkB;
-                        const ny = piece.y - dir[1] * checkB;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && getColor(nx, ny) === null) {
-                            bEmpty++; checkB++;
-                        } else { break; }
-                    }
-
-                    let isValidThreat = false;
-                    if (count === 4 && (fEmpty > 0 || bEmpty > 0)) {
-                        isValidThreat = true; 
-                    } else if (count === 3 && fEmpty > 0 && bEmpty > 0 && (count + fEmpty + bEmpty >= 5)) {
-                        isValidThreat = true;
-                    }
-
-                    if (isValidThreat) {
-                        line.forEach(p => threatSet.add(`${p.x},${p.y}`));
-                    }
-                });
-            });
-            return threatSet;
-        }
-
-        function applyNewState(newState) {
-            // 防抖：如果本地通过乐观更新已经比服务器步数多，且尚未被服务器确认，则忽略旧的快照
-            if (newState.board && gameState.board && newState.board.length < gameState.board.length && newState.status === gameState.status && newState.board.length !== 0) {
-                return; 
-            }
-
-            if (newState.board && newState.board.length > lastBoardLength) {
-                playDropSound(); 
-            }
-            
-            // if (newState.status === 'won' && localMatchStatus !== 'won') {
-            //     recordMatchResult(newState); // 暂不实现云端战绩记录
-            // }
-            localMatchStatus = newState.status;
-
-            gameState = newState;
-            lastBoardLength = gameState.board ? gameState.board.length : 0;
-            currentThreats = calculateThreats(gameState.board);
-            updateGameUI();
-        }
-
-        // ==========================================
-        // 处理点击落子 (低延迟乐观UI机制)
-        // ==========================================
-        canvas.addEventListener('click', async (e) => {
-            if (gameState.status !== 'playing') return;
-            if (gameState.turn !== myColor) {
-                showToast("还没轮到你哦！");
-                return;
-            }
-
-            const rect = canvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-
-            const gridX = Math.round((clickX - margin) / cellSize);
-            const gridY = Math.round((clickY - margin) / cellSize);
-
-            if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
-            if (gameState.board.some(m => m.x === gridX && m.y === gridY)) return;
-
-            // 1. 缓存旧状态以便网络失败时回滚
-            const previousState = JSON.parse(JSON.stringify(gameState));
-
-            // 2. 乐观更新：瞬间在本地执行落子计算，0延迟反馈
-            const newMove = { x: gridX, y: gridY, color: myColor };
-            const newBoard = [...gameState.board, newMove];
-            const isWin = checkWin(newMove, newBoard);
-            
-            const updates = {
-                board: newBoard,
-                turn: myColor === 'black' ? 'white' : 'black'
-            };
-
-            if (isWin) {
-                updates.status = 'won';
-                updates.winner = myName;
-            }
-
-            // 本地立刻渲染新状态
-            applyNewState({ ...gameState, ...updates });
-
-            // 3. 异步同步到云端
-            if (hasCloudBase && currentRoomCode) {
-                try {
-                    await getRoomRef(currentRoomCode).update(updates);
-                } catch (err) {
-                    console.error("落子同步失败", err);
-                    showToast("网络不稳定，落子未成功");
-                    // 4. 网络异常，回滚本地状态
-                    applyNewState(previousState);
-                }
-            } else {
-                myColor = updates.turn; 
-            }
-        });
-
-        function checkWin(move, currentBoard) {
-            const dirs = [ [[1, 0], [-1, 0]], [[0, 1], [0, -1]], [[1, 1], [-1, -1]], [[1, -1], [-1, 1]] ];
-            const hasPiece = (x, y) => currentBoard.some(m => m.x === x && m.y === y && m.color === move.color);
-
-            for (const dirPair of dirs) {
-                let count = 1; 
-                for (const dir of dirPair) {
-                    let step = 1;
-                    while (true) {
-                        const nx = move.x + dir[0] * step;
-                        const ny = move.y + dir[1] * step;
-                        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && hasPiece(nx, ny)) {
-                            count++; step++;
-                        } else { break; }
-                    }
-                }
-                if (count >= 5) return true;
-            }
-            return false;
-        }
-
-        // ==========================================
-        // 游戏核心逻辑 (创建/加入房间)
-        // ==========================================
-        async function initAuth() {
-            if (!hasCloudBase) {
-                hideGlobalLoading();
-                showToast("单机演示模式 (未连接云端)");
-                return;
-            }
-            try {
-                const res = await auth.signInAnonymously();
-                if (res && res.error) throw res.error;
-                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                hideGlobalLoading();
-                startPingLoop();
-            } catch (err) {
-                console.error("登录失败:", err);
-                hideGlobalLoading();
-                showToast("连接服务器失败，请重试");
-            }
-        }
-
-        function hideGlobalLoading() {
-            const loadingOverlay = document.getElementById('globalLoading');
-            if(loadingOverlay) {
-                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
-            }
-        }
-
         window.createRoom = async function() {
-            if (!hasCloudBase) return mockJoin("1234", 'black');
-            initAudio(); 
-            
-            showToast("正在创建房间...");
+            initAudio();
+            readLobbyForm();
+            isSinglePlayer = false;
+            currentPuzzleId = null;
+
+            if (!hasCloudBase) {
+                showToast("当前未连接云端，为您开启AI陪练演示");
+                startAiGame('medium');
+                return;
+            }
+
+            showToast("正在创建心动房间...");
             const code = Math.floor(1000 + Math.random() * 9000).toString();
-            
             try {
-                const newRoomData = {
-                    status: 'waiting', 
-                    turn: 'black',
-                    players: { black: myName, white: null },
-                    board: [], 
-                    winner: null, 
-                    createdAt: Date.now()
-                };
+                const newRoomData = createDefaultGameState();
+                newRoomData.players.black = myName;
+                newRoomData.createdAt = Date.now();
+                if (newRoomData.mode === 'skill') {
+                    newRoomData.mysteryBoxes = generateMysteryBoxes([], 3);
+                }
                 await getRoomRef(code).set(newRoomData);
-                joinRoomSuccess(code, 'black', newRoomData);
-                showToast(`房间 ${code} 创建成功`);
+                enterGameScreen(code, 'black', newRoomData);
+                showToast(`✨ 房间 ${code} 创建成功，快把号码发给TA吧！`);
             } catch (e) {
                 console.error(e);
-                showToast("创建房间失败！");
+                showToast("创建房间失败，请检查网络！");
             }
         };
 
         window.joinRoom = async function() {
-            initAudio(); 
+            initAudio();
             const codeInput = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!codeInput || codeInput.length !== 4) {
-                showToast("请输入正确的4位数字房间号！"); return;
+                showToast("请输入正确的4位房间号！");
+                return;
+            }
+            if (!hasCloudBase) {
+                startAiGame('medium');
+                return;
             }
 
-            if (!hasCloudBase) return mockJoin(codeInput, 'white');
-
-            showToast("正在查找房间...");
-            
+            showToast("正在进入房间...");
             try {
                 const res = await getRoomRef(codeInput).get();
                 const data = res.data && res.data[0];
-                if (!data) { showToast("房间不存在哦！"); return; }
-                
+                if (!data) {
+                    showToast("房间不存在哦，请确认房间号！");
+                    return;
+                }
+
+                isSinglePlayer = false;
+                currentPuzzleId = null;
                 let assignedColor = null;
 
                 if (data.players.black === myName) {
@@ -725,179 +2432,182 @@
                     data.players.black = myName;
                 } else if (!data.players.white) {
                     assignedColor = 'white';
-                    await getRoomRef(codeInput).update({ 
-                        'players.white': myName, 
-                        status: 'playing' 
+                    const deadline = data.stepTimeLimit > 0 ? Date.now() + data.stepTimeLimit * 1000 : 0;
+                    await getRoomRef(codeInput).update({
+                        'players.white': myName,
+                        status: 'playing',
+                        turnDeadline: deadline
                     });
                     data.players.white = myName;
                     data.status = 'playing';
+                    data.turnDeadline = deadline;
                 } else {
-                    showToast("房间已满，作为旁观者加入");
+                    showToast("房间已满，以观战视角进入");
                 }
 
-                joinRoomSuccess(codeInput, assignedColor, data);
+                enterGameScreen(codeInput, assignedColor, data);
             } catch (e) {
                 console.error(e);
                 showToast("加入房间失败！");
             }
         };
 
-        function mockJoin(code, color) {
-            joinRoomSuccess(code, color, {
-                status: color === 'black' ? 'waiting' : 'playing', turn: 'black',
-                players: { black: color==='black'?myName:'电脑', white: color==='white'?myName:null },
-                board: [], winner: null
-            });
-            if(color === 'black') {
-                setTimeout(() => {
-                    applyNewState({
-                        ...gameState,
-                        players: { ...gameState.players, white: "模拟玩家" },
-                        status: "playing"
-                    });
-                    showToast("模拟玩家已加入！");
-                }, 2000);
-            }
-        }
-
-        // 强健的房间监听逻辑
         function subscribeToRoom(code) {
             if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-            
             const watcher = getRoomRef(code).watch({
                 onChange: (snapshot) => {
                     const data = pickDoc(snapshot, code);
-                    if (data) {
-                        applyNewState(data);
-                    } else {
-                        showToast("房间已解散");
-                        leaveRoom();
-                    }
+                    if (data) applyNewState(data);
                 },
                 onError: (err) => {
-                    console.error("房间监听断开", err);
-                    updateNetworkStatus(-1);
-                    // 发生异常时，静默尝试重新建立连接
+                    console.warn("房间监听重连中:", err);
                     setTimeout(() => {
-                        if (currentRoomCode === code) subscribeToRoom(code);
+                        if (currentRoomCode === code && !isSinglePlayer) subscribeToRoom(code);
                     }, 2000);
                 }
             });
             unsubscribe = () => watcher.close();
         }
 
-        function joinRoomSuccess(code, color, initialData) {
+        function enterGameScreen(code, color, initialData) {
             currentRoomCode = code;
             myColor = color;
-            applyNewState(initialData);
-            
+            lastBoardLength = initialData.board ? initialData.board.length : 0;
+
             document.getElementById('lobbyUI').classList.add('hidden', 'opacity-0');
             const gameUI = document.getElementById('gameUI');
             gameUI.classList.remove('hidden');
             setTimeout(() => {
                 gameUI.classList.remove('opacity-0');
-                resizeCanvas(); 
+                resizeCanvas();
+                applyNewState(initialData);
             }, 50);
 
             document.getElementById('roomCodeDisplay').innerText = code;
-            
-            if (hasCloudBase) {
+            if (hasCloudBase && !isSinglePlayer) {
                 subscribeToRoom(code);
             }
         }
 
-        function updateGameUI() {
-            document.getElementById('playerBlackName').innerText = gameState.players.black || '等待中...';
-            document.getElementById('playerWhiteName').innerText = gameState.players.white || '等待中...';
-
-            const pBlackInfo = document.getElementById('playerBlackInfo');
-            const pWhiteInfo = document.getElementById('playerWhiteInfo');
-            const statusText = document.getElementById('gameStatusText');
-
-            if (gameState.status === 'waiting') {
-                statusText.innerText = "等待另一位玩家加入...";
-                statusText.className = "px-3 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-bold inline-block border border-gray-200 animate-pulse";
-                pBlackInfo.classList.add('opacity-50');
-                pWhiteInfo.classList.add('opacity-50');
-                document.getElementById('celebrationOverlay').classList.add('hidden');
-            } else if (gameState.status === 'playing') {
-                pBlackInfo.classList.remove('opacity-50');
-                pWhiteInfo.classList.remove('opacity-50');
-                
-                if (gameState.turn === myColor) {
-                    statusText.innerText = "轮到你落子啦！";
-                    statusText.className = "px-3 py-1 bg-rose-500 text-white rounded-full text-xs font-bold inline-block shadow-md animate-bounce";
-                } else {
-                    statusText.innerText = "对方思考中...";
-                    statusText.className = "px-3 py-1 bg-rose-50 text-rose-500 rounded-full text-xs font-bold inline-block border border-rose-200";
-                }
-
-                if (gameState.turn === 'black') {
-                    pBlackInfo.classList.add('scale-110', 'transition-transform');
-                    pWhiteInfo.classList.remove('scale-110');
-                } else {
-                    pWhiteInfo.classList.add('scale-110', 'transition-transform');
-                    pBlackInfo.classList.remove('scale-110');
-                }
-                document.getElementById('celebrationOverlay').classList.add('hidden');
-            } else if (gameState.status === 'won') {
-                statusText.innerText = "游戏结束";
-                statusText.className = "px-3 py-1 bg-gray-800 text-white rounded-full text-xs font-bold inline-block shadow-md";
-                
-                const overlay = document.getElementById('celebrationOverlay');
-                const winMsg = document.getElementById('winAnnouncement');
-                winMsg.innerText = gameState.winner === myName ? "🎉 你赢啦！" : `😢 ${gameState.winner} 获胜！`;
-                overlay.classList.remove('hidden');
-            }
-        }
-
         window.requestRestart = async function() {
-            if (!hasCloudBase) {
-                applyNewState({
-                    ...gameState, board: [], status: 'playing', turn: 'black', winner: null
-                });
+            if (currentPuzzleId) {
+                startPuzzle(currentPuzzleId);
                 return;
             }
-            try {
-                await getRoomRef(currentRoomCode).update({ 
-                    board: [], 
-                    status: 'playing', 
-                    turn: 'black', 
-                    winner: null 
-                });
-            } catch (e) { showToast("重置失败，请检查网络"); }
+
+            const bo = gameState.bo || 1;
+            const neededWins = Math.ceil(bo / 2);
+            const sBlack = gameState.seriesScore?.black || 0;
+            const sWhite = gameState.seriesScore?.white || 0;
+            const isSeriesOver = sBlack >= neededWins || sWhite >= neededWins;
+
+            // 番棋未结束时自动互换先后手，结束则开启新番棋
+            const nextPlayers = isSeriesOver
+                ? gameState.players
+                : { black: gameState.players.white, white: gameState.players.black };
+            const nextScore = isSeriesOver
+                ? { black: 0, white: 0 }
+                : { black: sWhite, white: sBlack };
+            const nextRound = isSeriesOver ? 1 : (gameState.round || 1) + 1;
+
+            const updates = {
+                board: [],
+                status: 'playing',
+                turn: 'black',
+                extraMoves: 0,
+                winner: null,
+                winReason: '',
+                players: nextPlayers,
+                seriesScore: nextScore,
+                round: nextRound,
+                swap3Offered: false,
+                energy: { black: 1, white: 1 },
+                undoLeft: { black: 2, white: 2 },
+                frozenZones: [],
+                pendingRequest: null,
+                mysteryBoxes: gameState.mode === 'skill' ? generateMysteryBoxes([], 3) : [],
+                turnDeadline: gameState.stepTimeLimit > 0 ? Date.now() + gameState.stepTimeLimit * 1000 : 0
+            };
+
+            await commitStateUpdate(updates);
+            showToast(isSeriesOver ? "🎉 新一轮番棋对决开始！" : `⚡ 第 ${nextRound} 局开始，双方已互换黑白先后手！`);
         };
 
         window.leaveRoom = function() {
             if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+            if (turnTimerInterval) { clearInterval(turnTimerInterval); turnTimerInterval = null; }
+            if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
+            isReplayMode = false;
             currentRoomCode = null;
             myColor = null;
-            
+
             const gameUI = document.getElementById('gameUI');
             const lobbyUI = document.getElementById('lobbyUI');
-            
             gameUI.classList.add('opacity-0');
             setTimeout(() => {
                 gameUI.classList.add('hidden');
                 lobbyUI.classList.remove('hidden');
                 setTimeout(() => lobbyUI.classList.remove('opacity-0'), 50);
-            }, 500);
+            }, 350);
         };
+
+        window.handleBackBtn = function() {
+            if (!document.getElementById('gameUI').classList.contains('hidden')) {
+                leaveRoom();
+            } else {
+                location.reload();
+            }
+        };
+
+        // 弹窗与工具函数
+        window.openModal = function(id) {
+            document.getElementById(id)?.classList.remove('hidden');
+        };
+        window.closeModal = function(id) {
+            document.getElementById(id)?.classList.add('hidden');
+        };
+
+        function hideGlobalLoading() {
+            const loadingOverlay = document.getElementById('globalLoading');
+            if (loadingOverlay) {
+                loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+            }
+        }
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
             toast.innerText = msg;
             toast.classList.remove('hidden');
+            toast.classList.remove('toast-animate');
+            void toast.offsetWidth;
             toast.classList.add('toast-animate');
-            setTimeout(() => {
+            clearTimeout(toast._timer);
+            toast._timer = setTimeout(() => {
                 toast.classList.add('hidden');
-                toast.classList.remove('toast-animate');
             }, 3000);
+        }
+
+        async function initAuth() {
+            if (!hasCloudBase) {
+                hideGlobalLoading();
+                return;
+            }
+            try {
+                const res = await auth.signInAnonymously();
+                if (res && res.error) throw res.error;
+                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
+                hideGlobalLoading();
+                startPingLoop();
+            } catch (err) {
+                console.warn("云端匿名登录失败，可正常使用单机模式:", err);
+                hideGlobalLoading();
+            }
         }
 
         window.addEventListener('load', () => {
             initAuth();
-            requestAnimationFrame(animateLoop); 
+            requestAnimationFrame(animateLoop);
         });
     </script>
 </body>
