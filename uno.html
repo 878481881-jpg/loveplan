@@ -247,7 +247,7 @@
         <div class="text-6xl animate-spin mb-4">🌈</div>
         <div class="text-sky-600 font-bold text-xl flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-sky-400 animate-ping"></span>
-            连接牌局中...
+            <span id="loadingStatusText">连接牌局服务器中...</span>
         </div>
     </div>
 
@@ -320,12 +320,13 @@
                 🔊 音效
             </button>
             <div class="flex flex-col items-end">
-                <div class="bg-white/90 px-2.5 py-1 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1">
+                <button onclick="changePlayerName()" class="bg-white/90 px-2.5 py-1 rounded-full border border-sky-100 shadow-sm text-xs font-bold text-gray-600 flex items-center gap-1 hover:bg-sky-50" title="点击修改昵称">
                     <span id="currentRoleDisplay" class="px-2 py-0.2 rounded-full bg-sky-500 text-white shadow-inner">加载中</span>
-                </div>
-                <span id="syncStatusBadge" class="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1">
-                    <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
-                </span>
+                    <span class="text-[10px] text-sky-400">✎</span>
+                </button>
+                <button onclick="manualReconnect()" id="syncStatusBadge" class="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1 cursor-pointer hover:underline" title="点击手动重连或刷新状态">
+                    <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 连接中...
+                </button>
             </div>
         </div>
     </header>
@@ -382,7 +383,7 @@
                 </div>
                 
                 <div class="w-full space-y-3">
-                    <button onclick="createRoom()" class="w-full py-3.5 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-base shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
+                    <button id="createRoomBtn" onclick="createRoom()" class="w-full py-3.5 bg-gradient-to-r from-red-400 to-rose-500 text-white rounded-2xl font-bold text-base shadow-lg hover:shadow-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 border-2 border-red-300/50">
                         <span>🏠</span> 创建房间 (红方房主)
                     </button>
                     
@@ -394,7 +395,7 @@
 
                     <div class="flex gap-2 w-full">
                         <input type="text" id="roomCodeInput" maxlength="4" placeholder="4位房号" class="w-1/2 px-3 py-3 bg-white border-2 border-sky-100 rounded-2xl text-center text-lg font-black text-sky-700 tracking-[0.3em] focus:outline-none focus:border-sky-400 uppercase transition-all shadow-inner" autocomplete="off">
-                        <button onclick="joinRoom()" class="w-1/2 py-3 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-base rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
+                        <button id="joinRoomBtn" onclick="joinRoom()" class="w-1/2 py-3 bg-gradient-to-r from-blue-400 to-indigo-500 text-white font-bold text-base rounded-2xl shadow-lg hover:shadow-xl active:scale-[0.98] transition-all border-2 border-blue-300/50">
                             ⚔️ 加入 (蓝方)
                         </button>
                     </div>
@@ -429,11 +430,14 @@
                         <span id="turnBannerText" class="truncate">等待中...</span>
                     </div>
 
-                    <!-- 倒计时数字徽章 + 退出 -->
-                    <div class="flex items-center gap-1.5">
+                    <!-- 倒计时数字徽章 + 手动刷新 + 退出 -->
+                    <div class="flex items-center gap-1">
                         <div id="timerBadge" class="px-2 py-1 rounded-lg bg-sky-100 text-sky-700 font-black text-xs min-w-[3.2rem] text-center shadow-inner">
                             ⏱️ 30s
                         </div>
+                        <button onclick="manualReconnect()" class="w-7 h-7 rounded-full bg-sky-50 text-sky-600 flex items-center justify-center hover:bg-sky-100 border border-sky-100 active:scale-90 text-xs" title="刷新同步牌局">
+                            🔄
+                        </button>
                         <button onclick="exitRoom()" class="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-100 border border-red-100 active:scale-90" title="退出房间">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                         </button>
@@ -564,12 +568,37 @@
     </main>
 
     <script type="module">
-        const fallbackTimer = setTimeout(() => hideLoading(), 1000);
+        const fallbackTimer = setTimeout(() => hideLoading(), 1200);
 
-        // ===== 腾讯云开发 CloudBase 配置 =====
+        // ===== 腾讯云开发 CloudBase 配置与高可用重连引擎 =====
         const ENV_ID = "lovegame-d0g3xo4h8d1addad2"; 
         const REGION = "ap-shanghai";             
         const ROOM_COLLECTION = "unoRooms";
+
+        let app = null, auth = null, db = null;
+        let currentUser = null;
+        let hasCloudBase = false;
+        let authPromise = null;
+        let pingInterval = null;
+        let backupPollInterval = null;
+        let reconnectTimer = null;
+
+        function initCloudBaseSDK() {
+            if (hasCloudBase && app && db && auth) return true;
+            try {
+                if (typeof cloudbase === 'undefined') return false;
+                app = cloudbase.init({ env: ENV_ID, region: REGION });
+                // 兼容不同版本 CloudBase SDK: app.auth 可能是函数也可能是属性
+                auth = typeof app.auth === 'function' ? app.auth({ persistence: 'local' }) : app.auth;
+                db = app.database();
+                hasCloudBase = true;
+                return true;
+            } catch(e) {
+                console.error("CloudBase init failed:", e);
+                return false;
+            }
+        }
+        initCloudBaseSDK();
 
         function getRoomRef(code) {
             return db.collection(ROOM_COLLECTION).doc(String(code));
@@ -577,6 +606,9 @@
 
         function pickDoc(snapshot, code) {
             if (!snapshot) return null;
+            if (snapshot.doc && typeof snapshot.doc === 'object' && Object.keys(snapshot.doc).length > 0) {
+                return snapshot.doc;
+            }
             const docs = snapshot.docs;
             if (Array.isArray(docs)) return docs[0] || null;
             if (docs && typeof docs === 'object') {
@@ -585,29 +617,163 @@
             return null;
         }
 
-        let app, auth, db;
-        let currentUser = null;
-        let hasCloudBase = false;
-
-        try {
-            app = cloudbase.init({ env: ENV_ID, region: REGION });
-            auth = app.auth;      
-            db = app.database();
-            hasCloudBase = true;
-        } catch(e) {
-            console.error("CloudBase init failed", e);
+        // 带指数退避重试的云端操作包装器，解决偶发网络抖动失败
+        async function withRetry(fn, retries = 3, delayMs = 600) {
+            let lastErr;
+            for (let i = 0; i < retries; i++) {
+                try {
+                    return await fn();
+                } catch (err) {
+                    lastErr = err;
+                    // 若是鉴权失效导致，尝试重新获取一次登录态
+                    if (i === 0 && auth) {
+                        try { await ensureAuthenticated(true); } catch (_) {}
+                    }
+                    if (i < retries - 1) {
+                        await new Promise(r => setTimeout(r, delayMs * (i + 1)));
+                    }
+                }
+            }
+            throw lastErr;
         }
 
-        let myIdentity = "玩家" + Math.floor(Math.random()*900 + 100); 
+        function updateSyncBadge(state, pingMs = null) {
+            const badge = document.getElementById('syncStatusBadge');
+            if (!badge) return;
+            if (state === 'online') {
+                const pingStr = pingMs !== null ? ` ${pingMs}ms` : '';
+                let dotColor = 'bg-green-500 shadow-[0_0_4px_#22c55e]';
+                if (pingMs > 300) dotColor = 'bg-amber-500';
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dotColor}"></span> <span class="text-emerald-600 font-bold">在线${pingStr}</span>`;
+            } else if (state === 'connecting') {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> <span class="text-amber-600">重连中...</span>`;
+            } else {
+                badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> <span class="text-red-500 font-bold">点击重连</span>`;
+            }
+        }
+
+        // 确保匿名登录成功（含缓存复用、多次重试与多种 SDK 签名方式兼容）
+        async function ensureAuthenticated(forceRefresh = false) {
+            if (!initCloudBaseSDK()) {
+                throw new Error("SDK未加载");
+            }
+            if (currentUser && !forceRefresh) return currentUser;
+            if (authPromise && !forceRefresh) return authPromise;
+
+            authPromise = (async () => {
+                updateSyncBadge('connecting');
+                let lastError = null;
+                for (let attempt = 1; attempt <= 3; attempt++) {
+                    try {
+                        // 1. 先检查是否已有有效登录态，避免重复请求被限流
+                        if (!forceRefresh && typeof auth.getLoginState === 'function') {
+                            const existingState = await auth.getLoginState();
+                            if (existingState && (existingState.user || existingState.credential)) {
+                                currentUser = existingState.user || { uid: 'logged_user' };
+                                updateSyncBadge('online');
+                                return currentUser;
+                            }
+                        }
+
+                        // 2. 兼容新旧两代 CloudBase Web SDK 的匿名登录写法
+                        if (typeof auth.signInAnonymously === 'function') {
+                            const res = await auth.signInAnonymously();
+                            if (res && res.error) throw res.error;
+                        } else if (typeof auth.anonymousAuthProvider === 'function') {
+                            await auth.anonymousAuthProvider().signIn();
+                        }
+
+                        const loginState = typeof auth.getLoginState === 'function' ? await auth.getLoginState() : null;
+                        currentUser = (loginState && loginState.user) || { uid: 'anon_' + Date.now() };
+                        updateSyncBadge('online');
+                        startPingMonitor();
+                        return currentUser;
+                    } catch (err) {
+                        lastError = err;
+                        console.warn(`CloudBase 第 ${attempt} 次连接尝试失败:`, err);
+                        if (attempt < 3) {
+                            await new Promise(r => setTimeout(r, 700 * attempt));
+                        }
+                    }
+                }
+                updateSyncBadge('offline');
+                throw lastError || new Error("连接失败");
+            })();
+
+            try {
+                return await authPromise;
+            } finally {
+                authPromise = null;
+            }
+        }
+
+        function startPingMonitor() {
+            if (pingInterval) clearInterval(pingInterval);
+            pingInterval = setInterval(async () => {
+                if (!hasCloudBase || !currentUser || document.hidden) return;
+                const t0 = Date.now();
+                try {
+                    if (currentRoomId) {
+                        const res = await getRoomRef(currentRoomId).get();
+                        const data = res && res.data && res.data[0];
+                        if (data) handleIncomingRoomData(data);
+                    } else {
+                        await db.collection(ROOM_COLLECTION).limit(1).get();
+                    }
+                    updateSyncBadge('online', Date.now() - t0);
+                } catch (e) {
+                    updateSyncBadge('offline');
+                }
+            }, 6000);
+        }
+
+        // 手动重连 & 页面唤醒自动重连
+        window.manualReconnect = async function() {
+            showToast("🔄 正在重新校准云端连接...");
+            try {
+                await ensureAuthenticated(true);
+                if (currentRoomId) {
+                    const res = await getRoomRef(currentRoomId).get();
+                    const data = res && res.data && res.data[0];
+                    if (data) {
+                        handleIncomingRoomData(data);
+                        listenToRoom(currentRoomId);
+                    }
+                }
+                showToast("✅ 云端连接已恢复流畅！");
+            } catch (e) {
+                showToast("⚠️ 重连失败，请检查网络连接后再试");
+            }
+        };
+
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && hasCloudBase) {
+                ensureAuthenticated().then(() => {
+                    if (currentRoomId) listenToRoom(currentRoomId);
+                }).catch(() => {});
+            }
+        });
+        window.addEventListener('online', () => window.manualReconnect());
+
+        // 玩家身份初始化与修改支持
+        let myName = "玩家" + Math.floor(Math.random()*900 + 100); 
         try {
             const savedIdentity = localStorage.getItem('loveGacha_myIdentity');
-            if (savedIdentity) myIdentity = savedIdentity;
+            if (savedIdentity) myName = savedIdentity;
         } catch(e) {
             console.warn('当前环境禁止访问 localStorage');
         }
-        
-        const myName = myIdentity; 
         document.getElementById('currentRoleDisplay').innerText = myName;
+
+        window.changePlayerName = function() {
+            const input = prompt("请输入你的专属昵称：", myName);
+            if (input && input.trim()) {
+                myName = input.trim().slice(0, 10);
+                document.getElementById('currentRoleDisplay').innerText = myName;
+                try { localStorage.setItem('loveGacha_myIdentity', myName); } catch(e) {}
+                showToast(`昵称已更新为：${myName}`);
+            }
+        };
 
         // ===== Web Audio API 合成音效系统 =====
         let soundEnabled = true;
@@ -829,24 +995,17 @@
         }
 
         async function initAuth() {
-            if (!hasCloudBase) {
-                showToast("未检测到网络配置，进入离线预览模式");
+            switchToLobby();
+            if (!initCloudBaseSDK()) {
+                updateSyncBadge('offline');
                 clearTimeout(fallbackTimer);
                 hideLoading();
-                switchToLobby();
                 return;
             }
             try {
-                const res = await auth.signInAnonymously();
-                if (res && res.error) throw res.error;
-                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> 在线';
-                switchToLobby();
+                await ensureAuthenticated();
             } catch (err) {
-                console.error("Auth Error:", err);
-                showToast("网络通信异常");
-                document.getElementById('syncStatusBadge').innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
-                switchToLobby();
+                console.warn("初次自动登录未完成，点击创建/加入房间时将自动重连:", err);
             } finally {
                 clearTimeout(fallbackTimer);
                 hideLoading();
@@ -855,6 +1014,7 @@
 
         function hideLoading() {
             const el = document.getElementById('globalLoading');
+            if (!el) return;
             el.classList.add('opacity-0', 'pointer-events-none');
             setTimeout(() => el.classList.add('hidden'), 500);
         }
@@ -864,6 +1024,8 @@
             document.getElementById('gameView').classList.add('hidden');
             if(unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
             if(localTimerInterval) { clearInterval(localTimerInterval); localTimerInterval = null; }
+            if(backupPollInterval) { clearInterval(backupPollInterval); backupPollInterval = null; }
+            if(reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
             currentRoomId = null;
             myPlayerId = null;
             oppPlayerId = null;
@@ -871,68 +1033,91 @@
             selectedComboIndices = [];
         }
 
-        // ===== 创建与加入房间 =====
+        // ===== 创建与加入房间（自带自动重连鉴权，彻底解决“未连接服务器”拦截） =====
         window.createRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
-            const code = Math.floor(1000 + Math.random() * 9000).toString();
-            const rules = getSelectedRulesFromUI();
-            const now = Date.now();
-            
-            const initialData = {
-                status: 'waiting', 
-                rules,
-                p1: { name: myName },
-                p2: { name: null },
-                p1Hand: [],
-                p2Hand: [],
-                deck: [],
-                discardPile: [],
-                currentColor: '',
-                turn: 'p1',
-                turnStartTime: now,
-                turnDurationSec: 30,
-                turnSeq: 1,
-                turnCounter: 0,
-                logs: [`🏠 ${myName} 创建了大乱斗房间，等待对手加入...`],
-                winner: null,
-                pendingDrawCount: 0,
-                unoVulnerablePlayer: null, // 剩1张但未喊UNO可被抓包的玩家
-                plusFourChallenge: null,   // { byPlayer, prevColor, couldHavePlayedColor }
-                xrayTurnsLeft: { p1: 0, p2: 0 },
-                activeEvent: null,         // { type: 'banColor'|'blitz', bannedColor: 'red', turnsLeft: 2, desc: '' }
-                scores: { p1Wins: 0, p2Wins: 0, p1Points: 0, p2Points: 0, p1Streak: 0, p2Streak: 0, lastRoundPoints: 0 },
-                punishmentText: null,
-                quickChat: null,
-                pokeEvent: null
-            };
-
+            const btn = document.getElementById('createRoomBtn');
+            if (btn) btn.disabled = true;
             try {
-                await getRoomRef(code).set(initialData);
+                if (!currentUser) {
+                    showToast("🔄 正在连接云端服务器...");
+                    await ensureAuthenticated(true);
+                }
+                const code = Math.floor(1000 + Math.random() * 9000).toString();
+                const rules = getSelectedRulesFromUI();
+                const now = Date.now();
+                
+                const initialData = {
+                    status: 'waiting', 
+                    rules,
+                    p1: { name: myName },
+                    p2: { name: null },
+                    p1Hand: [],
+                    p2Hand: [],
+                    deck: [],
+                    discardPile: [],
+                    currentColor: '',
+                    turn: 'p1',
+                    turnStartTime: now,
+                    turnDurationSec: 30,
+                    turnSeq: 1,
+                    turnCounter: 0,
+                    logs: [`🏠 ${myName} 创建了大乱斗房间，等待对手加入...`],
+                    winner: null,
+                    pendingDrawCount: 0,
+                    unoVulnerablePlayer: null,
+                    plusFourChallenge: null,
+                    xrayTurnsLeft: { p1: 0, p2: 0 },
+                    activeEvent: null,
+                    scores: { p1Wins: 0, p2Wins: 0, p1Points: 0, p2Points: 0, p1Streak: 0, p2Streak: 0, lastRoundPoints: 0 },
+                    punishmentText: null,
+                    quickChat: null,
+                    pokeEvent: null
+                };
+
+                await withRetry(() => getRoomRef(code).set(initialData));
                 myPlayerId = 'p1';
                 oppPlayerId = 'p2';
+                gameState = initialData;
                 playSound('tap');
                 listenToRoom(code);
-                showToast(`房间 ${code} 创建成功`);
+                renderGameState();
+                showToast(`🏠 房间 ${code} 创建成功！快把房号发给好友吧`);
             } catch (e) {
-                console.error(e);
-                showToast("创建失败");
+                console.error("Create room failed:", e);
+                showToast("⚠️ 创建房间失败，请点击右上角【重连】或检查网络");
+            } finally {
+                if (btn) btn.disabled = false;
             }
         };
 
         window.joinRoom = async function() {
-            if (!currentUser) return showToast("未连接服务器");
             const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
-            if (!code || code.length !== 4) return showToast("请输入4位房间号");
+            if (!code || code.length !== 4) return showToast("请输入4位数字房间号");
+
+            const btn = document.getElementById('joinRoomBtn');
+            if (btn) btn.disabled = true;
 
             try {
-                const res = await getRoomRef(code).get();
-                const data = res.data && res.data[0];
-                if (!data) return showToast("房间不存在");
-                if (data.status !== 'waiting' && data.p1.name !== myName && data.p2.name !== myName) {
-                    return showToast("对战已开始或满人");
+                if (!currentUser) {
+                    showToast("🔄 正在连接云端服务器...");
+                    await ensureAuthenticated(true);
                 }
 
-                if (data.status === 'waiting' && data.p1.name !== myName) {
+                const res = await withRetry(() => getRoomRef(code).get());
+                const data = res.data && res.data[0];
+                if (!data) return showToast("房间不存在，请检查4位房号是否正确");
+
+                // 防止双方都使用默认同名身份导致冲突：若加入者与房主同名且二号位为空，自动为加入者追加「(蓝方)」后缀
+                if (data.status === 'waiting' && !data.p2?.name && data.p1?.name === myName) {
+                    myName = `${myName}(蓝)`;
+                    document.getElementById('currentRoleDisplay').innerText = myName;
+                }
+
+                if (data.status !== 'waiting' && data.p1?.name !== myName && data.p2?.name !== myName) {
+                    return showToast("该房间对战已开始或人数已满");
+                }
+
+                if (data.status === 'waiting' && data.p1?.name !== myName) {
                     const rules = data.rules || getSelectedRulesFromUI();
                     let deck = createDeck(rules);
                     let p1Hand = deck.splice(0, 7);
@@ -943,7 +1128,7 @@
                     let currentColor = discardPile[0].color;
                     const now = Date.now();
 
-                    await getRoomRef(code).update({
+                    const startPatch = {
                         'p2.name': myName,
                         status: 'playing',
                         deck, p1Hand, p2Hand, discardPile, currentColor,
@@ -962,20 +1147,29 @@
                             `⚔️ ${myName} 加入房间，大乱斗正式开始！红方先手 (30s限时)。`,
                             `👉 起始牌为 ${getColorName(currentColor)} ${discardPile[0].value}`
                         ]
-                    });
+                    };
+
+                    await withRetry(() => getRoomRef(code).update(startPatch));
                     myPlayerId = 'p2';
                     oppPlayerId = 'p1';
-                } else if (data.p1.name === myName) {
+                    gameState = { ...data, ...startPatch, p2: { name: myName } };
+                } else if (data.p1?.name === myName) {
                     myPlayerId = 'p1'; oppPlayerId = 'p2';
-                } else if (data.p2.name === myName) {
+                    gameState = data;
+                } else if (data.p2?.name === myName) {
                     myPlayerId = 'p2'; oppPlayerId = 'p1';
+                    gameState = data;
                 }
 
                 playSound('uno');
                 listenToRoom(code);
+                renderGameState();
+                showToast(`⚔️ 成功进入 ${code} 房间！`);
             } catch (e) {
-                console.error(e);
-                showToast("加入失败");
+                console.error("Join room failed:", e);
+                showToast("⚠️ 加入房间失败，请点击右上角【重连】再试");
+            } finally {
+                if (btn) btn.disabled = false;
             }
         };
 
@@ -983,75 +1177,120 @@
             switchToLobby();
         };
 
-        // ===== 实时监听与 30s 双端同步计时器 =====
+        // 统一处理收到的房间快照（无论是 WebSocket 实时推送还是轮询兜底拉取）
+        function handleIncomingRoomData(data) {
+            if (!data) return;
+
+            // 校准时钟偏移：当收到新的回合开始时间戳时，若本机时钟与发射端有轻微偏差则自动平滑对齐
+            if (data.turnStartTime && (!gameState || data.turnSeq !== gameState.turnSeq)) {
+                const rawDiff = Date.now() - data.turnStartTime;
+                if (Math.abs(rawDiff) < 300000) {
+                    serverTimeOffsetMs = rawDiff - 150;
+                }
+                selectedComboIndices = [];
+                lastBeepSecond = -1;
+            }
+
+            // 检测对手出牌动画与音效
+            if (gameState && data.discardPile && data.discardPile.length > 0 && gameState.discardPile) {
+                const newTopCard = data.discardPile[data.discardPile.length - 1];
+                const oldTopCard = gameState.discardPile[gameState.discardPile.length - 1];
+                if (!oldTopCard || newTopCard.id !== oldTopCard.id) {
+                    triggerOpponentPlayAnim();
+                    if (newTopCard.value === '+2' || newTopCard.value === '➕4') {
+                        playSound('penalty');
+                    } else {
+                        playSound('card');
+                    }
+                }
+            }
+
+            // 检测胜利音效
+            if (data.winner && (!gameState || !gameState.winner)) {
+                playSound('win');
+            }
+
+            // 检测快捷弹幕同步
+            if (data.quickChat && data.quickChat.id !== lastSeenChatId) {
+                lastSeenChatId = data.quickChat.id;
+                spawnBarrageBubble(data.quickChat.sender, data.quickChat.text);
+                playSound('tap');
+            }
+
+            // 检测戳一戳震动同步
+            if (data.pokeEvent && data.pokeEvent.id !== lastSeenPokeId) {
+                lastSeenPokeId = data.pokeEvent.id;
+                triggerScreenShake(data.pokeEvent.from);
+            }
+
+            gameState = data;
+            requestAnimationFrame(renderGameState);
+        }
+
+        // ===== 实时监听 + WebSocket 断线自动重连 + 轮询兜底双保险 =====
         function listenToRoom(code) {
             currentRoomId = code;
             document.getElementById('lobbyView').classList.add('hidden');
             document.getElementById('gameView').classList.remove('hidden');
 
-            if (unsubscribeRoom) unsubscribeRoom();
+            if (unsubscribeRoom) { unsubscribeRoom(); unsubscribeRoom = null; }
             if (localTimerInterval) clearInterval(localTimerInterval);
+            if (backupPollInterval) clearInterval(backupPollInterval);
+            if (reconnectTimer) clearTimeout(reconnectTimer);
             
             // 启动每 200ms 刷新的高精度同步倒计时检查
             localTimerInterval = setInterval(updateSynchronizedTimer, 200);
 
-            const watcher = getRoomRef(code).watch({
-                onChange: (snapshot) => {
-                    const data = pickDoc(snapshot, code);
+            // 启动 2.5s 轻量级轮询兜底：即便移动网络下 WebSocket 偶发假死，也能保证双端数据在 2 秒内强制同步
+            backupPollInterval = setInterval(async () => {
+                if (!currentRoomId || document.hidden) return;
+                try {
+                    const res = await getRoomRef(currentRoomId).get();
+                    const data = res && res.data && res.data[0];
                     if (data) {
-                        // 校准时钟偏移：当收到新的回合开始时间戳时，若本机时钟与发射端有轻微偏差则自动平滑对齐
-                        if (data.turnStartTime && (!gameState || data.turnSeq !== gameState.turnSeq)) {
-                            const rawDiff = Date.now() - data.turnStartTime;
-                            // 若刚收到新回合推送，真实经过时间约 150ms，可据此修正双端系统时钟误差
-                            if (Math.abs(rawDiff) < 300000) {
-                                serverTimeOffsetMs = rawDiff - 150;
-                            }
-                            selectedComboIndices = [];
-                            lastBeepSecond = -1;
-                        }
-
-                        // 检测对手出牌动画与音效
-                        if (gameState && data.discardPile && data.discardPile.length > 0) {
-                            const newTopCard = data.discardPile[data.discardPile.length - 1];
-                            const oldTopCard = gameState.discardPile[gameState.discardPile.length - 1];
-                            if (!oldTopCard || newTopCard.id !== oldTopCard.id) {
-                                triggerOpponentPlayAnim();
-                                if (newTopCard.value === '+2' || newTopCard.value === '➕4') {
-                                    playSound('penalty');
-                                } else {
-                                    playSound('card');
-                                }
-                            }
-                        }
-
-                        // 检测胜利音效
-                        if (data.winner && (!gameState || !gameState.winner)) {
-                            playSound('win');
-                        }
-
-                        // 检测快捷弹幕同步
-                        if (data.quickChat && data.quickChat.id !== lastSeenChatId) {
-                            lastSeenChatId = data.quickChat.id;
-                            spawnBarrageBubble(data.quickChat.sender, data.quickChat.text);
-                            playSound('tap');
-                        }
-
-                        // 检测戳一戳震动同步
-                        if (data.pokeEvent && data.pokeEvent.id !== lastSeenPokeId) {
-                            lastSeenPokeId = data.pokeEvent.id;
-                            triggerScreenShake(data.pokeEvent.from);
-                        }
-
-                        gameState = data;
-                        requestAnimationFrame(renderGameState);
-                    } else {
-                        showToast("房间已解散");
-                        switchToLobby();
+                        // 仅当云端回合序号、状态、手牌数、弃牌堆或互动事件变化时刷新
+                        const changed = !gameState ||
+                            data.turnSeq !== gameState.turnSeq ||
+                            data.status !== gameState.status ||
+                            (data.logs && gameState.logs && data.logs.length !== gameState.logs.length) ||
+                            data.quickChat?.id !== gameState.quickChat?.id ||
+                            data.pokeEvent?.id !== gameState.pokeEvent?.id ||
+                            data.punishmentText !== gameState.punishmentText ||
+                            data.unoVulnerablePlayer !== gameState.unoVulnerablePlayer;
+                        if (changed) handleIncomingRoomData(data);
                     }
-                },
-                onError: (err) => { console.error(err); }
-            });
-            unsubscribeRoom = () => watcher.close();
+                } catch (_) {}
+            }, 2500);
+
+            try {
+                const watcher = getRoomRef(code).watch({
+                    onChange: (snapshot) => {
+                        updateSyncBadge('online');
+                        const data = pickDoc(snapshot, code);
+                        if (data) {
+                            handleIncomingRoomData(data);
+                        } else if (snapshot && snapshot.type === 'init') {
+                            // 初始快照偶发为空时主动拉取一次
+                            getRoomRef(code).get().then(res => {
+                                if (res?.data?.[0]) handleIncomingRoomData(res.data[0]);
+                            }).catch(() => {});
+                        }
+                    },
+                    onError: (err) => {
+                        console.warn("Watch stream interrupted, scheduling reconnect:", err);
+                        updateSyncBadge('connecting');
+                        if (reconnectTimer) clearTimeout(reconnectTimer);
+                        reconnectTimer = setTimeout(() => {
+                            if (currentRoomId === code) listenToRoom(code);
+                        }, 2000);
+                    }
+                });
+                unsubscribeRoom = () => {
+                    try { watcher.close(); } catch (_) {}
+                };
+            } catch (e) {
+                console.warn("Watcher setup failed, relying on polling:", e);
+            }
         }
 
         // 双端同步 30s 倒计时核心逻辑
@@ -1132,7 +1371,7 @@
             };
 
             try {
-                await getRoomRef(currentRoomId).update(nextState);
+                await withRetry(() => getRoomRef(currentRoomId).update(nextState));
             } catch(e) {
                 console.error("超时同步失败", e);
             }
@@ -1318,7 +1557,7 @@
 
             // 弃牌堆和摸牌区 UI 更新
             const discardPileTop = document.getElementById('discardPileTop');
-            const topCard = gameState.discardPile.length > 0 ? gameState.discardPile[gameState.discardPile.length - 1] : null;
+            const topCard = gameState.discardPile && gameState.discardPile.length > 0 ? gameState.discardPile[gameState.discardPile.length - 1] : null;
             document.getElementById('deckCount').innerText = `(${gameState.deck ? gameState.deck.length : 0})`;
             
             const drawActionText = document.getElementById('drawActionText');
@@ -1379,7 +1618,6 @@
                 if (isSelectedCombo) extraClasses += ' combo-selected';
                 else if (validJumpIn) extraClasses += ' jump-in-ready';
                 else if (!validNormal && !validJumpIn) {
-                    // 如果在同数齐出模式下，与首张选中牌相同数字的牌也允许点击勾选
                     const canAddCombo = isMyTurn && r.combo !== false && selectedComboIndices.length > 0 && myHand[selectedComboIndices[0]]?.value === card.value;
                     if (!canAddCombo) extraClasses += ' disabled';
                 }
@@ -1567,7 +1805,6 @@
 
             // 如果手里有多张同数字牌且开启了同数齐出，第一次点击自动全选同数字牌并提示可一键齐出（再点一下单张可直接单出）
             if (r.combo !== false && isNumberCard && sameNumberIndices.length >= 2 && (gameState.pendingDrawCount || 0) === 0) {
-                // 把当前点击的放第一位（合法引导牌），其余同数字牌紧随其后（最后一张决定最终颜色）
                 const others = sameNumberIndices.filter(i => i !== index);
                 selectedComboIndices = [index, ...others];
                 playSound('tap');
@@ -1679,7 +1916,6 @@
                 }
                 playSound('uno');
             } else if (primaryCard.value === '🧹') {
-                // 同色清扫：丢弃手里所有与当前颜色相同的非万能牌
                 const sameColorCards = myHand.filter(c => c.color === chosenColor);
                 if (sameColorCards.length > 0) {
                     myHand = myHand.filter(c => c.color !== chosenColor);
@@ -1691,7 +1927,6 @@
                 nextTurn = oppPlayerId;
                 playSound('uno');
             } else if (primaryCard.value === '🌪️') {
-                // 均富卡：双方手牌合在一起洗混后平分
                 const combined = shuffle([...myHand, ...oppHand]);
                 const half = Math.ceil(combined.length / 2);
                 myHand = combined.slice(0, half);
@@ -1700,9 +1935,9 @@
                 nextTurn = oppPlayerId;
                 playSound('uno');
             } else if (primaryCard.value === '👁️') {
-                nextXray[myPlayerId] = 3; // 接下来 2~3 回合透视对手全部手牌
+                nextXray[myPlayerId] = 3;
                 logs.push(`👁️ 上帝视角！${getMyName()} 发动【透视卡】，对手的手牌已被完全看穿！`);
-                nextTurn = myPlayerId; // 透视并可继续连出一张
+                nextTurn = myPlayerId;
                 playSound('uno');
             } else if (primaryCard.value === '🚫' || primaryCard.value === '🔄') {
                 logs.push(`⚡ 触发控制！跳过 ${getOppName()} 回合，${getMyName()} 继续连动出牌。`);
@@ -1720,7 +1955,7 @@
                 playSound('card');
             }
 
-            // UNO 宣告与抓包判定（放在换牌/清扫结算之后，基于最终剩余手牌数）
+            // UNO 宣告与抓包判定
             let nextUnoVulnerable = gameState.unoVulnerablePlayer || null;
             if (nextUnoVulnerable === myPlayerId && myHand.length !== 1) {
                 nextUnoVulnerable = null;
@@ -1734,7 +1969,6 @@
                     if (unoInputEl) unoInputEl.value = '';
                     nextUnoVulnerable = null;
                 } else if (rules.manualCatch !== false) {
-                    // 开启了手动抓包：不自动罚，标记为可被对方点击按钮抓包
                     nextUnoVulnerable = myPlayerId;
                 } else {
                     logs.push(`⚠️ 警报！${getMyName()} 剩最后 1 张却忘喊 UNO，系统自动罚摸 3 张！`);
@@ -1769,7 +2003,6 @@
             }
 
             const stepMeta = advanceTurnMetadata(logs, deck, myHand, oppHand, myPlayerId, myHand);
-            // 合并透视回合
             if (primaryCard.value === '👁️') {
                 stepMeta.nextXray[myPlayerId] = 2;
             }
@@ -1798,7 +2031,10 @@
 
             gameState = { ...gameState, ...nextState };
             setTimeout(() => { requestAnimationFrame(renderGameState); }, 80);
-            getRoomRef(currentRoomId).update(nextState).catch(e => console.error('出牌同步失败:', e));
+            withRetry(() => getRoomRef(currentRoomId).update(nextState)).catch(e => {
+                console.error('出牌同步失败:', e);
+                showToast("⚠️ 网络波动，正在自动重试同步...");
+            });
         }
 
         // ===== 摸牌逻辑 =====
@@ -1850,7 +2086,7 @@
 
             gameState = { ...gameState, ...nextState };
             requestAnimationFrame(renderGameState);
-            getRoomRef(currentRoomId).update(nextState).catch(e => console.error('摸牌同步失败:', e));
+            withRetry(() => getRoomRef(currentRoomId).update(nextState)).catch(e => console.error('摸牌同步失败:', e));
         };
 
         // ===== 🕵️ +4 质疑挑战逻辑 =====
@@ -1867,7 +2103,6 @@
             let nextTurn = myPlayerId;
 
             if (ch.wasBluffing) {
-                // 质疑成功：对手手里明明有原颜色牌却偷鸡出+4，改由对手罚摸 4 张，且轮到我继续出牌！
                 checkAndReshuffleDeck(deck, discardPile, 4, logs);
                 oppHand.push(...deck.splice(0, 4));
                 logs.push(`🕵️ 质疑成功！抓到 ${getOppName()} 手里藏着${getColorName(ch.prevColor)}牌还敢偷鸡出+4！反罚 ${getOppName()} 摸 4 张，${getMyName()} 继续出牌！`);
@@ -1875,7 +2110,6 @@
                 showToast("🎉 质疑成功！对方偷鸡被抓，反罚对方4张！");
                 nextTurn = myPlayerId;
             } else {
-                // 质疑失败：对手确实没牌，质疑者罚摸 6 张并跳过回合
                 checkAndReshuffleDeck(deck, discardPile, 6, logs);
                 myHand.push(...deck.splice(0, 6));
                 logs.push(`💥 质疑失败！${getOppName()} 是清白的！${getMyName()} 质疑翻车，加重罚摸 6 张并跳过回合！`);
@@ -1899,7 +2133,7 @@
 
             gameState = { ...gameState, ...nextState };
             requestAnimationFrame(renderGameState);
-            await getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+            await withRetry(() => getRoomRef(currentRoomId).update(nextState)).catch(e => console.error(e));
         };
 
         // ===== 🚨 手动抓包对手未喊 UNO =====
@@ -1925,7 +2159,7 @@
             };
             gameState = { ...gameState, ...nextState };
             requestAnimationFrame(renderGameState);
-            await getRoomRef(currentRoomId).update(nextState).catch(e => console.error(e));
+            await withRetry(() => getRoomRef(currentRoomId).update(nextState)).catch(e => console.error(e));
         };
 
         // ===== 🗣️ 喊 UNO（支持输入UNO或剩<=2张时直接一键点击） =====
@@ -1948,7 +2182,7 @@
                 gameState.unoVulnerablePlayer = clearVulnerable;
                 requestAnimationFrame(renderGameState);
                 try {
-                    await getRoomRef(currentRoomId).update({ logs, unoVulnerablePlayer: clearVulnerable });
+                    await withRetry(() => getRoomRef(currentRoomId).update({ logs, unoVulnerablePlayer: clearVulnerable }));
                 } catch(e) {
                     console.error("同步UNO喊叫失败", e);
                 }
@@ -2016,7 +2250,7 @@
             renderGameState();
 
             try {
-                await getRoomRef(currentRoomId).update({ punishmentText: fullText, logs });
+                await withRetry(() => getRoomRef(currentRoomId).update({ punishmentText: fullText, logs }));
             } catch(e) {}
         };
 
@@ -2073,7 +2307,7 @@
             let discardPile = [deck.splice(startCardIndex, 1)[0]];
             let currentColor = discardPile[0].color;
 
-            await getRoomRef(currentRoomId).update({
+            await withRetry(() => getRoomRef(currentRoomId).update({
                 status: 'playing',
                 p1Hand, p2Hand, deck, discardPile, currentColor,
                 turn: nextTurn,
@@ -2089,7 +2323,7 @@
                 punishmentText: null,
                 winner: null,
                 logs: [`🔄 新一局开始！本次由 ${nextTurn==='p1'?gameState.p1.name:gameState.p2.name} 先手 (30s限时)。`]
-            });
+            }));
             window.hasShoutedUno = false;
             selectedComboIndices = [];
             closeMsgModal();
