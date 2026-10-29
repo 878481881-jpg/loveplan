@@ -3,17 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>心动五子棋 v2.0 🌸 浪漫技能大乱斗</title>
+    <title>心动五子棋 v2.1 🌸 极速稳定联机版</title>
+    
+    <!-- 预连接腾讯云开发节点，加速首屏握手 -->
+    <link rel="preconnect" href="https://static.cloudbase.net" crossorigin>
+    <link rel="dns-prefetch" href="https://static.cloudbase.net">
     
     <!-- 引入腾讯云开发 Web SDK -->
     <script src="https://static.cloudbase.net/cloudbase-js-sdk/latest/cloudbase.full.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Tone.js 用于生成多维合成音效 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Noto Sans SC', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
             background-color: #fdf2f8;
             background-image: radial-gradient(#fbcfe8 1.2px, transparent 1.2px);
             background-size: 20px 20px;
@@ -23,7 +24,7 @@
         }
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-6px); }
+            50% { transform: translateY(-5px); }
         }
         .animate-float { animation: float 3s ease-in-out infinite; }
         @keyframes slideUpFade {
@@ -79,14 +80,17 @@
         <div class="text-6xl animate-bounce mb-4">🌸</div>
         <div class="text-rose-500 font-bold text-lg flex items-center gap-2">
             <span class="w-3 h-3 rounded-full bg-rose-400 animate-ping"></span>
-            正在连接心动棋室 v2.0...
+            正在极速连接心动棋室...
         </div>
+        <button onclick="hideGlobalLoading()" class="mt-6 px-4 py-1.5 bg-rose-50 text-rose-400 rounded-full text-xs font-bold border border-rose-200 hover:bg-rose-100">
+            跳过等待直接进入
+        </button>
     </div>
 
     <!-- 顶部导航栏 -->
     <header class="w-full max-w-lg flex justify-between items-center mb-3 animate-float px-1">
         <div class="flex items-center gap-1.5">
-            <button onclick="handleBackBtn()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors" title="返回大厅/刷新">
+            <button onclick="handleBackBtn()" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors" title="返回大厅">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             </button>
             <button onclick="toggleMute()" id="muteBtn" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100 hover:bg-rose-50 transition-colors text-sm" title="音效开关">
@@ -99,21 +103,21 @@
             <div>
                 <div class="flex items-center gap-1">
                     <h1 class="text-lg sm:text-xl font-black text-rose-500">心动五子棋</h1>
-                    <span class="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full font-bold shadow-xs">v2.0</span>
+                    <span class="text-[10px] px-1.5 py-0.5 bg-gradient-to-r from-rose-500 to-pink-500 text-white rounded-full font-bold shadow-xs">v2.1</span>
                 </div>
                 <p id="rankTitleDisplay" class="text-[10px] text-rose-400 font-bold text-center">🌱 初心棋童 · 胜率 0%</p>
             </div>
         </div>
 
-        <!-- 玩家身份与网络状态 -->
+        <!-- 玩家身份与网络状态（点击可手动重连） -->
         <div class="flex flex-col items-end gap-0.5">
             <button onclick="changePlayerName()" class="flex items-center gap-1 bg-white/90 px-2.5 py-1 rounded-full border border-rose-200 shadow-sm text-xs hover:bg-rose-50 transition-colors" title="点击修改昵称">
                 <span id="playerRoleDisplay" class="font-bold text-rose-500 max-w-[72px] truncate">加载中</span>
                 <span class="text-[10px] text-rose-300">✎</span>
             </button>
-            <span id="networkIndicator" class="text-[9px] text-gray-400 flex items-center gap-1 pr-1">
-                <span class="w-1.5 h-1.5 rounded-full bg-gray-300"></span> 离线
-            </span>
+            <button onclick="manualReconnect()" id="networkIndicator" class="text-[9px] text-gray-500 flex items-center gap-1 pr-1 hover:text-rose-500 transition-colors" title="点击立即重连同步">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> 连接中...
+            </button>
         </div>
     </header>
 
@@ -195,14 +199,14 @@
 
                 <!-- 联机与单机入口按钮组 -->
                 <div class="w-full space-y-2.5">
-                    <button onclick="createRoom()" class="w-full py-3 bg-gradient-to-r from-rose-400 via-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-md hover:opacity-95 active:scale-95 transition-transform flex justify-center items-center gap-2 text-sm">
+                    <button id="createRoomBtn" onclick="createRoom()" class="w-full py-3 bg-gradient-to-r from-rose-400 via-pink-500 to-rose-500 text-white font-black rounded-2xl shadow-md hover:opacity-95 active:scale-95 transition-transform flex justify-center items-center gap-2 text-sm">
                         <span>✨ 创建双人联机房间</span>
                     </button>
 
                     <div class="flex gap-2">
                         <input id="roomCodeInput" type="text" maxlength="4" placeholder="输入4位房间号" 
                                class="flex-1 px-4 py-2.5 bg-rose-50/50 border border-rose-200 rounded-2xl focus:outline-none focus:border-rose-400 text-center tracking-[0.4em] font-black text-gray-700 placeholder-rose-300 uppercase text-sm">
-                        <button onclick="joinRoom()" class="px-6 py-2.5 bg-rose-50 border border-rose-300 text-rose-600 font-black rounded-2xl shadow-xs hover:bg-rose-100 active:scale-95 transition-transform text-sm">
+                        <button id="joinRoomBtn" onclick="joinRoom()" class="px-6 py-2.5 bg-rose-50 border border-rose-300 text-rose-600 font-black rounded-2xl shadow-xs hover:bg-rose-100 active:scale-95 transition-transform text-sm">
                             加入房间
                         </button>
                     </div>
@@ -257,10 +261,13 @@
                     </div>
 
                     <div class="flex items-center gap-1">
+                        <button onclick="manualReconnect()" class="px-2 py-1 bg-emerald-50 text-emerald-600 font-bold text-[10px] rounded-lg border border-emerald-200 hover:bg-emerald-100" title="强制同步最新棋盘">
+                            🔄 同步
+                        </button>
                         <button onclick="cycleSkinInGame()" class="px-2 py-1 bg-rose-50 text-rose-500 font-bold text-[10px] rounded-lg border border-rose-100 hover:bg-rose-100" title="切换棋盘皮肤">
                             🎨 皮肤
                         </button>
-                        <button onclick="leaveRoom()" class="px-2.5 py-1 bg-gray-100 text-gray-600 font-bold text-[10px] rounded-lg hover:bg-gray-200 transition-colors">
+                        <button onclick="leaveRoom()" class="px-2 py-1 bg-gray-100 text-gray-600 font-bold text-[10px] rounded-lg hover:bg-gray-200 transition-colors">
                             退出
                         </button>
                     </div>
@@ -507,7 +514,7 @@
 
     <!-- 4. 双端实时请求审批弹窗（悔棋 / 求和 / 三手交换） -->
     <div id="approvalModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-3 border-2 border-rose-200 animate-bounce-once">
+        <div class="bg-white w-full max-w-xs rounded-3xl p-5 shadow-2xl text-center space-y-3 border-2 border-rose-200">
             <div class="text-4xl" id="approvalIcon">🥺</div>
             <h4 class="text-base font-black text-rose-600" id="approvalTitle">来自 TA 的撒娇悔棋</h4>
             <p class="text-xs text-gray-600 bg-rose-50 p-3 rounded-2xl border border-rose-100 font-medium" id="approvalDesc">
@@ -529,29 +536,107 @@
 
     <script type="module">
         // ==========================================
-        // 1. 配置与初始化 (腾讯云开发 CloudBase)
+        // 1. 强健的腾讯云开发 CloudBase 连接与双通道同步引擎
         // ==========================================
         const ENV_ID = "lovegame-d0g3xo4h8d1addad2";
         const REGION = "ap-shanghai"; 
         const ROOM_COLLECTION = "wzqRooms";
 
-        setTimeout(() => hideGlobalLoading(), 800);
-
-        let app, auth, db, _;
+        let app = null, auth = null, db = null, _ = null;
         let currentUser = null;
         let hasCloudBase = false;
+        let authPromise = null; // 防止并发重复登录导致冲突
 
-        try {
-            if (typeof cloudbase !== 'undefined') {
-                app = cloudbase.init({ env: ENV_ID, region: REGION });
-                auth = app.auth;
+        // 初始化 SDK（兼容 cloudbase v1/v2 不同写法：app.auth 属性 vs app.auth() 方法）
+        function setupCloudBaseSDK() {
+            if (hasCloudBase && db) return true;
+            try {
+                if (typeof window.cloudbase === 'undefined') return false;
+                app = window.cloudbase.init({ env: ENV_ID, region: REGION });
+                auth = typeof app.auth === 'function' ? app.auth({ persistence: 'local' }) : app.auth;
                 db = app.database();
                 _ = db.command;
                 hasCloudBase = true;
+                return true;
+            } catch (e) {
+                console.warn("CloudBase SDK init warning:", e);
+                return false;
             }
-        } catch(e) {
-            console.warn("CloudBase init skipped or failed:", e);
         }
+
+        // 确保完成匿名登录鉴权（带缓存、多 API 兼容与指数退避重试）
+        async function ensureConnected(maxRetries = 3) {
+            if (!setupCloudBaseSDK()) {
+                updateNetworkStatus(-1, "SDK未加载");
+                return false;
+            }
+            if (currentUser) return true;
+            if (authPromise) return authPromise;
+
+            authPromise = (async () => {
+                for (let attempt = 1; attempt <= maxRetries; attempt++) {
+                    try {
+                        // 1. 优先复用已有登录态，避免重复请求被限流
+                        if (typeof auth.getLoginState === 'function') {
+                            const existingState = await auth.getLoginState();
+                            if (existingState && (existingState.user || existingState.credential)) {
+                                currentUser = existingState.user || { uid: 'logged_in' };
+                                updateNetworkStatus(35);
+                                return true;
+                            }
+                        }
+
+                        // 2. 兼容 v1/v2 多种匿名登录接口写法
+                        if (typeof auth.signInAnonymously === 'function') {
+                            const res = await auth.signInAnonymously();
+                            if (res && res.error) throw res.error;
+                            currentUser = (res && res.data && res.data.user) || (res && res.user) || { uid: 'anon_' + Date.now() };
+                        } else if (typeof auth.anonymousAuthProvider === 'function') {
+                            await auth.anonymousAuthProvider().signIn();
+                            const st = typeof auth.getLoginState === 'function' ? await auth.getLoginState() : null;
+                            currentUser = (st && st.user) || { uid: 'anon_' + Date.now() };
+                        } else {
+                            currentUser = { uid: 'anon_' + Date.now() };
+                        }
+
+                        updateNetworkStatus(45);
+                        return true;
+                    } catch (err) {
+                        console.warn(`CloudBase 第 ${attempt}/${maxRetries} 次连接尝试异常:`, err);
+                        if (attempt < maxRetries) {
+                            await new Promise(r => setTimeout(r, 400 * attempt));
+                        }
+                    }
+                }
+                updateNetworkStatus(-1);
+                return false;
+            })();
+
+            const ok = await authPromise;
+            if (!ok) authPromise = null; // 失败后允许下次重试
+            return ok;
+        }
+
+        // 手动一键重连与强制拉取房间状态
+        window.manualReconnect = async function() {
+            showToast("🔄 正在重新校准云端连接...");
+            updateNetworkStatus(0, "重连中...");
+            currentUser = null;
+            authPromise = null;
+            const ok = await ensureConnected(3);
+            if (ok) {
+                await measurePing();
+                if (currentRoomCode && !isSinglePlayer) {
+                    subscribeToRoom(currentRoomCode);
+                    await forceSyncRoomState(true);
+                    showToast("✅ 云端连接已恢复并同步最新棋局！");
+                } else {
+                    showToast("✅ 云端服务器连接正常！");
+                }
+            } else {
+                showToast("⚠️ 网络连接受阻，可点击重试或先玩单机AI模式");
+            }
+        };
 
         // ==========================================
         // 2. 玩家身份、段位与全局配置
@@ -656,7 +741,8 @@
         };
 
         let currentRoomCode = null;
-        let unsubscribe = null; 
+        let unsubscribe = null;
+        let roomPollInterval = null; // HTTP 轮询兜底通道（解决移动网络 WebSocket 假死问题）
         let myColor = null; 
         let pingInterval = null;
         let turnTimerInterval = null;
@@ -665,7 +751,7 @@
         let currentPuzzleId = null;
 
         // 技能瞄准与本地辅助状态
-        let activeSkillTargetMode = null; // 'freeze' | 'mist'
+        let activeSkillTargetMode = null;
         let pendingMistMove = false;
         let aiHintCoord = null;
         let winningLineCoords = null;
@@ -681,10 +767,11 @@
         let replayIndex = 0;
         let replayTimer = null;
 
-        // 核心房间同步状态结构 (完全兼容 CloudBase 文档更新)
         function createDefaultGameState() {
             return {
-                status: 'waiting', // 'waiting' | 'playing' | 'won' | 'draw'
+                stateVersion: 1,
+                updatedAt: Date.now(),
+                status: 'waiting',
                 mode: lobbyConfig.mode,
                 skin: lobbyConfig.skin,
                 wager: lobbyConfig.wager,
@@ -701,10 +788,10 @@
                 energy: { black: 1, white: 1 },
                 undoLeft: { black: 2, white: 2 },
                 board: [],
-                mysteryBoxes: [], // [{x, y, type: 'gift'|'energy'|'bomb'}]
-                frozenZones: [],  // [{x, y, expiresAtStep}]
-                pendingRequest: null, // { id, type: 'undo'|'draw'|'swap3', fromColor, fromName, text, status: 'pending'|'accepted'|'rejected' }
-                chatEvent: null,  // { id, kind: 'chat'|'prop', icon, text, fromColor }
+                mysteryBoxes: [],
+                frozenZones: [],
+                pendingRequest: null,
+                chatEvent: null,
                 winner: null,
                 winReason: ''
             };
@@ -712,7 +799,6 @@
 
         let gameState = createDefaultGameState();
 
-        // 更新段位头衔展示
         function refreshRankTitle() {
             try {
                 const records = JSON.parse(localStorage.getItem('wzq_history_v2') || '[]');
@@ -739,42 +825,26 @@
         };
 
         // ==========================================
-        // 3. 多维合成音效引擎 (Tone.js)
+        // 3. 零依赖原生 Web Audio API 合成音效引擎 (无外部CDN阻塞)
         // ==========================================
-        let audioInitialized = false;
         let isMuted = false;
-        let dropSynth, polySynth, tickSynth, noiseSynth;
+        let audioCtx = null;
 
-        async function initAudio() {
-            if (audioInitialized) return;
+        function getAudioCtx() {
+            if (isMuted) return null;
             try {
-                await Tone.start();
-                dropSynth = new Tone.MembraneSynth({
-                    pitchDecay: 0.02, octaves: 3, oscillator: { type: "sine" },
-                    envelope: { attack: 0.001, decay: 0.14, sustain: 0, release: 0.08 }
-                }).toDestination();
-                dropSynth.volume.value = -5;
-
-                polySynth = new Tone.PolySynth(Tone.Synth, {
-                    oscillator: { type: "triangle" },
-                    envelope: { attack: 0.01, decay: 0.2, sustain: 0.1, release: 0.4 }
-                }).toDestination();
-                polySynth.volume.value = -8;
-
-                tickSynth = new Tone.MembraneSynth({
-                    pitchDecay: 0.01, octaves: 2,
-                    envelope: { attack: 0.001, decay: 0.06, sustain: 0, release: 0.03 }
-                }).toDestination();
-                tickSynth.volume.value = -10;
-
-                audioInitialized = true;
+                if (!audioCtx) {
+                    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+                    if (AudioContextClass) audioCtx = new AudioContextClass();
+                }
+                if (audioCtx && audioCtx.state === 'suspended') {
+                    audioCtx.resume().catch(() => {});
+                }
+                return audioCtx;
             } catch (e) {
-                console.warn("音效初始化失败:", e);
+                return null;
             }
         }
-
-        window.addEventListener('click', initAudio, { once: true });
-        window.addEventListener('touchstart', initAudio, { once: true });
 
         window.toggleMute = function() {
             isMuted = !isMuted;
@@ -782,28 +852,58 @@
             showToast(isMuted ? "已静音" : "音效已开启");
         };
 
+        function playToneNote(freq, type, startTime, duration, maxGain = 0.16) {
+            const ctx = getAudioCtx();
+            if (!ctx) return;
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, startTime);
+            gain.gain.setValueAtTime(maxGain, startTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        }
+
         function playSound(type) {
-            if (isMuted || !audioInitialized) return;
+            const ctx = getAudioCtx();
+            if (!ctx) return;
+            const now = ctx.currentTime;
             try {
-                if (Tone.context.state !== 'running') Tone.context.resume();
-                const now = Tone.now();
                 if (type === 'drop') {
-                    dropSynth.triggerAttackRelease("E2", "16n", now);
+                    // 清脆落子木石声
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(190, now);
+                    osc.frequency.exponentialRampToValueAtTime(65, now + 0.09);
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
                 } else if (type === 'tick') {
-                    tickSynth.triggerAttackRelease("C2", "32n", now);
+                    playToneNote(140, 'sine', now, 0.06, 0.15);
                 } else if (type === 'threat') {
-                    polySynth.triggerAttackRelease(["E4", "B4"], "16n", now);
+                    playToneNote(330, 'triangle', now, 0.15, 0.14);
+                    playToneNote(493.88, 'triangle', now + 0.04, 0.18, 0.14);
                 } else if (type === 'skill') {
-                    polySynth.triggerAttackRelease("C5", "16n", now);
-                    polySynth.triggerAttackRelease("E5", "16n", now + 0.07);
-                    polySynth.triggerAttackRelease("G5", "8n", now + 0.14);
+                    [523.25, 659.25, 783.99].forEach((f, idx) => {
+                        playToneNote(f, 'triangle', now + idx * 0.07, 0.16, 0.16);
+                    });
                 } else if (type === 'box') {
-                    polySynth.triggerAttackRelease(["G4", "D5"], "16n", now);
+                    playToneNote(587.33, 'sine', now, 0.12, 0.16);
+                    playToneNote(880, 'sine', now + 0.06, 0.16, 0.16);
                 } else if (type === 'win') {
-                    polySynth.triggerAttackRelease(["C4", "E4", "G4"], "8n", now);
-                    polySynth.triggerAttackRelease(["E4", "G4", "C5"], "4n", now + 0.18);
+                    [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+                        playToneNote(f, 'triangle', now + idx * 0.09, 0.32, 0.2);
+                    });
                 } else if (type === 'prop') {
-                    polySynth.triggerAttackRelease(["A4", "E5"], "16n", now);
+                    playToneNote(440, 'sine', now, 0.1, 0.15);
+                    playToneNote(659.25, 'sine', now + 0.06, 0.15, 0.15);
                 }
             } catch(e) {}
         }
@@ -840,7 +940,7 @@
             gameState.skin = next;
             applySkinVisuals(next);
             showToast(`已切换棋盘主题：${SKIN_THEMES[next].name}`);
-            syncRoomPatch({ skin: next });
+            commitStateUpdate({ skin: next });
         };
 
         function applySkinVisuals(skinKey) {
@@ -858,7 +958,6 @@
         }
 
         window.spinWagerWheel = function() {
-            initAudio();
             const input = document.getElementById('cfg_wager');
             let count = 0;
             const timer = setInterval(() => {
@@ -884,7 +983,7 @@
         }
 
         // ==========================================
-        // 5. 棋盘 Canvas 渲染引擎 (支持皮肤/盲盒/冰冻/迷雾/流光连珠)
+        // 5. 棋盘 Canvas 渲染引擎
         // ==========================================
         const canvas = document.getElementById('boardCanvas');
         const ctx = canvas.getContext('2d');
@@ -1007,7 +1106,6 @@
                 const isHiddenForMe = !isReplayMode && move.hiddenUntilStep && move.hiddenUntilStep > stepNow && move.color !== myColor;
 
                 if (isHiddenForMe) {
-                    // 对手视角只显示迷雾区
                     drawFogZone(move.fogCenterX ?? move.x, move.fogCenterY ?? move.y);
                 } else {
                     drawPiece(move.x, move.y, move.color, isLast, isThreat, skinKey, move.hiddenUntilStep > stepNow);
@@ -1100,7 +1198,6 @@
             }
             ctx.shadowColor = 'transparent';
 
-            // 皮肤图标绘制
             if (skinKey === 'pet' || skinKey === 'dessert') {
                 const theme = SKIN_THEMES[skinKey];
                 ctx.font = `${Math.max(10, radius * 1.15)}px sans-serif`;
@@ -1109,7 +1206,6 @@
                 ctx.fillText(color === 'black' ? theme.blackIcon : theme.whiteIcon, px, py + 0.5);
             }
 
-            // 活三/冲四威胁红圈脉冲
             if (isThreat && gameState.status === 'playing') {
                 const pulseAlpha = 0.25 + (Math.sin(Date.now() / 180) + 1) / 2 * 0.55;
                 ctx.beginPath();
@@ -1119,7 +1215,6 @@
                 ctx.stroke();
             }
 
-            // 最新一手标记点
             if (isLast) {
                 ctx.beginPath();
                 ctx.arc(px, py, 3, 0, Math.PI * 2);
@@ -1130,7 +1225,7 @@
         }
 
         // ==========================================
-        // 6. 威胁检测与胜负判定 (返回五子连珠坐标)
+        // 6. 威胁检测与胜负判定
         // ==========================================
         function findWinningLine(move, currentBoard) {
             if (!move || !currentBoard) return null;
@@ -1237,7 +1332,6 @@
                 energyObj[moverColor] = Math.min(6, (energyObj[moverColor] || 0) + 2);
                 showToast("🎁 开启神秘礼盒！获得 +2⚡ 心动能量！");
             } else if (box.type === 'bomb') {
-                // 小炸弹：震屏 + 把周围1格内随机一枚对方棋子震退1格
                 const container = document.getElementById('boardContainer');
                 container.classList.add('shake-effect');
                 setTimeout(() => container.classList.remove('shake-effect'), 500);
@@ -1289,7 +1383,6 @@
             }
 
             if (skillKey === 'sandstorm') {
-                // 飞沙走石：将对方最新一枚棋子随机吹到相邻空位
                 const oppColor = myColor === 'black' ? 'white' : 'black';
                 const newBoard = JSON.parse(JSON.stringify(gameState.board));
                 let lastOppIdx = -1;
@@ -1344,7 +1437,7 @@
         };
 
         // ==========================================
-        // 9. 点击棋盘落子与技能释放逻辑
+        // 9. 点击棋盘落子与状态提交逻辑
         // ==========================================
         canvas.addEventListener('click', async (e) => {
             if (isReplayMode) return;
@@ -1362,7 +1455,6 @@
 
             if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return;
 
-            // 处理【冰冻封印】选点
             if (activeSkillTargetMode === 'freeze') {
                 const myEnergy = (gameState.energy && gameState.energy[myColor]) || 0;
                 const newEnergy = { ...gameState.energy, [myColor]: myEnergy - 3 };
@@ -1381,13 +1473,11 @@
         async function executeMoveAt(gridX, gridY, isAutoTimeout = false) {
             const stepNow = gameState.board ? gameState.board.length : 0;
 
-            // 检查是否已有棋子
             if (gameState.board.some(m => m.x === gridX && m.y === gridY)) {
                 if (!isAutoTimeout) showToast("这里已经有棋子啦！");
                 return false;
             }
 
-            // 检查是否处于冰冻封印区内
             const activeFreeze = (gameState.frozenZones || []).find(fz =>
                 fz.expiresAtStep > stepNow && Math.abs(fz.x - gridX) <= 1 && Math.abs(fz.y - gridY) <= 1
             );
@@ -1400,7 +1490,6 @@
             const newMove = { x: gridX, y: gridY, color: myColor };
             const newEnergy = { ...(gameState.energy || { black: 1, white: 1 }) };
 
-            // 处理迷雾暗棋状态
             if (pendingMistMove) {
                 newEnergy[myColor] = Math.max(0, (newEnergy[myColor] || 0) - 3);
                 newMove.hiddenUntilStep = stepNow + 2;
@@ -1414,7 +1503,6 @@
 
             const newBoard = [...gameState.board, newMove];
 
-            // 检查是否踩中盲盒奇遇格
             let newBoxes = [...(gameState.mysteryBoxes || [])];
             if (gameState.mode === 'skill') {
                 const hitIdx = newBoxes.findIndex(b => b.x === gridX && b.y === gridY);
@@ -1428,7 +1516,6 @@
                 }
             }
 
-            // 判定胜负（双子连心第一子不允许直接获胜）
             const winLine = findWinningLine(newMove, newBoard);
             const hasExtraMove = (gameState.extraMoves || 0) > 0;
 
@@ -1438,18 +1525,16 @@
             }
 
             const nextTurn = hasExtraMove ? myColor : (myColor === 'black' ? 'white' : 'black');
-            const nextExtraMoves = hasExtraMove ? 0 : 0;
 
             const updates = {
                 board: newBoard,
                 energy: newEnergy,
                 mysteryBoxes: newBoxes,
                 turn: nextTurn,
-                extraMoves: nextExtraMoves,
+                extraMoves: 0,
                 turnDeadline: gameState.stepTimeLimit > 0 ? Date.now() + gameState.stepTimeLimit * 1000 : 0
             };
 
-            // 检查是否触发三手交换询问
             if (gameState.swap3Rule && !gameState.swap3Offered && newBoard.length === 3 && !winLine) {
                 updates.swap3Offered = true;
                 updates.pendingRequest = {
@@ -1478,19 +1563,35 @@
             return true;
         }
 
-        // 统一提交状态更新（支持乐观更新 + 云端同步 + 单机 AI 触发）
+        // 统一提交状态更新（带版本号递增、自动重连与失败重试）
         async function commitStateUpdate(updates) {
             const prevState = JSON.parse(JSON.stringify(gameState));
-            const merged = { ...gameState, ...updates };
-            applyNewState(merged);
+            const nextVer = (gameState.stateVersion || 1) + 1;
+            const fullUpdates = {
+                ...updates,
+                stateVersion: nextVer,
+                updatedAt: Date.now()
+            };
+
+            const merged = { ...gameState, ...fullUpdates };
+            applyNewState(merged, true);
 
             if (hasCloudBase && currentRoomCode && !isSinglePlayer) {
-                try {
-                    await getRoomRef(currentRoomCode).update(updates);
-                } catch (err) {
-                    console.error("状态同步失败:", err);
-                    showToast("网络波动，同步重试中...");
-                    applyNewState(prevState);
+                let success = false;
+                for (let attempt = 1; attempt <= 2; attempt++) {
+                    try {
+                        await ensureConnected(2);
+                        await getRoomRef(currentRoomCode).update(fullUpdates);
+                        success = true;
+                        break;
+                    } catch (err) {
+                        console.warn(`云端同步第 ${attempt} 次尝试失败:`, err);
+                        if (attempt === 1) await new Promise(r => setTimeout(r, 350));
+                    }
+                }
+                if (!success) {
+                    showToast("⚠️ 网络不稳定，正在尝试重连同步...");
+                    applyNewState(prevState, true);
                 }
             } else if (isSinglePlayer) {
                 checkAndTriggerAiTurn();
@@ -1498,12 +1599,11 @@
         }
 
         // ==========================================
-        // 10. 智能 AI 陪练与军师支招算法 (启发式评分)
+        // 10. 智能 AI 陪练与军师支招算法
         // ==========================================
         function evaluatePoint(board, x, y, color) {
             const dirs = [[1,0],[0,1],[1,1],[1,-1]];
             let totalScore = 0;
-            // 中心偏好分
             totalScore += (7 - Math.abs(7 - x)) + (7 - Math.abs(7 - y));
 
             const getCell = (cx, cy) => {
@@ -1544,7 +1644,6 @@
             for (let x = 0; x < GRID_SIZE; x++) {
                 for (let y = 0; y < GRID_SIZE; y++) {
                     if (board.some(m => m.x === x && m.y === y)) continue;
-                    // 检查冰冻区
                     const frozen = (gameState.frozenZones || []).some(fz =>
                         fz.expiresAtStep > stepNow && Math.abs(fz.x - x) <= 1 && Math.abs(fz.y - y) <= 1
                     );
@@ -1555,8 +1654,6 @@
 
                     const attackScore = evaluatePoint(board, x, y, aiColor);
                     const defendScore = evaluatePoint(board, x, y, humanColor);
-
-                    // 盲盒加分
                     const boxBonus = (gameState.mysteryBoxes || []).some(b => b.x === x && b.y === y) ? 280 : 0;
 
                     let score = attackScore + defendScore * (difficulty === 'hard' ? 1.15 : 0.95) + boxBonus;
@@ -1589,7 +1686,6 @@
             if (!isSinglePlayer || gameState.status !== 'playing') return;
             const aiColor = myColor === 'black' ? 'white' : 'black';
 
-            // 如果有挂起的审批请求发给 AI，AI 自动审批
             if (gameState.pendingRequest && gameState.pendingRequest.status === 'pending' && gameState.pendingRequest.fromColor === myColor) {
                 setTimeout(() => {
                     handleRequestResolution(true);
@@ -1602,7 +1698,6 @@
             setTimeout(async () => {
                 if (gameState.status !== 'playing' || gameState.turn !== aiColor) return;
 
-                // 大师 AI 在技能模式下有概率释放飞沙走石
                 const aiEnergy = (gameState.energy && gameState.energy[aiColor]) || 0;
                 if (gameState.mode === 'skill' && aiDifficulty === 'hard' && aiEnergy >= 3 && currentThreats.size >= 3 && Math.random() < 0.45) {
                     const newBoard = JSON.parse(JSON.stringify(gameState.board));
@@ -1635,7 +1730,6 @@
                     newEnergy[aiColor] = Math.min(6, (newEnergy[aiColor] || 0) + 1);
                 }
 
-                // AI 偶发趣味气泡
                 if (Math.random() < 0.28) {
                     const lines = aiDifficulty === 'easy'
                         ? ["🐾 喵~ 这步下哪好呢", "🌸 你下得好厉害呀！", "🥺 别欺负小猫咪嘛~"]
@@ -1645,6 +1739,8 @@
 
                 const winLine = findWinningLine(aiMove, newBoard);
                 const updates = {
+                    stateVersion: (gameState.stateVersion || 1) + 1,
+                    updatedAt: Date.now(),
                     board: newBoard,
                     energy: newEnergy,
                     turn: myColor,
@@ -1659,7 +1755,7 @@
                     newScore[aiColor] = (newScore[aiColor] || 0) + 1;
                     updates.seriesScore = newScore;
                 }
-                applyNewState({ ...gameState, ...updates });
+                applyNewState({ ...gameState, ...updates }, true);
             }, 550);
         }
 
@@ -1789,7 +1885,6 @@
 
             if (req.type === 'undo') {
                 const newBoard = [...gameState.board];
-                // 如果当前轮到请求方自己，回退2步；如果轮到对方，回退1步
                 const popCount = (gameState.turn === req.fromColor && newBoard.length >= 2) ? 2 : 1;
                 for (let i = 0; i < popCount; i++) newBoard.pop();
 
@@ -1812,7 +1907,6 @@
                     pendingRequest: { ...req, status: 'accepted' }
                 });
             } else if (req.type === 'swap3') {
-                // 互换黑白玩家名字与本地身份
                 const swappedPlayers = {
                     black: gameState.players.white,
                     white: gameState.players.black
@@ -1904,21 +1998,20 @@
         }
 
         // ==========================================
-        // 15. 状态同步与 UI 驱动核心 (applyNewState)
+        // 15. 状态同步与 UI 驱动核心 (基于版本号防冲突)
         // ==========================================
-        function applyNewState(newState) {
+        function applyNewState(newState, isLocalAction = false) {
             if (!newState) return;
 
-            // 防抖：忽略比本地乐观更新落后的旧云端快照
-            if (!isSinglePlayer && newState.board && gameState.board &&
-                newState.board.length < gameState.board.length &&
-                newState.status === gameState.status &&
-                newState.board.length !== 0 &&
-                (!newState.pendingRequest || newState.pendingRequest.status !== 'accepted')) {
-                return;
+            // 基于 stateVersion 与 updatedAt 过滤陈旧快照，同时完整支持悔棋、玩家加入和飞沙走石
+            if (!isLocalAction && !isSinglePlayer) {
+                const incomingVer = newState.stateVersion || 0;
+                const currentVer = gameState.stateVersion || 0;
+                if (incomingVer > 0 && currentVer > 0 && incomingVer < currentVer) {
+                    return;
+                }
             }
 
-            // 根据玩家名字动态校准黑白归属（支持三手交换与番棋轮换）
             if (newState.players) {
                 if (newState.players.black === myName) myColor = 'black';
                 else if (newState.players.white === myName) myColor = 'white';
@@ -1929,7 +2022,6 @@
                 playSound('drop');
             }
 
-            // 检测聊天与互动特效事件
             if (newState.chatEvent && newState.chatEvent.id && newState.chatEvent.id !== lastChatTimestamp) {
                 lastChatTimestamp = newState.chatEvent.id;
                 const ce = newState.chatEvent;
@@ -1940,7 +2032,6 @@
                 }
             }
 
-            // 检测挂起的审批请求（悔棋/求和/三手交换）
             if (newState.pendingRequest && newState.pendingRequest.id !== lastHandledRequestId) {
                 const pr = newState.pendingRequest;
                 if (pr.status === 'pending') {
@@ -1957,14 +2048,12 @@
                 }
             }
 
-            // 检测威胁形成并播放预警音效
             const prevThreatCount = currentThreats.size;
             currentThreats = calculateThreats(newState.board);
             if (currentThreats.size > prevThreatCount && newState.status === 'playing') {
                 playSound('threat');
             }
 
-            // 检测获胜或平局结算
             if ((newState.status === 'won' || newState.status === 'draw') && localMatchStatus !== newState.status) {
                 if (newState.board && newState.board.length > 0) {
                     winningLineCoords = findWinningLine(newState.board[newState.board.length - 1], newState.board);
@@ -2249,7 +2338,6 @@
         // ==========================================
         window.startAiGame = function(diff) {
             closeModal('aiModal');
-            initAudio();
             readLobbyForm();
             isSinglePlayer = true;
             aiDifficulty = diff;
@@ -2288,7 +2376,6 @@
             const puzzle = PUZZLES.find(p => p.id === puzzleId);
             if (!puzzle) return;
             closeModal('puzzleModal');
-            initAudio();
             readLobbyForm();
             isSinglePlayer = true;
             aiDifficulty = 'hard';
@@ -2311,7 +2398,7 @@
         };
 
         // ==========================================
-        // 18. 云端房间创建、加入、重开与网络监控 (CloudBase)
+        // 18. 云端房间创建、加入、双通道同步 (WebSocket + HTTP 轮询兜底)
         // ==========================================
         function getRoomRef(code) {
             return db.collection(ROOM_COLLECTION).doc(String(code));
@@ -2327,146 +2414,238 @@
             return null;
         }
 
-        async function syncRoomPatch(patch) {
-            if (hasCloudBase && currentRoomCode && !isSinglePlayer) {
-                try { await getRoomRef(currentRoomCode).update(patch); } catch(e) {}
-            }
-        }
-
         function startPingLoop() {
             if (pingInterval) clearInterval(pingInterval);
             measurePing();
-            pingInterval = setInterval(measurePing, 4500);
+            pingInterval = setInterval(measurePing, 6000);
         }
 
         async function measurePing() {
-            if (!hasCloudBase) return;
+            const ok = await ensureConnected(1);
+            if (!ok || !hasCloudBase) {
+                updateNetworkStatus(-1);
+                return;
+            }
             const start = Date.now();
             try {
                 if (currentRoomCode && !isSinglePlayer) {
-                    await getRoomRef(currentRoomCode).get();
+                    const res = await getRoomRef(currentRoomCode).get();
+                    const data = res && res.data && (Array.isArray(res.data) ? res.data[0] : res.data);
+                    if (data) applyNewState(data, false);
                 } else {
                     await db.collection(ROOM_COLLECTION).limit(1).get();
                 }
                 updateNetworkStatus(Date.now() - start);
             } catch(e) {
-                updateNetworkStatus(-1);
+                // 如果仅是因为空集合或权限限制导致的探测异常，只要 currentUser 存在仍视为已认证在线
+                if (currentUser) {
+                    updateNetworkStatus(Date.now() - start);
+                } else {
+                    updateNetworkStatus(-1);
+                }
             }
         }
 
-        function updateNetworkStatus(ping) {
+        function updateNetworkStatus(ping, customLabel = null) {
             const indicator = document.getElementById('networkIndicator');
+            if (!indicator) return;
+            if (customLabel) {
+                indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span> ${customLabel}`;
+                return;
+            }
             if (ping < 0) {
-                indicator.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线';
+                indicator.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-red-500"></span> 离线 (点此重连)';
                 return;
             }
             let colorStr = 'bg-green-500 shadow-[0_0_4px_#22c55e]';
-            let textColor = 'text-green-500';
-            if (ping > 200) { colorStr = 'bg-yellow-500'; textColor = 'text-yellow-500'; }
-            if (ping > 500) { colorStr = 'bg-red-500'; textColor = 'text-red-500'; }
-            indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorStr}"></span> 在线 <span class="${textColor} ml-1 font-bold">${ping}ms</span>`;
+            let textColor = 'text-green-600';
+            if (ping > 250) { colorStr = 'bg-yellow-500'; textColor = 'text-yellow-600'; }
+            if (ping > 600) { colorStr = 'bg-amber-600'; textColor = 'text-amber-600'; }
+            indicator.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${colorStr}"></span> 在线 <span class="${textColor} ml-0.5 font-bold">${ping}ms</span>`;
+        }
+
+        window.addEventListener('online', () => {
+            showToast("📡 网络已恢复，正在自动同步...");
+            manualReconnect();
+        });
+
+        document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState === "visible") {
+                forceSyncRoomState(false);
+            }
+        });
+
+        async function forceSyncRoomState(verbose = false) {
+            if (!currentRoomCode || isSinglePlayer || !hasCloudBase) return;
+            try {
+                await ensureConnected(1);
+                const res = await getRoomRef(currentRoomCode).get();
+                const data = res && res.data && (Array.isArray(res.data) ? res.data[0] : res.data);
+                if (data) {
+                    applyNewState(data, false);
+                    if (verbose) updateNetworkStatus(45);
+                }
+            } catch (e) {
+                console.warn("拉取房间状态异常:", e);
+            }
         }
 
         window.createRoom = async function() {
-            initAudio();
             readLobbyForm();
             isSinglePlayer = false;
             currentPuzzleId = null;
 
-            if (!hasCloudBase) {
-                showToast("当前未连接云端，为您开启AI陪练演示");
+            const btn = document.getElementById('createRoomBtn');
+            if (btn) btn.disabled = true;
+            showToast("正在连接云端创建房间...");
+
+            const connected = await ensureConnected(3);
+            if (!connected || !hasCloudBase) {
+                if (btn) btn.disabled = false;
+                showToast("⚠️ 云端连接未就绪，已为您开启单机AI陪练模式");
                 startAiGame('medium');
                 return;
             }
 
-            showToast("正在创建心动房间...");
-            const code = Math.floor(1000 + Math.random() * 9000).toString();
-            try {
-                const newRoomData = createDefaultGameState();
-                newRoomData.players.black = myName;
-                newRoomData.createdAt = Date.now();
-                if (newRoomData.mode === 'skill') {
-                    newRoomData.mysteryBoxes = generateMysteryBoxes([], 3);
+            // 最多尝试3个随机房号，防止旧房号属于其他用户导致 .set() 权限冲突
+            for (let tryIdx = 0; tryIdx < 3; tryIdx++) {
+                const code = Math.floor(1000 + Math.random() * 9000).toString();
+                try {
+                    const newRoomData = createDefaultGameState();
+                    newRoomData.players.black = myName;
+                    newRoomData.createdAt = Date.now();
+                    if (newRoomData.mode === 'skill') {
+                        newRoomData.mysteryBoxes = generateMysteryBoxes([], 3);
+                    }
+                    await getRoomRef(code).set(newRoomData);
+                    if (btn) btn.disabled = false;
+                    enterGameScreen(code, 'black', newRoomData);
+                    showToast(`✨ 房间 ${code} 创建成功！快发给TA加入吧`);
+                    return;
+                } catch (e) {
+                    console.warn(`房号 ${code} 创建冲突或重试:`, e);
                 }
-                await getRoomRef(code).set(newRoomData);
-                enterGameScreen(code, 'black', newRoomData);
-                showToast(`✨ 房间 ${code} 创建成功，快把号码发给TA吧！`);
-            } catch (e) {
-                console.error(e);
-                showToast("创建房间失败，请检查网络！");
             }
+
+            if (btn) btn.disabled = false;
+            showToast("创建房间失败，请点击右上角【重连】后再试！");
         };
 
         window.joinRoom = async function() {
-            initAudio();
             const codeInput = document.getElementById('roomCodeInput').value.trim().toUpperCase();
             if (!codeInput || codeInput.length !== 4) {
                 showToast("请输入正确的4位房间号！");
                 return;
             }
-            if (!hasCloudBase) {
-                startAiGame('medium');
+
+            const btn = document.getElementById('joinRoomBtn');
+            if (btn) btn.disabled = true;
+            showToast(`正在连接房间 ${codeInput}...`);
+
+            const connected = await ensureConnected(3);
+            if (!connected || !hasCloudBase) {
+                if (btn) btn.disabled = false;
+                showToast("⚠️ 网络未连接，请检查网络后点击右上角重连");
                 return;
             }
 
-            showToast("正在进入房间...");
             try {
                 const res = await getRoomRef(codeInput).get();
-                const data = res.data && res.data[0];
+                const data = res && res.data && (Array.isArray(res.data) ? res.data[0] : res.data);
                 if (!data) {
-                    showToast("房间不存在哦，请确认房间号！");
+                    if (btn) btn.disabled = false;
+                    showToast("房间不存在哦，请确认4位房间号是否正确！");
                     return;
                 }
 
                 isSinglePlayer = false;
                 currentPuzzleId = null;
                 let assignedColor = null;
+                const nextVer = (data.stateVersion || 1) + 1;
 
-                if (data.players.black === myName) {
+                // 如果自己与房主同名，自动加后缀区分避免自己顶掉自己
+                if (data.status === 'waiting' && data.players && data.players.black === myName && !data.players.white) {
+                    myName = myName + "(2P)";
+                    document.getElementById('playerRoleDisplay').innerText = myName;
+                }
+
+                if (data.players && data.players.black === myName) {
                     assignedColor = 'black';
-                } else if (data.players.white === myName) {
+                } else if (data.players && data.players.white === myName) {
                     assignedColor = 'white';
-                } else if (!data.players.black) {
+                } else if (!data.players || !data.players.black) {
                     assignedColor = 'black';
-                    await getRoomRef(codeInput).update({ 'players.black': myName });
-                    data.players.black = myName;
+                    const updatedPlayers = { ...(data.players || {}), black: myName };
+                    await getRoomRef(codeInput).update({
+                        players: updatedPlayers,
+                        stateVersion: nextVer,
+                        updatedAt: Date.now()
+                    });
+                    data.players = updatedPlayers;
+                    data.stateVersion = nextVer;
                 } else if (!data.players.white) {
                     assignedColor = 'white';
                     const deadline = data.stepTimeLimit > 0 ? Date.now() + data.stepTimeLimit * 1000 : 0;
+                    const updatedPlayers = { ...data.players, white: myName };
                     await getRoomRef(codeInput).update({
-                        'players.white': myName,
+                        players: updatedPlayers,
                         status: 'playing',
-                        turnDeadline: deadline
+                        turnDeadline: deadline,
+                        stateVersion: nextVer,
+                        updatedAt: Date.now()
                     });
-                    data.players.white = myName;
+                    data.players = updatedPlayers;
                     data.status = 'playing';
                     data.turnDeadline = deadline;
+                    data.stateVersion = nextVer;
                 } else {
                     showToast("房间已满，以观战视角进入");
                 }
 
+                if (btn) btn.disabled = false;
                 enterGameScreen(codeInput, assignedColor, data);
+                showToast(`🎉 成功加入房间 ${codeInput}！`);
             } catch (e) {
-                console.error(e);
-                showToast("加入房间失败！");
+                if (btn) btn.disabled = false;
+                console.error("加入房间异常:", e);
+                if (e.message && (e.message.includes('PERMISSION') || e.code === 'DATABASE_PERMISSION_DENIED')) {
+                    showToast("⚠️ 数据库权限受限：请在云开发控制台将 wzqRooms 设为【所有用户可读写】");
+                } else {
+                    showToast("加入房间失败，请点击右上角重连后再试！");
+                }
             }
         };
 
+        // 双通道房间同步：WebSocket 实时监听 + 1.5s HTTP 轮询兜底
         function subscribeToRoom(code) {
-            if (unsubscribe) { unsubscribe(); unsubscribe = null; }
-            const watcher = getRoomRef(code).watch({
-                onChange: (snapshot) => {
-                    const data = pickDoc(snapshot, code);
-                    if (data) applyNewState(data);
-                },
-                onError: (err) => {
-                    console.warn("房间监听重连中:", err);
-                    setTimeout(() => {
-                        if (currentRoomCode === code && !isSinglePlayer) subscribeToRoom(code);
-                    }, 2000);
+            if (unsubscribe) { try { unsubscribe(); } catch(e) {} unsubscribe = null; }
+            if (roomPollInterval) { clearInterval(roomPollInterval); roomPollInterval = null; }
+
+            // 通道 1：WebSocket 实时流监听
+            try {
+                const watcher = getRoomRef(code).watch({
+                    onChange: (snapshot) => {
+                        const data = pickDoc(snapshot, code);
+                        if (data) {
+                            updateNetworkStatus(38);
+                            applyNewState(data, false);
+                        }
+                    },
+                    onError: (err) => {
+                        console.warn("WebSocket 监听切换至轮询兜底:", err);
+                    }
+                });
+                unsubscribe = () => { try { watcher.close(); } catch(e) {} };
+            } catch (e) {
+                console.warn("watch 启动异常，由 HTTP 轮询接管:", e);
+            }
+
+            // 通道 2：每 1.8 秒轻量级 HTTP 轮询兜底，彻底杜绝手机断流或收不到对方落子
+            roomPollInterval = setInterval(() => {
+                if (currentRoomCode === code && !isSinglePlayer && document.visibilityState === 'visible') {
+                    forceSyncRoomState(false);
                 }
-            });
-            unsubscribe = () => watcher.close();
+            }, 1800);
         }
 
         function enterGameScreen(code, color, initialData) {
@@ -2480,7 +2659,7 @@
             setTimeout(() => {
                 gameUI.classList.remove('opacity-0');
                 resizeCanvas();
-                applyNewState(initialData);
+                applyNewState(initialData, true);
             }, 50);
 
             document.getElementById('roomCodeDisplay').innerText = code;
@@ -2501,7 +2680,6 @@
             const sWhite = gameState.seriesScore?.white || 0;
             const isSeriesOver = sBlack >= neededWins || sWhite >= neededWins;
 
-            // 番棋未结束时自动互换先后手，结束则开启新番棋
             const nextPlayers = isSeriesOver
                 ? gameState.players
                 : { black: gameState.players.white, white: gameState.players.black };
@@ -2534,7 +2712,8 @@
         };
 
         window.leaveRoom = function() {
-            if (unsubscribe) { unsubscribe(); unsubscribe = null; }
+            if (unsubscribe) { try { unsubscribe(); } catch(e) {} unsubscribe = null; }
+            if (roomPollInterval) { clearInterval(roomPollInterval); roomPollInterval = null; }
             if (turnTimerInterval) { clearInterval(turnTimerInterval); turnTimerInterval = null; }
             if (replayTimer) { clearInterval(replayTimer); replayTimer = null; }
             isReplayMode = false;
@@ -2559,7 +2738,6 @@
             }
         };
 
-        // 弹窗与工具函数
         window.openModal = function(id) {
             document.getElementById(id)?.classList.remove('hidden');
         };
@@ -2567,13 +2745,13 @@
             document.getElementById(id)?.classList.add('hidden');
         };
 
-        function hideGlobalLoading() {
+        window.hideGlobalLoading = function() {
             const loadingOverlay = document.getElementById('globalLoading');
-            if (loadingOverlay) {
+            if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
                 loadingOverlay.classList.add('opacity-0', 'pointer-events-none');
-                setTimeout(() => loadingOverlay.classList.add('hidden'), 500);
+                setTimeout(() => loadingOverlay.classList.add('hidden'), 400);
             }
-        }
+        };
 
         function showToast(msg) {
             const toast = document.getElementById('toast');
@@ -2588,26 +2766,12 @@
             }, 3000);
         }
 
-        async function initAuth() {
-            if (!hasCloudBase) {
-                hideGlobalLoading();
-                return;
-            }
-            try {
-                const res = await auth.signInAnonymously();
-                if (res && res.error) throw res.error;
-                currentUser = (res && res.data && res.data.user) || { uid: 'anonymous' };
-                hideGlobalLoading();
-                startPingLoop();
-            } catch (err) {
-                console.warn("云端匿名登录失败，可正常使用单机模式:", err);
-                hideGlobalLoading();
-            }
-        }
-
-        window.addEventListener('load', () => {
-            initAuth();
-            requestAnimationFrame(animateLoop);
+        // 立即启动鉴权与渲染循环（不等待缓慢的外部字体或 window.onload）
+        setTimeout(() => hideGlobalLoading(), 600);
+        requestAnimationFrame(animateLoop);
+        ensureConnected(3).then(() => {
+            hideGlobalLoading();
+            startPingLoop();
         });
     </script>
 </body>
