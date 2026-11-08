@@ -1,0 +1,2713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>双人健身打卡与动作动画手账 💪</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background-color: #f1f5f9;
+            background-image: radial-gradient(#cbd5e1 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #0f172a;
+            margin: 0;
+            padding: 0;
+            padding-bottom: 88px;
+            overflow-x: hidden;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 16px); }
+            12% { opacity: 1; transform: translate(-50%, 0); }
+            88% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -16px); }
+        }
+        .toast-animate { animation: slideUpFade 2.8s forwards; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in { animation: fadeIn 0.22s ease-out forwards; }
+
+        .app-shell { max-width: 520px; margin: 0 auto; padding: 10px 12px 24px 12px; }
+        .card-surface { background: rgba(255,255,255,0.97); border-radius: 18px; border: 1px solid #e2e8f0; box-shadow: 0 4px 16px rgba(15,23,42,0.05); }
+        .part-pill { white-space: nowrap; transition: all 0.2s ease; cursor: pointer; user-select: none; }
+        .part-pill.active { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #ffffff; box-shadow: 0 4px 12px rgba(37,99,235,0.28); transform: translateY(-1px); }
+        .ex-pill { white-space: nowrap; transition: all 0.18s ease; cursor: pointer; user-select: none; }
+        .ex-pill.active { background: #0f172a; color: #ffffff; border-color: #0f172a; box-shadow: 0 3px 10px rgba(15,23,42,0.2); }
+        .main-tab-btn { transition: all 0.2s ease; cursor: pointer; user-select: none; }
+        .main-tab-btn.active { background: #0f172a; color: #ffffff; box-shadow: 0 4px 12px rgba(15,23,42,0.22); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(12px); border-top: 1px solid #e2e8f0; z-index: 40; padding-bottom: env(safe-area-inset-bottom); }
+        canvas.anim-stage { width: 100%; height: 265px; display: block; border-radius: 14px; background: #0f172a; }
+        input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部栏：返回首页 + 标题 + 角色快捷切换 + 云端状态 -->
+    <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 px-3 py-2">
+        <div class="max-w-[520px] mx-auto flex items-center justify-between gap-1">
+            <div class="flex items-center gap-2 min-w-0">
+                <a href="index.html" title="返回首页" class="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center hover:bg-slate-200 shrink-0 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 19l-7-7 7-7"></path></svg>
+                </a>
+                <div class="truncate">
+                    <h1 class="text-sm font-black text-slate-900 leading-tight flex items-center gap-1">
+                        <span>💪</span> 健身打卡与动画手账
+                    </h1>
+                    <p id="headerRoleInfo" class="text-[11px] text-blue-600 font-bold truncate">当前：哼哼 (165cm · 53kg)</p>
+                </div>
+            </div>
+
+            <!-- 角色一键切换胶囊 + 云端设置 -->
+            <div class="flex items-center gap-1.5 shrink-0">
+                <div class="flex bg-slate-100 p-0.5 rounded-full border border-slate-200">
+                    <button onclick="switchRole('哼哼')" id="topRole_哼哼" class="px-2.5 py-1 rounded-full text-[11px] font-extrabold transition bg-blue-600 text-white shadow-sm">
+                        哼哼
+                    </button>
+                    <button onclick="switchRole('亲亲')" id="topRole_亲亲" class="px-2.5 py-1 rounded-full text-[11px] font-extrabold transition text-slate-600">
+                        亲亲
+                    </button>
+                </div>
+
+                <button onclick="syncFromCloud(true)" id="cloudStatusBtn" class="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1 shadow-sm active:scale-95 transition" title="点击同步云端数据">
+                    <span id="cloudStatusDot" class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span id="cloudStatusText">云端</span>
+                </button>
+                <button onclick="openConfigModal()" class="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center hover:bg-slate-200 active:scale-95 transition text-xs" title="云端Token与角色设置">
+                    ⚙️
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="app-shell">
+
+        <!-- 顶部主选项卡：1. 打卡与记录（放在最前面！） 2. 动作与动画 3. 角色档案与周历 -->
+        <div class="grid grid-cols-3 gap-1.5 p-1.5 bg-slate-200/80 rounded-2xl mb-3">
+            <button onclick="switchMainTab('records')" id="topTab_records" class="main-tab-btn active py-2 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1">
+                <span>📝</span> 打卡与记录
+                <span id="todayBadge" class="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white rounded-full text-[10px] leading-tight">0</span>
+            </button>
+            <button onclick="switchMainTab('actions')" id="topTab_actions" class="main-tab-btn py-2 px-2 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-1">
+                <span>🎬</span> 动作与动画
+            </button>
+            <button onclick="switchMainTab('profile')" id="topTab_profile" class="main-tab-btn py-2 px-2 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-1">
+                <span>👫</span> 角色与周历
+            </button>
+        </div>
+
+        <!-- 二级部位选项卡（🔥练前热身 排在最前面，不同部位不同选项卡） -->
+        <div id="partTabsBar" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2 mb-2.5">
+            <!-- JS 动态渲染部位胶囊 -->
+        </div>
+
+        <!-- ==================== 视图 1（首屏默认）：打卡与记录 ==================== -->
+        <section id="view_records" class="space-y-3.5 animate-fade-in">
+
+            <!-- 日期选择（默认当天）与当日训练容量看板 -->
+            <div class="card-surface p-3.5">
+                <div class="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                    <div class="flex items-center gap-2">
+                        <span class="text-lg">📆</span>
+                        <div>
+                            <div class="text-[11px] text-slate-400 font-bold">打卡日期（默认当天）</div>
+                            <input type="date" id="logDateInput" onchange="onDateChange()" class="text-sm font-black text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 focus:outline-none focus:border-blue-500 mt-0.5">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="resetDateToToday()" class="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-xl border border-blue-100 active:scale-95 transition">
+                            今天
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 当日三项核心统计 -->
+                <div class="grid grid-cols-3 gap-2 pt-3 text-center">
+                    <div class="bg-slate-50 rounded-xl p-2 border border-slate-100">
+                        <div class="text-[10px] text-slate-400 font-bold">当日打卡动作</div>
+                        <div class="text-base font-black text-slate-800 mt-0.5"><span id="statExercises">0</span> <span class="text-[11px] font-normal text-slate-500">项</span></div>
+                    </div>
+                    <div class="bg-blue-50/70 rounded-xl p-2 border border-blue-100">
+                        <div class="text-[10px] text-blue-500 font-bold">当日总组数/次数</div>
+                        <div class="text-base font-black text-blue-700 mt-0.5"><span id="statSets">0</span><span class="text-xs font-normal">组</span> / <span id="statReps">0</span><span class="text-xs font-normal">次</span></div>
+                    </div>
+                    <div class="bg-emerald-50/70 rounded-xl p-2 border border-emerald-100">
+                        <div class="text-[10px] text-emerald-600 font-bold">当日总容量(Volume)</div>
+                        <div class="text-base font-black text-emerald-700 mt-0.5"><span id="statVolume">0</span> <span class="text-[11px] font-normal">kg</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 录入训练打卡卡片（自动联动部位选项卡 + 当前角色专属推荐配重） -->
+            <div class="card-surface p-4 border-2 border-blue-100">
+                <div class="flex items-center justify-between mb-2.5">
+                    <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5 flex-wrap">
+                        <span>✍️</span> 录入训练数据
+                        <span id="recordPartBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">练前热身</span>
+                        <span id="recordRoleBadge" class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">哼哼 53kg</span>
+                    </h3>
+                    <button onclick="jumpToCurrentExerciseAnim()" class="text-[11px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 active:scale-95 transition flex items-center gap-1 shrink-0">
+                        <span>🎬 看此动作动画</span>
+                    </button>
+                </div>
+
+                <!-- 动作胶囊快速选择栏（点击上方部位选项卡切换部位，点击下方动作胶囊切换动作） -->
+                <div class="mb-2.5">
+                    <label class="block text-[11px] font-bold text-slate-500 mb-1.5">选择动作（上方可切换部位选项卡）：</label>
+                    <div id="recordExercisePills" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1.5">
+                        <!-- JS 动态生成当前部位下的动作胶囊 -->
+                    </div>
+                    <select id="recordExerciseSelect" onchange="onRecordExerciseChange()" class="hidden">
+                        <!-- 隐藏同步select -->
+                    </select>
+                    <div id="recordExerciseHint" class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/80 rounded-xl px-2.5 py-1.5 mt-1 leading-snug">
+                        <!-- 显示当前角色的推荐配重与组数提示 -->
+                    </div>
+                </div>
+
+                <!-- 组数、次数、重量快捷调节器 -->
+                <div class="grid grid-cols-3 gap-2.5 mb-3">
+                    <!-- 组数 -->
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex flex-col items-center">
+                        <span class="text-[11px] font-bold text-slate-500 mb-1">完成组数 (组)</span>
+                        <div class="flex items-center justify-between w-full">
+                            <button type="button" onclick="adjustNum('inputSets', -1, 1, 20)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-black text-slate-700 active:bg-slate-100">-</button>
+                            <input type="number" id="inputSets" value="4" min="1" max="30" step="1" class="w-11 text-center font-black text-base text-slate-900 bg-transparent focus:outline-none">
+                            <button type="button" onclick="adjustNum('inputSets', 1, 1, 20)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-black text-slate-700 active:bg-slate-100">+</button>
+                        </div>
+                    </div>
+
+                    <!-- 每组次数 -->
+                    <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex flex-col items-center">
+                        <span class="text-[11px] font-bold text-slate-500 mb-1">每组次数/秒</span>
+                        <div class="flex items-center justify-between w-full">
+                            <button type="button" onclick="adjustNum('inputReps', -1, 1, 120)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-black text-slate-700 active:bg-slate-100">-</button>
+                            <input type="number" id="inputReps" value="12" min="1" max="200" step="1" class="w-11 text-center font-black text-base text-slate-900 bg-transparent focus:outline-none">
+                            <button type="button" onclick="adjustNum('inputReps', 1, 1, 120)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-black text-slate-700 active:bg-slate-100">+</button>
+                        </div>
+                    </div>
+
+                    <!-- 重量 kg -->
+                    <div class="bg-blue-50/60 p-2.5 rounded-xl border border-blue-200 flex flex-col items-center">
+                        <span class="text-[11px] font-bold text-blue-700 mb-1">训练重量 (kg)</span>
+                        <div class="flex items-center justify-between w-full">
+                            <button type="button" onclick="adjustNum('inputWeight', -2.5, 0, 300)" class="w-7 h-7 rounded-lg bg-white border border-blue-200 font-black text-blue-700 active:bg-blue-100">-</button>
+                            <input type="number" id="inputWeight" value="30" min="0" max="500" step="0.5" class="w-13 text-center font-black text-base text-blue-900 bg-transparent focus:outline-none">
+                            <button type="button" onclick="adjustNum('inputWeight', 2.5, 0, 300)" class="w-7 h-7 rounded-lg bg-white border border-blue-200 font-black text-blue-700 active:bg-blue-100">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 训练感受与备注 -->
+                <div class="flex items-center justify-between gap-2 mb-2.5">
+                    <div class="flex items-center gap-1 flex-wrap">
+                        <span class="text-[11px] text-slate-400 font-bold">体感:</span>
+                        <button type="button" onclick="selectFeel('轻松标准')" id="feel_轻松标准" class="feel-btn text-[11px] px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-bold">😌 轻松标准</button>
+                        <button type="button" onclick="selectFeel('刚好RIR1')" id="feel_刚好RIR1" class="feel-btn text-[11px] px-2 py-1 rounded-lg border border-blue-300 bg-blue-50 text-blue-700 font-bold">🔥 刚好RIR1(13RM)</button>
+                        <button type="button" onclick="selectFeel('力竭突破')" id="feel_力竭突破" class="feel-btn text-[11px] px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-bold">💥 力竭突破</button>
+                    </div>
+                </div>
+
+                <input type="text" id="inputNote" placeholder="可选备注：如“绿弹力带辅助”、“反手握无弹响”..." class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-500 mb-3">
+
+                <button type="button" onclick="saveWorkoutRecord()" id="saveRecordBtn" class="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-black rounded-xl shadow-md hover:shadow-lg active:scale-[0.99] transition flex items-center justify-center gap-2">
+                    <span>💾</span> 保存打卡并上传云端
+                </button>
+            </div>
+
+            <!-- 历史打卡记录本（支持按角色、部位、日期筛选） -->
+            <div class="card-surface p-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-2.5 mb-2.5">
+                    <div>
+                        <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                            <span>📒</span> 训练打卡记录本
+                        </h3>
+                        <p class="text-[11px] text-slate-400 mt-0.5" id="recordFilterSubtitle">当前显示：所选日期记录</p>
+                    </div>
+                    <div class="flex items-center gap-1">
+                        <button onclick="toggleRoleFilter()" id="roleFilterBtn" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-200 transition">
+                            双人全部
+                        </button>
+                        <button onclick="toggleRecordScope()" id="scopeToggleBtn" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition">
+                            全部日期
+                        </button>
+                        <button onclick="exportRecordsCSV()" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200 transition">
+                            导出
+                        </button>
+                    </div>
+                </div>
+
+                <div id="recordsListContainer" class="space-y-2.5 max-h-[52vh] overflow-y-auto pr-1">
+                    <!-- JS 动态加载 -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ==================== 视图 2：动作与动画（单动作选项卡切换模式） ==================== -->
+        <section id="view_actions" class="hidden space-y-3 animate-fade-in">
+            <!-- 部位导读条 -->
+            <div id="partSummaryBanner" class="card-surface p-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white border-none">
+                <!-- JS 动态填充当前部位说明 -->
+            </div>
+
+            <!-- 下方动作选项卡（点击哪个动作选项卡，就只展示该动作，不展示所有动作！） -->
+            <div class="card-surface p-2.5">
+                <div class="flex items-center justify-between mb-1.5 px-1">
+                    <span class="text-[11px] font-extrabold text-slate-500">👇 点击下方动作选项卡切换动作（单动作专注演示）：</span>
+                    <span id="actionCounterBadge" class="text-[11px] font-bold text-blue-600">1 / 8</span>
+                </div>
+                <div id="exerciseTabsBar" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                    <!-- JS 动态生成当前部位下的动作选项卡 -->
+                </div>
+            </div>
+
+            <!-- 单个当前选中动作的动画与详解容器 -->
+            <div id="singleExerciseStageContainer">
+                <!-- JS 仅渲染当前选中的这 1 个动作 -->
+            </div>
+        </section>
+
+        <!-- ==================== 视图 3：双人角色档案与滚动周历 ==================== -->
+        <section id="view_profile" class="hidden space-y-3.5 animate-fade-in">
+            <!-- 哼哼 & 亲亲 双角色身体与配重基线卡片 -->
+            <div class="grid grid-cols-1 gap-3">
+                <!-- 哼哼档案 -->
+                <div class="card-surface p-4 border-l-4 border-l-blue-600">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                            <span>👦</span> 哼哼 · 身体与增肌档案
+                        </h2>
+                        <button onclick="switchRole('哼哼')" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200">设为当前打卡角色</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center mb-2.5">
+                        <div class="bg-blue-50/70 p-2 rounded-xl border border-blue-100">
+                            <div class="text-[10px] text-slate-400 font-bold">身高 / 初始体重</div>
+                            <div class="text-xs font-black text-blue-900 mt-0.5">165cm / 53kg</div>
+                        </div>
+                        <div class="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100">
+                            <div class="text-[10px] text-slate-400 font-bold">阶段增肌目标</div>
+                            <div class="text-xs font-black text-emerald-800 mt-0.5">精益增肌 ➔ 60kg</div>
+                        </div>
+                        <div class="bg-amber-50/70 p-2 rounded-xl border border-amber-100">
+                            <div class="text-[10px] text-slate-400 font-bold">每日目标热量</div>
+                            <div class="text-xs font-black text-amber-900 mt-0.5">2500~2600 kcal</div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-600 leading-relaxed m-0">
+                        <strong>训练与营养重点：</strong>外胚型体质，遵循“吃力做13次的重量做12次（RIR 1）”；推/拉日后加 20 分钟坡度快走改善 VO₂ Max；17:30 练前餐 + 21:00 练后乳清蛋白粉 1 勺 + 肌酸 5g + 快碳。
+                    </p>
+                </div>
+
+                <!-- 亲亲档案 -->
+                <div class="card-surface p-4 border-l-4 border-l-rose-500">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-sm font-black text-slate-900 flex items-center gap-1.5">
+                            <span>🌟</span> 亲亲 · 身体与塑形增肌档案
+                        </h2>
+                        <button onclick="switchRole('亲亲')" class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">设为当前打卡角色</button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-center mb-2.5">
+                        <div class="bg-rose-50/70 p-2 rounded-xl border border-rose-100">
+                            <div class="text-[10px] text-slate-400 font-bold">身高 / 当前体重</div>
+                            <div class="text-xs font-black text-rose-900 mt-0.5">178cm / 67kg</div>
+                        </div>
+                        <div class="bg-emerald-50/70 p-2 rounded-xl border border-emerald-100">
+                            <div class="text-[10px] text-slate-400 font-bold">核心训练方向</div>
+                            <div class="text-xs font-black text-emerald-800 mt-0.5">增肌塑形·挺拔体态</div>
+                        </div>
+                        <div class="bg-amber-50/70 p-2 rounded-xl border border-amber-100">
+                            <div class="text-[10px] text-slate-400 font-bold">每日目标热量</div>
+                            <div class="text-xs font-black text-amber-900 mt-0.5">2600~2800 kcal</div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-600 leading-relaxed m-0">
+                        <strong>训练与配重重点：</strong>178cm / 67kg 身材骨骼杠杆更长，深蹲、倒蹬、划船与推胸动作要注意完整行程控制与核心收紧；在动作页切换至“亲亲”即可查看适配 67kg 体重的专属推荐配重。
+                    </p>
+                </div>
+            </div>
+
+            <!-- 4周滚动PPL周历 -->
+            <div class="card-surface p-4">
+                <h3 class="text-sm font-black text-slate-900 mb-2 flex items-center gap-1.5">
+                    <span>🗓️</span> 四周滚动式三分化周历（点击训练日可直达动作动画）
+                </h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-[11px] border-collapse text-center">
+                        <thead>
+                            <tr class="bg-slate-900 text-white">
+                                <th class="p-1.5 rounded-tl-lg">周次</th>
+                                <th class="p-1.5">周一</th>
+                                <th class="p-1.5 bg-rose-900">周二(长班)</th>
+                                <th class="p-1.5">周三</th>
+                                <th class="p-1.5">周四</th>
+                                <th class="p-1.5">周五</th>
+                                <th class="p-1.5">周六</th>
+                                <th class="p-1.5 rounded-tr-lg">周日(晚班)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <tr class="bg-white">
+                                <td class="p-1.5 font-bold bg-slate-50">第1周</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 text-slate-400">休</td>
+                                <td class="p-1.5 font-bold text-emerald-600 cursor-pointer" onclick="quickSwitchPart('legs')">🦵腿日</td>
+                                <td class="p-1.5 font-bold text-amber-600 cursor-pointer" onclick="quickSwitchPart('chest')">🛡️推日</td>
+                                <td class="p-1.5 text-slate-500">羽毛球</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 text-slate-400">休/备餐</td>
+                            </tr>
+                            <tr class="bg-slate-50/60">
+                                <td class="p-1.5 font-bold bg-slate-50">第2周</td>
+                                <td class="p-1.5 font-bold text-emerald-600 cursor-pointer" onclick="quickSwitchPart('legs')">🦵腿日</td>
+                                <td class="p-1.5 text-slate-400">休</td>
+                                <td class="p-1.5 font-bold text-amber-600 cursor-pointer" onclick="quickSwitchPart('chest')">🛡️推日</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 text-slate-500">羽毛球</td>
+                                <td class="p-1.5 font-bold text-emerald-600 cursor-pointer" onclick="quickSwitchPart('legs')">🦵腿日</td>
+                                <td class="p-1.5 text-slate-400">休/备餐</td>
+                            </tr>
+                            <tr class="bg-white">
+                                <td class="p-1.5 font-bold bg-slate-50">第3周</td>
+                                <td class="p-1.5 font-bold text-amber-600 cursor-pointer" onclick="quickSwitchPart('chest')">🛡️推日</td>
+                                <td class="p-1.5 text-slate-400">休</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 font-bold text-emerald-600 cursor-pointer" onclick="quickSwitchPart('legs')">🦵腿日</td>
+                                <td class="p-1.5 text-slate-500">羽毛球</td>
+                                <td class="p-1.5 font-bold text-amber-600 cursor-pointer" onclick="quickSwitchPart('chest')">🛡️推日</td>
+                                <td class="p-1.5 text-slate-400">休/备餐</td>
+                            </tr>
+                            <tr class="bg-slate-50/60">
+                                <td class="p-1.5 font-bold bg-slate-50">第4周</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 text-slate-400">休</td>
+                                <td class="p-1.5 font-bold text-emerald-600 cursor-pointer" onclick="quickSwitchPart('legs')">🦵腿日</td>
+                                <td class="p-1.5 font-bold text-amber-600 cursor-pointer" onclick="quickSwitchPart('chest')">🛡️推日</td>
+                                <td class="p-1.5 text-slate-500">羽毛球</td>
+                                <td class="p-1.5 font-bold text-blue-600 cursor-pointer" onclick="quickSwitchPart('back')">🦅拉日</td>
+                                <td class="p-1.5 text-slate-400">休/备餐</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- 手机底部固定导航栏（打卡与记录排第一！） -->
+    <nav class="bottom-nav">
+        <div class="max-w-[520px] mx-auto grid grid-cols-3 py-1.5 px-3">
+            <button onclick="switchMainTab('records')" id="botTab_records" class="flex flex-col items-center justify-center py-1 text-blue-600 font-bold">
+                <span class="text-lg leading-none">📝</span>
+                <span class="text-[11px] mt-1">打卡与记录</span>
+            </button>
+            <button onclick="switchMainTab('actions')" id="botTab_actions" class="flex flex-col items-center justify-center py-1 text-slate-400 font-bold">
+                <span class="text-lg leading-none">🎬</span>
+                <span class="text-[11px] mt-1">动作与动画</span>
+            </button>
+            <button onclick="switchMainTab('profile')" id="botTab_profile" class="flex flex-col items-center justify-center py-1 text-slate-400 font-bold">
+                <span class="text-lg leading-none">👫</span>
+                <span class="text-[11px] mt-1">角色与周历</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- 云端 Token 与角色配置弹窗 -->
+    <div id="configModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                <h3 class="text-base font-black text-slate-900 flex items-center gap-1.5">☁️ 角色与云端同步设置</h3>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-slate-700 text-xl font-bold">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500 leading-relaxed mb-3">
+                本页面与 <code class="bg-slate-100 px-1 rounded">diary.html</code> 共享 GitHub 仓库 (<code class="bg-slate-100 px-1 rounded">878481881-jpg/loveplan</code>) 与 Token。哼哼记录保存在 <code class="bg-slate-100 px-1 rounded">data/Hjs.json</code>，亲亲记录保存在 <code class="bg-slate-100 px-1 rounded">data/Qjs.json</code>。
+            </p>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">选择当前训练角色：</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="setIdentityChoice('哼哼')" id="idBtn_哼哼" class="py-2.5 px-2 rounded-xl text-xs font-bold border-2 border-blue-500 bg-blue-50 text-blue-700">
+                            👦 哼哼<br><span class="text-[10px] font-normal">165cm · 53kg</span>
+                        </button>
+                        <button type="button" onclick="setIdentityChoice('亲亲')" id="idBtn_亲亲" class="py-2.5 px-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600">
+                            🌟 亲亲<br><span class="text-[10px] font-normal">178cm · 67kg</span>
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">GitHub Personal Access Token：</label>
+                    <input type="password" id="configTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:border-blue-500 font-mono">
+                </div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button onclick="closeConfigModal()" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">取消</button>
+                <button onclick="saveConfigModal()" class="flex-1 py-2.5 rounded-xl text-xs font-bold bg-blue-600 text-white shadow-md">保存并同步 ☁️</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部轻提示 Toast -->
+    <div id="toast" class="fixed top-14 left-1/2 transform -translate-x-1/2 bg-slate-900/95 text-white px-5 py-2.5 rounded-full shadow-xl text-xs font-bold hidden z-50 whitespace-nowrap"></div>
+
+<script>
+// ============================================================================
+// 1. 角色信息配置：哼哼（165cm，53kg） & 亲亲（178cm，67kg）
+// ============================================================================
+const ROLES = {
+    '哼哼': {
+        name: '哼哼',
+        height: 165,
+        weight: 53,
+        label: '哼哼 (165cm · 53kg)',
+        shortTag: '哼哼 53kg',
+        file: 'data/Hjs.json',
+        badgeClass: 'bg-blue-100 text-blue-700'
+    },
+    '亲亲': {
+        name: '亲亲',
+        height: 178,
+        weight: 67,
+        label: '亲亲 (178cm · 67kg)',
+        shortTag: '亲亲 67kg',
+        file: 'data/Qjs.json',
+        badgeClass: 'bg-rose-100 text-rose-700'
+    }
+};
+
+// ============================================================================
+// 2. 部位选项卡（🔥练前热身 排在最前面！）与全套独立动作数据库
+// ============================================================================
+const PART_TABS = [
+    {
+        id: 'warmup',
+        name: '🔥 练前热身',
+        shortName: '练前热身',
+        badge: '训练前必做 · 8个动作',
+        summaryTitle: '一、训练前必做：上下肢动态热身（点击下方动作选项卡逐一演练）',
+        summaryDesc: '推/拉日前做【上肢热身①~④】（泡沫轴滚背、打开胸腔、腋下后侧按压、弹力带绕肩）；练腿日前做【下肢热身⑤~⑧】（泡沫轴滚小腿、活动髋关节、激活内收肌、青蛙趴）。'
+    },
+    {
+        id: 'back',
+        name: '🦅 背部+二头',
+        shortName: '背部+二头',
+        badge: '拉日 Pull · 7个动作',
+        summaryTitle: '二、背部、肩后束与二头肌训练（Pull 拉日）',
+        summaryDesc: '训练顺序：引体向上 ➔ 高位下拉 ➔ 坐姿绳索划船 ➔ 提杆划船 ➔ 绳索面拉 ➔ (选做)单臂划船 ➔ 二头肌弯举。核心口诀：先沉肩后收肩胛，想象“没有手只剩手肘”向后拉！'
+    },
+    {
+        id: 'legs',
+        name: '🦵 腿臀+小腿',
+        shortName: '腿臀+小腿',
+        badge: '腿日 Legs · 6个动作',
+        summaryTitle: '三、腿部与臀部训练（Legs 腿日）',
+        summaryDesc: '训练顺序：史密斯深蹲 ➔ 倒蹬机 ➔ 坐姿髋内收 ➔ 坐姿髋外展 ➔ 站姿提踵 ➔ 坐姿腿屈伸。核心红线：髋膝联动（先屈髋再屈膝），倒蹬机顶端膝盖微屈绝不锁死！'
+    },
+    {
+        id: 'chest',
+        name: '🛡️ 胸肩+三头',
+        shortName: '胸肩+三头',
+        badge: '推日 Push · 6个动作',
+        summaryTitle: '四、胸部、肩部与肱三头肌训练（Push 推日）',
+        summaryDesc: '训练顺序：平板杠铃卧推 ➔ 坐姿推胸器 ➔ 哑铃侧平举 ➔ 微倾角哑铃卧推 ➔ 蝴蝶机夹胸 ➔ 龙门架绳索下压。核心口诀：肩胛后缩下沉、足底蹬地、沉肩微收肘，选可吃力完成13次的重量做12次！'
+    },
+    {
+        id: 'stretch',
+        name: '🧘 练后拉伸',
+        shortName: '练后拉伸',
+        badge: '练后必做 · 5个动作',
+        summaryTitle: '五、训练后必做：全身目标肌群静态拉伸',
+        summaryDesc: '每次训练结束后针对当日肌群静态保持 30 秒/侧（严禁弹震式拉伸），缓解肌肉紧张、改善体态并加速恢复。'
+    }
+];
+
+const EXERCISES = [
+    // ================= 1. 练前热身 (warmup) - 放在最前面，每个动作独立选项卡 =================
+    {
+        id: 'warmup_back_roll',
+        part: 'warmup',
+        shortTab: '① 泡沫轴滚背',
+        name: '上肢热身 1：泡沫轴滚背部',
+        target: '放松背部浅层筋膜与胸椎段肌群',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：自重躺在泡沫轴上缓慢滚动中上背，持续 30 秒',
+        hintQin: '亲亲(67kg)：自重躺在泡沫轴上缓慢滚动中上背，持续 30 秒',
+        steps: [
+            '① 放置位置：将泡沫轴横置于中上背部（肩胛骨下方区域），屈膝双脚踩地。',
+            '② 托头护颈：双手轻轻托住后脑勺保护颈椎，臀部微抬离开地面。',
+            '③ 缓慢滚压：利用双腿蹬地带动身体在中上背范围缓慢前后滚动，持续 30 秒。',
+            '④ 均匀呼吸：滚压过程中保持深长呼吸，为后续推拉训练唤醒背部筋膜。'
+        ],
+        explanation: '笔记上肢热身第1步（01:04:18）：动作目的是放松背部肌群，为后续背部或胸肩训练做准备。',
+        precautions: '⚠️ 仅滚压胸椎段（中上背），不要直接大力滚压下腰椎；切忌屏气。'
+    },
+    {
+        id: 'warmup_open_chest',
+        part: 'warmup',
+        shortTab: '② 打开胸腔',
+        name: '上肢热身 2：动态打开胸腔',
+        target: '活动胸椎旋转度、改善胸廓活动度',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 20,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：配合呼吸动态开合胸廓，来回完成 20 次',
+        hintQin: '亲亲(67kg)：配合呼吸动态开合胸廓，来回完成 20 次',
+        steps: [
+            '① 起始姿势：侧卧屈膝（或跪姿单手扶头），固定骨盆与下腰部稳定不动。',
+            '② 吸气打开：配合吸气，带动上方手臂与胸廓向后侧缓慢旋转打开。',
+            '③ 呼气还原：呼气原路收回，来回连续完成 20 次。',
+            '④ 循序渐进：随次数增加逐步加大胸椎打开幅度，不要强行猛甩。'
+        ],
+        explanation: '笔记上肢热身第2步：活动胸椎、改善久坐导致的胸廓僵硬，让推胸和下拉时肩胛骨滑动更顺畅。',
+        precautions: '⚠️ 保持骨盆稳定，旋转来自中上背胸椎而非扭动腰椎。'
+    },
+    {
+        id: 'warmup_armpit_press',
+        part: 'warmup',
+        shortTab: '③ 腋下后侧按压',
+        name: '上肢热身 3：腋下后侧酸痛点按压',
+        target: '松解大圆肌、背阔肌上沿与肩袖激痛点',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 20,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：找到腋下后侧酸痛点持续按压，左右两侧各 20 秒',
+        hintQin: '亲亲(67kg)：找到腋下后侧酸痛点持续按压，左右两侧各 20 秒',
+        steps: [
+            '① 侧卧定位：侧卧在垫上，将泡沫轴或按摩球垫在腋下后侧（大圆肌与背阔肌交界处）。',
+            '② 寻找激痛点：微调身体角度，找到酸胀感最明显的酸痛点。',
+            '③ 持续静压：在酸痛点上保持自身重力持续按压 20 秒，深呼吸放松。',
+            '④ 换边执行：完成一侧后换另一侧同样持续按压 20 秒。'
+        ],
+        explanation: '笔记上肢热身第3步：松解腋下后侧紧张肌群、消除酸痛点，能显著改善高位下拉与引体向上时的肩关节活动受限。',
+        precautions: '⚠️ 按压在腋窝偏后方的肌肉丰厚处，避开腋窝正中央的神经血管束。'
+    },
+    {
+        id: 'warmup_band_shoulder',
+        part: 'warmup',
+        shortTab: '④ 弹力带绕肩',
+        name: '上肢热身 4：弹力带前后绕肩',
+        target: '激活肩关节周围肩袖肌群、提升肩部灵活性',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 15,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：双手宽握轻阻力弹力带前后绕肩 15 次',
+        hintQin: '亲亲(67kg)：双手宽握轻阻力弹力带前后绕肩 15 次（臂展长可握更宽）',
+        steps: [
+            '① 宽握弹力带：自然站立收紧核心，双手宽握弹力带两端（约1.5~2倍肩宽）。',
+            '② 向上向后绕过：保持双臂伸直不屈肘，吸气将弹力带举过头顶向身后绕下。',
+            '③ 原路绕回前侧：呼气从身后缓慢绕回体前，感受肩关节囊360°温和活动。',
+            '④ 沉肩控制：全程保持沉肩不耸肩、不挺肚子塌腰，连续完成 15 次。'
+        ],
+        explanation: '笔记上肢热身第4步：激活肩袖四肌、润滑盂肱关节，是预防推胸与肩推时肩峰撞击的必做动作。',
+        precautions: '⚠️ 若绕到背后时卡住或需要屈肘，说明握距太窄，应立刻放宽握距。'
+    },
+    {
+        id: 'warmup_calf_roll',
+        part: 'warmup',
+        shortTab: '⑤ 泡沫轴滚小腿',
+        name: '下肢热身 1：泡沫轴滚动小腿',
+        target: '放松小腿后侧腓肠肌与比目鱼肌、促进血液循环',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：坐姿将泡沫轴置于小腿下方缓慢来回滚动 30~45 秒',
+        hintQin: '亲亲(67kg)：坐姿将泡沫轴置于小腿下方缓慢来回滚动 30~45 秒',
+        steps: [
+            '① 坐姿放轴：坐在垫上，双手在身后撑地，将泡沫轴置于小腿肚下方。',
+            '② 来回滚动：从脚踝上方至膝窝下方缓慢来回滚动小腿后侧肌群。',
+            '③ 内外旋转：可将脚尖微朝内、微朝外旋转，全面覆盖小腿内外侧头。',
+            '④ 改善背屈：持续滚动 30~45 秒，释放跟腱与小腿紧张，让深蹲下蹲更深更稳。'
+        ],
+        explanation: '笔记下肢热身第1步（01:04:43）：放松小腿后侧肌群、促进下肢血液循环，预防深蹲时脚后跟抬起。',
+        precautions: '⚠️ 避开膝盖后方的腘窝正中，集中在小腿肌肉丰厚区滚压。'
+    },
+    {
+        id: 'warmup_hip_mobility',
+        part: 'warmup',
+        shortTab: '⑥ 活动髋关节',
+        name: '下肢热身 2：动态活动髋关节',
+        target: '润滑髋臼关节囊、提升髋关节灵活性',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：来回动态活动髋关节，完成 30 次',
+        hintQin: '亲亲(67kg)：来回动态活动髋关节，完成 30 次',
+        steps: [
+            '① 准备站位/坐位：采用90/90坐姿髋内外旋翻转，或扶墙前后左右动态摆腿。',
+            '② 动态开合：引导大腿骨在髋臼内做大范围的动态内外旋与屈伸活动。',
+            '③ 保持躯干挺直：活动髋部时尽量保持上半身挺拔，不要靠弯腰代偿。',
+            '④ 完成30次：连续来回活动髋关节完成 30 次，直至髋部微微发热。'
+        ],
+        explanation: '笔记下肢热身第2步：提升髋关节灵活性，为史密斯深蹲和倒蹬机的大幅度屈髋做足准备。',
+        precautions: '⚠️ 动作以流畅动态为主，切勿在冷身状态下猛烈踢腿。'
+    },
+    {
+        id: 'warmup_adductor_shake',
+        part: 'warmup',
+        shortTab: '⑦ 激活内收肌群',
+        name: '下肢热身 3：上下抖动激活内收肌群',
+        target: '激活大腿内侧内收肌群、打开腹股沟活动度',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：坐姿脚掌相对，上下抖动腿部持续 30 秒',
+        hintQin: '亲亲(67kg)：坐姿脚掌相对，上下抖动腿部持续 30 秒',
+        steps: [
+            '① 蝴蝶坐姿：坐在瑜伽垫上，双脚脚掌相对合拢，双手握住脚尖或脚踝。',
+            '② 挺直腰背：坐骨坐实垫面，保持脊柱向上延伸挺直。',
+            '③ 上下抖动：双膝向两侧放松打开，像蝴蝶扇翅一样上下轻快抖动腿部。',
+            '④ 持续30秒：保持均匀呼吸，连续抖动 30 秒充分激活大腿内侧内收肌群。'
+        ],
+        explanation: '笔记下肢热身第3步：快速唤醒大腿内侧肌群，防止宽距倒蹬或深蹲底部时大腿内侧拉伤。',
+        precautions: '⚠️ 双手不要暴力下压膝盖，靠腿部主动轻快上下抖动即可。'
+    },
+    {
+        id: 'warmup_frog_pose',
+        part: 'warmup',
+        shortTab: '⑧ 青蛙趴顶髋',
+        name: '下肢热身 4：青蛙趴动态顶髋',
+        target: '深度拉伸髋部与大腿内侧、提升髋外展能力',
+        difficulty: '★★☆☆☆',
+        defaultSets: 1,
+        defaultReps: 15,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：俯身趴下顶髋贴地，向上时臀部往天上顶，完成 12~15 次',
+        hintQin: '亲亲(67kg)：俯身趴下顶髋贴地，向上时臀部往天上顶，完成 12~15 次',
+        steps: [
+            '① 俯身宽膝准备：在软垫上双膝向两侧尽量分开跪立，大小腿呈90°，小臂撑地。',
+            '② 向下顶髋贴地：呼气放松，将髋部缓慢向下沉、向地面贴近，感受大腿内侧拉伸。',
+            '③ 向上臀往天顶：吸气动态发力，将臀部向后上方（往天上顶）推起。',
+            '④ 动态交替：在“顶髋贴地”与“臀往天上顶”之间动态切换 12~15 次。'
+        ],
+        explanation: '笔记下肢热身第4步：结合静态沉髋与动态顶臀，彻底打开髋关节外展与屈髋空间，练腿日前置必做。',
+        precautions: '⚠️ 膝盖下方务必垫软垫保护髌骨；在个人舒适拉伸范围内循序渐进。'
+    },
+
+    // ================= 2. 背部+二头 (back) =================
+    {
+        id: 'pull_up',
+        part: 'back',
+        shortTab: '1. 引体向上',
+        name: '1. 引体向上 (正手宽握 / 辅助引体)',
+        target: '背阔肌上部(倒三角宽度)、大圆肌、核心',
+        difficulty: '★★★★☆',
+        defaultSets: 4,
+        defaultReps: 10,
+        weightHeng: 53,
+        weightQin: 67,
+        hintHeng: '哼哼(53kg)：自重(53kg)力竭(6~8次)+弹力带补足至12次，或辅助机抵消10~15kg(实拉38~43kg)',
+        hintQin: '亲亲(67kg)：自重(67kg)力竭(6~10次)+弹力带补足至12次，或辅助机抵消15~20kg(实拉47~52kg)',
+        steps: [
+            '① 准备与握距：双手正握单杠(1.2~1.5倍肩宽)，初阶脚踩弹力带或跪于辅助引体机垫上。',
+            '② 肩胛启动：悬垂时先做“肩胛骨下沉+后缩”(沉肩挺胸，拉开耳肩距离)，绝不耸肩硬拉。',
+            '③ 向心上拉：吐气双肘向肋骨两侧下拉，上胸主动迎向单杠，直至下巴过杠顶峰夹背。',
+            '④ 离心回放：吸气用2~3秒缓慢控制下放至手臂接近伸直，底部保留肩胛微张力不脱肩。'
+        ],
+        explanation: '背部训练新增王牌动作：打造背部倒三角宽度的黄金动作。趁拉日体力最充沛时放在第1个动作完成，启动时先沉肩再屈肘下拉。',
+        precautions: '⚠️ 严禁含胸耸肩凑下巴；严禁自由落体下坠；收紧核心与臀部防身体前后浪摆。'
+    },
+    {
+        id: 'lat_pulldown',
+        part: 'back',
+        shortTab: '2. 高位下拉',
+        name: '2. 高位下拉 (宽握垂直拉)',
+        target: '背阔肌宽度、大圆肌',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 30,
+        weightQin: 40,
+        hintHeng: '哼哼(53kg)推荐配重：正式组 27.5～35 kg × 12次（热身组 20kg）',
+        hintQin: '亲亲(67kg)推荐配重：正式组 35～45 kg × 12次（热身组 25~30kg）',
+        steps: [
+            '① 握距与握法：使用宽杆，握距为肩宽1.2~1.3倍，握杠时手臂微内旋建立“掰杠”预紧感。',
+            '② 沉肩掰杠下拉：全程肩胛骨略微下沉，吐气下拉时手肘微收，想象把横杆向中间“掰弯”。',
+            '③ 拉至锁骨终点：躯干允许轻微后仰，将横杆拉至锁骨位置最佳，手肘向后微收夹紧背部。',
+            '④ 主动推杠回放：缓慢吸气回放，不要让重力把杠拽走，想象自己主动“推”杠上去。'
+        ],
+        explanation: '笔记核心动作（01:37）：发力下拉时吐气，回放缓慢吸气。握杠微内旋使手肘自然微收，能显著减少二头肌代偿。',
+        precautions: '⚠️ 严禁耸肩（会导致斜方肌过度参与）；避免手肘过度外展或直上直下硬拉；不要过度后仰借力。'
+    },
+    {
+        id: 'cable_row',
+        part: 'back',
+        shortTab: '3. 坐姿绳索划船',
+        name: '3. 坐姿绳索划船 (对握窄把)',
+        target: '背阔肌中下部、菱形肌(背部厚度)',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 27.5,
+        weightQin: 37.5,
+        hintHeng: '哼哼(53kg)推荐配重：正式组 25～32.5 kg × 12次（共4组）',
+        hintQin: '亲亲(67kg)推荐配重：正式组 35～45 kg × 12次（共4组）',
+        steps: [
+            '① 器械与钩握：选对握窄把手，手像钩子一样勾住把手即可(勿死捏)，双脚蹬稳踏板大腿后侧紧绷。',
+            '② 微前倾拉伸：身体略微前倾但保持背部挺直不驼背，手臂略微向前送出感受背部拉伸。',
+            '③ 肘主导拉向肚脐：先吸气屏住，吐气拉向肚脐；想象“没有手臂只剩手肘”，靠夹肘带动背部。',
+            '④ 匀速慢吸回放：回放时缓慢吸气，可略微向前送出保持张力，全程躯干稳定不晃动。'
+        ],
+        explanation: '笔记核心动作（05:46）：提升背部整体厚度的水平拉主项。核心意念是“想象自己没有手臂，只剩手肘”，用夹肘向后带动背部发力。',
+        precautions: '⚠️ 避免用手臂向下拽；身体不要大幅前后摇晃借力，防止腰椎代偿。'
+    },
+    {
+        id: 'wide_row',
+        part: 'back',
+        shortTab: '4. 提杆划船',
+        name: '4. 提杆划船 / 宽距器械划船',
+        target: '中下斜方肌、菱形肌、上背细节',
+        difficulty: '★★★★☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 20,
+        weightQin: 27.5,
+        hintHeng: '哼哼(53kg)推荐配重：俯卧提杆配重 15～22.5 kg（坐姿宽把划船机 25~30kg）',
+        hintQin: '亲亲(67kg)推荐配重：俯卧提杆配重 22.5～32.5 kg（坐姿宽把划船机 32.5~40kg）',
+        steps: [
+            '① 器械与宽握：趴在俯卧提杆划船机上(或坐姿划船换宽把)，握距比肩宽1.2~1.3倍。',
+            '② 背部夹紧启动：启动时用背部率先夹紧发力带动手臂后拉，手肘自然打开(勿过度外展)。',
+            '③ 拉向胸口盯固定点：发力拉向胸部时吐气收紧上背；全程双眼死盯前方固定点。',
+            '④ 慢放增加拉伸：慢放回位时吸气，底部可多放一点充分拉开肩胛骨增加拉伸。'
+        ],
+        explanation: '笔记核心动作（10:14）：全程死盯一个固定点（如杠铃最前端），能有效避免上斜方肌过度发力代偿。',
+        precautions: '⚠️ 严禁视线四处游离或抬头；手肘自然打开即可，过度外展架高会变成单练肩后束。'
+    },
+    {
+        id: 'face_pull',
+        part: 'back',
+        shortTab: '5. 绳索面拉',
+        name: '5. 绳索面拉 (体态改善王牌)',
+        target: '三角肌后束、肩袖外旋肌群、中下斜方肌',
+        difficulty: '★★★★☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 10,
+        weightQin: 12.5,
+        hintHeng: '哼哼(53kg)推荐配重：7.5～12.5 kg × 12次（轻重量精细控制，切忌贪重）',
+        hintQin: '亲亲(67kg)推荐配重：10～15 kg × 12次（轻重量精细控制，切忌贪重）',
+        steps: [
+            '① 滑轮与屈髋站姿：滑轮调至与眉持平(或略高于头顶一拳)，选长绳掌心朝下，后退一步微屈髋臀后坐。',
+            '② 肩胛先收启动：腰背挺直不塌腰，背部肌群率先发力，肩胛骨向后收紧带动手臂。',
+            '③ 外展拉向面部：呼气拉向面部，双手向头部两侧展开、肘部向外打开，上臂与地面大致平行。',
+            '④ 盯固定点慢回：眼睛死盯绳索固定点，身体不晃动，吸气缓慢控制还原保持张力。'
+        ],
+        explanation: '笔记强烈推荐动作（14:18）：与提杆划船并列为改善体态的“超级推荐”组合。若练背4个正式动作后觉得强度不足，可额外加做1组面拉。',
+        precautions: '⚠️ 肘部是“向外展开”，而非向后夹或向下压；重量过大会导致动作不稳定与腰部代偿。'
+    },
+    {
+        id: 'single_arm_row',
+        part: 'back',
+        shortTab: '6. 单臂划船(选做)',
+        name: '6. [选做] 坐姿单臂划船 (改善左右不平衡)',
+        target: '单侧背阔肌、纠正左右手力量不对称',
+        difficulty: '★★★☆☆',
+        defaultSets: 3,
+        defaultReps: 10,
+        weightHeng: 15,
+        weightQin: 20,
+        hintHeng: '哼哼(53kg)单侧配重：12.5～17.5 kg（先练弱侧至力竭，强侧跟同次数即停）',
+        hintQin: '亲亲(67kg)单侧配重：17.5～22.5 kg（先练弱侧至力竭，强侧跟同次数即停）',
+        steps: [
+            '① 座椅与对握准备：对握把手，调座椅使拉到底时小臂几乎平行地面，非训练手/脚推稳固定物。',
+            '② 弱侧优先力竭：先练弱侧(如左手)，肘部夹紧身体向后拉至腰部，全力做到力竭(如8~10次)。',
+            '③ 末端微转体收缩：在拉至末端后可轻微旋转躯干增加收缩幅度(切忌大幅扭腰)。',
+            '④ 强侧同次即停：换强侧(右手)做到与弱侧完全相同的次数即停(哪怕有余力)，下组仍从弱侧开始。'
+        ],
+        explanation: '笔记选做纠偏动作（19:32）：针对左右手力量不平衡，优先训练弱侧并以弱侧为准设定训练次数，长期坚持使两侧力量趋于平衡。',
+        precautions: '⚠️ 转体幅度不宜过大，必须在拉至末端后再轻微旋转；强侧绝不可多做次数。'
+    },
+    {
+        id: 'bicep_curl',
+        part: 'back',
+        shortTab: '7. 二头肌弯举',
+        name: '7. W曲杆 / 直杆二头肌弯举',
+        target: '肱二头肌（中立位握距均衡刺激长头与短头）',
+        difficulty: '★★☆☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 15,
+        weightQin: 20,
+        hintHeng: '哼哼(53kg)推荐配重：W曲杆含杆总重 12.5～17.5 kg × 12次',
+        hintQin: '亲亲(67kg)推荐配重：W曲杆含杆总重 17.5～22.5 kg × 12次',
+        steps: [
+            '① 中立位握距：双手自然放松下垂确定中立位握距(W曲杆曲线恰好对应)，手腕自然伸直。',
+            '② 核心收紧锁大臂：收紧腰腹，肩膀自然下沉后收(不前倾)，大臂贴紧身体两侧固定不动。',
+            '③ 外上方弯举：呼气时前臂向外上方弯举(只动小臂不动大臂)，顶峰强烈挤压二头肌。',
+            '④ 全程慢速下放：吸气缓慢下放至手臂接近伸直，做全程动作，练后务必拉伸。'
+        ],
+        explanation: '笔记动作（21:41）：握距过窄侧重长头、过宽侧重短头、自然放松下垂的中立位握距均衡刺激长短头。',
+        precautions: '⚠️ 严禁大臂晃动、肩膀前倾、下放过快。'
+    },
+
+    // ================= 3. 腿臀+小腿 (legs) =================
+    {
+        id: 'smith_squat',
+        part: 'legs',
+        shortTab: '1. 史密斯深蹲',
+        name: '1. 史密斯杠铃深蹲 (含孤立练臀变式)',
+        target: '股四头肌、臀大肌、核心肌群',
+        difficulty: '★★★★☆',
+        defaultSets: 3,
+        defaultReps: 12,
+        weightHeng: 40,
+        weightQin: 55,
+        hintHeng: '哼哼(53kg)推荐配重：总负重 35～45 kg × 12次（共3~4组，呼吸平复再开下一组）',
+        hintQin: '亲亲(67kg)推荐配重：总负重 50～65 kg × 12次（共3~4组，保护杠调至肩高）',
+        steps: [
+            '① 卡杠与站位：保护杠调至肩高，低头将杠卡在后方斜方肌上(勿压颈椎)，双脚站杠正下方微外八。',
+            '② 髋膝联动下蹲：下蹲时先屈髋、再屈膝，控制下蹲速度，膝盖方向与脚尖方向严格一致。',
+            '③ 底部深度与变式：常规蹲至大腿近平行地面(臀腿均衡)；[孤立练臀变式：向前站一步宽距主屈髋]。',
+            '④ 伸膝伸髋起身：起身时按相反顺序“先伸膝、再伸髋”果断发力，全程保持核心收紧。'
+        ],
+        explanation: '笔记腿日主项（26:24）：常规史密斯深蹲（臀腿均衡）最适合作为增肌主项；若想孤立练臀可双脚向前迈一步、加宽站距主做屈髋。',
+        precautions: '⚠️ 严禁杠铃压在脖子上；下蹲严禁塌腰；膝盖必须与脚尖同向。'
+    },
+    {
+        id: 'leg_press',
+        part: 'legs',
+        shortTab: '2. 倒蹬机',
+        name: '2. 倒蹬机 / 45°腿举',
+        target: '高位宽距偏臀腿后侧 / 低位窄距偏股四头',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 75,
+        weightQin: 100,
+        hintHeng: '哼哼(53kg)推荐配重：70～85 kg × 12次（共4组，做完蹬直锁好安全卡扣再放松）',
+        hintQin: '亲亲(67kg)推荐配重：90～115 kg × 12次（共4组，做完蹬直锁好安全卡扣再放松）',
+        steps: [
+            '① 蹬出解锁卡扣：双脚蹬稳踏板用力向前蹬出，旋开两侧安全限位卡扣，后背死贴靠垫。',
+            '② 脚位调整：高位宽距外八侧重臀大肌与腘绳肌；低位与髋同宽中立位侧重股四头肌。',
+            '③ 吸气控制下放：吸气下放至大腿与小腿夹角略小于90°，感受臀腿充分拉伸，膝与脚尖同向。',
+            '④ 呼气蹬起微屈膝：呼气发力蹬起，膝盖保持微屈绝不锁死！做完12次后蹬直锁好卡扣再放松。'
+        ],
+        explanation: '笔记核心动作（30:53）：安全高效的大重量下肢动作。演示采用高位宽距外八脚位，重点强化臀腿后侧链。',
+        precautions: '⚠️ 最高安全红线：每次蹬起时膝盖保持微屈，绝对不要完全蹬直锁死关节（防超伸重伤）！后背全程贴紧靠垫。'
+    },
+    {
+        id: 'hip_adduction',
+        part: 'legs',
+        shortTab: '3. 坐姿髋内收',
+        name: '3. 坐姿髋内收 (大腿内侧)',
+        target: '大腿内侧内收肌群',
+        difficulty: '★★☆☆☆',
+        defaultSets: 3,
+        defaultReps: 12,
+        weightHeng: 27.5,
+        weightQin: 35,
+        hintHeng: '哼哼(53kg)推荐配重：25～32.5 kg × 12次（共3组）',
+        hintQin: '亲亲(67kg)推荐配重：32.5～42.5 kg × 12次（共3组）',
+        steps: [
+            '① 调宽挡板准备：操作右侧调节把手将挡板调宽为内收模式，后背贴靠身体略前移，膝盖卡稳挡板。',
+            '② 微前倾翘脚尖：身体略微前倾但保持背部挺直(不弯腰)，脚尖微微上翘，双手轻扶两侧把手。',
+            '③ 吐气向内夹紧：吐气发力将双腿向中间夹紧，收到即将接触位置即停(不要完全碰撞合拢)。',
+            '④ 吸气慢速还原：吸气缓慢控制还原速度，全程保持大腿内侧肌肉持续张力。'
+        ],
+        explanation: '笔记动作（34:51）：强化大腿内侧肌群，收到即将接触的位置即停，保持肌肉持续张力。',
+        precautions: '⚠️ 身体微前倾但不要弯腰；注意控制还原速度防惯性摆动。'
+    },
+    {
+        id: 'hip_abduction',
+        part: 'legs',
+        shortTab: '4. 坐姿髋外展',
+        name: '4. 坐姿髋外展 (臀中肌塑形)',
+        target: '臀中肌、臀小肌、髋部外侧稳定',
+        difficulty: '★★☆☆☆',
+        defaultSets: 3,
+        defaultReps: 12,
+        weightHeng: 27.5,
+        weightQin: 35,
+        hintHeng: '哼哼(53kg)推荐配重：25～32.5 kg × 12次（共3组）',
+        hintQin: '亲亲(67kg)推荐配重：32.5～42.5 kg × 12次（共3组）',
+        steps: [
+            '① 调至最窄位置：将调节把手调至最窄位置，双腿卡在两侧挡板内侧。',
+            '② 躯干刚性臀后撅：身体略微前倾保持躯干刚性，练习时臀部略微向后撅，双手扶稳前方固定物。',
+            '③ 吐气向外展开：吐气发力向两侧展开双腿，幅度根据自身髋关节活动度决定。',
+            '④ 吸气轻轻还原：吸气时轻轻缓慢还原，避免配重片撞击归零。'
+        ],
+        explanation: '笔记动作（38:17）：练习时臀部略微向后撅，有助于保持正确发力角度，精准刺激臀部外侧。',
+        precautions: '⚠️ 保持躯干刚性不弯腰代偿；吸气轻轻还原。'
+    },
+    {
+        id: 'calf_raise',
+        part: 'legs',
+        shortTab: '5. 站姿提踵',
+        name: '5. 站姿提踵 (小腿离心控制)',
+        target: '小腿三头肌（腓肠肌、比目鱼肌）',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 25,
+        weightQin: 35,
+        hintHeng: '哼哼(53kg)推荐配重：负重 20～30 kg × 12次（共4组，强调慢放）',
+        hintQin: '亲亲(67kg)推荐配重：负重 30～45 kg × 12次（共4组，强调慢放）',
+        steps: [
+            '① 稳定直立准备：正常站立(可于史密斯机或持哑铃)，核心收紧，全身保持稳定不动。',
+            '② 脚尖用力踮起：呼气时脚尖用力向上踮起(提踵)，尽可能顶到最高点保证幅度完整。',
+            '③ 顶峰收紧停顿：在最高点短暂收紧小腿后侧肌群，身体不晃动。',
+            '④ 慢速离心下放：下放过程一定要慢(2~3秒)！主动控制离心收缩直至充分拉伸。'
+        ],
+        explanation: '笔记动作（41:02）：关键要点是“下放过程一定要慢，控制离心收缩”，重量可适当增加但需保证动作幅度完整。',
+        precautions: '⚠️ 严禁回程过快上下弹动；保证每次踮起与下放幅度完整。'
+    },
+    {
+        id: 'leg_extension',
+        part: 'legs',
+        shortTab: '6. 坐姿腿屈伸',
+        name: '6. 坐姿腿屈伸 (股四头肌孤立)',
+        target: '股四头肌（脚尖朝上均衡/朝内偏外侧/朝外偏内侧）',
+        difficulty: '★★☆☆☆',
+        defaultSets: 2,
+        defaultReps: 15,
+        weightHeng: 22.5,
+        weightQin: 30,
+        hintHeng: '哼哼(53kg)推荐配重：20～25 kg × 15次（做2组收尾，熟悉器械充血为主）',
+        hintQin: '亲亲(67kg)推荐配重：27.5～35 kg × 15次（做2组收尾，可做递减组）',
+        steps: [
+            '① 靠稳座椅握把手：调整座椅位置使后背靠稳，双手扶住两侧把手固定骨盆。',
+            '② 勾脚尖调角度：脚尖勾住挡板（脚尖朝上均衡 / 朝内侧重大腿外侧 / 朝外侧重大腿内侧）。',
+            '③ 吐气蹬直抬高：发力蹬直双腿时吐气，抬得越高越好，顶端强烈收紧大腿前侧。',
+            '④ 吸气慢速还原：到达顶端后吸气缓慢还原，本次做2组×15次收尾。'
+        ],
+        explanation: '笔记动作（44:11）：通过脚尖朝内（偏大腿外侧）、朝外（偏大腿内侧）、朝上（中立均衡）自由调节股四头肌刺激部位。',
+        precautions: '⚠️ 严禁惯性猛踢弹动（防膝盖疼痛），到达顶端后缓慢还原。'
+    },
+
+    // ================= 4. 胸肩+三头 (chest) =================
+    {
+        id: 'bench_press',
+        part: 'chest',
+        shortTab: '1. 平板杠铃卧推',
+        name: '1. 平板杠铃卧推 (胸部力量与围度王牌主项)',
+        target: '胸大肌中下部整体厚度、三角肌前束、肱三头肌',
+        difficulty: '★★★★☆',
+        defaultSets: 4,
+        defaultReps: 10,
+        weightHeng: 35,
+        weightQin: 50,
+        hintHeng: '哼哼(53kg)推荐配重：含20kg标准杆总重 32.5～40 kg × 8~12次（热身空杆20kg）',
+        hintQin: '亲亲(67kg)推荐配重：含20kg标准杆总重 45～55 kg × 8~12次（热身30kg）',
+        steps: [
+            '① 五点触地与握距：仰卧平凳，视线在杠铃正下方；双脚踩实地面，臀、上背、头贴紧凳面；握距约1.3~1.5倍肩宽，掌根锁杠手腕中立。',
+            '② 沉肩收胛出杠：肩胛骨向后下方收紧下沉(微起腰弓保护肩袖)，吸气将杠铃移至锁骨/肩部正上方。',
+            '③ 慢速下放触胸：吸气控制下放，手肘与躯干呈45°~60°微内收(忌90°外展)，杠铃呈斜线轨迹轻触胸肌中下沿(乳头连线处)。',
+            '④ 吐气夹胸推起：双脚蹬地传导力量，吐气发力将杠铃推回肩部上方，想象大臂向内夹拢，顶端手肘保留微屈不锁死。'
+        ],
+        explanation: '胸部增肌复合动作之王！与坐姿推胸器发力原理一脉相承：手腕必须中立（用掌根撑杠），全程保持肩胛骨后缩下沉貼在凳面上，推起时靠胸大肌带动大臂向内夹拢，而非单纯靠手臂硬推。',
+        precautions: '⚠️ 严禁手肘呈90°“T字型”外展下放（极易引发肩峰撞击）；严禁半程快速弹胸借力；冲击大重量时务必使用卧推保护架或请伙伴保护。'
+    },
+    {
+        id: 'chest_press',
+        part: 'chest',
+        shortTab: '2. 推胸器推胸',
+        name: '2. 坐姿推胸器推胸 (水平轨迹)',
+        target: '胸大肌厚度、三角肌前束、肱三头肌',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 30,
+        weightQin: 40,
+        hintHeng: '哼哼(53kg)推荐配重：27.5～32.5 kg × 12次（选能吃力完成13次的重量做12次）',
+        hintQin: '亲亲(67kg)推荐配重：35～45 kg × 12次（选能吃力完成13次的重量做12次）',
+        steps: [
+            '① 座椅与掌根握法：调座椅使握把与胸部齐平(选水平推出轨迹)；用掌根推握把(忌折腕/忌窄握)。',
+            '② 沉肩收肘屏气推：手肘微收下沉、沉肩不耸肩；后背贴紧脚踩稳，吸气屏住一口气推出、吐气发力。',
+            '③ 掰把夹胸微屈肘：推起时想象“掰断”握把，大臂向中间夹拢；推出不要完全打直手臂，保留微屈。',
+            '④ 慢回计数控制：默念“一二慢回，三四……”控制回放，回放不要过度向后(活动在微屈到微屈间)。'
+        ],
+        explanation: '笔记胸肩主项（47:10）：每个动作做完一组休息90s-120s。推起时想象“掰断”握把、大臂向中间夹拢，活动范围在微屈到微屈之间即可。',
+        precautions: '⚠️ 用掌根推住握把，不要用手腕发力；握距不宜太窄防三头肌代偿；回放不要过度向后防伤肩。'
+    },
+    {
+        id: 'lateral_raise',
+        part: 'chest',
+        shortTab: '3. 哑铃侧平举',
+        name: '3. 坐姿哑铃侧平举 (含反手防弹响变式)',
+        target: '三角肌中束（打造视觉肩宽核心）',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 5,
+        weightQin: 7,
+        hintHeng: '哼哼(53kg)推荐配重：单手哑铃 4～6 kg/只 × 12次（严防耸肩借力）',
+        hintQin: '亲亲(67kg)推荐配重：单手哑铃 6～8 kg/只 × 12次（严防耸肩借力）',
+        steps: [
+            '① 坐姿微沉肩预紧：坐姿双手持哑铃于体侧，肩膀微沉但不要完全沉死，起始位置保持肩部微紧张。',
+            '② 肘带动往远处扔：发力吐气向两侧打开举起，想象把哑铃“往远处扔”，用肘部带动而非抬小臂。',
+            '③ 顶峰与防弹响变式：抬至大臂近水平；[若肩关节弹响：改用反手(手心朝后)握哑铃最内侧边缘外展]。',
+            '④ 理性慢回控张力：回放时吸气慢速控制，理性慢回，底部不完全松懈。'
+        ],
+        explanation: '笔记动作（50:50）：肩膀微沉但不要完全沉死（否则动作会卡住）。若标准姿势下肩膀仍有弹响，改用反手（手心朝后）握在哑铃最内侧边缘向外打开。',
+        precautions: '⚠️ 重量过大容易耸肩借力，应降低重量；不要只抬小臂，应以肘部带动。'
+    },
+    {
+        id: 'db_press',
+        part: 'chest',
+        shortTab: '4. 哑铃卧推',
+        name: '4. 微倾角哑铃卧推 / 推举',
+        target: '三角肌前束为主，兼顾上胸部饱满度',
+        difficulty: '★★★☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 10,
+        weightQin: 14,
+        hintHeng: '哼哼(53kg)推荐配重：单手哑铃 8～12 kg/只 × 12次（自由重量）',
+        hintQin: '亲亲(67kg)推荐配重：单手哑铃 12～16 kg/只 × 12次（自由重量）',
+        steps: [
+            '① 微倾角凳与内收肘：将卧推凳调至略带倾角，双手位置不在身体正侧面，而是略微内收更护肩。',
+            '② 与胸平齐起步：起始位置不要从最低点死拉，从约与胸部平齐的角度开始推起即可。',
+            '③ 吐气上推保微屈：手肘微收，吐气向上推起，顶端不要完全打直手臂，保留微屈。',
+            '④ 吸气慢回控制：吸气缓慢回放至与胸平齐高度，全程控制哑铃稳定。'
+        ],
+        explanation: '笔记动作（53:52）：双手位置略微内收对肩膀更友好，从约与胸部平齐的角度推起即可，更推荐使用自由重量（哑铃）训练。',
+        precautions: '⚠️ 腰部不要过度反弓；手肘切忌过度外展；推出顶端保留微屈不锁死。'
+    },
+    {
+        id: 'pec_fly',
+        part: 'chest',
+        shortTab: '5. 蝴蝶机夹胸',
+        name: '5. 蝴蝶机夹胸 (环抱大树塑形)',
+        target: '胸大肌整体及内侧中缝线条',
+        difficulty: '★★☆☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 22.5,
+        weightQin: 30,
+        hintHeng: '哼哼(53kg)推荐配重：20～25 kg × 12次（共4组）',
+        hintQin: '亲亲(67kg)推荐配重：27.5～35 kg × 12次（共4组）',
+        steps: [
+            '① 座椅双向调节：拔出手柄调节前后距离；调座椅高度使手臂伸直时握把约与肩膀同高。',
+            '② 环抱大树轨迹：过程中略微挺胸，手肘微屈固定，想象“环抱一棵大树”的弧形轨迹。',
+            '③ 掌根向内环抱：吐气发力，用手掌根向内侧环抱挤压，从最远端一路收紧夹紧胸大肌。',
+            '④ 吸气慢放拉伸：吸气慢速放回起始位，充分感受胸肌拉伸。'
+        ],
+        explanation: '笔记动作（57:16）：手臂伸直时握把约与肩同高；不是简单的“向内夹”，而是想象“环抱一棵大树”的感觉，用手掌根向内侧环抱发力。',
+        precautions: '⚠️ 严禁直臂内推；过程中保持略微挺胸，防止肩部代偿。'
+    },
+    {
+        id: 'tricep_pushdown',
+        part: 'chest',
+        shortTab: '6. 手臂绳索下压',
+        name: '6. 龙门架手臂绳索下压',
+        target: '手臂后侧（肱三头肌）',
+        difficulty: '★★☆☆☆',
+        defaultSets: 4,
+        defaultReps: 12,
+        weightHeng: 12.5,
+        weightQin: 17.5,
+        hintHeng: '哼哼(53kg)推荐配重：10～15 kg × 12次（下压到底向两侧掰开停顿）',
+        hintQin: '亲亲(67kg)推荐配重：15～20 kg × 12次（下压到底向两侧掰开停顿）',
+        steps: [
+            '① 最高位与前后脚站姿：龙门架调到最高位装绳索把手，扣住下端；前后脚站立确保拉力线垂直地面。',
+            '② 大臂固定夹紧：身体立线垂直(勿过前或过后)，大臂保持固定夹紧体侧，仅靠小臂向下压。',
+            '③ 底部掰绳停顿：下压到底时将绳索向两侧掰开，停顿1秒充分收紧肱三头肌。',
+            '④ 吸气慢速回放：吸气慢速控制回放，保持大臂不晃动。'
+        ],
+        explanation: '笔记动作（01:01:03）：不是直接向下拽，而是扣住绳索后大臂保持固定夹紧、小臂下压，下压到底时将绳索向两侧掰开停顿一下再慢速回放。',
+        precautions: '⚠️ 严禁大臂晃动；底部必须向两侧外展掰开以充分收紧肱三头肌。'
+    },
+
+    // ================= 5. 练后拉伸 (stretch) - 5个独立动作选项卡 =================
+    {
+        id: 'stretch_chest',
+        part: 'stretch',
+        shortTab: '① 胸部拉伸',
+        name: '练后拉伸 1：胸部静态拉伸',
+        target: '缓解胸大肌/胸小肌紧张、改善圆肩体态',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：肘靠与肩持平的平面往前压，保持 30 秒后换边',
+        hintQin: '亲亲(67kg)：肘靠与肩持平的平面往前压，保持 30 秒后换边',
+        steps: [
+            '① 架肘定位：将小臂与肘部靠在龙门架立柱或墙面上，使肘部与肩膀高度持平。',
+            '② 弓步前压：同侧脚向前迈出呈弓步，身体缓慢往前压、胸口向对侧微转。',
+            '③ 静态保持：感受胸大肌前侧明显的牵拉感，保持均匀呼吸静态维持 30 秒。',
+            '④ 换边执行：缓慢还原后换另一侧手臂同样拉伸 30 秒。'
+        ],
+        explanation: '笔记动作（第8页）：肘部靠在与肩膀持平的平面上，身体往前压保持30秒后换边，缓解胸部肌群紧张、改善体态。',
+        precautions: '⚠️ 肘部高度与肩持平即可，不要耸肩或过度塌腰前顶。'
+    },
+    {
+        id: 'stretch_back',
+        part: 'stretch',
+        shortTab: '② 背部拉伸',
+        name: '练后拉伸 2：背部静态拉伸',
+        target: '深度拉开背阔肌、大圆肌与躯干侧链',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：将重心放在后侧感受背部拉开，保持 30 秒',
+        hintQin: '亲亲(67kg)：将重心放在后侧感受背部拉开，保持 30 秒',
+        steps: [
+            '① 抓握固定物：双手（或单手）握住前方龙门架立柱或固定横杆，高度约与胸腹齐平。',
+            '② 屈髋重心后移：双膝微屈，臀部向后坐，将身体重心完全放在后侧。',
+            '③ 沉胸拉长背阔：手臂被前方拉直，胸口微向下沉，充分感受背阔肌从腋下到腰际被拉开。',
+            '④ 保持30秒：配合深长呼吸静态保持该姿势 30 秒。'
+        ],
+        explanation: '笔记动作（01:05:10）：将重心放在后侧，充分感受背部被拉开的感觉，持续保持30秒。',
+        precautions: '⚠️ 靠臀部向后坐的自身体重自然牵拉，不要前后猛拽。'
+    },
+    {
+        id: 'stretch_tricep',
+        part: 'stretch',
+        shortTab: '③ 肱三头肌拉伸',
+        name: '练后拉伸 3：肱三头肌静态拉伸',
+        target: '放松手臂后侧肱三头肌长头',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：对侧手抱肘向下按压，手向后背延伸，每侧 30 秒',
+        hintQin: '亲亲(67kg)：对侧手抱肘向下按压，手向后背延伸，每侧 30 秒',
+        steps: [
+            '① 屈肘举过头顶：将一侧手臂举过头顶并完全屈肘，手掌向背部正下方延伸。',
+            '② 对侧手抱肘：用对侧手抱住屈肘侧的肘关节尖端。',
+            '③ 向下向后按压：轻轻将肘部向后下方按压，重点感受大臂后侧肱三头肌的牵拉感。',
+            '④ 静态保持换边：挺胸抬头不低头，保持 30 秒后换另一侧手臂。'
+        ],
+        explanation: '笔记动作（第9页）：对侧手抱住肘部向下按压，同时手向背部下方延伸，重点感受肱三头肌的牵拉感。',
+        precautions: '⚠️ 头部保持中立挺拔，不要被手臂压得过度低头弯颈。'
+    },
+    {
+        id: 'stretch_shoulder',
+        part: 'stretch',
+        shortTab: '④ 肩部拉伸',
+        name: '练后拉伸 4：肩部三角肌静态拉伸',
+        target: '放松三角肌中后束与肩袖后侧',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：手臂伸直用对侧手压住手臂，保持呼吸均匀，每侧 30 秒',
+        hintQin: '亲亲(67kg)：手臂伸直用对侧手压住手臂，保持呼吸均匀，每侧 30 秒',
+        steps: [
+            '① 手臂水平横胸：将一侧手臂水平伸直，横过胸前朝向对侧。',
+            '② 对侧手扣压：用对侧小臂或手腕扣住伸直手臂的肘部上方，向胸口方向轻压。',
+            '③ 沉肩防耸肩：被拉伸侧的肩膀务必主动向下沉（不要耸起貼近下巴）。',
+            '④ 均匀呼吸30秒：保持呼吸均匀，持续 30 秒后换另一侧肩膀。'
+        ],
+        explanation: '笔记动作（第9页）：手臂伸直，用对侧手压住手臂，保持呼吸均匀，持续30秒。',
+        precautions: '⚠️ 拉伸时必须沉肩，若耸肩则会失去对三角肌的拉伸效果。'
+    },
+    {
+        id: 'stretch_legs',
+        part: 'stretch',
+        shortTab: '⑤ 腿部拉伸三步曲',
+        name: '练后拉伸 5：腿部静态拉伸三步曲',
+        target: '大腿前侧股四头肌、体侧链、大腿后侧腘绳肌与小腿',
+        difficulty: '★☆☆☆☆',
+        defaultSets: 1,
+        defaultReps: 30,
+        weightHeng: 0,
+        weightQin: 0,
+        hintHeng: '哼哼(53kg)：①抓脚背拉前侧 ➔ ②体侧下压 ➔ ③上拉脚尖拉后侧，各 30 秒/侧',
+        hintQin: '亲亲(67kg)：①抓脚背拉前侧 ➔ ②体侧下压 ➔ ③上拉脚尖拉后侧，各 30 秒/侧',
+        steps: [
+            '① 第一步·大腿前侧拉伸：单手扶稳，另一手抓住同侧脚背将腿向身后勾住，保持大腿前侧紧绷30秒换边。',
+            '② 第二步·体侧拉伸：分腿坐或站立下压身体，肘部向伸直腿的对侧下压，保持侧腰与髋拉扯感30秒。',
+            '③ 第三步·腿后侧与脚尖拉伸：伸直单腿下压身体(背挺直)，同时用手上拉脚尖，感受腿后侧与小腿强烈拉伸30秒。',
+            '④ 静态保持原则：三步均采用静态维持配合深呼吸，严禁上下猛振（弹震式拉伸易拉伤）。'
+        ],
+        explanation: '笔记腿部拉伸三步曲（第9页）：练腿后必做，依次放松大腿前侧、体侧、大腿后侧腘绳肌及小腿跟腱。',
+        precautions: '⚠️ 严禁弹震式拉伸（应静态保持30秒/侧）。'
+    }
+];
+
+// ============================================================================
+// 3. 全局状态与云端同步配置（完全参考 diary.html 逻辑）
+// ============================================================================
+const OWNER_REPO = '878481881-jpg/loveplan';
+const FILE_H_JS = 'data/Hjs.json';
+const FILE_Q_JS = 'data/Qjs.json';
+const LOCAL_CACHE_KEY = 'loveGacha_fitnessRecords_v2';
+
+let GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || '';
+let myIdentity = localStorage.getItem('loveGacha_myIdentity') || '哼哼';
+if (myIdentity !== '哼哼' && myIdentity !== '亲亲') myIdentity = '哼哼';
+
+let dataHJs = { records: [] };
+let dataQJs = { records: [] };
+let shaHJs = null;
+let shaQJs = null;
+
+// 默认首屏：打卡与记录 ('records')；默认部位：练前热身 ('warmup')
+let currentMainTab = 'records';   // 'records' | 'actions' | 'profile'
+let currentPartTab = 'warmup';    // 'warmup' | 'back' | 'legs' | 'chest' | 'stretch' | 'all'(仅在records可用)
+let selectedExerciseByPart = {
+    warmup: 'warmup_back_roll',
+    back: 'pull_up',
+    legs: 'smith_squat',
+    chest: 'bench_press',
+    stretch: 'stretch_chest'
+};
+let currentFeel = '刚好RIR1';
+let showAllDatesInLog = false;
+let roleFilterMode = 'all'; // 'all' | '哼哼' | '亲亲'
+
+// 动画状态：exerciseId -> { mode: 'loop'|0|1|2|3, speed: 1.0 }
+const animStates = {};
+
+function getTodayStr() {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function getExDefaultWeight(ex) {
+    return myIdentity === '亲亲' ? ex.weightQin : ex.weightHeng;
+}
+
+function getExHint(ex) {
+    return myIdentity === '亲亲' ? ex.hintQin : ex.hintHeng;
+}
+
+window.onload = async function() {
+    document.getElementById('logDateInput').value = getTodayStr();
+    loadLocalCache();
+    updateRoleUI();
+    renderPartTabs();
+    populateRecordExerciseSelect();
+    renderRecordsView();
+    renderSingleActionView();
+    startAnimationLoop();
+    await syncFromCloud(false);
+};
+
+// ============================================================================
+// 4. 角色切换逻辑（哼哼 165cm/53kg vs 亲亲 178cm/67kg）
+// ============================================================================
+function switchRole(roleName) {
+    if (!ROLES[roleName]) return;
+    myIdentity = roleName;
+    localStorage.setItem('loveGacha_myIdentity', myIdentity);
+    updateRoleUI();
+    populateRecordExerciseSelect();
+    renderRecordsView();
+    if (currentMainTab === 'actions') {
+        renderSingleActionView();
+    }
+    showToast(`已切换角色：${ROLES[myIdentity].label}`);
+}
+
+function updateRoleUI() {
+    const r = ROLES[myIdentity] || ROLES['哼哼'];
+    document.getElementById('headerRoleInfo').innerText = `当前：${r.label}`;
+    document.getElementById('recordRoleBadge').innerText = r.shortTag;
+    document.getElementById('recordRoleBadge').className = `text-[11px] font-bold px-2 py-0.5 rounded-full ${r.badgeClass}`;
+
+    const btnH = document.getElementById('topRole_哼哼');
+    const btnQ = document.getElementById('topRole_亲亲');
+    if (myIdentity === '哼哼') {
+        btnH.className = 'px-2.5 py-1 rounded-full text-[11px] font-extrabold transition bg-blue-600 text-white shadow-sm';
+        btnQ.className = 'px-2.5 py-1 rounded-full text-[11px] font-extrabold transition text-slate-600';
+    } else {
+        btnQ.className = 'px-2.5 py-1 rounded-full text-[11px] font-extrabold transition bg-rose-500 text-white shadow-sm';
+        btnH.className = 'px-2.5 py-1 rounded-full text-[11px] font-extrabold transition text-slate-600';
+    }
+}
+
+// ============================================================================
+// 5. 本地缓存 + GitHub API 云端同步（完全兼容 diary.html）
+// ============================================================================
+function loadLocalCache() {
+    try {
+        const raw = localStorage.getItem(LOCAL_CACHE_KEY) || localStorage.getItem('loveGacha_fitnessRecords_v1');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed.dataHJs) dataHJs = parsed.dataHJs;
+            if (parsed.dataQJs) dataQJs = parsed.dataQJs;
+        }
+    } catch (e) { console.error(e); }
+    if (!dataHJs.records) dataHJs.records = [];
+    if (!dataQJs.records) dataQJs.records = [];
+}
+
+function saveLocalCache() {
+    try {
+        localStorage.setItem(LOCAL_CACHE_KEY, JSON.stringify({ dataHJs, dataQJs, updatedAt: Date.now() }));
+    } catch (e) { console.error(e); }
+}
+
+function updateCloudBadge(state, text) {
+    const dot = document.getElementById('cloudStatusDot');
+    const txt = document.getElementById('cloudStatusText');
+    const btn = document.getElementById('cloudStatusBtn');
+    txt.innerText = text;
+    if (state === 'ok') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500';
+        btn.className = 'px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center gap-1 shadow-sm';
+    } else if (state === 'syncing') {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping';
+        btn.className = 'px-2 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 flex items-center gap-1 shadow-sm';
+    } else {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-amber-500';
+        btn.className = 'px-2 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1 shadow-sm';
+    }
+}
+
+async function fetchFile(filePath) {
+    if (!GITHUB_TOKEN) return { noToken: true };
+    try {
+        const timestamp = new Date().getTime();
+        const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `Bearer ${GITHUB_TOKEN}`
+            }
+        });
+        if (response.status === 401 || response.status === 403) return { authError: true };
+        if (response.status === 404) return { data: { records: [] }, sha: null };
+        if (!response.ok) return { error: true };
+
+        const result = await response.json();
+        const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+        return { data: JSON.parse(contentStr || '{"records":[]}'), sha: result.sha };
+    } catch (error) {
+        return { error: true };
+    }
+}
+
+async function updateFile(filePath, newData, sha) {
+    if (!GITHUB_TOKEN) return { noToken: true };
+    try {
+        const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
+        const body = { message: `Update fitness workout records (${myIdentity})`, content: encodedContent };
+        if (sha) body.sha = sha;
+
+        const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+            method: 'PUT',
+            headers: {
+                'Accept': 'application/vnd.github.v3+json',
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        if (response.status === 401 || response.status === 403) return { authError: true };
+        if (!response.ok) return { success: false, sha: sha };
+
+        const result = await response.json();
+        return { success: true, sha: result.content.sha };
+    } catch (error) {
+        return { success: false, sha: sha };
+    }
+}
+
+function mergeRecords(localArr, cloudArr) {
+    const map = new Map();
+    (localArr || []).forEach(r => map.set(r.id || r.time, r));
+    (cloudArr || []).forEach(r => map.set(r.id || r.time, r));
+    return Array.from(map.values()).sort((a, b) => (b.time || 0) - (a.time || 0));
+}
+
+async function syncFromCloud(showMsg) {
+    GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || '';
+    if (!GITHUB_TOKEN) {
+        updateCloudBadge('local', '本地缓存');
+        if (showMsg) openConfigModal();
+        return false;
+    }
+    updateCloudBadge('syncing', '同步中...');
+    const [resH, resQ] = await Promise.all([fetchFile(FILE_H_JS), fetchFile(FILE_Q_JS)]);
+    if (resH.authError || resQ.authError) {
+        updateCloudBadge('local', 'Token失效');
+        if (showMsg) showToast('GitHub Token 失效，请点击右上角 ⚙️ 更新');
+        return false;
+    }
+    if (resH.error || resQ.error) {
+        updateCloudBadge('local', '离线模式');
+        if (showMsg) showToast('当前离线，已使用手机本地缓存');
+        return false;
+    }
+    shaHJs = resH.sha;
+    shaQJs = resQ.sha;
+    dataHJs.records = mergeRecords(dataHJs.records, (resH.data && resH.data.records) || []);
+    dataQJs.records = mergeRecords(dataQJs.records, (resQ.data && resQ.data.records) || []);
+    saveLocalCache();
+    renderRecordsView();
+    updateCloudBadge('ok', '已同步');
+    if (showMsg) showToast('☁️ 云端健身记录同步成功！');
+    return true;
+}
+
+// ============================================================================
+// 6. 选项卡切换逻辑（主选项卡 + 部位选项卡 + 动作选项卡）
+// ============================================================================
+function switchMainTab(tabId) {
+    currentMainTab = tabId;
+    ['records', 'actions', 'profile'].forEach(t => {
+        const view = document.getElementById(`view_${t}`);
+        const topBtn = document.getElementById(`topTab_${t}`);
+        const botBtn = document.getElementById(`botTab_${t}`);
+        if (t === tabId) {
+            view.classList.remove('hidden');
+            topBtn.classList.add('active');
+            topBtn.classList.remove('text-slate-600');
+            botBtn.className = 'flex flex-col items-center justify-center py-1 text-blue-600 font-bold';
+        } else {
+            view.classList.add('hidden');
+            topBtn.classList.remove('active');
+            topBtn.classList.add('text-slate-600');
+            botBtn.className = 'flex flex-col items-center justify-center py-1 text-slate-400 font-bold';
+        }
+    });
+
+    const partBar = document.getElementById('partTabsBar');
+    if (tabId === 'profile') {
+        partBar.classList.add('hidden');
+    } else {
+        partBar.classList.remove('hidden');
+    }
+    renderPartTabs();
+    if (tabId === 'records') {
+        populateRecordExerciseSelect();
+        renderRecordsView();
+    } else if (tabId === 'actions') {
+        renderSingleActionView();
+    }
+}
+
+function renderPartTabs() {
+    const bar = document.getElementById('partTabsBar');
+    if (currentMainTab === 'actions' && currentPartTab === 'all') {
+        currentPartTab = 'warmup';
+    }
+    let html = PART_TABS.map(p => {
+        const isActive = (currentPartTab === p.id);
+        return `
+            <button onclick="switchPartTab('${p.id}')" class="part-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border ${isActive ? 'active border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}">
+                ${p.name}
+            </button>
+        `;
+    }).join('');
+
+    if (currentMainTab === 'records') {
+        const isAll = (currentPartTab === 'all');
+        html += `
+            <button onclick="switchPartTab('all')" class="part-pill px-3.5 py-2 rounded-xl text-xs font-extrabold border ${isAll ? 'active border-blue-600' : 'bg-white text-slate-700 border-slate-200'}">
+                📋 全部部位
+            </button>
+        `;
+    }
+    bar.innerHTML = html;
+}
+
+function switchPartTab(partId) {
+    currentPartTab = partId;
+    renderPartTabs();
+    if (currentMainTab === 'actions') {
+        renderSingleActionView();
+    } else if (currentMainTab === 'records') {
+        populateRecordExerciseSelect();
+        renderRecordsView();
+    }
+}
+
+function switchExerciseTab(exId) {
+    const ex = EXERCISES.find(e => e.id === exId);
+    if (!ex) return;
+    selectedExerciseByPart[ex.part] = ex.id;
+    renderSingleActionView();
+}
+
+function stepPrevNextExercise(delta) {
+    const partId = currentPartTab === 'all' ? 'warmup' : currentPartTab;
+    const list = EXERCISES.filter(e => e.part === partId);
+    if (!list.length) return;
+    const curId = selectedExerciseByPart[partId] || list[0].id;
+    let idx = list.findIndex(e => e.id === curId);
+    idx = (idx + delta + list.length) % list.length;
+    selectedExerciseByPart[partId] = list[idx].id;
+    renderSingleActionView();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function quickSwitchPart(partId) {
+    currentPartTab = partId;
+    switchMainTab('actions');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ============================================================================
+// 7. 单动作专注视图渲染（点击动作选项卡仅展示该动作，不展示所有动作）
+// ============================================================================
+function renderSingleActionView() {
+    const partObj = PART_TABS.find(p => p.id === currentPartTab) || PART_TABS[0];
+    currentPartTab = partObj.id;
+
+    document.getElementById('partSummaryBanner').innerHTML = `
+        <div class="flex items-center justify-between mb-1">
+            <span class="text-[11px] font-extrabold bg-white/20 px-2.5 py-0.5 rounded-full">${partObj.badge}</span>
+            <span class="text-[11px] text-blue-100">${ROLES[myIdentity].label}</span>
+        </div>
+        <h2 class="text-sm font-black leading-snug">${partObj.summaryTitle}</h2>
+        <p class="text-[11px] text-blue-100 mt-1 leading-relaxed">${partObj.summaryDesc}</p>
+    `;
+
+    const list = EXERCISES.filter(e => e.part === partObj.id);
+    if (!selectedExerciseByPart[partObj.id] || !list.some(e => e.id === selectedExerciseByPart[partObj.id])) {
+        selectedExerciseByPart[partObj.id] = list[0].id;
+    }
+    const activeExId = selectedExerciseByPart[partObj.id];
+    const activeIdx = list.findIndex(e => e.id === activeExId);
+    const ex = list[activeIdx] || list[0];
+
+    document.getElementById('actionCounterBadge').innerText = `动作 ${activeIdx + 1} / ${list.length}`;
+
+    // 渲染当前部位下的动作选项卡栏
+    const tabsBar = document.getElementById('exerciseTabsBar');
+    tabsBar.innerHTML = list.map(item => {
+        const isCurrent = (item.id === ex.id);
+        return `
+            <button onclick="switchExerciseTab('${item.id}')" id="exTabBtn_${item.id}"
+                class="ex-pill px-3 py-2 rounded-xl text-xs font-extrabold border ${isCurrent ? 'active' : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'}">
+                ${item.shortTab || item.name}
+            </button>
+        `;
+    }).join('');
+
+    // 让当前选中的动作选项卡自动横向居中可见
+    setTimeout(() => {
+        const activeBtn = document.getElementById(`exTabBtn_${ex.id}`);
+        if (activeBtn && tabsBar) {
+            activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }, 30);
+
+    if (!animStates[ex.id]) {
+        animStates[ex.id] = { mode: 'loop', speed: 1.0 };
+    }
+    const st = animStates[ex.id];
+    const recWeight = getExDefaultWeight(ex);
+    const unitLabel = (ex.part === 'warmup' || ex.part === 'stretch') && ex.defaultReps >= 20 ? '次/秒' : '次';
+
+    // 仅渲染当前选中的这 1 个动作卡片
+    const stageContainer = document.getElementById('singleExerciseStageContainer');
+    stageContainer.innerHTML = `
+        <article class="card-surface overflow-hidden animate-fade-in">
+            <!-- 动作头部 -->
+            <div class="p-3.5 border-b border-slate-100 flex items-start justify-between gap-2">
+                <div>
+                    <h3 class="text-base font-black text-slate-900">${ex.name}</h3>
+                    <p class="text-xs text-slate-500 font-medium mt-0.5">🎯 ${ex.target} ｜ 难度 ${ex.difficulty}</p>
+                </div>
+                <button onclick="openLoggerForExercise('${ex.id}')" class="shrink-0 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-sm active:scale-95 transition flex items-center gap-1">
+                    <span>➕</span> 打卡此动作
+                </button>
+            </div>
+
+            <!-- 实时 60FPS 物理骨骼动画舞台 -->
+            <div class="p-3 bg-slate-950 relative">
+                <canvas id="active_anim_canvas" class="anim-stage" width="460" height="265"></canvas>
+
+                <!-- 动画分步定格与慢动作控制栏 -->
+                <div class="flex items-center justify-between gap-1 mt-2.5">
+                    <div class="grid grid-cols-5 gap-1 flex-1">
+                        <button onclick="setAnimMode('${ex.id}', 'loop')" id="btn_${ex.id}_loop" class="py-1.5 rounded-lg text-[11px] font-extrabold ${st.mode === 'loop' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300'}">🔄 连续</button>
+                        <button onclick="setAnimMode('${ex.id}', 0)" id="btn_${ex.id}_0" class="py-1.5 rounded-lg text-[11px] font-bold ${st.mode === 0 ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300'}">①准备</button>
+                        <button onclick="setAnimMode('${ex.id}', 1)" id="btn_${ex.id}_1" class="py-1.5 rounded-lg text-[11px] font-bold ${st.mode === 1 ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300'}">②发力</button>
+                        <button onclick="setAnimMode('${ex.id}', 2)" id="btn_${ex.id}_2" class="py-1.5 rounded-lg text-[11px] font-bold ${st.mode === 2 ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300'}">③顶峰</button>
+                        <button onclick="setAnimMode('${ex.id}', 3)" id="btn_${ex.id}_3" class="py-1.5 rounded-lg text-[11px] font-bold ${st.mode === 3 ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300'}">④回放</button>
+                    </div>
+                    <button onclick="toggleAnimSpeed('${ex.id}')" id="speed_${ex.id}" class="px-2.5 py-1.5 rounded-lg text-[11px] font-extrabold bg-slate-800 text-amber-400 border border-slate-700 shrink-0">
+                        ${st.speed === 1.0 ? '1.0x' : '0.5x慢放'}
+                    </button>
+                </div>
+            </div>
+
+            <!-- 四步分解动作卡片（点击任意步骤可定格对应画面） -->
+            <div class="p-3.5 space-y-3">
+                <div class="grid grid-cols-2 gap-2">
+                    <div onclick="setAnimMode('${ex.id}', 0)" class="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/80 cursor-pointer active:scale-[0.99] transition">
+                        <div class="text-[11px] font-black text-blue-800">STEP 1 · 准备姿势</div>
+                        <div class="text-[11px] text-slate-700 mt-0.5 leading-snug">${ex.steps[0].replace(/^①[^：]+：/, '')}</div>
+                    </div>
+                    <div onclick="setAnimMode('${ex.id}', 1)" class="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 cursor-pointer active:scale-[0.99] transition">
+                        <div class="text-[11px] font-black text-amber-800">STEP 2 · 启动与发力</div>
+                        <div class="text-[11px] text-slate-700 mt-0.5 leading-snug">${ex.steps[1].replace(/^②[^：]+：/, '')}</div>
+                    </div>
+                    <div onclick="setAnimMode('${ex.id}', 2)" class="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200/80 cursor-pointer active:scale-[0.99] transition">
+                        <div class="text-[11px] font-black text-rose-800">STEP 3 · 顶峰收缩</div>
+                        <div class="text-[11px] text-slate-700 mt-0.5 leading-snug">${ex.steps[2].replace(/^③[^：]+：/, '')}</div>
+                    </div>
+                    <div onclick="setAnimMode('${ex.id}', 3)" class="p-2.5 rounded-xl bg-sky-50/70 border border-sky-200/80 cursor-pointer active:scale-[0.99] transition">
+                        <div class="text-[11px] font-black text-sky-800">STEP 4 · 离心回放</div>
+                        <div class="text-[11px] text-slate-700 mt-0.5 leading-snug">${ex.steps[3].replace(/^④[^：]+：/, '')}</div>
+                    </div>
+                </div>
+
+                <!-- 双角色组数与专属推荐重量对比框 -->
+                <div class="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200 space-y-1.5">
+                    <div class="flex items-center justify-between text-xs font-black text-emerald-950">
+                        <span>📊 组数安排：${ex.defaultSets} 组 × ${ex.defaultReps} ${unitLabel}</span>
+                        <span class="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[11px]">当前(${myIdentity})：${recWeight > 0 ? recWeight + ' kg' : '自重'}</span>
+                    </div>
+                    <div class="text-[11px] text-blue-900 bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                        👦 <strong>${ex.hintHeng}</strong>
+                    </div>
+                    <div class="text-[11px] text-rose-900 bg-white/80 px-2.5 py-1.5 rounded-lg border border-emerald-100">
+                        🌟 <strong>${ex.hintQin}</strong>
+                    </div>
+                </div>
+
+                <!-- 动作详解与注意事项 -->
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 leading-relaxed space-y-1.5">
+                    <div><strong class="text-slate-900">📖 动作详细解释：</strong>${ex.explanation}</div>
+                    <div class="text-rose-700 font-bold">${ex.precautions}</div>
+                </div>
+
+                <!-- 底部切换上/下一个动作快捷按钮 -->
+                <div class="flex items-center justify-between gap-2 pt-1">
+                    <button onclick="stepPrevNextExercise(-1)" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-extrabold hover:bg-slate-200 active:scale-95 transition">
+                        &larr; 上一个动作
+                    </button>
+                    <button onclick="openLoggerForExercise('${ex.id}')" class="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-extrabold shadow active:scale-95 transition">
+                        📝 去记录此动作
+                    </button>
+                    <button onclick="stepPrevNextExercise(1)" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-extrabold hover:bg-slate-200 active:scale-95 transition">
+                        下一个动作 &rarr;
+                    </button>
+                </div>
+            </div>
+        </article>
+    `;
+}
+
+function setAnimMode(exId, mode) {
+    if (!animStates[exId]) animStates[exId] = { mode: 'loop', speed: 1.0 };
+    animStates[exId].mode = mode;
+    ['loop', 0, 1, 2, 3].forEach(m => {
+        const btn = document.getElementById(`btn_${exId}_${m}`);
+        if (!btn) return;
+        if (m === mode) {
+            btn.className = 'py-1.5 rounded-lg text-[11px] font-extrabold bg-blue-600 text-white shadow';
+        } else {
+            btn.className = 'py-1.5 rounded-lg text-[11px] font-bold bg-slate-800 text-slate-300';
+        }
+    });
+}
+
+function toggleAnimSpeed(exId) {
+    if (!animStates[exId]) return;
+    animStates[exId].speed = animStates[exId].speed === 1.0 ? 0.45 : 1.0;
+    const btn = document.getElementById(`speed_${exId}`);
+    if (btn) btn.innerText = animStates[exId].speed === 1.0 ? '1.0x' : '0.5x慢放';
+}
+
+// ============================================================================
+// 8. 24种独立动作实时 60FPS 物理骨骼动画绘制引擎
+// ============================================================================
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function getCycleMetrics(exId, nowMs) {
+    const st = animStates[exId] || { mode: 'loop', speed: 1.0 };
+    if (st.mode !== 'loop') {
+        const idx = Number(st.mode);
+        const progMap = [0.0, 0.55, 1.0, 0.45];
+        const names = ['STEP 1 · 准备与器械调整', 'STEP 2 · 启动与向心发力', 'STEP 3 · 顶峰收缩挤压', 'STEP 4 · 慢速离心还原'];
+        const breaths = ['吸气准备 / 沉肩稳核心', '吐气发力 (向心收缩)', '顶峰保持 (挤压目标肌群)', '缓慢吸气回放 (控制离心)'];
+        const cols = ['#38bdf8', '#f59e0b', '#f43f5e', '#22d3ee'];
+        return { progress: progMap[idx], stepIdx: idx, phaseName: names[idx], breathText: breaths[idx], phaseColor: cols[idx], isEccentric: idx === 3 };
+    }
+
+    const period = 4200 / st.speed;
+    const t = (nowMs % period) / period;
+    if (t < 0.16) {
+        return { progress: 0.0, stepIdx: 0, phaseName: '① 准备姿势与预紧', breathText: '👃 吸气准备 · 核心收紧', phaseColor: '#38bdf8', isEccentric: false };
+    } else if (t < 0.45) {
+        const u = (t - 0.16) / 0.29;
+        const p = 0.5 - 0.5 * Math.cos(u * Math.PI);
+        return { progress: p, stepIdx: 1, phaseName: '② 向心发力阶段', breathText: '😤 吐气发力 · 目标肌群收缩', phaseColor: '#f59e0b', isEccentric: false };
+    } else if (t < 0.60) {
+        return { progress: 1.0, stepIdx: 2, phaseName: '③ 顶峰收缩阶段', breathText: '🔥 顶峰挤压 · 保持张力', phaseColor: '#f43f5e', isEccentric: false };
+    } else {
+        const u = (t - 0.60) / 0.40;
+        const p = 0.5 + 0.5 * Math.cos(u * Math.PI);
+        return { progress: p, stepIdx: 3, phaseName: '④ 慢速离心回放', breathText: '🌬️ 缓慢吸气 · 控制回放速度', phaseColor: '#22d3ee', isEccentric: true };
+    }
+}
+
+function drawBiomechanicalStage(canvas, ex, nowMs) {
+    const dpr = window.devicePixelRatio || 1;
+    const rectW = canvas.clientWidth || 460;
+    const rectH = canvas.clientHeight || 265;
+    if (canvas.width !== Math.round(rectW * dpr) || canvas.height !== Math.round(rectH * dpr)) {
+        canvas.width = Math.round(rectW * dpr);
+        canvas.height = Math.round(rectH * dpr);
+    }
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+    ctx.scale(dpr, dpr);
+
+    const W = rectW, H = rectH;
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
+    grad.addColorStop(0, '#0f172a');
+    grad.addColorStop(1, '#1e293b');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.1)';
+    ctx.lineWidth = 1;
+    for (let x = 24; x < W; x += 28) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let y = 24; y < H; y += 28) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+    const floorY = H - 28;
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(20, floorY);
+    ctx.lineTo(W - 20, floorY);
+    ctx.stroke();
+
+    const m = getCycleMetrics(ex.id, nowMs);
+    const p = m.progress;
+
+    // 顶部 HUD
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.82)';
+    ctx.fillRect(10, 8, W - 20, 32);
+    ctx.strokeStyle = m.phaseColor;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(10, 8, W - 20, 32);
+
+    ctx.font = 'bold 12px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = m.phaseColor;
+    ctx.fillText(m.phaseName, 18, 28);
+
+    ctx.font = 'bold 11.5px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#f8fafc';
+    ctx.textAlign = 'right';
+    ctx.fillText(m.breathText, W - 18, 28);
+    ctx.textAlign = 'left';
+
+    // 左下角角色体型标识与右下角收缩进度条
+    ctx.font = 'bold 10.5px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = myIdentity === '亲亲' ? '#fb7185' : '#60a5fa';
+    ctx.fillText(`演示模型：${ROLES[myIdentity].label}`, 16, H - 10);
+
+    const barW = 110, barH = 6, barX = W - barW - 14, barY = H - 16;
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(barX, barY, barW, barH);
+    ctx.fillStyle = m.phaseColor;
+    ctx.fillRect(barX, barY, barW * p, barH);
+    ctx.font = '10px "Noto Sans SC", sans-serif';
+    ctx.fillStyle = '#94a3b8';
+    ctx.fillText(`幅度 ${Math.round(p * 100)}%`, barX - 58, barY + 6);
+
+    const cx0 = W * 0.5;
+    const scale = (H - 60) / 8.8;
+    function tx(x) { return cx0 + (x - 5.0) * scale; }
+    function ty(y) { return floorY - (y - 1.5) * scale; }
+
+    function drawLine(pts, lw, col, dashed = false) {
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.lineWidth = lw;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        if (dashed) ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        pts.forEach((pt, i) => {
+            if (i === 0) ctx.moveTo(tx(pt[0]), ty(pt[1]));
+            else ctx.lineTo(tx(pt[0]), ty(pt[1]));
+        });
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawCircle(x, y, r, fill, stroke, lw = 2) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(tx(x), ty(y), r * scale, 0, Math.PI * 2);
+        if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+        if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+        ctx.restore();
+    }
+
+    function drawMuscleGlow(x, y, rx, ry, rotDeg = 0) {
+        const pulse = 0.35 + 0.55 * p;
+        ctx.save();
+        ctx.translate(tx(x), ty(y));
+        ctx.rotate((rotDeg * Math.PI) / 180);
+        ctx.beginPath();
+        ctx.ellipse(0, 0, rx * scale, ry * scale, 0, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(244, 63, 94, ${pulse})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgba(251, 113, 133, ${0.5 + 0.5 * p})`;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function drawArrow(x1, y1, x2, y2, col, label) {
+        const sx1 = tx(x1), sy1 = ty(y1), sx2 = tx(x2), sy2 = ty(y2);
+        ctx.save();
+        ctx.strokeStyle = col;
+        ctx.fillStyle = col;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(sx1, sy1);
+        ctx.lineTo(sx2, sy2);
+        ctx.stroke();
+        const ang = Math.atan2(sy2 - sy1, sx2 - sx1);
+        ctx.beginPath();
+        ctx.moveTo(sx2, sy2);
+        ctx.lineTo(sx2 - 9 * Math.cos(ang - 0.42), sy2 - 9 * Math.sin(ang - 0.42));
+        ctx.lineTo(sx2 - 9 * Math.cos(ang + 0.42), sy2 - 9 * Math.sin(ang + 0.42));
+        ctx.closePath();
+        ctx.fill();
+        if (label) {
+            ctx.font = 'bold 11px "Noto Sans SC", sans-serif';
+            const tw = ctx.measureText(label).width + 10;
+            const lx = Math.max(12, Math.min(W - tw - 12, (sx1 + sx2) / 2 - tw / 2));
+            const ly = Math.max(54, Math.min(H - 36, Math.min(sy1, sy2) - 14));
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+            ctx.fillRect(lx, ly - 12, tw, 18);
+            ctx.strokeStyle = col;
+            ctx.lineWidth = 1;
+            ctx.strokeRect(lx, ly - 12, tw, 18);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(label, lx + 5, ly + 1);
+        }
+        ctx.restore();
+    }
+
+    const cBody = myIdentity === '亲亲' ? '#fb7185' : '#60a5fa';
+    const cLeg = '#94a3b8';
+    const cEquip = '#64748b';
+    const cBar = '#f8fafc';
+
+    // ==================== 1. 热身8个独立动作专属动画 ====================
+    if (ex.id === 'warmup_back_roll') {
+        const shift = lerp(-0.8, 0.8, p);
+        drawCircle(5.0, 2.15, 0.55, '#3b82f6', '#93c5fd', 2.5);
+        drawLine([[2.6 + shift, 1.5], [3.8 + shift, 2.8], [4.6 + shift, 2.3], [6.4 + shift, 2.9]], 6.5, cBody);
+        drawMuscleGlow(5.4 + shift, 2.65, 0.75, 0.32, 12);
+        drawCircle(6.95 + shift, 3.25, 0.4, '#dbeafe', cBody, 2.5);
+        drawArrow(3.5, 4.2, 6.5, 4.2, '#f59e0b', '泡沫轴置于中上背缓慢来回滚压 30s');
+    }
+    else if (ex.id === 'warmup_open_chest') {
+        const ang = (lerp(15, 155, p) * Math.PI) / 180;
+        drawLine([[3.2, 2.0], [4.6, 2.0], [4.6, 4.8]], 6.5, cBody);
+        drawCircle(4.6, 5.5, 0.4, '#dbeafe', cBody, 2.5);
+        const ax = 4.6 + 2.1 * Math.cos(ang), ay = 4.5 + 1.1 * Math.sin(ang);
+        drawLine([[4.6, 4.5], [ax, ay]], 5, '#fbbf24');
+        drawMuscleGlow(4.6, 4.4, 0.55, 0.4, 0);
+        drawArrow(3.0, 5.6, 6.6, 5.6, '#f43f5e', '配合呼吸旋转胸椎打开胸腔 20次');
+    }
+    else if (ex.id === 'warmup_armpit_press') {
+        const press = lerp(0.0, 0.18, p);
+        drawCircle(4.5, 2.1, 0.45 - press * 0.3, '#ef4444', '#fca5a5', 2);
+        drawLine([[2.4, 1.8], [4.5, 2.55 - press], [6.6, 3.8 - press]], 6.5, cBody);
+        drawMuscleGlow(4.6, 2.65 - press, 0.55, 0.45, 20);
+        drawCircle(5.4, 3.3 - press, 0.4, '#dbeafe', cBody, 2.5);
+        drawArrow(4.5, 4.8, 4.5, 3.1, '#f43f5e', '找到腋下后侧酸痛点持续按压 20s/侧');
+    }
+    else if (ex.id === 'warmup_band_shoulder') {
+        const ang = (lerp(-35, 215, p) * Math.PI) / 180;
+        drawLine([[5.0, 1.5], [5.0, 5.3]], 6.5, cBody);
+        drawCircle(5.0, 6.0, 0.4, '#dbeafe', cBody, 2.5);
+        const hy = 5.1 + 1.9 * Math.sin(ang);
+        const hxSpread = 1.9 + 0.4 * Math.abs(Math.cos(ang));
+        drawLine([[5.0 - hxSpread, hy], [4.4, 5.1], [5.6, 5.1], [5.0 + hxSpread, hy]], 4.5, cBody);
+        drawLine([[5.0 - hxSpread, hy], [5.0 + hxSpread, hy]], 3, '#10b981', true);
+        drawMuscleGlow(4.3, 5.1, 0.35, 0.35, 0);
+        drawMuscleGlow(5.7, 5.1, 0.35, 0.35, 0);
+        drawArrow(5.0, 6.6, 5.0, 8.1, '#10b981', '双手持弹力带前后绕肩激活肩袖');
+    }
+    else if (ex.id === 'warmup_calf_roll') {
+        const shift = lerp(-0.6, 0.6, p);
+        drawCircle(6.1, 2.0, 0.42, '#3b82f6', '#93c5fd', 2.5);
+        drawLine([[3.2 + shift, 4.4], [3.6 + shift, 2.3], [7.2 + shift, 2.45]], 6.2, cBody);
+        drawLine([[3.2 + shift, 4.1], [2.5 + shift, 1.5]], 4, cLeg);
+        drawMuscleGlow(6.1, 2.45, 0.65, 0.28, 5);
+        drawCircle(3.2 + shift, 5.05, 0.4, '#dbeafe', cBody, 2.5);
+        drawArrow(4.8, 3.4, 7.2, 3.4, '#f59e0b', '坐姿将泡沫轴置于小腿下缓慢来回滚');
+    }
+    else if (ex.id === 'warmup_hip_mobility') {
+        const swing = lerp(-1.4, 1.6, p);
+        drawLine([[4.6, 1.5], [4.8, 4.2], [4.8, 6.0]], 6.5, cBody);
+        drawLine([[4.8, 4.2], [4.8 + swing, 2.8], [4.8 + swing * 1.1, 1.7]], 5.2, '#fbbf24');
+        drawMuscleGlow(4.8, 4.2, 0.5, 0.42, 0);
+        drawCircle(4.8, 6.65, 0.4, '#dbeafe', cBody, 2.5);
+        drawArrow(3.3, 3.2, 6.5, 3.2, '#f43f5e', '来回动态活动髋关节完成 30次');
+    }
+    else if (ex.id === 'warmup_adductor_shake') {
+        const flap = Math.sin(nowMs / 110) * 0.45;
+        drawLine([[5.0, 2.0], [5.0, 5.0]], 6.5, cBody);
+        drawCircle(5.0, 5.7, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[5.0, 2.2], [3.0, 2.6 + flap], [4.7, 1.7]], 5.5, cBody);
+        drawLine([[5.0, 2.2], [7.0, 2.6 + flap], [5.3, 1.7]], 5.5, cBody);
+        drawMuscleGlow(4.0, 2.3 + flap * 0.5, 0.5, 0.28, -15);
+        drawMuscleGlow(6.0, 2.3 + flap * 0.5, 0.5, 0.28, 15);
+        drawArrow(3.0, 3.8, 3.0, 2.2, '#f43f5e', '上下抖动双腿激活内收肌 30秒');
+    }
+    else if (ex.id === 'warmup_frog_pose') {
+        const hipY = lerp(2.1, 3.8, p);
+        drawLine([[2.6, 1.6], [3.8, hipY], [6.2, 2.5], [6.8, 1.6]], 6.2, cBody);
+        drawMuscleGlow(4.3, hipY - 0.1, 0.65, 0.38, 0);
+        drawCircle(6.7, 3.0, 0.38, '#dbeafe', cBody, 2.5);
+        drawArrow(3.8, 2.0, 3.8, 4.2, '#10b981', '俯身顶髋贴地 ➔ 向上时臀往天上顶');
+    }
+
+    // ==================== 2. 背部+二头 7个动作动画 ====================
+    else if (ex.id === 'pull_up') {
+        drawLine([[2.2, 1.5], [2.2, 8.3], [7.8, 8.3], [7.8, 1.5]], 4, cEquip);
+        drawLine([[2.6, 8.0], [7.4, 8.0]], 5, cBar);
+        const lift = lerp(0.0, 2.15, p);
+        const shY = 4.6 + lift, hipY = 2.8 + lift, footY = 1.55 + lift;
+        const elY = lerp(6.5, 5.55, p);
+        const elX_L = lerp(3.3, 3.55, p), elX_R = lerp(6.7, 6.45, p);
+        drawLine([[5.0, 8.0], [5.0, footY]], 2, '#10b981', true);
+        drawLine([[5.0, footY], [5.0, hipY], [5.0, shY]], 7, cBody);
+        drawMuscleGlow(4.45, shY - 0.5, 0.35, 0.65, 12);
+        drawMuscleGlow(5.55, shY - 0.5, 0.35, 0.65, -12);
+        drawCircle(5.0, shY + 0.65, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[4.3, shY], [elX_L, elY], [3.3, 8.0]], 4.5, cBody);
+        drawLine([[5.7, shY], [elX_R, elY], [6.7, 8.0]], 4.5, cBody);
+        drawCircle(elX_L, elY, 0.13, '#fff', cBody);
+        drawCircle(elX_R, elY, 0.13, '#fff', cBody);
+        if (!m.isEccentric) drawArrow(5.0, 2.4, 5.0, 4.4, '#f43f5e', '先沉肩启动·上胸迎向单杠');
+        else drawArrow(5.0, 4.6, 5.0, 2.4, '#22d3ee', '吸气2~3秒缓慢控制下放');
+    }
+    else if (ex.id === 'lat_pulldown') {
+        drawLine([[2.0, 1.5], [2.0, 8.5], [5.0, 8.5]], 4, cEquip);
+        drawLine([[3.9, 3.2], [5.9, 3.2]], 5, cEquip);
+        drawLine([[4.9, 1.5], [4.9, 3.2]], 4, cEquip);
+        const by = lerp(7.7, 5.2, p);
+        const ey = lerp(6.6, 4.1, p);
+        const exL = lerp(3.3, 3.8, p), exR = lerp(6.7, 6.2, p);
+        const lean = lerp(5.0, 5.25, p);
+        drawLine([[5.0, 8.5], [5.0, by]], 2, '#94a3b8');
+        drawLine([[2.9, by], [7.1, by]], 4.5, cBar);
+        drawLine([[5.0, 3.3], [4.0, 3.3], [4.0, 1.5]], 4.5, cLeg);
+        drawLine([[5.0, 3.3], [lean, 5.2]], 7, cBody);
+        drawMuscleGlow(4.5, 4.5, 0.35, 0.65, 14);
+        drawMuscleGlow(5.6, 4.5, 0.35, 0.65, -14);
+        drawCircle(lean, 5.85, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[4.3, 5.1], [exL, ey], [3.1, by]], 4.5, cBody);
+        drawLine([[5.7, 5.1], [exR, ey], [6.9, by]], 4.5, cBody);
+        drawCircle(exL, ey, 0.13, '#fff', cBody);
+        drawCircle(exR, ey, 0.13, '#fff', cBody);
+        if (!m.isEccentric) drawArrow(3.2, 6.6, 3.7, 4.6, '#f43f5e', '微收肘“掰杠”拉至锁骨');
+        else drawArrow(5.0, 5.3, 5.0, 7.5, '#22d3ee', '想象主动“推杠上去”');
+    }
+    else if (ex.id === 'cable_row') {
+        drawLine([[2.0, 1.5], [2.0, 6.2]], 4.5, cEquip);
+        drawLine([[2.0, 2.4], [2.6, 3.0]], 5, cEquip);
+        drawLine([[4.3, 2.4], [7.4, 2.4]], 5, cEquip);
+        const shX = lerp(5.5, 6.3, p);
+        const hdX = lerp(3.7, 5.85, p);
+        const elX = lerp(4.5, 6.95, p);
+        drawLine([[2.0, 4.0], [hdX, 3.85]], 2, '#94a3b8');
+        drawLine([[6.2, 2.6], [4.3, 3.3], [2.4, 2.6]], 4.5, cLeg);
+        drawLine([[6.2, 2.6], [shX, 5.2]], 7, cBody);
+        drawMuscleGlow(shX + 0.25, 4.2, 0.4, 0.7, 5);
+        drawCircle(shX, 5.85, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[shX, 4.9], [elX, 3.95], [hdX, 3.85]], 4.5, cBody);
+        drawCircle(elX, 3.95, 0.13, '#fff', cBody);
+        if (!m.isEccentric) drawArrow(4.0, 3.9, 6.2, 3.9, '#f43f5e', '只剩手肘拉向肚脐');
+        else drawArrow(6.0, 3.9, 4.0, 3.9, '#22d3ee', '慢吸回放·躯干不晃');
+    }
+    else if (ex.id === 'wide_row') {
+        drawLine([[4.0, 3.8], [5.8, 5.2]], 6, cEquip);
+        drawLine([[4.8, 1.5], [4.8, 4.4]], 4, cEquip);
+        const by = lerp(2.6, 4.4, p);
+        const ey = lerp(3.5, 5.4, p);
+        drawLine([[3.2, 1.8], [4.2, 3.6], [5.7, 5.1]], 6.5, cBody);
+        drawMuscleGlow(5.0, 4.6, 0.6, 0.35, 36);
+        drawCircle(6.15, 5.6, 0.38, '#dbeafe', cBody, 2.5);
+        drawLine([[6.4, 5.6], [7.8, 4.8]], 1.8, '#fbbf24', true);
+        drawCircle(7.8, 4.8, 0.15, '#fbbf24', '#fff', 1.5);
+        drawLine([[5.5, 4.9], [5.8, ey], [6.0, by]], 4.5, cBody);
+        drawCircle(5.8, ey, 0.13, '#fff', cBody);
+        drawArrow(6.0, 2.6, 6.0, 4.4, m.isEccentric ? '#22d3ee' : '#f43f5e', '视线死盯固定点·夹背拉向胸');
+    }
+    else if (ex.id === 'face_pull') {
+        drawLine([[2.0, 1.5], [2.0, 8.2]], 4.5, cEquip);
+        drawCircle(2.0, 6.5, 0.16, '#fbbf24', '#fff');
+        const hx = lerp(4.1, 6.35, p);
+        const exX = lerp(4.8, 6.85, p), eyY = lerp(5.8, 6.55, p);
+        drawLine([[2.0, 6.5], [hx, 6.45]], 2.2, '#94a3b8');
+        drawLine([[6.2, 1.5], [6.0, 3.1], [6.6, 4.2], [6.3, 5.9]], 6, cBody);
+        drawMuscleGlow(6.4, 5.75, 0.45, 0.38, 0);
+        drawCircle(6.2, 6.55, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[6.3, 5.8], [exX, eyY], [hx, 6.45]], 4.5, cBody);
+        drawCircle(exX, eyY, 0.13, '#fff', cBody);
+        drawArrow(4.2, 6.45, 6.3, 6.45, m.isEccentric ? '#22d3ee' : '#f43f5e', '屈髋臀后坐·肘向外展拉向面部');
+    }
+    else if (ex.id === 'single_arm_row') {
+        drawLine([[2.2, 1.5], [2.2, 6.5]], 4.5, cEquip);
+        drawLine([[4.5, 2.8], [7.0, 2.8]], 5, cEquip);
+        const hx = lerp(3.8, 5.85, p), exX = lerp(4.6, 6.65, p);
+        drawLine([[2.2, 4.2], [hx, 4.1]], 2.2, '#94a3b8');
+        drawLine([[6.0, 2.9], [4.6, 2.9], [4.3, 1.5]], 4.5, cLeg);
+        drawLine([[6.0, 2.9], [5.9, 5.3]], 6.5, cBody);
+        drawLine([[5.9, 5.1], [4.2, 4.8]], 3.2, '#64748b');
+        drawMuscleGlow(6.15, 4.4, 0.38, 0.68, 0);
+        drawCircle(5.9, 6.0, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[5.9, 5.0], [exX, 4.1], [hx, 4.1]], 4.5, cBody);
+        drawCircle(exX, 4.1, 0.13, '#fff', cBody);
+        drawArrow(4.0, 4.1, 6.0, 4.1, m.isEccentric ? '#22d3ee' : '#f43f5e', '先练弱侧至力竭·强侧同次即停');
+    }
+    else if (ex.id === 'bicep_curl') {
+        const ang = (lerp(-75, 48, p) * Math.PI) / 180;
+        const sh = [5.0, 5.8], el = [5.0, 4.1];
+        const hd = [el[0] - 1.4 * Math.cos(ang), el[1] + 1.4 * Math.sin(ang)];
+        drawLine([[5.0, 1.5], [5.0, 3.6], sh], 6.5, cBody);
+        drawCircle(5.0, 6.45, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([sh, el], 5, cBody);
+        drawMuscleGlow(4.75, 4.95, 0.3, 0.55, 0);
+        drawLine([el, hd], 4.5, '#f8fafc');
+        drawCircle(el[0], el[1], 0.14, '#fff', cBody);
+        drawCircle(hd[0], hd[1], 0.2, '#fbbf24', '#fff');
+        drawArrow(3.5, 3.2, 3.5, 5.2, m.isEccentric ? '#22d3ee' : '#f43f5e', '大臂贴紧不动·只动小臂');
+    }
+
+    // ==================== 3. 腿部 6个动作动画 ====================
+    else if (ex.id === 'smith_squat') {
+        drawLine([[4.8, 1.5], [4.8, 8.4]], 4, cEquip);
+        drawLine([[4.4, 3.2], [5.2, 3.2]], 3.5, '#f43f5e');
+        const hip = [lerp(5.0, 6.05, p), lerp(4.7, 3.35, p)];
+        const knee = [lerp(4.8, 4.25, p), lerp(3.1, 3.05, p)];
+        const sh = [4.8, lerp(6.6, 5.0, p)];
+        drawLine([[4.8, 1.5], knee, hip, sh], 6.5, cBody);
+        drawMuscleGlow((hip[0] + knee[0]) / 2, (hip[1] + knee[1]) / 2 + 0.15, 0.65, 0.32, -22);
+        drawCircle(sh[0], sh[1] + 0.6, 0.4, '#dbeafe', cBody, 2.5);
+        drawCircle(sh[0], sh[1] - 0.1, 0.22, '#fbbf24', '#fff');
+        drawCircle(knee[0], knee[1], 0.14, '#fff', cBody);
+        drawCircle(hip[0], hip[1], 0.14, '#fff', cBody);
+        drawArrow(5.3, 4.7, 6.2, 3.5, m.isEccentric ? '#22d3ee' : '#f43f5e', '先屈髋再屈膝·杠放斜方肌');
+    }
+    else if (ex.id === 'leg_press') {
+        drawLine([[1.8, 7.5], [6.2, 3.1]], 4, cEquip);
+        drawLine([[6.2, 2.3], [8.1, 3.8]], 6, cEquip);
+        drawLine([[5.2, 2.8], [6.2, 2.3]], 6, cEquip);
+        const plate = [lerp(3.4, 4.7, p), lerp(5.9, 4.6, p)];
+        const knee = [lerp(4.7, 6.0, p), lerp(4.45, 4.85, p)];
+        const hip = [6.0, 2.6];
+        drawLine([[plate[0] - 0.45, plate[1] - 0.45], [plate[0] + 0.45, plate[1] + 0.45]], 6, cBar);
+        drawLine([hip, [7.4, 3.7]], 6.5, cBody);
+        drawCircle(7.8, 4.15, 0.38, '#dbeafe', cBody, 2.5);
+        drawLine([hip, knee, plate], 5.5, cBody);
+        drawMuscleGlow((hip[0] + knee[0]) / 2, (hip[1] + knee[1]) / 2, 0.6, 0.32, 42);
+        drawCircle(knee[0], knee[1], 0.14, '#fff', cBody);
+        drawArrow(4.6, 5.1, 3.4, 6.3, '#f43f5e', '顶端膝盖保持微屈绝不锁死！');
+    }
+    else if (ex.id === 'hip_adduction' || ex.id === 'hip_abduction') {
+        const isAdd = (ex.id === 'hip_adduction');
+        const deg = isAdd ? lerp(40, 8, p) : lerp(8, 40, p);
+        const ang = (deg * Math.PI) / 180;
+        const pelvis = [5.0, 6.4];
+        const Lf = [5.0 - 3.0 * Math.sin(ang), 6.4 - 3.0 * Math.cos(ang)];
+        const Rf = [5.0 + 3.0 * Math.sin(ang), 6.4 - 3.0 * Math.cos(ang)];
+        drawLine([[3.8, 6.4], [6.2, 6.4]], 6, cEquip);
+        drawLine([pelvis, Lf], 6, cBody);
+        drawLine([pelvis, Rf], 6, cBody);
+        drawMuscleGlow(isAdd ? 4.5 : 3.9, 5.3, 0.32, 0.6, 0);
+        drawMuscleGlow(isAdd ? 5.5 : 6.1, 5.3, 0.32, 0.6, 0);
+        drawCircle(5.0, 6.4, 0.42, '#dbeafe', cBody, 2.5);
+        drawCircle(Lf[0], Lf[1], 0.16, '#fff', cBody);
+        drawCircle(Rf[0], Rf[1], 0.16, '#fff', cBody);
+        drawArrow(2.8, 3.8, 4.3, 3.8, '#f43f5e', isAdd ? '微前倾吐气向内夹(不碰拢)' : '臀微后撅吐气向外展');
+    }
+    else if (ex.id === 'calf_raise') {
+        drawLine([[3.5, 1.6], [6.5, 1.6]], 5, cEquip);
+        const hy = lerp(1.75, 2.75, p);
+        drawLine([[5.6, 1.6], [4.6, hy], [4.8, hy + 2.2], [4.8, hy + 4.4]], 6.5, cBody);
+        drawMuscleGlow(4.5, hy + 1.3, 0.3, 0.6, 5);
+        drawCircle(4.8, hy + 5.0, 0.4, '#dbeafe', cBody, 2.5);
+        drawCircle(4.6, hy, 0.14, '#fff', cBody);
+        drawArrow(3.7, 3.2, 3.7, 1.8, '#22d3ee', '踮至最高·下放一定要慢(离心)');
+    }
+    else if (ex.id === 'leg_extension') {
+        drawLine([[3.2, 3.5], [5.5, 3.5]], 5.5, cEquip);
+        drawLine([[3.2, 3.5], [3.0, 6.2]], 5.5, cEquip);
+        drawLine([[4.3, 1.5], [4.3, 3.5]], 4.5, cEquip);
+        const ang = (lerp(-78, 0, p) * Math.PI) / 180;
+        const hip = [3.6, 3.7], knee = [5.5, 3.7];
+        const ankle = [knee[0] + 2.1 * Math.cos(ang), knee[1] + 2.1 * Math.sin(ang)];
+        drawLine([hip, [3.4, 5.8]], 6.5, cBody);
+        drawCircle(3.4, 6.4, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([hip, knee, ankle], 5.5, cBody);
+        drawMuscleGlow(4.55, 4.0, 0.65, 0.3, 0);
+        drawCircle(knee[0], knee[1], 0.14, '#fff', cBody);
+        drawCircle(ankle[0], ankle[1], 0.16, '#fbbf24', '#fff');
+        drawArrow(6.2, 2.3, 7.5, 3.7, '#f43f5e', '勾脚尖吐气蹬直·慢回');
+    }
+
+    // ==================== 4. 胸肩+三头 6个动作动画 ====================
+    else if (ex.id === 'bench_press') {
+        // 平板卧推凳与卧推架立柱
+        drawLine([[2.2, 3.0], [7.2, 3.0]], 6, cEquip);
+        drawLine([[3.0, 1.5], [3.0, 3.0]], 4.5, cEquip);
+        drawLine([[6.4, 1.5], [6.4, 3.0]], 4.5, cEquip);
+        drawLine([[6.6, 1.5], [6.6, 7.2]], 4, '#475569'); // 挂杠立柱
+        // 仰卧人体（五点触地+微腰弓）
+        drawLine([[2.2, 1.5], [2.5, 3.1], [3.8, 3.2], [5.8, 3.35]], 6.5, cBody);
+        drawCircle(6.35, 3.45, 0.38, '#dbeafe', cBody, 2.5);
+        // 杠铃轨迹：p=0 在底部胸口上方(下放触胸) 或 顶部出杠？
+        // 让 p=0 为顶部肩上方起始位，p=0.5~1 为推起顶峰，或者在胸口->推起：
+        // 为贴合向心推起：让杠铃从下胸位(4.1)向心推起至锁骨上方(6.3)
+        const barY = lerp(4.05, 6.25, p);
+        const barX = lerp(5.15, 5.55, p);
+        const elY = lerp(2.75, 4.75, p);
+        const elX = lerp(4.85, 5.3, p);
+        drawMuscleGlow(5.35, 3.65, 0.58, 0.34, 5);
+        drawLine([[5.6, 3.35], [elX, elY], [barX, barY]], 4.8, cBody);
+        drawCircle(elX, elY, 0.13, '#fff', cBody);
+        // 杠铃杆与杠铃片侧视
+        drawCircle(barX, barY, 0.32, '#fbbf24', '#ffffff', 2.2);
+        drawCircle(barX, barY, 0.1, '#0f172a', '#ffffff', 1);
+        if (!m.isEccentric) drawArrow(5.15, 4.1, 5.55, 6.2, '#f43f5e', '沉肩夹胸·斜线向上推起');
+        else drawArrow(5.55, 6.2, 5.15, 4.1, '#22d3ee', '吸气微收肘45°~60°慢放触下胸');
+    }
+    else if (ex.id === 'chest_press') {
+        drawLine([[2.8, 1.5], [2.8, 7.4]], 5.5, cEquip);
+        drawLine([[2.8, 3.1], [4.5, 3.1]], 5.5, cEquip);
+        const hx = lerp(4.2, 6.5, p), exX = lerp(2.9, 5.0, p), eyY = lerp(4.4, 4.65, p);
+        drawLine([[3.2, 3.2], [4.6, 3.2], [4.8, 1.5]], 4.5, cLeg);
+        drawLine([[3.1, 3.2], [3.1, 5.6]], 6.5, cBody);
+        drawMuscleGlow(3.55, 5.0, 0.35, 0.55, 0);
+        drawCircle(3.1, 6.25, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[3.1, 5.2], [exX, eyY], [hx, 4.95]], 5, cBody);
+        drawCircle(exX, eyY, 0.14, '#fff', cBody);
+        drawArrow(4.3, 4.95, 6.4, 4.95, m.isEccentric ? '#22d3ee' : '#f43f5e', '掌根推握·掰断握把·一二慢回');
+    }
+    else if (ex.id === 'lateral_raise') {
+        const ang = (lerp(15, 82, p) * Math.PI) / 180;
+        const shL = [4.2, 5.5], shR = [5.8, 5.5];
+        const Lel = [shL[0] - 1.35 * Math.sin(ang), shL[1] - 1.35 * Math.cos(ang)];
+        const Lhd = [Lel[0] - 0.95 * Math.sin(ang), Lel[1] - 0.95 * math.cos(ang)];
+        const Rel = [shR[0] + 1.35 * Math.sin(ang), shR[1] - 1.35 * Math.cos(ang)];
+        const Rhd = [Rel[0] + 0.95 * Math.sin(ang), Rel[1] - 0.95 * Math.cos(ang)];
+        drawLine([[3.8, 3.0], [6.2, 3.0]], 5, cEquip);
+        drawLine([[5.0, 3.0], [5.0, 5.6]], 7, cBody);
+        drawMuscleGlow(4.1, 5.6, 0.35, 0.35, 0);
+        drawMuscleGlow(5.9, 5.6, 0.35, 0.35, 0);
+        drawCircle(5.0, 6.35, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([shL, Lel, Lhd], 4.5, cBody);
+        drawLine([shR, Rel, Rhd], 4.5, cBody);
+        drawCircle(Lel[0], Lel[1], 0.13, '#fff', cBody);
+        drawCircle(Rel[0], Rel[1], 0.13, '#fff', cBody);
+        drawArrow(2.6, 3.8, 1.9, 5.5, '#f43f5e', '肘部带动“往远处扔”·不耸肩');
+    }
+    else if (ex.id === 'db_press') {
+        drawLine([[2.5, 2.8], [6.2, 4.8]], 6, cEquip);
+        drawLine([[4.2, 1.5], [4.2, 3.6]], 4.5, cEquip);
+        const dby = lerp(4.85, 6.9, p), ely = lerp(4.0, 5.9, p);
+        drawLine([[3.2, 3.3], [5.5, 4.6]], 6.5, cBody);
+        drawMuscleGlow(5.2, 4.8, 0.45, 0.35, 28);
+        drawCircle(6.0, 5.0, 0.38, '#dbeafe', cBody, 2.5);
+        drawLine([[5.3, 4.6], [4.8, ely], [5.1, dby]], 4.8, cBody);
+        drawCircle(4.8, ely, 0.13, '#fff', cBody);
+        drawLine([[4.7, dby], [5.5, dby]], 5, '#fbbf24');
+        drawArrow(5.1, 4.9, 5.1, 6.8, '#f43f5e', '手肘微内收·与胸平齐推起');
+    }
+    else if (ex.id === 'pec_fly') {
+        const ang = (lerp(72, 10, p) * Math.PI) / 180;
+        const Lel = [4.2 - 1.45 * Math.sin(ang), 5.6 - 1.15 * Math.cos(ang)];
+        const Lhd = [Lel[0] - 0.55 * Math.sin(ang - 0.5), Lel[1] - 1.05 * Math.cos(ang - 0.5)];
+        const Rel = [5.8 + 1.45 * Math.sin(ang), 5.6 - 1.15 * Math.cos(ang)];
+        const Rhd = [Rel[0] + 0.55 * Math.sin(ang - 0.5), Rel[1] - 1.05 * Math.cos(ang - 0.5)];
+        drawLine([[3.5, 6.5], [6.5, 6.5]], 6, cEquip);
+        drawMuscleGlow(4.4, 5.3, 0.45, 0.3, -15);
+        drawMuscleGlow(5.6, 5.3, 0.45, 0.3, 15);
+        drawCircle(5.0, 5.9, 0.45, '#dbeafe', cBody, 2.5);
+        drawLine([[4.3, 5.8], Lel, Lhd], 4.8, cBody);
+        drawLine([[5.7, 5.8], Rel, Rhd], 4.8, cBody);
+        drawCircle(Lel[0], Lel[1], 0.13, '#fff', cBody);
+        drawCircle(Rel[0], Rel[1], 0.13, '#fff', cBody);
+        drawArrow(2.3, 4.3, 4.3, 3.4, '#f43f5e', '掌根向内“环抱大树”挤压中缝');
+    }
+    else if (ex.id === 'tricep_pushdown') {
+        drawLine([[3.0, 1.5], [3.0, 8.2]], 4.5, cEquip);
+        const ang = (lerp(35, -75, p) * Math.PI) / 180;
+        const sh = [5.4, 5.7], el = [5.3, 4.2];
+        const hd = [el[0] - 1.4 * Math.cos(ang), el[1] + 1.4 * Math.sin(ang)];
+        drawLine([[3.0, 8.0], hd], 2.2, '#94a3b8');
+        drawLine([[5.0, 1.5], [5.4, 3.5], sh], 6.5, cBody);
+        drawLine([[6.0, 1.5], [5.4, 3.5]], 4.5, cLeg);
+        drawMuscleGlow(5.55, 4.95, 0.28, 0.55, 0);
+        drawCircle(5.4, 6.35, 0.38, '#dbeafe', cBody, 2.5);
+        drawLine([sh, el, hd], 4.8, cBody);
+        drawCircle(el[0], el[1], 0.14, '#fff', cBody);
+        drawArrow(3.8, 4.7, 3.8, 2.9, '#f43f5e', '大臂夹紧不动·底部向两侧掰绳');
+    }
+
+    // ==================== 5. 练后拉伸 5个独立动作专属动画 ====================
+    else if (ex.id === 'stretch_chest') {
+        const lean = lerp(0.0, 0.45, p);
+        drawLine([[6.6, 1.5], [6.6, 7.8]], 5.5, cEquip);
+        drawLine([[4.6 + lean, 1.5], [4.8 + lean, 5.4]], 6.5, cBody);
+        drawLine([[4.8 + lean, 5.1], [6.5, 5.1], [6.5, 6.5]], 5, '#fbbf24');
+        drawMuscleGlow(5.3 + lean * 0.5, 5.1, 0.55, 0.38, 0);
+        drawCircle(4.8 + lean, 6.1, 0.4, '#dbeafe', cBody, 2.5);
+        drawArrow(4.2, 5.1, 5.7, 5.1, '#10b981', '肘与肩持平靠平面·身体往前压 30s/侧');
+    }
+    else if (ex.id === 'stretch_back') {
+        const backShift = lerp(0.0, 0.65, p);
+        drawLine([[2.5, 1.5], [2.5, 7.4]], 5.5, cEquip);
+        drawLine([[6.0, 1.5], [6.6 + backShift, 3.5], [5.0 + backShift, 5.1], [2.5, 5.1]], 5.8, cBody);
+        drawMuscleGlow(5.6 + backShift, 4.3, 0.65, 0.38, -32);
+        drawCircle(4.8 + backShift, 5.65, 0.38, '#dbeafe', cBody, 2.5);
+        drawArrow(5.3, 3.6, 7.2, 3.6, '#10b981', '重心放在后侧·感受背部被拉开 30s');
+    }
+    else if (ex.id === 'stretch_tricep') {
+        const press = lerp(0.0, 0.3, p);
+        drawLine([[5.0, 1.5], [5.0, 5.4]], 6.5, cBody);
+        drawCircle(5.0, 6.1, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[5.3, 5.2], [5.5, 7.0 - press], [4.8, 4.9 - press]], 4.8, '#fbbf24');
+        drawLine([[4.5, 5.2], [5.5, 7.0 - press]], 4, cBody);
+        drawMuscleGlow(5.45, 6.1 - press * 0.5, 0.3, 0.55, 0);
+        drawArrow(5.5, 7.6, 5.5, 6.3, '#10b981', '对侧手抱住肘部向下按压 30s/侧');
+    }
+    else if (ex.id === 'stretch_shoulder') {
+        const pull = lerp(0.0, 0.35, p);
+        drawLine([[5.0, 1.5], [5.0, 5.4]], 6.5, cBody);
+        drawCircle(5.0, 6.1, 0.4, '#dbeafe', cBody, 2.5);
+        drawLine([[4.3, 5.2], [6.3 - pull, 5.2]], 5, '#fbbf24');
+        drawLine([[5.6, 4.3], [5.6, 5.5]], 4.5, cBody);
+        drawMuscleGlow(4.3, 5.2, 0.45, 0.4, 0);
+        drawArrow(3.5, 5.2, 5.5, 5.2, '#10b981', '手臂伸直对侧手压住·沉肩匀呼吸 30s');
+    }
+    else {
+        // 腿部拉伸三步曲
+        const bend = lerp(0.0, 0.45, p);
+        drawLine([[3.5, 1.8], [6.6, 1.8]], 5.5, cBody);
+        drawLine([[3.5, 1.8], [4.8 + bend, 4.2 - bend], [6.4, 2.2]], 5.5, cBody);
+        drawMuscleGlow(5.1, 2.0, 0.75, 0.3, 0);
+        drawCircle(5.2 + bend, 4.8 - bend, 0.38, '#dbeafe', cBody, 2.5);
+        drawArrow(6.6, 2.0, 5.6, 2.8, '#10b981', '①抓脚背拉前侧 ②体侧下压 ③上拉脚尖(各30s)');
+    }
+
+    ctx.restore();
+}
+
+function startAnimationLoop() {
+    function frame(nowMs) {
+        if (currentMainTab === 'actions') {
+            const partId = currentPartTab === 'all' ? 'warmup' : currentPartTab;
+            const exId = selectedExerciseByPart[partId];
+            const ex = EXERCISES.find(e => e.id === exId);
+            const canvas = document.getElementById('active_anim_canvas');
+            if (canvas && ex) {
+                drawBiomechanicalStage(canvas, ex, nowMs);
+            }
+        }
+        requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+}
+
+// ============================================================================
+// 9. 训练打卡录入与历史记录管理
+// ============================================================================
+function openLoggerForExercise(exId) {
+    const ex = EXERCISES.find(e => e.id === exId);
+    if (!ex) return;
+    currentPartTab = ex.part;
+    selectedExerciseByPart[ex.part] = ex.id;
+    switchMainTab('records');
+    const sel = document.getElementById('recordExerciseSelect');
+    sel.value = ex.id;
+    onRecordExerciseChange();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast(`已载入【${ROLES[myIdentity].name}】配重：${ex.name}`);
+}
+
+function jumpToCurrentExerciseAnim() {
+    const exId = document.getElementById('recordExerciseSelect').value;
+    const ex = EXERCISES.find(e => e.id === exId);
+    if (!ex) return;
+    currentPartTab = ex.part;
+    selectedExerciseByPart[ex.part] = ex.id;
+    switchMainTab('actions');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function populateRecordExerciseSelect() {
+    const sel = document.getElementById('recordExerciseSelect');
+    const pillsBox = document.getElementById('recordExercisePills');
+    const badge = document.getElementById('recordPartBadge');
+    const filtered = currentPartTab === 'all' ? EXERCISES : EXERCISES.filter(e => e.part === currentPartTab);
+    const partObj = PART_TABS.find(p => p.id === currentPartTab);
+    badge.innerText = partObj ? partObj.shortName : '全部部位';
+
+    const preferredId = (currentPartTab !== 'all' && selectedExerciseByPart[currentPartTab]) || sel.value;
+    sel.innerHTML = filtered.map(ex => `<option value="${ex.id}">${ex.name}</option>`).join('');
+    if (filtered.some(e => e.id === preferredId)) {
+        sel.value = preferredId;
+    }
+
+    const activeId = sel.value;
+    pillsBox.innerHTML = filtered.map(ex => {
+        const isAct = (ex.id === activeId);
+        return `
+            <button type="button" onclick="selectRecordExercisePill('${ex.id}')"
+                class="ex-pill px-2.5 py-1.5 rounded-xl text-[11px] font-bold border ${isAct ? 'active' : 'bg-slate-50 text-slate-700 border-slate-200'}">
+                ${ex.shortTab || ex.name}
+            </button>
+        `;
+    }).join('');
+
+    onRecordExerciseChange();
+}
+
+function selectRecordExercisePill(exId) {
+    const ex = EXERCISES.find(e => e.id === exId);
+    if (!ex) return;
+    selectedExerciseByPart[ex.part] = ex.id;
+    document.getElementById('recordExerciseSelect').value = exId;
+    populateRecordExerciseSelect();
+}
+
+function onRecordExerciseChange() {
+    const exId = document.getElementById('recordExerciseSelect').value;
+    const ex = EXERCISES.find(e => e.id === exId) || EXERCISES[0];
+    if (!ex) return;
+    selectedExerciseByPart[ex.part] = ex.id;
+    document.getElementById('inputSets').value = ex.defaultSets;
+    document.getElementById('inputReps').value = ex.defaultReps;
+    document.getElementById('inputWeight').value = getExDefaultWeight(ex);
+    document.getElementById('recordExerciseHint').innerText = `💡 ${getExHint(ex)}（目标 ${ex.defaultSets}组×${ex.defaultReps}）`;
+}
+
+function adjustNum(inputId, delta, minVal, maxVal) {
+    const inp = document.getElementById(inputId);
+    let val = parseFloat(inp.value) || 0;
+    val = Math.max(minVal, Math.min(maxVal, Number((val + delta).toFixed(1))));
+    inp.value = val;
+}
+
+function selectFeel(feelLabel) {
+    currentFeel = feelLabel;
+    ['轻松标准', '刚好RIR1', '力竭突破'].forEach(f => {
+        const btn = document.getElementById(`feel_${f}`);
+        if (!btn) return;
+        if (f === feelLabel) {
+            btn.className = 'feel-btn text-[11px] px-2 py-1 rounded-lg border border-blue-400 bg-blue-50 text-blue-700 font-bold shadow-sm';
+        } else {
+            btn.className = 'feel-btn text-[11px] px-2 py-1 rounded-lg border border-slate-200 bg-slate-50 text-slate-600 font-bold';
+        }
+    });
+}
+
+function resetDateToToday() {
+    document.getElementById('logDateInput').value = getTodayStr();
+    showAllDatesInLog = false;
+    document.getElementById('scopeToggleBtn').innerText = '全部日期';
+    renderRecordsView();
+}
+
+function onDateChange() {
+    showAllDatesInLog = false;
+    document.getElementById('scopeToggleBtn').innerText = '全部日期';
+    renderRecordsView();
+}
+
+function toggleRecordScope() {
+    showAllDatesInLog = !showAllDatesInLog;
+    document.getElementById('scopeToggleBtn').innerText = showAllDatesInLog ? '只看当天' : '全部日期';
+    renderRecordsView();
+}
+
+function toggleRoleFilter() {
+    const order = ['all', '哼哼', '亲亲'];
+    const labels = { 'all': '双人全部', '哼哼': '只看哼哼', '亲亲': '只看亲亲' };
+    roleFilterMode = order[(order.indexOf(roleFilterMode) + 1) % order.length];
+    document.getElementById('roleFilterBtn').innerText = labels[roleFilterMode];
+    renderRecordsView();
+}
+
+function getAllMergedRecords() {
+    const hList = (dataHJs.records || []).map(r => ({ ...r, author: r.author || '哼哼' }));
+    const qList = (dataQJs.records || []).map(r => ({ ...r, author: r.author || '亲亲' }));
+    const map = new Map();
+    [...hList, ...qList].forEach(r => map.set(r.id || r.time, r));
+    return Array.from(map.values()).sort((a, b) => (b.time || 0) - (a.time || 0));
+}
+
+async function saveWorkoutRecord() {
+    const dateStr = document.getElementById('logDateInput').value || getTodayStr();
+    const exId = document.getElementById('recordExerciseSelect').value;
+    const ex = EXERCISES.find(e => e.id === exId);
+    if (!ex) return;
+
+    const sets = Math.max(1, parseInt(document.getElementById('inputSets').value) || 1);
+    const reps = Math.max(1, parseInt(document.getElementById('inputReps').value) || 1);
+    const weight = Math.max(0, parseFloat(document.getElementById('inputWeight').value) || 0);
+    const note = document.getElementById('inputNote').value.trim();
+    const btn = document.getElementById('saveRecordBtn');
+    const roleInfo = ROLES[myIdentity] || ROLES['哼哼'];
+
+    const now = Date.now();
+    const newRecord = {
+        id: `rec_${now}`,
+        time: now,
+        date: dateStr,
+        part: ex.part,
+        partName: (PART_TABS.find(p => p.id === ex.part) || {}).shortName || ex.part,
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        sets: sets,
+        reps: reps,
+        weight: weight,
+        volume: Math.round(sets * reps * weight * 10) / 10,
+        feel: currentFeel,
+        note: note,
+        author: roleInfo.name,
+        authorSpec: `${roleInfo.height}cm/${roleInfo.weight}kg`
+    };
+
+    const isHeng = (roleInfo.name !== '亲亲');
+    const targetData = isHeng ? dataHJs : dataQJs;
+    const targetPath = isHeng ? FILE_H_JS : FILE_Q_JS;
+    const targetSha = isHeng ? shaHJs : shaQJs;
+
+    if (!targetData.records) targetData.records = [];
+    targetData.records.unshift(newRecord);
+    saveLocalCache();
+    document.getElementById('inputNote').value = '';
+    renderRecordsView();
+
+    if (!GITHUB_TOKEN) {
+        showToast(`✅ 已记录【${roleInfo.name}】数据至本地！(点⚙️可配GitHub云同步)`);
+        return;
+    }
+
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> 正在上传云端...';
+    updateCloudBadge('syncing', '上传中...');
+
+    const upRes = await updateFile(targetPath, targetData, targetSha);
+    if (upRes.success) {
+        if (isHeng) shaHJs = upRes.sha; else shaQJs = upRes.sha;
+        updateCloudBadge('ok', '已同步');
+        showToast(`☁️ 【${roleInfo.name}】训练记录已上传至云端！`);
+    } else {
+        updateCloudBadge('local', '已存本地');
+        showToast('⚠️ 云端网络繁忙，已安全保存在手机本地');
+    }
+    btn.disabled = false;
+    btn.innerHTML = '<span>💾</span> 保存打卡并上传云端';
+}
+
+async function deleteRecord(recId, recAuthor) {
+    const isHeng = (recAuthor !== '亲亲');
+    const targetData = isHeng ? dataHJs : dataQJs;
+    const targetPath = isHeng ? FILE_H_JS : FILE_Q_JS;
+    const targetSha = isHeng ? shaHJs : shaQJs;
+
+    targetData.records = (targetData.records || []).filter(r => (r.id || String(r.time)) !== String(recId));
+    saveLocalCache();
+    renderRecordsView();
+
+    if (GITHUB_TOKEN) {
+        const upRes = await updateFile(targetPath, targetData, targetSha);
+        if (upRes.success) {
+            if (isHeng) shaHJs = upRes.sha; else shaQJs = upRes.sha;
+            showToast('🗑️ 已从云端同步删除该条记录');
+        }
+    } else {
+        showToast('🗑️ 已删除本地记录');
+    }
+}
+
+function renderRecordsView() {
+    const selectedDate = document.getElementById('logDateInput').value || getTodayStr();
+    const all = getAllMergedRecords();
+
+    // 当日看板统计（按所选日期统计）
+    const dayRecords = all.filter(r => r.date === selectedDate && (roleFilterMode === 'all' || r.author === roleFilterMode));
+    const totalSets = dayRecords.reduce((s, r) => s + (Number(r.sets) || 0), 0);
+    const totalReps = dayRecords.reduce((s, r) => s + (Number(r.sets) || 0) * (Number(r.reps) || 0), 0);
+    const totalVol = dayRecords.reduce((s, r) => s + (Number(r.volume) || 0), 0);
+
+    document.getElementById('statExercises').innerText = dayRecords.length;
+    document.getElementById('statSets').innerText = totalSets;
+    document.getElementById('statReps').innerText = totalReps;
+    document.getElementById('statVolume').innerText = Math.round(totalVol);
+
+    const todayCount = all.filter(r => r.date === getTodayStr()).length;
+    document.getElementById('todayBadge').innerText = todayCount;
+
+    let list = showAllDatesInLog ? all : all.filter(r => r.date === selectedDate);
+    if (roleFilterMode !== 'all') {
+        list = list.filter(r => r.author === roleFilterMode);
+    }
+    if (currentPartTab !== 'all') {
+        list = list.filter(r => r.part === currentPartTab);
+    }
+
+    const partObj = PART_TABS.find(p => p.id === currentPartTab);
+    const partLabel = partObj ? partObj.shortName : '全部部位';
+    const roleLabel = roleFilterMode === 'all' ? '双人' : roleFilterMode;
+    document.getElementById('recordFilterSubtitle').innerText =
+        `${showAllDatesInLog ? '全部日期' : selectedDate} · ${roleLabel} · ${partLabel}（${list.length}条）`;
+
+    const container = document.getElementById('recordsListContainer');
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-7 text-slate-400 text-xs">
+                <div class="text-2xl mb-1">🏋️‍♂️</div>
+                <div>暂无 ${showAllDatesInLog ? '' : selectedDate} 【${partLabel}】的打卡记录</div>
+                <div class="text-[11px] mt-1">上方可切换部位选项卡，也可以点击右侧“全部部位”查看当天所有部位打卡！</div>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map(r => {
+        const recKey = r.id || r.time;
+        const isQin = (r.author === '亲亲');
+        const roleTag = isQin
+            ? '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-100 text-rose-700">🌟 亲亲 (178cm/67kg)</span>'
+            : '<span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-700">👦 哼哼 (165cm/53kg)</span>';
+        const feelBadge = r.feel === '力竭突破'
+            ? 'bg-rose-50 text-rose-600 border-rose-200'
+            : (r.feel === '刚好RIR1' ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-emerald-50 text-emerald-600 border-emerald-200');
+        return `
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200/90 flex items-center justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                        ${roleTag}
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-slate-200 text-slate-700">${r.date}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">${r.partName || ''}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${feelBadge}">${r.feel || '标准'}</span>
+                    </div>
+                    <div class="text-xs font-black text-slate-900 mt-1 truncate">${r.exerciseName}</div>
+                    <div class="text-xs font-bold text-blue-700 mt-0.5">
+                        ${r.sets} 组 × ${r.reps} 次/秒 × <span class="text-sm font-black">${r.weight > 0 ? r.weight + ' kg' : '自重'}</span>
+                        ${r.volume > 0 ? `<span class="text-[11px] font-normal text-slate-400 ml-1">(容量 ${r.volume}kg)</span>` : ''}
+                    </div>
+                    ${r.note ? `<div class="text-[11px] text-slate-500 mt-0.5">📝 ${r.note}</div>` : ''}
+                </div>
+                <button onclick="deleteRecord('${recKey}', '${r.author || '哼哼'}')" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 flex items-center justify-center shrink-0 text-sm font-bold" title="删除">
+                    &times;
+                </button>
+            </div>
+        `;
+    }).join('');
+}
+
+function exportRecordsCSV() {
+    const all = getAllMergedRecords();
+    if (all.length === 0) {
+        showToast('暂无记录可导出');
+        return;
+    }
+    const headers = ['日期,角色,身高体重,部位,动作名称,组数,每组次数,重量(kg),总容量(kg),训练感受,备注'];
+    const rows = all.map(r => [
+        r.date,
+        r.author || '哼哼',
+        r.author === '亲亲' ? '178cm/67kg' : '165cm/53kg',
+        r.partName || r.part,
+        `"${(r.exerciseName || '').replace(/"/g, '""')}"`,
+        r.sets,
+        r.reps,
+        r.weight,
+        r.volume || 0,
+        r.feel || '',
+        `"${(r.note || '').replace(/"/g, '""')}"`
+    ].join(','));
+    const csvContent = '\uFEFF' + headers.concat(rows).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `双人健身打卡记录_${getTodayStr()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('📊 已导出 CSV 训练记录表！');
+}
+
+// ============================================================================
+// 10. 云端设置弹窗与 Toast
+// ============================================================================
+function openConfigModal() {
+    document.getElementById('configTokenInput').value = localStorage.getItem('loveGacha_githubToken') || '';
+    setIdentityChoice(myIdentity);
+    document.getElementById('configModal').classList.remove('hidden');
+}
+
+function closeConfigModal() {
+    document.getElementById('configModal').classList.add('hidden');
+}
+
+function setIdentityChoice(idVal) {
+    myIdentity = idVal;
+    const b1 = document.getElementById('idBtn_哼哼');
+    const b2 = document.getElementById('idBtn_亲亲');
+    if (idVal === '哼哼') {
+        b1.className = 'py-2.5 px-2 rounded-xl text-xs font-bold border-2 border-blue-500 bg-blue-50 text-blue-700';
+        b2.className = 'py-2.5 px-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600';
+    } else {
+        b2.className = 'py-2.5 px-2 rounded-xl text-xs font-bold border-2 border-rose-500 bg-rose-50 text-rose-700';
+        b1.className = 'py-2.5 px-2 rounded-xl text-xs font-bold border border-slate-200 bg-slate-50 text-slate-600';
+    }
+}
+
+async function saveConfigModal() {
+    const tokenVal = document.getElementById('configTokenInput').value.trim();
+    if (tokenVal) {
+        localStorage.setItem('loveGacha_githubToken', tokenVal);
+    } else {
+        localStorage.removeItem('loveGacha_githubToken');
+    }
+    localStorage.setItem('loveGacha_myIdentity', myIdentity);
+    GITHUB_TOKEN = tokenVal;
+    updateRoleUI();
+    populateRecordExerciseSelect();
+    if (currentMainTab === 'actions') renderSingleActionView();
+    closeConfigModal();
+    await syncFromCloud(true);
+}
+
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.classList.remove('hidden');
+    toast.classList.remove('toast-animate');
+    void toast.offsetWidth;
+    toast.classList.add('toast-animate');
+    setTimeout(() => {
+        toast.classList.add('hidden');
+    }, 2800);
+}
+</script>
+</body>
+</html>
