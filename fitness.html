@@ -8,307 +8,274 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body {
+        html, body {
             font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-            background-color: #f5f7fa;
+            background-color: #f1f5f9;
             color: #1e293b;
             margin: 0;
-            padding: 0 0 36px 0;
-            overflow-x: hidden;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            overscroll-behavior: none;
         }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .app-shell {
+            width: 100%;
+            max-width: 430px;
+            height: 100%;
+            height: 100dvh;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            padding: 8px 10px env(safe-area-inset-bottom, 8px) 10px;
+            overflow: hidden;
+        }
+        .custom-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
         .custom-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
         .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-        .shell { max-width: 460px; margin: 0 auto; padding: 12px; }
         .card {
             background: #ffffff;
-            border-radius: 16px;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.03);
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 4px rgba(15, 23, 42, 0.03);
         }
-        .seg-btn { transition: all 0.16s ease; cursor: pointer; user-select: none; }
+        .seg-btn { transition: all 0.15s ease; cursor: pointer; user-select: none; }
         .seg-btn.active { background: #0f172a; color: #ffffff; font-weight: 700; }
 
         .sub-seg { transition: all 0.15s ease; cursor: pointer; user-select: none; }
         .sub-seg.active { background: #eff6ff; color: #1d4ed8; border-color: #3b82f6; font-weight: 700; }
 
-        .part-tab { transition: all 0.15s ease; cursor: pointer; user-select: none; white-space: nowrap; }
+        .part-tab { transition: all 0.15s ease; cursor: pointer; user-select: none; }
         .part-tab.active { background: #2563eb; color: #ffffff; font-weight: 700; }
 
-        .ex-tab { transition: all 0.15s ease; cursor: pointer; user-select: none; white-space: nowrap; }
+        .ex-tab { transition: all 0.15s ease; cursor: pointer; user-select: none; }
         .ex-tab.active { background: #eff6ff; color: #1d4ed8; border-color: #3b82f6; font-weight: 700; }
 
-        canvas.stage { width: 100%; height: 240px; display: block; border-radius: 12px; background: #0f172a; }
+        canvas.stage {
+            width: 100%;
+            height: 176px;
+            display: block;
+            border-radius: 10px;
+            background: #0f172a;
+        }
 
         @keyframes slideUpFade {
-            0% { opacity: 0; transform: translate(-50%, 20px); }
+            0% { opacity: 0; transform: translate(-50%, 16px); }
             10% { opacity: 1; transform: translate(-50%, 0); }
             90% { opacity: 1; transform: translate(-50%, 0); }
-            100% { opacity: 0; transform: translate(-50%, -20px); }
+            100% { opacity: 0; transform: translate(-50%, -16px); }
         }
-        .toast-animate { animation: slideUpFade 3s forwards; }
+        .toast-animate { animation: slideUpFade 2.6s forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade-in { animation: fadeIn 0.2s ease-in-out forwards; }
+        .animate-fade-in { animation: fadeIn 0.18s ease-in-out forwards; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-4 px-3">
+<body>
 
-    <!-- 顶部栏（与 task.html 一致，只读显示当前云端确定身份，不可修改） -->
-    <header class="w-full max-w-md flex justify-between items-center mb-3 px-1">
-        <a href="index.html" class="p-2 bg-white text-slate-700 rounded-full shadow-sm border border-slate-200">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+<div class="app-shell">
+    <!-- 顶部栏（固定高度，不超出屏幕，只读显示云端身份） -->
+    <header class="w-full flex justify-between items-center mb-1.5 shrink-0 px-0.5">
+        <a href="index.html" class="w-8 h-8 flex items-center justify-center bg-white text-slate-700 rounded-full shadow-sm border border-slate-200 shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
         </a>
-        <div class="text-center">
-            <h1 class="text-lg font-bold text-slate-900">健身训练与打卡</h1>
-            <p id="headerRoleReadonly" class="text-xs text-slate-500 font-medium mt-0.5">当前身份：读取中...</p>
+        <div class="text-center min-w-0 px-2">
+            <h1 class="text-sm font-bold text-slate-900 leading-tight truncate">健身训练与打卡</h1>
+            <p id="headerRoleReadonly" class="text-[11px] text-slate-500 font-medium leading-tight truncate">当前身份：读取中...</p>
         </div>
-        <div id="syncStatusIndicator" class="text-[11px] font-medium text-slate-500 bg-white px-2.5 py-1 rounded-full border border-slate-200">
+        <div id="syncStatusIndicator" class="text-[10px] font-medium text-slate-500 bg-white px-2 py-1 rounded-full border border-slate-200 shrink-0">
             同步中
         </div>
     </header>
 
-    <main class="w-full max-w-md space-y-2.5">
+    <!-- 1. 主选项卡（打卡与计划 放在最前面 | 动作与动画） -->
+    <div class="grid grid-cols-2 gap-1 p-1 bg-slate-200/80 rounded-xl mb-1.5 shrink-0">
+        <button onclick="switchMainTab('records')" id="mainTab_records" class="seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+            <span>打卡与计划</span>
+            <span id="todayCountBadge" class="px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] hidden">0</span>
+        </button>
+        <button onclick="switchMainTab('actions')" id="mainTab_actions" class="seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1">
+            <span>动作与动画</span>
+        </button>
+    </div>
 
-        <!-- 1. 主选项卡（打卡与计划 放在最前面 | 动作与动画） -->
-        <div class="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/80 rounded-xl">
-            <button onclick="switchMainTab('records')" id="mainTab_records" class="seg-btn active py-2 rounded-lg text-xs flex items-center justify-center gap-1.5">
-                <span>打卡与计划</span>
-                <span id="todayCountBadge" class="px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] hidden">0</span>
-            </button>
-            <button onclick="switchMainTab('actions')" id="mainTab_actions" class="seg-btn py-2 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1.5">
-                <span>动作与动画</span>
-            </button>
-        </div>
+    <!-- 2. 部位选项卡（热身排最前，5列等分100%在屏幕内） -->
+    <div id="partTabsRow" class="grid grid-cols-5 gap-1 bg-white p-1 rounded-xl border border-slate-200 mb-1.5 shrink-0">
+        <button onclick="switchPartTab('warmup')" id="partTab_warmup" class="part-tab active py-1 rounded-lg text-xs text-center">热身</button>
+        <button onclick="switchPartTab('back')" id="partTab_back" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">背部</button>
+        <button onclick="switchPartTab('legs')" id="partTab_legs" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">腿部</button>
+        <button onclick="switchPartTab('chest')" id="partTab_chest" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">胸肩</button>
+        <button onclick="switchPartTab('stretch')" id="partTab_stretch" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">拉伸</button>
+    </div>
 
-        <!-- 2. 部位选项卡（热身排最前，无图标） -->
-        <div id="partTabsRow" class="grid grid-cols-5 gap-1 bg-white p-1 rounded-xl border border-slate-200">
-            <button onclick="switchPartTab('warmup')" id="partTab_warmup" class="part-tab active py-1.5 rounded-lg text-xs text-center">热身</button>
-            <button onclick="switchPartTab('back')" id="partTab_back" class="part-tab py-1.5 rounded-lg text-xs text-slate-600 text-center">背部</button>
-            <button onclick="switchPartTab('legs')" id="partTab_legs" class="part-tab py-1.5 rounded-lg text-xs text-slate-600 text-center">腿部</button>
-            <button onclick="switchPartTab('chest')" id="partTab_chest" class="part-tab py-1.5 rounded-lg text-xs text-slate-600 text-center">胸肩</button>
-            <button onclick="switchPartTab('stretch')" id="partTab_stretch" class="part-tab py-1.5 rounded-lg text-xs text-slate-600 text-center">拉伸</button>
-        </div>
+    <!-- ==================== 主内容弹性视口（自适应剩余手机屏幕高度，内部平滑滚动） ==================== -->
+    <main class="flex-1 min-h-0 w-full overflow-y-auto custom-scroll space-y-2 pr-0.5">
 
-        <!-- ==================== 视图 1：打卡与计划（首屏默认） ==================== -->
-        <section id="view_records" class="space-y-2.5 animate-fade-in">
+        <!-- ==================== 视图 1：打卡与计划 ==================== -->
+        <section id="view_records" class="space-y-2 animate-fade-in">
 
             <!-- 子选项卡：今日打卡 | 我的计划 | 自建动作 -->
-            <div class="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-slate-200">
-                <button onclick="switchRecordSubTab('checkin')" id="subTab_checkin" class="sub-seg active py-1.5 rounded-lg text-xs border border-transparent text-center">
+            <div class="grid grid-cols-3 gap-1 bg-white p-1 rounded-xl border border-slate-200">
+                <button onclick="switchRecordSubTab('checkin')" id="subTab_checkin" class="sub-seg active py-1 rounded-lg text-xs border border-transparent text-center">
                     今日打卡
                 </button>
-                <button onclick="switchRecordSubTab('plans')" id="subTab_plans" class="sub-seg py-1.5 rounded-lg text-xs border border-transparent text-slate-600 text-center">
+                <button onclick="switchRecordSubTab('plans')" id="subTab_plans" class="sub-seg py-1 rounded-lg text-xs border border-transparent text-slate-600 text-center">
                     我的计划 (<span id="planCountLabel">0</span>)
                 </button>
-                <button onclick="switchRecordSubTab('custom')" id="subTab_custom" class="sub-seg py-1.5 rounded-lg text-xs border border-transparent text-slate-600 text-center">
+                <button onclick="switchRecordSubTab('custom')" id="subTab_custom" class="sub-seg py-1 rounded-lg text-xs border border-transparent text-slate-600 text-center">
                     自建动作
                 </button>
             </div>
 
             <!-- ---------- 子面板 1A：今日打卡 ---------- -->
-            <div id="subView_checkin" class="space-y-2.5">
+            <div id="subView_checkin" class="space-y-2">
 
-                <div class="card p-3.5 space-y-3">
-                    <!-- 日期（默认今天） + 导入计划按钮 -->
-                    <div class="flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-xs font-bold text-slate-500">日期</span>
-                            <input type="date" id="logDateInput" onchange="renderRecordsView()" class="text-xs font-bold text-slate-800 bg-slate-100 px-2 py-1 rounded-lg border border-slate-200 focus:outline-none">
-                            <button onclick="resetDateToToday()" class="text-xs text-blue-600 font-medium px-1">今天</button>
+                <div class="card p-2.5 space-y-2">
+                    <!-- 日期（默认今天） + 导入计划按钮（自适应窄屏，绝不溢出） -->
+                    <div class="flex items-center justify-between gap-1.5 flex-wrap">
+                        <div class="flex items-center gap-1 min-w-0">
+                            <span class="text-[11px] font-bold text-slate-500 shrink-0">日期</span>
+                            <input type="date" id="logDateInput" onchange="renderRecordsView()" class="text-xs font-bold text-slate-800 bg-slate-100 px-1.5 py-1 rounded-lg border border-slate-200 focus:outline-none">
+                            <button onclick="resetDateToToday()" class="text-[11px] text-blue-600 font-bold px-1.5 py-1 bg-blue-50 rounded-lg shrink-0">今天</button>
                         </div>
-                        <button onclick="openImportPlanModal()" class="px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 text-xs font-bold active:scale-95 transition">
+                        <button onclick="openImportPlanModal()" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold active:scale-95 transition shrink-0">
                             导入计划动作
                         </button>
                     </div>
 
                     <!-- 导入的计划待练清单：固定高度篇幅，内部上下滑动，点击“微调”在该动作下方展开修改栏 -->
-                    <div id="importedTodoBox" class="hidden bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
-                        <div class="flex items-center justify-between px-0.5">
-                            <span id="importedPlanTitle" class="text-xs font-bold text-slate-800 truncate">已导入待练清单</span>
+                    <div id="importedTodoBox" class="hidden bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-1.5">
+                        <div class="flex items-center justify-between gap-1 px-0.5">
+                            <span id="importedPlanTitle" class="text-[11px] font-bold text-slate-800 truncate">已导入待练清单</span>
                             <div class="flex items-center gap-2 shrink-0">
-                                <button onclick="completeAllImportedTodos(event)" class="text-[11px] font-bold text-blue-600 hover:underline">全部完成</button>
-                                <button onclick="clearImportedTodos()" class="text-[11px] text-slate-400 hover:text-rose-500">收起</button>
+                                <button onclick="completeAllImportedTodos(event)" class="text-[11px] font-bold text-blue-600">全部完成</button>
+                                <button onclick="clearImportedTodos()" class="text-[11px] text-slate-400">收起</button>
                             </div>
                         </div>
-                        <!-- 固定高度滑动区（h-48 固定篇幅，内部滑动） -->
-                        <div id="importedTodoList" class="h-48 overflow-y-auto custom-scroll pr-1 space-y-1.5">
-                            <!-- JS 动态渲染每条待练动作及内联展开的微调栏 -->
+                        <!-- 固定高度滑动区（h-36 固定篇幅，内部上下滑动） -->
+                        <div id="importedTodoList" class="h-36 overflow-y-auto custom-scroll pr-0.5 space-y-1.5">
+                            <!-- JS 动态渲染 -->
                         </div>
                     </div>
 
-                    <!-- 单动作直接选择与打卡区 -->
+                    <!-- 单动作直接选择与打卡区（网格自动换行，全部按钮均在屏幕内可见） -->
                     <div>
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span class="text-[11px] text-slate-400">当前部位动作库（点选动作预填推荐配重）：</span>
-                            <button onclick="jumpToCurrentExerciseAnim()" class="text-[11px] font-bold text-blue-600 hover:underline shrink-0">查看此动作动画</button>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[11px] text-slate-500 font-medium">点选当前部位动作（全部屏内可见）：</span>
+                            <button onclick="jumpToCurrentExerciseAnim()" class="text-[11px] font-bold text-blue-600 shrink-0">看此动作动画</button>
                         </div>
-                        <div id="recordExercisePills" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
-                            <!-- JS 渲染动作胶囊 -->
+                        <div id="recordExercisePills" class="grid grid-cols-3 gap-1 max-h-24 overflow-y-auto custom-scroll pr-0.5">
+                            <!-- JS 渲染 3 列网格胶囊，不超出屏幕右侧 -->
                         </div>
-                        <div id="recordHintBar" class="text-xs text-slate-600 mt-1.5 bg-slate-50 px-3 py-2 rounded-lg border border-slate-100 leading-snug">
+                        <div id="recordHintBar" class="text-[11px] text-slate-600 mt-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 leading-snug">
                             <!-- 动态显示当前角色推荐重量 -->
                         </div>
                     </div>
 
-                    <!-- 组数 / 次数 / 重量 调节器 -->
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-center">
-                            <div class="text-[11px] text-slate-500 mb-1">组数 (组)</div>
-                            <div class="flex items-center justify-between">
-                                <button type="button" onclick="adjustNum('inputSets', -1, 1, 20)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">-</button>
-                                <input type="number" id="inputSets" value="4" class="w-10 text-center font-bold text-sm bg-transparent focus:outline-none">
-                                <button type="button" onclick="adjustNum('inputSets', 1, 1, 20)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">+</button>
+                    <!-- 组数 / 次数 / 重量 调节器（紧凑自适应宽度，窄屏不溢出） -->
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <div class="bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-center min-w-0">
+                            <div class="text-[10px] text-slate-500 mb-0.5">组数 (组)</div>
+                            <div class="flex items-center justify-between gap-0.5">
+                                <button type="button" onclick="adjustNum('inputSets', -1, 1, 20)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">-</button>
+                                <input type="number" id="inputSets" value="4" class="w-full min-w-0 text-center font-bold text-xs bg-transparent focus:outline-none">
+                                <button type="button" onclick="adjustNum('inputSets', 1, 1, 20)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">+</button>
                             </div>
                         </div>
 
-                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-center">
-                            <div class="text-[11px] text-slate-500 mb-1">次数 / 秒</div>
-                            <div class="flex items-center justify-between">
-                                <button type="button" onclick="adjustNum('inputReps', -1, 1, 180)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">-</button>
-                                <input type="number" id="inputReps" value="12" class="w-10 text-center font-bold text-sm bg-transparent focus:outline-none">
-                                <button type="button" onclick="adjustNum('inputReps', 1, 1, 180)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">+</button>
+                        <div class="bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-center min-w-0">
+                            <div class="text-[10px] text-slate-500 mb-0.5">次数 / 秒</div>
+                            <div class="flex items-center justify-between gap-0.5">
+                                <button type="button" onclick="adjustNum('inputReps', -1, 1, 180)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">-</button>
+                                <input type="number" id="inputReps" value="12" class="w-full min-w-0 text-center font-bold text-xs bg-transparent focus:outline-none">
+                                <button type="button" onclick="adjustNum('inputReps', 1, 1, 180)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">+</button>
                             </div>
                         </div>
 
-                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 text-center">
-                            <div class="text-[11px] text-slate-500 mb-1">重量 (kg)</div>
-                            <div class="flex items-center justify-between">
-                                <button type="button" onclick="adjustNum('inputWeight', -2.5, 0, 350)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">-</button>
-                                <input type="number" id="inputWeight" value="30" step="0.5" class="w-12 text-center font-bold text-sm text-blue-600 bg-transparent focus:outline-none">
-                                <button type="button" onclick="adjustNum('inputWeight', 2.5, 0, 350)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-slate-700">+</button>
+                        <div class="bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-center min-w-0">
+                            <div class="text-[10px] text-slate-500 mb-0.5">重量 (kg)</div>
+                            <div class="flex items-center justify-between gap-0.5">
+                                <button type="button" onclick="adjustNum('inputWeight', -2.5, 0, 350)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">-</button>
+                                <input type="number" id="inputWeight" value="30" step="0.5" class="w-full min-w-0 text-center font-bold text-xs text-blue-600 bg-transparent focus:outline-none">
+                                <button type="button" onclick="adjustNum('inputWeight', 2.5, 0, 350)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">+</button>
                             </div>
                         </div>
                     </div>
 
                     <!-- 备注 + 保存按钮 -->
-                    <div class="flex gap-2">
-                        <input type="text" id="inputNote" placeholder="备注（选填）" class="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500">
-                        <button type="button" onclick="saveWorkoutRecord(event)" id="saveRecordBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition shrink-0">
+                    <div class="flex gap-1.5">
+                        <input type="text" id="inputNote" placeholder="备注（选填）" class="flex-1 min-w-0 px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500">
+                        <button type="button" onclick="saveWorkoutRecord(event)" id="saveRecordBtn" class="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition shrink-0">
                             保存打卡
                         </button>
                     </div>
                 </div>
 
                 <!-- 打卡记录本：以天为单位聚合展示，点击任意一天弹出当天详情弹窗 -->
-                <div class="card p-3.5">
-                    <div class="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
-                        <div>
-                            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                                <span>打卡记录本（按天汇总）</span>
+                <div class="card p-2.5">
+                    <div class="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 gap-1">
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1">
+                                <span>打卡记录本（按天）</span>
                                 <span id="recordOwnerTag" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px]">-</span>
                             </h3>
-                            <p id="statSummaryText" class="text-[11px] text-slate-400 mt-0.5">点击任意日期可查看当天训练详情</p>
+                            <p id="statSummaryText" class="text-[10px] text-slate-400 truncate">点击日期查看当天训练详情</p>
                         </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="toggleRoleViewMode()" id="roleViewBtn" class="text-[11px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="toggleRoleViewMode()" id="roleViewBtn" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
                                 只看自己
                             </button>
-                            <button onclick="exportRecordsCSV()" class="text-[11px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
+                            <button onclick="exportRecordsCSV()" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
                                 导出
                             </button>
                         </div>
                     </div>
 
-                    <div id="dailyRecordsListContainer" class="space-y-2 max-h-64 overflow-y-auto custom-scroll pr-1">
-                        <!-- JS 按天渲染日期汇总卡片，点击查看当天详情 -->
+                    <div id="dailyRecordsListContainer" class="space-y-1.5 max-h-36 overflow-y-auto custom-scroll pr-0.5">
+                        <!-- JS 按天渲染日期汇总卡片 -->
                     </div>
                 </div>
             </div>
 
-            <!-- ---------- 子面板 1B：我的计划（创建计划、加入动作、保存云端） ---------- -->
-            <div id="subView_plans" class="hidden space-y-2.5 animate-fade-in">
-                <div class="card p-3.5 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-900">
-                                <span id="planOwnerTitle">-</span> 的训练计划库
+            <!-- ---------- 子面板 1B：我的计划（只显示计划名称，点击详情弹窗查看与逐行内联修改） ---------- -->
+            <div id="subView_plans" class="hidden space-y-2 animate-fade-in">
+                <div class="card p-3 space-y-2.5">
+                    <div class="flex items-center justify-between gap-2">
+                        <div class="min-w-0">
+                            <h3 class="text-xs font-bold text-slate-900 truncate">
+                                <span id="planOwnerTitle">-</span> 的计划列表
                             </h3>
-                            <p class="text-[11px] text-slate-400 mt-0.5">计划独立保存在当前身份的云端文件中，可在打卡时一键导入</p>
+                            <p class="text-[10px] text-slate-400 mt-0.5">仅展示计划名称，点击“详情”弹窗查看或修改动作</p>
                         </div>
-                        <button onclick="openPlanEditor(null)" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
+                        <button onclick="openNewPlanModal()" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
                             新建计划
                         </button>
                     </div>
 
-                    <div id="myPlansListContainer" class="space-y-2.5">
+                    <!-- 计划列表：每行只显示计划名称 + 导入 / 详情 / 删除 按钮 -->
+                    <div id="myPlansListContainer" class="space-y-1.5 max-h-[62dvh] overflow-y-auto custom-scroll pr-0.5">
                         <!-- JS 动态渲染 -->
-                    </div>
-                </div>
-
-                <!-- 新建 / 编辑计划表单 -->
-                <div id="planEditorCard" class="hidden card p-4 border-2 border-blue-200 space-y-3 animate-fade-in">
-                    <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <h4 id="planEditorTitle" class="text-sm font-bold text-slate-900">编辑训练计划</h4>
-                        <button onclick="closePlanEditor()" class="text-xs text-slate-400 hover:text-slate-600">关闭</button>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">计划名称：</label>
-                        <input type="text" id="editPlanName" placeholder="输入计划名称..." class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-blue-500 font-bold">
-                    </div>
-
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                        <div class="text-xs font-bold text-slate-700">从上方部位选择动作加入本计划：</div>
-                        <div class="flex gap-2">
-                            <select id="planAddExSelect" onchange="onPlanAddExChange()" class="flex-1 px-2.5 py-2 text-xs bg-white border border-slate-200 rounded-lg font-medium focus:outline-none">
-                                <!-- JS 填充当前部位动作 -->
-                            </select>
-                            <button type="button" onclick="addExerciseToEditingPlan()" class="px-3 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0">
-                                加入动作
-                            </button>
-                        </div>
-                        <div class="grid grid-cols-3 gap-2 pt-1">
-                            <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs">
-                                <span class="text-slate-400 mr-1">组:</span>
-                                <input type="number" id="planAddSets" value="4" class="w-full font-bold text-center focus:outline-none">
-                            </div>
-                            <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs">
-                                <span class="text-slate-400 mr-1">次:</span>
-                                <input type="number" id="planAddReps" value="12" class="w-full font-bold text-center focus:outline-none">
-                            </div>
-                            <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs">
-                                <span class="text-slate-400 mr-1">kg:</span>
-                                <input type="number" id="planAddWeight" value="30" step="0.5" class="w-full font-bold text-blue-600 text-center focus:outline-none">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <div class="text-xs font-bold text-slate-600 mb-1.5">已加入本计划的动作清单：</div>
-                        <div id="editingPlanItemsList" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-1">
-                            <!-- JS 渲染 -->
-                        </div>
-                    </div>
-
-                    <div class="flex gap-2 pt-1">
-                        <button type="button" onclick="closePlanEditor()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">取消</button>
-                        <button type="button" onclick="saveEditingPlanToCloud(event)" class="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm">
-                            保存计划到云端
-                        </button>
                     </div>
                 </div>
             </div>
 
             <!-- ---------- 子面板 1C：自建动作入库 ---------- -->
-            <div id="subView_custom" class="hidden space-y-2.5 animate-fade-in">
-                <div class="card p-4 space-y-3">
+            <div id="subView_custom" class="hidden space-y-2 animate-fade-in">
+                <div class="card p-3 space-y-2.5">
                     <div>
-                        <h3 class="text-sm font-bold text-slate-900">创建新动作加入动作库</h3>
-                        <p class="text-[11px] text-slate-400 mt-0.5">自定义动作将保存在你的云端动作库中，可在计划与打卡中直接使用</p>
+                        <h3 class="text-xs font-bold text-slate-900">创建新动作加入动作库</h3>
+                        <p class="text-[10px] text-slate-400 mt-0.5">自定义动作将保存在你的云端动作库中，可在计划与打卡中直接使用</p>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 gap-1.5">
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-500 mb-1">动作名称</label>
-                            <input type="text" id="custExName" placeholder="如：T杠划船 / 哈克深蹲" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">动作名称</label>
+                            <input type="text" id="custExName" placeholder="如：T杠划船" class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
                         </div>
                         <div>
-                            <label class="block text-[11px] font-bold text-slate-500 mb-1">所属部位</label>
-                            <select id="custExPart" class="w-full px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none font-bold">
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">所属部位分类</label>
+                            <select id="custExPart" class="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none font-bold">
                                 <option value="warmup">热身</option>
                                 <option value="back" selected>背部</option>
                                 <option value="legs">腿部</option>
@@ -319,40 +286,41 @@
                     </div>
 
                     <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1">目标肌群</label>
-                        <input type="text" id="custExTarget" placeholder="如：背阔肌中下部、菱形肌" class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+                        <label class="block text-[10px] font-bold text-slate-500 mb-0.5">目标肌群</label>
+                        <input type="text" id="custExTarget" placeholder="如：背阔肌中下部、菱形肌" class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
                     </div>
 
-                    <div class="grid grid-cols-3 gap-2">
+                    <div class="grid grid-cols-3 gap-1.5">
                         <div>
-                            <label class="block text-[10px] text-slate-500 mb-1">默认组数</label>
-                            <input type="number" id="custExSets" value="4" class="w-full px-2 py-1.5 text-xs font-bold text-center bg-slate-50 border border-slate-200 rounded-lg">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">默认组数</label>
+                            <input type="number" id="custExSets" value="4" class="w-full px-2 py-1 text-xs font-bold text-center bg-slate-50 border border-slate-200 rounded-lg">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-slate-500 mb-1">默认次数</label>
-                            <input type="number" id="custExReps" value="12" class="w-full px-2 py-1.5 text-xs font-bold text-center bg-slate-50 border border-slate-200 rounded-lg">
+                            <label class="block text-[10px] text-slate-500 mb-0.5">默认次数</label>
+                            <input type="number" id="custExReps" value="12" class="w-full px-2 py-1 text-xs font-bold text-center bg-slate-50 border border-slate-200 rounded-lg">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-blue-600 mb-1">默认配重(kg)</label>
-                            <input type="number" id="custExWeight" value="25" step="0.5" class="w-full px-2 py-1.5 text-xs font-bold text-center bg-blue-50 border border-blue-200 rounded-lg">
+                            <label class="block text-[10px] text-blue-600 mb-0.5">配重(kg)</label>
+                            <input type="number" id="custExWeight" value="25" step="0.5" class="w-full px-2 py-1 text-xs font-bold text-center bg-blue-50 border border-blue-200 rounded-lg">
                         </div>
                     </div>
 
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1">动作详解与发力要领</label>
-                        <textarea id="custExDesc" rows="2" placeholder="输入握距、轨迹、呼吸节奏与发力要点..." class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none"></textarea>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">发力要领</label>
+                            <input type="text" id="custExDesc" placeholder="向心吐气、离心慢放..." class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 mb-0.5">注意事项</label>
+                            <input type="text" id="custExPrec" placeholder="核心收紧，避免代偿..." class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                        </div>
                     </div>
 
-                    <div>
-                        <label class="block text-[11px] font-bold text-slate-500 mb-1">注意事项</label>
-                        <input type="text" id="custExPrec" placeholder="如：保持核心收紧，避免弓背代偿..." class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
-                    </div>
-
-                    <button type="button" onclick="saveCustomExerciseToCloud(event)" class="w-full py-2.5 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition">
+                    <button type="button" onclick="saveCustomExerciseToCloud(event)" class="w-full py-2 bg-blue-600 text-white text-xs font-bold rounded-xl shadow-sm active:scale-95 transition">
                         加入动作库并保存云端
                     </button>
 
-                    <div id="customExListWrapper" class="pt-2 border-t border-slate-100 space-y-1.5">
+                    <div id="customExListWrapper" class="pt-1.5 border-t border-slate-100 space-y-1 max-h-28 overflow-y-auto custom-scroll">
                         <!-- JS 动态渲染 -->
                     </div>
                 </div>
@@ -360,97 +328,182 @@
 
         </section>
 
-        <!-- ==================== 视图 2：动作与动画（持久化 Canvas 零黑屏引擎） ==================== -->
-        <section id="view_actions" class="hidden space-y-2.5 animate-fade-in">
+        <!-- ==================== 视图 2：动作与动画（单屏自适应 + 按钮全在屏内） ==================== -->
+        <section id="view_actions" class="hidden space-y-2 animate-fade-in">
 
-            <!-- 动作选项卡栏（点击动作只展示这一个动作） -->
-            <div class="card p-2.5">
-                <div class="flex items-center justify-between mb-1.5 px-1">
-                    <span id="partActionCountLabel" class="text-[11px] font-bold text-slate-400">动作列表（点击切换）：</span>
-                    <button onclick="addCurrentExToMyPlanQuick(event)" class="text-[11px] font-bold text-blue-600 hover:underline">加入我的计划</button>
+            <!-- 动作选项卡栏（3列网格自动换行，所有动作按钮100%在手机屏内可见，绝不超出右边界） -->
+            <div class="card p-2">
+                <div class="flex items-center justify-between mb-1 px-0.5">
+                    <span id="partActionCountLabel" class="text-[11px] font-bold text-slate-500">点击动作切换演示：</span>
+                    <button onclick="addCurrentExToMyPlanQuick(event)" class="text-[11px] font-bold text-blue-600 shrink-0">加入我的计划</button>
                 </div>
-                <div id="exerciseTabsBar" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
-                    <!-- JS 渲染当前部位下的动作选项卡 -->
+                <div id="exerciseTabsBar" class="grid grid-cols-3 gap-1 max-h-24 overflow-y-auto custom-scroll pr-0.5">
+                    <!-- JS 渲染当前部位下的动作网格按钮 -->
                 </div>
             </div>
 
-            <!-- 单动作详情卡（Canvas 持久驻留 DOM，不随 innerHTML 销毁重建，彻底杜绝切换黑屏） -->
-            <div class="card p-4 space-y-3.5">
+            <!-- 单动作详情卡（Canvas 常驻 DOM 零黑屏） -->
+            <div class="card p-3 space-y-2.5">
                 <div class="flex items-start justify-between gap-2">
-                    <div>
-                        <h2 id="actionTitleText" class="text-base font-bold text-slate-900 leading-snug">-</h2>
-                        <p id="actionTargetText" class="text-xs text-slate-500 mt-0.5">靶向肌群：-</p>
+                    <div class="min-w-0 flex-1">
+                        <h2 id="actionTitleText" class="text-xs font-bold text-slate-900 leading-snug">-</h2>
+                        <p id="actionTargetText" class="text-[11px] text-slate-500 mt-0.5 truncate">靶向肌群：-</p>
                     </div>
-                    <button onclick="jumpToRecordCurrentExercise()" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
+                    <button onclick="jumpToRecordCurrentExercise()" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
                         去打卡
                     </button>
                 </div>
 
                 <div>
-                    <canvas id="active_anim_canvas" class="stage" width="440" height="240"></canvas>
-                    <div class="grid grid-cols-5 gap-1.5 mt-2">
-                        <button onclick="setAnimStep('loop')" id="stepBtn_loop" class="py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white">连续动画</button>
-                        <button onclick="setAnimStep(0)" id="stepBtn_0" class="py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">1. 准备</button>
-                        <button onclick="setAnimStep(1)" id="stepBtn_1" class="py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">2. 发力</button>
-                        <button onclick="setAnimStep(2)" id="stepBtn_2" class="py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">3. 顶峰</button>
-                        <button onclick="setAnimStep(3)" id="stepBtn_3" class="py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600">4. 回放</button>
+                    <canvas id="active_anim_canvas" class="stage" width="410" height="176"></canvas>
+                    <div class="grid grid-cols-5 gap-1 mt-1.5">
+                        <button onclick="setAnimStep('loop')" id="stepBtn_loop" class="py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-white">连续动画</button>
+                        <button onclick="setAnimStep(0)" id="stepBtn_0" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">1.准备</button>
+                        <button onclick="setAnimStep(1)" id="stepBtn_1" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">2.发力</button>
+                        <button onclick="setAnimStep(2)" id="stepBtn_2" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">3.顶峰</button>
+                        <button onclick="setAnimStep(3)" id="stepBtn_3" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">4.回放</button>
                     </div>
                 </div>
 
                 <!-- 动作文字解析区 -->
-                <div id="singleExerciseDetailsBox" class="space-y-3.5">
+                <div id="singleExerciseDetailsBox" class="space-y-2">
                     <!-- JS 动态更新文字详情 -->
                 </div>
             </div>
 
         </section>
 
-        <!-- 底部返回首页与只读身份显示（参照 task.html） -->
-        <div class="pt-3 text-center">
-            <a href="index.html" class="text-slate-400 text-xs underline hover:text-slate-600 transition-colors block">
-                返回首页 (当前: <span id="currentIdentityLabel">-</span>)
-            </a>
-        </div>
-
     </main>
 
-    <!-- 弹窗 1：按天查看训练记录详情弹窗（参照 task.html 的 historyModal） -->
-    <div id="dayDetailModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4 backdrop-blur-sm transition-opacity opacity-0" onclick="if(event.target === this) closeDayDetailModal()">
-        <div class="bg-white rounded-2xl w-full max-w-sm max-h-[82vh] shadow-2xl transform scale-95 transition-transform duration-200 flex flex-col" id="dayDetailModalContent">
-            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl shrink-0">
-                <div>
-                    <h3 class="font-bold text-slate-900 text-sm" id="dayDetailModalTitle">日期训练详情</h3>
-                    <p class="text-[11px] text-slate-500 mt-0.5" id="dayDetailModalSub">汇总信息</p>
+    <!-- 底部固定状态栏（紧凑一屏不溢出） -->
+    <footer class="pt-1 text-center shrink-0">
+        <a href="index.html" class="text-slate-400 text-[11px] underline hover:text-slate-600 transition-colors block truncate">
+            返回首页 (当前身份: <span id="currentIdentityLabel">-</span>)
+        </a>
+    </footer>
+</div>
+
+<!-- ==================== 弹窗 1：计划详情与编辑弹窗（点击详情弹出，一条一行，点修改在下方展开修改栏，按分类选动作加入） ==================== -->
+<div id="planDetailModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closePlanDetailModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm max-h-[88dvh] shadow-2xl flex flex-col overflow-hidden">
+        <!-- 弹窗头部 -->
+        <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0 gap-2">
+            <div class="min-w-0 flex-1">
+                <h3 class="font-bold text-slate-900 text-xs truncate" id="planModalHeaderTitle">计划详情与编辑</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">一条动作一行 · 点击“修改”在该动作下方展开修改栏</p>
+            </div>
+            <button onclick="closePlanDetailModal()" class="text-slate-400 hover:text-slate-700 bg-white rounded-full p-1 border border-slate-200 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+
+        <!-- 弹窗主体（内部可滚动，自适应手机高度） -->
+        <div class="p-3 overflow-y-auto custom-scroll space-y-2.5 flex-1 min-h-0">
+            <!-- 计划名称输入 -->
+            <div class="flex items-center gap-1.5">
+                <span class="text-xs font-bold text-slate-600 shrink-0">计划名称</span>
+                <input type="text" id="modalPlanNameInput" placeholder="输入计划名称..." class="flex-1 min-w-0 px-2.5 py-1.5 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-500">
+            </div>
+
+            <!-- 动作清单：一条内容一行，点击“修改”在该动作正下方展示修改栏 -->
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[11px] font-bold text-slate-700">计划内动作清单（共 <span id="modalPlanItemCount">0</span> 项）：</span>
+                    <button type="button" onclick="importCurrentModalPlanToToday()" class="text-[11px] font-bold text-blue-600">导入今日打卡</button>
                 </div>
-                <button onclick="closeDayDetailModal()" class="text-slate-400 hover:text-slate-700 bg-white rounded-full p-1 border border-slate-200">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
+                <div id="modalPlanItemsList" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-0.5">
+                    <!-- JS 逐行渲染每个动作 + 正下方内联修改栏 -->
+                </div>
             </div>
-            <div class="p-4 overflow-y-auto custom-scroll space-y-3" id="dayDetailModalBody">
-                <!-- JS 动态生成当天训练明细 -->
+
+            <!-- 加入新动作区域：先展示分类（热身/背部/腿部/胸肩/拉伸），再在分类中选动作 -->
+            <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
+                <div class="text-[11px] font-bold text-slate-700">加入动作（第1步：选择分类 → 第2步：选择动作）：</div>
+
+                <!-- 第1步：展示5大部位分类按钮 -->
+                <div class="grid grid-cols-5 gap-1 bg-white p-1 rounded-lg border border-slate-200">
+                    <button type="button" onclick="selectPlanAddCategory('warmup')" id="planCat_warmup" class="py-1 rounded text-[11px] font-medium text-center text-slate-600">热身</button>
+                    <button type="button" onclick="selectPlanAddCategory('back')" id="planCat_back" class="py-1 rounded text-[11px] font-bold text-center bg-blue-600 text-white">背部</button>
+                    <button type="button" onclick="selectPlanAddCategory('legs')" id="planCat_legs" class="py-1 rounded text-[11px] font-medium text-center text-slate-600">腿部</button>
+                    <button type="button" onclick="selectPlanAddCategory('chest')" id="planCat_chest" class="py-1 rounded text-[11px] font-medium text-center text-slate-600">胸肩</button>
+                    <button type="button" onclick="selectPlanAddCategory('stretch')" id="planCat_stretch" class="py-1 rounded text-[11px] font-medium text-center text-slate-600">拉伸</button>
+                </div>
+
+                <!-- 第2步：在该分类中选动作 -->
+                <div class="flex gap-1.5">
+                    <select id="planAddExSelect" onchange="onPlanAddExChange()" class="flex-1 min-w-0 px-2 py-1.5 text-xs bg-white border border-slate-200 rounded-lg font-medium focus:outline-none">
+                        <!-- JS 填充所选分类下的动作 -->
+                    </select>
+                    <button type="button" onclick="addExerciseToModalPlan()" class="px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg shrink-0 active:scale-95 transition">
+                        加入动作
+                    </button>
+                </div>
+
+                <!-- 第3步：加入时的组数/次数/重量预设 -->
+                <div class="grid grid-cols-3 gap-1.5">
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">组:</span>
+                        <input type="number" id="planAddSets" value="4" class="w-full min-w-0 font-bold text-center focus:outline-none">
+                    </div>
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">次:</span>
+                        <input type="number" id="planAddReps" value="12" class="w-full min-w-0 font-bold text-center focus:outline-none">
+                    </div>
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 text-xs min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">kg:</span>
+                        <input type="number" id="planAddWeight" value="30" step="0.5" class="w-full min-w-0 font-bold text-blue-600 text-center focus:outline-none">
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- 弹窗 2：导入计划或动作库到今日打卡 -->
-    <div id="importModal" class="fixed inset-0 bg-black/40 z-50 hidden flex items-center justify-center p-4" onclick="if(event.target === this) closeImportPlanModal()">
-        <div class="bg-white rounded-2xl w-full max-w-sm p-4 shadow-xl space-y-3 max-h-[80vh] flex flex-col">
-            <div class="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h3 class="text-sm font-bold text-slate-900">导入 <span id="importModalRoleName" class="text-blue-600">-</span> 的训练计划</h3>
-                <button onclick="closeImportPlanModal()" class="text-slate-400 text-lg font-bold">&times;</button>
-            </div>
-            <p class="text-[11px] text-slate-500 m-0">选择计划后将载入今日待练滑动框，可在框内点“微调”直接展开修改栏：</p>
-            <div id="importPlansModalList" class="space-y-2 overflow-y-auto custom-scroll flex-1 pr-1">
-                <!-- JS 渲染当前角色的计划列表 -->
-            </div>
-            <div class="pt-2 border-t border-slate-100 flex justify-between items-center">
-                <button onclick="closeImportPlanModal(); switchRecordSubTab('plans');" class="text-xs font-bold text-blue-600 hover:underline">去管理或新建计划</button>
-                <button onclick="closeImportPlanModal()" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">关闭</button>
-            </div>
+        <!-- 弹窗底部保存栏（固定在弹窗底部，手机一定能看到） -->
+        <div class="p-3 border-t border-slate-100 bg-white flex gap-2 shrink-0">
+            <button type="button" onclick="closePlanDetailModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">关闭</button>
+            <button type="button" onclick="saveModalPlanToCloud(event)" id="saveModalPlanBtn" class="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold shadow-sm">
+                保存计划到云端
+            </button>
         </div>
     </div>
+</div>
 
-    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-xs font-medium hidden z-[60] whitespace-nowrap"></div>
+<!-- ==================== 弹窗 2：按天查看训练记录详情弹窗 ==================== -->
+<div id="dayDetailModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm transition-opacity opacity-0" onclick="if(event.target === this) closeDayDetailModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm max-h-[82dvh] shadow-2xl transform scale-95 transition-transform duration-200 flex flex-col overflow-hidden" id="dayDetailModalContent">
+        <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0">
+            <div class="min-w-0 flex-1">
+                <h3 class="font-bold text-slate-900 text-xs truncate" id="dayDetailModalTitle">日期训练详情</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5 truncate" id="dayDetailModalSub">汇总信息</p>
+            </div>
+            <button onclick="closeDayDetailModal()" class="text-slate-400 hover:text-slate-700 bg-white rounded-full p-1 border border-slate-200 shrink-0">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <div class="p-3 overflow-y-auto custom-scroll space-y-2 flex-1 min-h-0" id="dayDetailModalBody">
+            <!-- JS 动态生成当天训练明细 -->
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 弹窗 3：导入计划到今日打卡 ==================== -->
+<div id="importModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeImportPlanModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-3.5 shadow-xl space-y-2.5 max-h-[80dvh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
+            <h3 class="text-xs font-bold text-slate-900 truncate">导入 <span id="importModalRoleName" class="text-blue-600">-</span> 的训练计划</h3>
+            <button onclick="closeImportPlanModal()" class="text-slate-400 text-base font-bold px-1">&times;</button>
+        </div>
+        <p class="text-[11px] text-slate-500 m-0 shrink-0">选择计划载入今日待练框（也可点击“详情”查看计划动作）：</p>
+        <div id="importPlansModalList" class="space-y-1.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
+            <!-- JS 渲染当前角色的计划列表（仅显示计划名称+按钮） -->
+        </div>
+        <div class="pt-2 border-t border-slate-100 flex justify-between items-center shrink-0">
+            <button onclick="closeImportPlanModal(); switchRecordSubTab('plans');" class="text-xs font-bold text-blue-600">去管理或新建计划</button>
+            <button onclick="closeImportPlanModal()" class="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-600">关闭</button>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full shadow-lg text-xs font-medium hidden z-[60] whitespace-nowrap"></div>
 
 <script>
 // ============================================================================
@@ -464,10 +517,18 @@ const ROLES = {
     '亲亲': { name: '亲亲', height: 178, weight: 67, desc: '亲亲（178cm，67kg）', file: 'data/Qjs.json' }
 };
 
+const PART_NAMES = {
+    warmup: '热身',
+    back: '背部',
+    legs: '腿部',
+    chest: '胸肩',
+    stretch: '拉伸'
+};
+
 const OWNER_REPO = '878481881-jpg/loveplan';
 const FILE_H = 'data/Hjs.json';
 const FILE_Q = 'data/Qjs.json';
-const LOCAL_CACHE_KEY = 'loveGacha_fitnessSuite_v5';
+const LOCAL_CACHE_KEY = 'loveGacha_fitnessSuite_v6';
 
 if (!GITHUB_TOKEN || !myIdentity) {
     if (window.location.protocol.startsWith('http')) {
@@ -476,7 +537,7 @@ if (!GITHUB_TOKEN || !myIdentity) {
 }
 
 // ============================================================================
-// 2. 详尽 45 项动作库（每个动作拥有独立唯一的 animType 与精准解剖学参数）
+// 2. 详尽 45 项动作库
 // ============================================================================
 const BUILTIN_EXERCISES = [
     // ---------- 热身 (warmup, 8项) ----------
@@ -1263,7 +1324,7 @@ function getDefaultPlansForRole(role) {
 }
 
 // ============================================================================
-// 3. 全局数据变量与参照 task.html 的云端通讯函数
+// 3. 全局状态与参照 task.html 的云端同步函数
 // ============================================================================
 let dataH = { role: '哼哼', height: 165, weight: 53, records: [], plans: getDefaultPlansForRole('哼哼'), customExercises: [] };
 let dataQ = { role: '亲亲', height: 178, weight: 67, records: [], plans: getDefaultPlansForRole('亲亲'), customExercises: [] };
@@ -1284,7 +1345,12 @@ let selectedExByPart = {
 
 let importedTodos = [];
 let editingTodoIdx = -1;
+
+// 计划详情弹窗内的编辑状态
 let editingPlanObj = null;
+let editingPlanItemIdx = -1; // 在计划详情弹窗中当前展开修改栏的动作行索引
+let planAddCategory = 'back'; // 在编辑计划时当前选中的动作分类
+
 let showOnlyCurrentRoleInLog = true;
 const animStates = {};
 let animLoopStarted = false;
@@ -1324,7 +1390,6 @@ window.onload = async function() {
     startPolling();
 };
 
-// 参照 task.html 的 fetchFile 与 updateFile
 async function fetchFile(filePath) {
     if (!GITHUB_TOKEN) return { error: true };
     try {
@@ -1377,7 +1442,6 @@ function normalizeRoleData(raw, roleName) {
     };
 }
 
-// 参照 task.html 的 fetchAllData(isBg)
 async function fetchAllData(isBg = false) {
     if (!isBg) {
         isLoading = true;
@@ -1489,18 +1553,17 @@ function switchMainTab(tab) {
     document.getElementById('view_actions').classList.toggle('hidden', tab !== 'actions');
 
     document.getElementById('mainTab_records').className = tab === 'records'
-        ? 'seg-btn active py-2 rounded-lg text-xs flex items-center justify-center gap-1.5'
-        : 'seg-btn py-2 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1.5';
+        ? 'seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1'
+        : 'seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1';
     document.getElementById('mainTab_actions').className = tab === 'actions'
-        ? 'seg-btn active py-2 rounded-lg text-xs flex items-center justify-center gap-1.5'
-        : 'seg-btn py-2 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1.5';
+        ? 'seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1'
+        : 'seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1';
 
     if (tab === 'records') {
         renderRecordPills();
         renderRecordsView();
     } else {
         renderSingleActionView();
-        // 切换至动作页后立即渲染一帧，确保零延迟显示
         const canvas = document.getElementById('active_anim_canvas');
         const ex = getCurrentEx();
         if (canvas && ex) drawStage(canvas, ex, performance.now());
@@ -1512,12 +1575,11 @@ function switchRecordSubTab(sub) {
     ['checkin', 'plans', 'custom'].forEach(k => {
         document.getElementById(`subView_${k}`).classList.toggle('hidden', k !== sub);
         document.getElementById(`subTab_${k}`).className = (k === sub)
-            ? 'sub-seg active py-1.5 rounded-lg text-xs border text-center'
-            : 'sub-seg py-1.5 rounded-lg text-xs border border-transparent text-slate-600 text-center';
+            ? 'sub-seg active py-1 rounded-lg text-xs border text-center'
+            : 'sub-seg py-1 rounded-lg text-xs border border-transparent text-slate-600 text-center';
     });
     if (sub === 'plans') {
         renderPlansSubView();
-        populatePlanEditorSelect();
     } else if (sub === 'custom') {
         renderCustomExSubView();
     }
@@ -1527,12 +1589,11 @@ function switchPartTab(part) {
     currentPartTab = part;
     ['warmup', 'back', 'legs', 'chest', 'stretch'].forEach(p => {
         document.getElementById(`partTab_${p}`).className = (p === part)
-            ? 'part-tab active py-1.5 rounded-lg text-xs text-center'
-            : 'part-tab py-1.5 rounded-lg text-xs text-slate-600 text-center';
+            ? 'part-tab active py-1 rounded-lg text-xs text-center'
+            : 'part-tab py-1 rounded-lg text-xs text-slate-600 text-center';
     });
     if (currentMainTab === 'records') {
         renderRecordPills();
-        populatePlanEditorSelect();
     } else {
         renderSingleActionView();
         const canvas = document.getElementById('active_anim_canvas');
@@ -1565,7 +1626,7 @@ function jumpToRecordCurrentExercise() {
 }
 
 // ============================================================================
-// 5. 今日打卡、固定高度滑动待练清单（含动作下方内联微调栏）与云端保存
+// 5. 今日打卡、固定高度滑动待练清单（含动作下方内联微调栏）
 // ============================================================================
 function renderRecordPills() {
     const list = getAllExercises().filter(e => e.part === currentPartTab);
@@ -1575,7 +1636,7 @@ function renderRecordPills() {
         const isAct = (ex.id === activeEx.id);
         return `
             <button type="button" onclick="selectExercise('${ex.id}')"
-                class="ex-tab px-2.5 py-1.5 rounded-lg text-xs border ${isAct ? 'active' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+                class="ex-tab px-1.5 py-1 rounded-lg text-[11px] border truncate text-center ${isAct ? 'active' : 'bg-slate-50 text-slate-600 border-slate-200'}">
                 ${ex.shortTab || ex.name}
             </button>
         `;
@@ -1593,7 +1654,7 @@ function syncInputsWithSelectedExercise() {
     document.getElementById('inputReps').value = ex.defaultReps;
     document.getElementById('inputWeight').value = w;
     document.getElementById('recordHintBar').innerHTML =
-        `<strong class="text-slate-900">${ex.name}</strong><br><span class="text-blue-600 font-medium">${hint}</span>`;
+        `<div class="font-bold text-slate-900 truncate">${ex.name}</div><div class="text-blue-600 font-medium truncate">${hint}</div>`;
 }
 
 function adjustNum(id, delta, minV, maxV) {
@@ -1622,15 +1683,20 @@ function openImportPlanModal() {
     }
     document.getElementById('importModalRoleName').innerText = ROLES[myIdentity].desc;
     const listBox = document.getElementById('importPlansModalList');
+    // 在导入弹窗中也保持清爽，每行只显示计划名称 + 详情 / 导入 按钮
     listBox.innerHTML = myData.plans.map(pl => `
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
             <div class="min-w-0 flex-1">
                 <div class="text-xs font-bold text-slate-900 truncate">${pl.name}</div>
-                <div class="text-[11px] text-slate-500 mt-0.5 truncate">共 ${pl.items.length} 项：${pl.items.map(i => i.name.replace(/^[0-9]+\.\s*/, '')).join('、')}</div>
             </div>
-            <button onclick="importPlanToToday('${pl.id}')" class="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
-                导入
-            </button>
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button onclick="closeImportPlanModal(); openPlanDetailModal('${pl.id}');" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-medium">
+                    详情
+                </button>
+                <button onclick="importPlanToToday('${pl.id}')" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold active:scale-95 transition">
+                    导入
+                </button>
+            </div>
         </div>
     `).join('');
     document.getElementById('importModal').classList.remove('hidden');
@@ -1657,7 +1723,7 @@ function importPlanToToday(planId) {
         done: false
     }));
     editingTodoIdx = -1;
-    document.getElementById('importedPlanTitle').innerText = `已导入：${pl.name}（滑动查看）`;
+    document.getElementById('importedPlanTitle').innerText = `已导入：${pl.name}`;
     closeImportPlanModal();
     renderImportedTodoBox();
     showToast(`已导入「${pl.name}」`);
@@ -1675,17 +1741,17 @@ function renderImportedTodoBox() {
         const isEditing = (editingTodoIdx === idx && !td.done);
         return `
         <div class="rounded-lg bg-white border ${td.done ? 'border-emerald-200 bg-emerald-50/30' : (isEditing ? 'border-blue-400 ring-1 ring-blue-100' : 'border-slate-200')} p-2 text-xs transition-all">
-            <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center justify-between gap-1.5">
                 <div class="min-w-0 flex-1">
                     <div class="font-bold ${td.done ? 'line-through text-slate-400' : 'text-slate-800'} truncate">${idx + 1}. ${td.name.replace(/^[0-9]+\.\s*/, '')}</div>
-                    <div class="text-[11px] text-slate-500 mt-0.5">
+                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">
                         ${td.sets}组 × ${td.reps}${td.unit} · <strong class="text-blue-600">${td.weight > 0 ? td.weight + 'kg' : '自重'}</strong>
                         ${td.note ? `<span class="text-slate-400 ml-1">(${td.note})</span>` : ''}
                     </div>
                 </div>
-                <div class="flex items-center gap-1.5 shrink-0">
+                <div class="flex items-center gap-1 shrink-0">
                     ${td.done
-                        ? `<span class="px-2 py-1 rounded bg-emerald-100 text-emerald-700 text-[11px] font-bold">已完成</span>`
+                        ? `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">已完成</span>`
                         : `<button type="button" onclick="toggleTodoInlineEdit(${idx})" class="px-2 py-1 rounded ${isEditing ? 'bg-blue-100 text-blue-700 font-bold' : 'bg-slate-100 text-slate-600'} text-[11px]">
                                ${isEditing ? '收起' : '微调'}
                            </button>
@@ -1697,25 +1763,26 @@ function renderImportedTodoBox() {
             </div>
 
             ${isEditing ? `
-            <div class="mt-2 pt-2 border-t border-slate-100 space-y-2 animate-fade-in">
-                <div class="grid grid-cols-3 gap-1.5">
-                    <div class="flex items-center bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                        <span class="text-[10px] text-slate-400 mr-1">组:</span>
-                        <input type="number" id="todoEditSets_${idx}" value="${td.sets}" min="1" max="30" class="w-full font-bold text-center bg-transparent focus:outline-none text-xs">
+            <!-- 在该动作正下方展示的内联微调修改栏（自适应手机窄屏，两行布局确保按钮100%在屏内） -->
+            <div class="mt-2 pt-2 border-t border-slate-100 space-y-1.5 animate-fade-in">
+                <div class="grid grid-cols-3 gap-1">
+                    <div class="flex items-center bg-slate-50 px-1.5 py-1 rounded border border-slate-200 min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">组:</span>
+                        <input type="number" id="todoEditSets_${idx}" value="${td.sets}" min="1" max="30" class="w-full min-w-0 font-bold text-center bg-transparent focus:outline-none text-xs">
                     </div>
-                    <div class="flex items-center bg-slate-50 px-2 py-1 rounded border border-slate-200">
-                        <span class="text-[10px] text-slate-400 mr-1">${td.unit}:</span>
-                        <input type="number" id="todoEditReps_${idx}" value="${td.reps}" min="1" max="300" class="w-full font-bold text-center bg-transparent focus:outline-none text-xs">
+                    <div class="flex items-center bg-slate-50 px-1.5 py-1 rounded border border-slate-200 min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">${td.unit}:</span>
+                        <input type="number" id="todoEditReps_${idx}" value="${td.reps}" min="1" max="300" class="w-full min-w-0 font-bold text-center bg-transparent focus:outline-none text-xs">
                     </div>
-                    <div class="flex items-center bg-blue-50/60 px-2 py-1 rounded border border-blue-200">
-                        <span class="text-[10px] text-blue-500 mr-1">kg:</span>
-                        <input type="number" id="todoEditWeight_${idx}" value="${td.weight}" min="0" max="500" step="0.5" class="w-full font-bold text-blue-700 text-center bg-transparent focus:outline-none text-xs">
+                    <div class="flex items-center bg-blue-50/60 px-1.5 py-1 rounded border border-blue-200 min-w-0">
+                        <span class="text-[10px] text-blue-500 mr-1 shrink-0">kg:</span>
+                        <input type="number" id="todoEditWeight_${idx}" value="${td.weight}" min="0" max="500" step="0.5" class="w-full min-w-0 font-bold text-blue-700 text-center bg-transparent focus:outline-none text-xs">
                     </div>
                 </div>
-                <div class="flex gap-1.5">
-                    <input type="text" id="todoEditNote_${idx}" value="${td.note || ''}" placeholder="动作备注（选填）" class="flex-1 px-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded focus:outline-none">
-                    <button type="button" onclick="applyTodoInlineEdit(${idx}, false)" class="px-2.5 py-1 bg-slate-800 text-white rounded text-[11px] font-bold">保存修改</button>
-                    <button type="button" onclick="applyTodoInlineEdit(${idx}, true, event)" class="px-2.5 py-1 bg-blue-600 text-white rounded text-[11px] font-bold">修改并打卡</button>
+                <input type="text" id="todoEditNote_${idx}" value="${td.note || ''}" placeholder="动作备注（选填）" class="w-full px-2 py-1 text-[11px] bg-slate-50 border border-slate-200 rounded focus:outline-none">
+                <div class="grid grid-cols-2 gap-1.5">
+                    <button type="button" onclick="applyTodoInlineEdit(${idx}, false)" class="py-1 bg-slate-800 text-white rounded text-[11px] font-bold">保存修改</button>
+                    <button type="button" onclick="applyTodoInlineEdit(${idx}, true, event)" class="py-1 bg-blue-600 text-white rounded text-[11px] font-bold">修改并打卡</button>
                 </div>
             </div>
             ` : ''}
@@ -1978,36 +2045,36 @@ function renderRecordsView() {
 
     const daysArr = Array.from(dayMap.values()).sort((a, b) => b.date.localeCompare(a.date));
     document.getElementById('statSummaryText').innerText =
-        `累计打卡 ${daysArr.length} 天 · 共 ${roleFiltered.length} 项记录（点击日期查看当天详情）`;
+        `累计 ${daysArr.length} 天 · 共 ${roleFiltered.length} 项记录（点击日期查看详情）`;
 
     const box = document.getElementById('dailyRecordsListContainer');
     if (daysArr.length === 0) {
-        box.innerHTML = `<div class="text-center py-6 text-xs text-slate-400">暂无打卡记录，在上方选择动作点击“保存打卡”或“导入计划动作”即可记录</div>`;
+        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">暂无打卡记录，选择动作点击“保存打卡”或“导入计划动作”即可记录</div>`;
         return;
     }
 
     box.innerHTML = daysArr.map(dayGroup => {
         const isToday = (dayGroup.date === todayStr);
-        const sampleNames = dayGroup.items.slice(0, 3).map(i => i.exerciseName.replace(/^[0-9]+\.\s*/, '')).join('、');
+        const sampleNames = dayGroup.items.slice(0, 2).map(i => i.exerciseName.replace(/^[0-9]+\.\s*/, '')).join('、');
         const authorBadges = Array.from(dayGroup.authors).map(au =>
             `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${au === '亲亲' ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}">${au}</span>`
         ).join(' ');
 
         return `
-            <div onclick="showDayDetail('${dayGroup.date}')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200 cursor-pointer transition flex items-center justify-between gap-2">
+            <div onclick="showDayDetail('${dayGroup.date}')" class="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200 cursor-pointer transition flex items-center justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
+                    <div class="flex items-center gap-1">
                         <span class="text-xs font-bold text-slate-900">${dayGroup.date}</span>
                         ${isToday ? '<span class="px-1.5 py-0.2 bg-blue-600 text-white rounded text-[10px] font-bold">今天</span>' : ''}
                         ${authorBadges}
                     </div>
-                    <div class="text-[11px] text-slate-500 mt-1 truncate">
-                        训练内容：${sampleNames}${dayGroup.items.length > 3 ? ` 等 ${dayGroup.items.length} 项` : ''}
+                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">
+                        ${sampleNames}${dayGroup.items.length > 2 ? ` 等 ${dayGroup.items.length} 项` : ''}
                     </div>
                 </div>
-                <div class="text-right shrink-0 ml-2">
-                    <div class="text-xs font-bold text-slate-800">${dayGroup.items.length} 项 · ${dayGroup.totalSets} 组</div>
-                    <div class="text-[11px] text-blue-600 font-medium mt-0.5">容量 ${Math.round(dayGroup.totalVolume)} kg &rarr;</div>
+                <div class="text-right shrink-0">
+                    <div class="text-xs font-bold text-slate-800">${dayGroup.items.length}项 · ${dayGroup.totalSets}组</div>
+                    <div class="text-[10px] text-blue-600 font-medium">详情 &rarr;</div>
                 </div>
             </div>
         `;
@@ -2038,15 +2105,15 @@ function showDayDetail(dateStr) {
         const tagCls = isQin ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-600 border-blue-200';
         const u = r.unit || '次';
         return `
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                        <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold ${tagCls}">${r.author} (${ROLES[r.author].height}cm/${ROLES[r.author].weight}kg)</span>
+                    <div class="flex items-center gap-1">
+                        <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold shrink-0 ${tagCls}">${r.author}</span>
                         <span class="text-xs font-bold text-slate-900 truncate">${i + 1}. ${r.exerciseName}</span>
                     </div>
                     <div class="text-xs font-bold text-blue-700 mt-1">
                         ${r.sets} 组 × ${r.reps} ${u} × ${r.weight > 0 ? r.weight + ' kg' : '自重'}
-                        ${r.volume > 0 ? `<span class="text-[11px] font-normal text-slate-400 ml-1">(容量 ${r.volume}kg)</span>` : ''}
+                        ${r.volume > 0 ? `<span class="text-[10px] font-normal text-slate-400 ml-1">(${r.volume}kg)</span>` : ''}
                     </div>
                     ${r.note ? `<div class="text-[11px] text-slate-500 mt-0.5">备注：${r.note}</div>` : ''}
                 </div>
@@ -2074,7 +2141,7 @@ function closeDayDetailModal() {
 }
 
 // ============================================================================
-// 7. 我的计划创建、动作加入与云端保存
+// 7. 我的计划：列表仅显示计划名称，点击“详情”弹窗查看详细内容（一条一行，点击修改在动作正下方展开修改栏，按分类选动作）
 // ============================================================================
 function renderPlansSubView() {
     const myData = getMyData();
@@ -2083,37 +2150,74 @@ function renderPlansSubView() {
     }
     document.getElementById('planCountLabel').innerText = myData.plans.length;
     const box = document.getElementById('myPlansListContainer');
+
+    // 只显示计划名称 + 右侧紧凑按钮（详情 / 导入 / 删除），不展示任何冗长动作标签
     box.innerHTML = myData.plans.map(pl => `
-        <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-            <div class="flex items-center justify-between gap-2">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
+            <div onclick="openPlanDetailModal('${pl.id}')" class="min-w-0 flex-1 cursor-pointer">
                 <div class="text-xs font-bold text-slate-900 truncate">${pl.name}</div>
-                <div class="flex items-center gap-1.5 shrink-0">
-                    <button onclick="importPlanToToday('${pl.id}'); switchRecordSubTab('checkin');" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
-                        导入去打卡
-                    </button>
-                    <button onclick="openPlanEditor('${pl.id}')" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-medium">
-                        编辑
-                    </button>
-                    <button onclick="deletePlan('${pl.id}')" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-[11px]">
-                        删除
-                    </button>
-                </div>
             </div>
-            <div class="flex flex-wrap gap-1">
-                ${pl.items.map(it => `
-                    <span class="px-2 py-0.5 rounded bg-white border border-slate-200 text-[11px] text-slate-600">
-                        ${it.name.replace(/^[0-9]+\.\s*/, '')} <strong class="text-blue-600">${it.sets}×${it.reps}</strong> ${it.weight > 0 ? it.weight + 'kg' : ''}
-                    </span>
-                `).join('')}
+            <div class="flex items-center gap-1 shrink-0">
+                <button onclick="openPlanDetailModal('${pl.id}')" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-blue-600 text-[11px] font-bold">
+                    详情
+                </button>
+                <button onclick="importPlanToToday('${pl.id}'); switchRecordSubTab('checkin');" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
+                    导入
+                </button>
+                <button onclick="deletePlan('${pl.id}')" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-[11px]">
+                    删除
+                </button>
             </div>
         </div>
     `).join('');
 }
 
-function populatePlanEditorSelect() {
+function openPlanDetailModal(planId) {
+    const myData = getMyData();
+    const found = (myData.plans || []).find(p => p.id === planId);
+    if (!found) return;
+    editingPlanObj = JSON.parse(JSON.stringify(found));
+    editingPlanItemIdx = -1;
+    document.getElementById('planModalHeaderTitle').innerText = `计划详情与修改（${ROLES[myIdentity].name}）`;
+    document.getElementById('modalPlanNameInput').value = editingPlanObj.name;
+    selectPlanAddCategory(planAddCategory || 'back');
+    renderModalPlanItemsList();
+    document.getElementById('planDetailModal').classList.remove('hidden');
+}
+
+function openNewPlanModal() {
+    editingPlanObj = {
+        id: `plan_${myIdentity}_${Date.now()}`,
+        name: `${myIdentity} · 自定义训练计划`,
+        items: []
+    };
+    editingPlanItemIdx = -1;
+    document.getElementById('planModalHeaderTitle').innerText = `新建训练计划（${ROLES[myIdentity].name}）`;
+    document.getElementById('modalPlanNameInput').value = editingPlanObj.name;
+    selectPlanAddCategory('back');
+    renderModalPlanItemsList();
+    document.getElementById('planDetailModal').classList.remove('hidden');
+}
+
+function closePlanDetailModal() {
+    editingPlanObj = null;
+    editingPlanItemIdx = -1;
+    document.getElementById('planDetailModal').classList.add('hidden');
+}
+
+// 在计划弹窗中选择要添加动作的分类（热身/背部/腿部/胸肩/拉伸）
+function selectPlanAddCategory(cat) {
+    planAddCategory = cat;
+    ['warmup', 'back', 'legs', 'chest', 'stretch'].forEach(c => {
+        const btn = document.getElementById(`planCat_${c}`);
+        if (!btn) return;
+        btn.className = (c === cat)
+            ? 'py-1 rounded text-[11px] font-bold text-center bg-blue-600 text-white'
+            : 'py-1 rounded text-[11px] font-medium text-center text-slate-600 hover:bg-slate-100';
+    });
     const sel = document.getElementById('planAddExSelect');
     if (!sel) return;
-    const list = getAllExercises().filter(e => e.part === currentPartTab);
+    const list = getAllExercises().filter(e => e.part === cat);
     sel.innerHTML = list.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
     onPlanAddExChange();
 }
@@ -2128,32 +2232,94 @@ function onPlanAddExChange() {
     document.getElementById('planAddWeight').value = (myIdentity === '亲亲') ? ex.weightQin : ex.weightHeng;
 }
 
-function openPlanEditor(planId) {
-    const myData = getMyData();
-    if (planId) {
-        const found = (myData.plans || []).find(p => p.id === planId);
-        editingPlanObj = found ? JSON.parse(JSON.stringify(found)) : { id: `plan_${myIdentity}_${Date.now()}`, name: '', items: [] };
-        document.getElementById('planEditorTitle').innerText = `编辑计划（${ROLES[myIdentity].desc}）`;
-    } else {
-        editingPlanObj = {
-            id: `plan_${myIdentity}_${Date.now()}`,
-            name: `${myIdentity} · 自定义训练计划`,
-            items: []
-        };
-        document.getElementById('planEditorTitle').innerText = `新建计划（${ROLES[myIdentity].desc}）`;
+// 渲染计划详情弹窗中的动作列表：一条内容一行，点击“修改”在该动作正下方展开修改栏
+function renderModalPlanItemsList() {
+    const box = document.getElementById('modalPlanItemsList');
+    const countLabel = document.getElementById('modalPlanItemCount');
+    if (!editingPlanObj || !editingPlanObj.items.length) {
+        countLabel.innerText = '0';
+        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400 bg-slate-50 rounded-xl border border-slate-100">当前计划暂无动作，请在下方先选择分类再加入动作</div>`;
+        return;
     }
-    document.getElementById('editPlanName').value = editingPlanObj.name;
-    populatePlanEditorSelect();
-    renderEditingPlanItems();
-    document.getElementById('planEditorCard').classList.remove('hidden');
+    countLabel.innerText = editingPlanObj.items.length;
+
+    box.innerHTML = editingPlanObj.items.map((it, idx) => {
+        const isEdit = (editingPlanItemIdx === idx);
+        const partTag = PART_NAMES[it.part] || '动作';
+        return `
+        <div class="rounded-xl bg-slate-50 border ${isEdit ? 'border-blue-400 bg-blue-50/20' : 'border-slate-200'} p-2 text-xs transition-all">
+            <!-- 一条内容一行 -->
+            <div class="flex items-center justify-between gap-1.5">
+                <div class="min-w-0 flex-1 flex items-center gap-1">
+                    <span class="px-1.5 py-0.2 bg-white border border-slate-200 rounded text-[10px] text-slate-500 shrink-0">${partTag}</span>
+                    <span class="font-bold text-slate-800 truncate">${idx + 1}. ${it.name.replace(/^[0-9]+\.\s*/, '')}</span>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-[11px] text-slate-600 font-medium">${it.sets}×${it.reps}${it.unit || '次'} · <strong class="text-blue-600">${it.weight > 0 ? it.weight + 'kg' : '自重'}</strong></span>
+                    <button type="button" onclick="toggleModalPlanItemEdit(${idx})" class="px-2 py-0.5 rounded ${isEdit ? 'bg-blue-600 text-white font-bold' : 'bg-white border border-slate-200 text-slate-600'} text-[11px]">
+                        ${isEdit ? '收起' : '修改'}
+                    </button>
+                    <button type="button" onclick="removeModalPlanItem(${idx})" class="px-1.5 py-0.5 rounded bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-[11px]">
+                        &times;
+                    </button>
+                </div>
+            </div>
+
+            ${isEdit ? `
+            <!-- 在该动作正下方展示的修改栏 -->
+            <div class="mt-2 pt-2 border-t border-slate-200/80 space-y-1.5 animate-fade-in">
+                <div class="grid grid-cols-3 gap-1.5">
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">组:</span>
+                        <input type="number" id="planItemEditSets_${idx}" value="${it.sets}" min="1" max="30" class="w-full min-w-0 font-bold text-center focus:outline-none text-xs">
+                    </div>
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-slate-200 min-w-0">
+                        <span class="text-[10px] text-slate-400 mr-1 shrink-0">${it.unit || '次'}:</span>
+                        <input type="number" id="planItemEditReps_${idx}" value="${it.reps}" min="1" max="300" class="w-full min-w-0 font-bold text-center focus:outline-none text-xs">
+                    </div>
+                    <div class="flex items-center bg-white px-2 py-1 rounded border border-blue-200 min-w-0">
+                        <span class="text-[10px] text-blue-500 mr-1 shrink-0">kg:</span>
+                        <input type="number" id="planItemEditWeight_${idx}" value="${it.weight}" min="0" max="500" step="0.5" class="w-full min-w-0 font-bold text-blue-600 text-center focus:outline-none text-xs">
+                    </div>
+                </div>
+                <div class="flex justify-end gap-1.5">
+                    <button type="button" onclick="toggleModalPlanItemEdit(-1)" class="px-2.5 py-1 bg-white border border-slate-200 text-slate-600 rounded text-[11px] font-medium">取消</button>
+                    <button type="button" onclick="applyModalPlanItemEdit(${idx})" class="px-3 py-1 bg-blue-600 text-white rounded text-[11px] font-bold">确认修改此项</button>
+                </div>
+            </div>
+            ` : ''}
+        </div>
+        `;
+    }).join('');
 }
 
-function closePlanEditor() {
-    editingPlanObj = null;
-    document.getElementById('planEditorCard').classList.add('hidden');
+function toggleModalPlanItemEdit(idx) {
+    editingPlanItemIdx = (editingPlanItemIdx === idx) ? -1 : idx;
+    renderModalPlanItemsList();
 }
 
-function addExerciseToEditingPlan() {
+function applyModalPlanItemEdit(idx) {
+    if (!editingPlanObj || !editingPlanObj.items[idx]) return;
+    const it = editingPlanObj.items[idx];
+    const s = Math.max(1, parseInt(document.getElementById(`planItemEditSets_${idx}`).value) || it.sets);
+    const r = Math.max(1, parseInt(document.getElementById(`planItemEditReps_${idx}`).value) || it.reps);
+    const w = Math.max(0, parseFloat(document.getElementById(`planItemEditWeight_${idx}`).value) || 0);
+    it.sets = s;
+    it.reps = r;
+    it.weight = w;
+    editingPlanItemIdx = -1;
+    renderModalPlanItemsList();
+    showToast('已更新该动作参数，点击底部“保存计划到云端”可同步云端');
+}
+
+function removeModalPlanItem(idx) {
+    if (!editingPlanObj) return;
+    editingPlanObj.items.splice(idx, 1);
+    if (editingPlanItemIdx === idx) editingPlanItemIdx = -1;
+    renderModalPlanItemsList();
+}
+
+function addExerciseToModalPlan() {
     if (!editingPlanObj) return;
     const exId = document.getElementById('planAddExSelect').value;
     const ex = getAllExercises().find(e => e.id === exId);
@@ -2171,46 +2337,63 @@ function addExerciseToEditingPlan() {
         weight,
         unit: ex.unit || '次'
     });
-    renderEditingPlanItems();
-    showToast(`已加入动作：${ex.shortTab || ex.name}`);
+    renderModalPlanItemsList();
+    showToast(`已从「${PART_NAMES[ex.part]}」加入：${ex.shortTab || ex.name}`);
 }
 
-function removeEditingPlanItem(idx) {
-    if (!editingPlanObj) return;
-    editingPlanObj.items.splice(idx, 1);
-    renderEditingPlanItems();
-}
-
-function renderEditingPlanItems() {
-    const box = document.getElementById('editingPlanItemsList');
+function importCurrentModalPlanToToday() {
     if (!editingPlanObj || !editingPlanObj.items.length) {
-        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">尚未添加动作，请在上方选择动作并点击“加入动作”</div>`;
+        showToast('计划内暂无动作');
         return;
     }
-    box.innerHTML = editingPlanObj.items.map((it, idx) => `
-        <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-            <span class="font-bold text-slate-800 truncate flex-1">${idx + 1}. ${it.name}</span>
-            <div class="flex items-center gap-2 shrink-0 ml-2">
-                <span class="text-slate-600">${it.sets}组×${it.reps}${it.unit || '次'} · <strong class="text-blue-600">${it.weight > 0 ? it.weight + 'kg' : '自重'}</strong></span>
-                <button type="button" onclick="removeEditingPlanItem(${idx})" class="text-slate-400 hover:text-rose-500 font-bold px-1">&times;</button>
-            </div>
-        </div>
-    `).join('');
+    const nameVal = document.getElementById('modalPlanNameInput').value.trim() || editingPlanObj.name;
+    importedTodos = editingPlanObj.items.map((it, idx) => ({
+        todoId: `todo_${Date.now()}_${idx}`,
+        exId: it.exId,
+        name: it.name,
+        part: it.part || 'back',
+        sets: it.sets,
+        reps: it.reps,
+        weight: it.weight,
+        unit: it.unit || '次',
+        note: '',
+        done: false
+    }));
+    editingTodoIdx = -1;
+    document.getElementById('importedPlanTitle').innerText = `已导入：${nameVal}`;
+    closePlanDetailModal();
+    switchRecordSubTab('checkin');
+    renderImportedTodoBox();
+    showToast(`已导入「${nameVal}」至今日打卡`);
 }
 
-async function saveEditingPlanToCloud(event) {
+async function saveModalPlanToCloud(event) {
     if (!editingPlanObj) return;
-    const nameVal = document.getElementById('editPlanName').value.trim();
+    // 若用户正展开了某一行修改栏尚未点“确认修改此项”，自动帮其应用修改
+    if (editingPlanItemIdx >= 0 && editingPlanObj.items[editingPlanItemIdx]) {
+        const idx = editingPlanItemIdx;
+        const sEl = document.getElementById(`planItemEditSets_${idx}`);
+        const rEl = document.getElementById(`planItemEditReps_${idx}`);
+        const wEl = document.getElementById(`planItemEditWeight_${idx}`);
+        if (sEl && rEl && wEl) {
+            editingPlanObj.items[idx].sets = Math.max(1, parseInt(sEl.value) || editingPlanObj.items[idx].sets);
+            editingPlanObj.items[idx].reps = Math.max(1, parseInt(rEl.value) || editingPlanObj.items[idx].reps);
+            editingPlanObj.items[idx].weight = Math.max(0, parseFloat(wEl.value) || 0);
+        }
+        editingPlanItemIdx = -1;
+    }
+
+    const nameVal = document.getElementById('modalPlanNameInput').value.trim();
     if (!nameVal) { showToast('请输入计划名称'); return; }
     if (!editingPlanObj.items.length) { showToast('请至少添加 1 个动作'); return; }
 
-    const btn = event && event.currentTarget ? event.currentTarget : null;
+    const btn = document.getElementById('saveModalPlanBtn');
     if (btn) { btn.innerText = '保存中...'; btn.disabled = true; }
 
     const planToSave = JSON.parse(JSON.stringify(editingPlanObj));
     planToSave.name = nameVal;
 
-    await fetchAllData(true);
+    await fetchAllData(true); // 参照 task.html：先拉取最新云端数据
 
     const myData = myIdentity === '哼哼' ? dataH : dataQ;
     const myPath = myIdentity === '哼哼' ? FILE_H : FILE_Q;
@@ -2228,9 +2411,9 @@ async function saveEditingPlanToCloud(event) {
             if (myIdentity === '哼哼') shaH = upRes.sha; else shaQ = upRes.sha;
         }
         saveLocalCache();
-        closePlanEditor();
+        closePlanDetailModal();
         renderPlansSubView();
-        showToast("计划已保存至云端");
+        showToast("计划修改已保存至云端");
     } else {
         showToast("保存失败，请重试");
     }
@@ -2381,13 +2564,13 @@ function renderCustomExSubView() {
     const list = myData.customExercises || [];
     const box = document.getElementById('customExListWrapper');
     if (!list.length) {
-        box.innerHTML = `<div class="text-center py-3 text-xs text-slate-400">当前尚无自建动作（内置动作库已含 45 个详尽动作）</div>`;
+        box.innerHTML = `<div class="text-center py-2 text-xs text-slate-400">当前尚无自建动作（内置动作库已含 45 个详尽动作）</div>`;
         return;
     }
-    box.innerHTML = `<div class="text-xs font-bold text-slate-600 mb-1">已创建的自建动作 (${list.length})：</div>` + list.map(ex => `
+    box.innerHTML = `<div class="text-[11px] font-bold text-slate-600 mb-1">已创建的自建动作 (${list.length})：</div>` + list.map(ex => `
         <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200 text-xs">
-            <span class="font-bold text-slate-800">${ex.name} <span class="text-slate-400 font-normal">(${ex.target})</span></span>
-            <button onclick="deleteCustomEx('${ex.id}')" class="text-slate-400 hover:text-rose-500 font-bold px-1">删除</button>
+            <span class="font-bold text-slate-800 truncate">${ex.name} <span class="text-slate-400 font-normal">(${ex.target})</span></span>
+            <button onclick="deleteCustomEx('${ex.id}')" class="text-slate-400 hover:text-rose-500 font-bold px-1 shrink-0">删除</button>
         </div>
     `).join('');
 }
@@ -2416,19 +2599,19 @@ async function deleteCustomEx(exId) {
 }
 
 // ============================================================================
-// 9. 单动作动画与超详细解析展示页（Canvas 常驻 DOM 不销毁，仅更新详情文本）
+// 9. 单动作动画与解析展示页（网格按钮全在屏幕内，Canvas 常驻 DOM 不销毁）
 // ============================================================================
 function renderSingleActionView() {
     const list = getAllExercises().filter(e => e.part === currentPartTab);
     const ex = getCurrentEx();
 
-    document.getElementById('partActionCountLabel').innerText = `当前部位共 ${list.length} 个动作（点击下方动作选项卡切换）：`;
+    document.getElementById('partActionCountLabel').innerText = `当前部位共 ${list.length} 个动作（全部屏内可见）：`;
     const tabsBar = document.getElementById('exerciseTabsBar');
     tabsBar.innerHTML = list.map(item => {
         const isAct = (item.id === ex.id);
         return `
             <button onclick="selectExercise('${item.id}')"
-                class="ex-tab px-3 py-1.5 rounded-lg text-xs border ${isAct ? 'active' : 'bg-slate-50 text-slate-600 border-slate-200'}">
+                class="ex-tab px-1.5 py-1 rounded-lg text-[11px] border truncate text-center ${isAct ? 'active' : 'bg-slate-50 text-slate-600 border-slate-200'}">
                 ${item.shortTab || item.name}
             </button>
         `;
@@ -2440,8 +2623,8 @@ function renderSingleActionView() {
         const b = document.getElementById(`stepBtn_${m}`);
         if (!b) return;
         b.className = (m === mode)
-            ? 'py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white'
-            : 'py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600';
+            ? 'py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-white'
+            : 'py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600';
     });
 
     document.getElementById('actionTitleText').innerText = ex.name;
@@ -2452,24 +2635,24 @@ function renderSingleActionView() {
     const hint = myIdentity === '亲亲' ? ex.hintQin : ex.hintHeng;
 
     document.getElementById('singleExerciseDetailsBox').innerHTML = `
-        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1">
-            <div class="flex items-center justify-between font-bold text-slate-800">
+        <div class="bg-slate-50 p-2 rounded-xl border border-slate-100 text-[11px] space-y-0.5">
+            <div class="flex items-center justify-between font-bold text-slate-800 gap-1 flex-wrap">
                 <span>训练安排：${ex.defaultSets} 组 × ${ex.defaultReps} ${ex.unit || '次'}</span>
-                <span class="text-blue-600">哼哼(53kg) ${wHeng} ｜ 亲亲(67kg) ${wQin}</span>
+                <span class="text-blue-600">哼哼 ${wHeng} ｜ 亲亲 ${wQin}</span>
             </div>
             <div class="text-slate-600">${hint}</div>
         </div>
 
-        <div class="space-y-1.5">
-            <div class="text-xs font-bold text-slate-900">动作四步超详细拆解</div>
-            <ol class="text-xs text-slate-700 space-y-2 pl-4 list-decimal leading-relaxed m-0">
+        <div class="space-y-1">
+            <div class="text-[11px] font-bold text-slate-900">动作四步拆解</div>
+            <ol class="text-[11px] text-slate-700 space-y-1 pl-4 list-decimal leading-snug m-0">
                 ${ex.steps.map(s => `<li>${s}</li>`).join('')}
             </ol>
         </div>
 
-        <div class="pt-2.5 border-t border-slate-100 text-xs space-y-2 leading-relaxed">
-            <div class="text-slate-700"><strong class="text-slate-900">发力原理与细节解释：</strong>${ex.explanation}</div>
-            <div class="text-rose-600"><strong class="text-rose-700">注意事项与防伤红线：</strong>${ex.precautions}</div>
+        <div class="pt-1.5 border-t border-slate-100 text-[11px] space-y-1 leading-snug">
+            <div class="text-slate-700"><strong class="text-slate-900">发力原理：</strong>${ex.explanation}</div>
+            <div class="text-rose-600"><strong class="text-rose-700">注意事项：</strong>${ex.precautions}</div>
         </div>
     `;
 }
@@ -2482,8 +2665,8 @@ function setAnimStep(mode) {
         const b = document.getElementById(`stepBtn_${m}`);
         if (!b) return;
         b.className = (m === mode)
-            ? 'py-1.5 rounded-lg text-xs font-bold bg-slate-900 text-white'
-            : 'py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-600';
+            ? 'py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-white'
+            : 'py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600';
     });
     const canvas = document.getElementById('active_anim_canvas');
     if (canvas) drawStage(canvas, ex, performance.now());
@@ -3614,7 +3797,6 @@ function startAnimationLoop() {
     if (animLoopStarted) return;
     animLoopStarted = true;
     function loop(nowMs) {
-        // 永远在第一行优先注册下一帧，确保任何情况下动画循环绝不中断或黑屏
         requestAnimationFrame(loop);
         if (currentMainTab === 'actions') {
             const canvas = document.getElementById('active_anim_canvas');
@@ -3648,7 +3830,7 @@ function showToast(msg) {
     setTimeout(() => {
         toast.classList.add('hidden');
         toast.classList.remove('toast-animate');
-    }, 3000);
+    }, 2600);
 }
 </script>
 </body>
