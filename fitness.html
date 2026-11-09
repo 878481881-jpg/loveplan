@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>健身训练与打卡 Pro v2.0</title>
+    <title>健身训练与跟练系统</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
@@ -53,16 +53,16 @@
         .ex-tab { transition: all 0.15s ease; cursor: pointer; user-select: none; }
         .ex-tab.active { background: #eff6ff; color: #1d4ed8; border-color: #3b82f6; font-weight: 700; }
 
-        .set-pill { transition: all 0.15s ease; cursor: pointer; user-select: none; }
-        .set-pill.done { background: #10b981; color: #ffffff; border-color: #059669; font-weight: 700; }
-        .set-pill.current { background: #eff6ff; color: #1d4ed8; border-color: #3b82f6; font-weight: 700; }
-
-        .rpe-btn { transition: all 0.15s ease; cursor: pointer; user-select: none; }
-        .rpe-btn.active { background: #0f172a; color: #ffffff; border-color: #0f172a; font-weight: 700; }
-
         canvas.stage {
             width: 100%;
-            height: 196px;
+            height: 190px;
+            display: block;
+            border-radius: 10px;
+            background: #0f172a;
+        }
+        canvas.stage-compact {
+            width: 100%;
+            height: 152px;
             display: block;
             border-radius: 10px;
             background: #0f172a;
@@ -89,7 +89,7 @@
         </a>
         <div class="text-center min-w-0 flex-1">
             <div class="flex items-center justify-center gap-1.5">
-                <h1 class="text-xs font-bold text-slate-900 leading-tight truncate">健身训练</h1>
+                <h1 class="text-xs font-bold text-slate-900 leading-tight truncate">健身跟练与打卡</h1>
                 <span id="headerRoleReadonly" class="text-[10px] px-1.5 py-0.2 rounded bg-slate-200/80 text-slate-700 font-bold truncate">读取中...</span>
             </div>
         </div>
@@ -98,34 +98,55 @@
         </div>
     </header>
 
-    <!-- 常驻工具条：智能组间休息倒计时 + 离心节拍器开关 -->
-    <div class="w-full bg-slate-900 text-white rounded-xl px-2.5 py-1 mb-1 shrink-0 flex items-center justify-between gap-1 text-[11px]">
-        <div class="flex items-center gap-1 min-w-0">
-            <span class="font-bold text-slate-300 shrink-0">休息:</span>
-            <span id="restTimerDisplay" class="font-bold text-emerald-400 tabular-nums truncate">未计时</span>
+    <!-- 顶部大字号组间休息横幅（倒计时开启时自动高亮放大，位于页面顶部，绝不阻挡下方动作动画） -->
+    <div id="topRestBanner" class="w-full bg-slate-900 text-white rounded-xl px-2.5 py-1.5 mb-1 shrink-0 transition-all">
+        <div class="flex items-center justify-between gap-1">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <span id="restBannerLabel" class="text-[11px] font-bold text-slate-300 shrink-0">组间休息:</span>
+                <span id="restTimerDisplay" class="text-base font-extrabold text-emerald-400 tabular-nums tracking-wide truncate">未计时</span>
+                <button type="button" onclick="adjustRestTimer(-15)" id="restMinusBtn" class="hidden px-1.5 py-0.5 rounded bg-slate-700 text-white text-[11px] font-bold">-15s</button>
+                <button type="button" onclick="adjustRestTimer(15)" id="restPlusBtn" class="hidden px-1.5 py-0.5 rounded bg-slate-700 text-white text-[11px] font-bold">+15s</button>
+            </div>
+            <div class="flex items-center gap-1 shrink-0">
+                <button type="button" onclick="startRestTimer(60)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-medium">60s</button>
+                <button type="button" onclick="startRestTimer(90)" class="px-2 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold">90s</button>
+                <button type="button" onclick="startRestTimer(120)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] font-medium">120s</button>
+                <button type="button" onclick="stopRestTimer()" id="restStopBtn" class="hidden px-2 py-0.5 rounded bg-rose-600 text-white text-[11px] font-bold">跳过</button>
+                <button type="button" onclick="openWarmupPlateModal()" class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold">配片算</button>
+            </div>
         </div>
-        <div class="flex items-center gap-1 shrink-0">
-            <button type="button" onclick="startRestTimer(60)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px]">60s</button>
-            <button type="button" onclick="startRestTimer(90)" class="px-1.5 py-0.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold">90s</button>
-            <button type="button" onclick="startRestTimer(120)" class="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px]">120s</button>
-            <button type="button" onclick="stopRestTimer()" id="restStopBtn" class="hidden px-1.5 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">停</button>
-            <button type="button" onclick="openWarmupPlateModal()" class="px-1.5 py-0.5 rounded bg-amber-500/20 border border-amber-400/40 text-amber-300 text-[10px] font-bold">配片/热身算</button>
+        <!-- 组间休息进行中时展开的大号倒计时进度面板（嵌入在顶部栏内，绝不遮挡动画） -->
+        <div id="restBigExpandedBar" class="hidden mt-1.5 pt-1.5 border-t border-slate-700/80 flex items-center justify-between gap-2 animate-fade-in">
+            <div class="flex items-baseline gap-2">
+                <span class="text-xs font-bold text-emerald-300">休息倒计时</span>
+                <span id="restBigDigits" class="text-2xl font-extrabold text-emerald-400 tabular-nums tracking-wider leading-none">01:30</span>
+            </div>
+            <div class="flex-1 min-w-0">
+                <div class="text-[10px] text-slate-300 truncate" id="restHrRecoveryTip">深呼吸放松 · 待心率回落开下一组</div>
+                <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden mt-1">
+                    <div id="restProgressBarFill" class="h-full bg-emerald-400 transition-all duration-300" style="width:100%"></div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 1. 主选项卡（打卡与计划 放在最前面 | 动作与肌群动画） -->
-    <div class="grid grid-cols-2 gap-1 p-1 bg-slate-200/80 rounded-xl mb-1 shrink-0">
-        <button onclick="switchMainTab('records')" id="mainTab_records" class="seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+    <!-- 1. 主选项卡（3列：跟练 [最前] | 打卡与计划 | 动作与动画） -->
+    <div class="grid grid-cols-3 gap-1 p-1 bg-slate-200/80 rounded-xl mb-1 shrink-0">
+        <button onclick="switchMainTab('follow')" id="mainTab_follow" class="seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+            <span>跟练</span>
+            <span id="followProgressBadge" class="px-1.5 py-0.2 bg-emerald-600 text-white rounded-full text-[10px]">0/0</span>
+        </button>
+        <button onclick="switchMainTab('records')" id="mainTab_records" class="seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1">
             <span>打卡与计划</span>
             <span id="todayCountBadge" class="px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] hidden">0</span>
         </button>
         <button onclick="switchMainTab('actions')" id="mainTab_actions" class="seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1">
-            <span>动作与肌群动画</span>
+            <span>动作与动画</span>
         </button>
     </div>
 
-    <!-- 2. 部位选项卡（热身排最前，5列等分100%在屏幕内） -->
-    <div id="partTabsRow" class="grid grid-cols-5 gap-1 bg-white p-1 rounded-xl border border-slate-200 mb-1 shrink-0">
+    <!-- 2. 部位选项卡（仅在「动作与动画」页显示；在「跟练」和「打卡与计划」中自动隐藏！） -->
+    <div id="partTabsRow" class="hidden grid grid-cols-5 gap-1 bg-white p-1 rounded-xl border border-slate-200 mb-1 shrink-0">
         <button onclick="switchPartTab('warmup')" id="partTab_warmup" class="part-tab active py-1 rounded-lg text-xs text-center">热身</button>
         <button onclick="switchPartTab('back')" id="partTab_back" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">背部</button>
         <button onclick="switchPartTab('legs')" id="partTab_legs" class="part-tab py-1 rounded-lg text-xs text-slate-600 text-center">腿部</button>
@@ -136,10 +157,151 @@
     <!-- ==================== 主内容弹性视口（自适应剩余手机屏幕高度，内部平滑滚动） ==================== -->
     <main class="flex-1 min-h-0 w-full overflow-y-auto custom-scroll space-y-1.5 pr-0.5">
 
-        <!-- ==================== 视图 1：打卡与计划 ==================== -->
-        <section id="view_records" class="space-y-1.5 animate-fade-in">
+        <!-- ==================== 视图 0（首屏默认）：独立完整「跟练」页面 ==================== -->
+        <section id="view_follow" class="space-y-1.5 animate-fade-in">
 
-            <!-- 子选项卡（4列100%屏内可见）：今日打卡 | 我的计划 | 增肌看板 | 自建动作 -->
+            <!-- 跟练顶部实训仪表盘：大号训练计时 + Apple Watch 实时心率 & iPhone 健身力量训练联动 + 方案切换 -->
+            <div class="card p-2.5 space-y-2">
+                <!-- 第一行：大号训练总计时仪表盘 + Apple Watch 实时心率仪表盘（并排大字号展示，不遮挡下方动画） -->
+                <div class="grid grid-cols-2 gap-1.5">
+                    <!-- 左卡：大号跟练总计时 + 联动开启 iPhone 健身「传统力量训练」 -->
+                    <div class="bg-slate-900 text-white p-2 rounded-xl flex flex-col justify-between">
+                        <div class="flex items-center justify-between text-[10px] text-slate-400">
+                            <span>实训总计时</span>
+                            <span id="appleWorkoutStateTag" class="px-1.5 py-0.2 rounded bg-slate-800 text-emerald-400 font-bold">待开启</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mt-1">
+                            <span id="workoutStopwatchText" class="text-2xl font-extrabold text-emerald-400 tabular-nums tracking-wider leading-none">00:00</span>
+                            <button type="button" onclick="toggleWorkoutStopwatch(true)" id="stopwatchToggleBtn" class="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[11px] font-bold shrink-0">
+                                开启训练
+                            </button>
+                        </div>
+                        <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-800 text-[9.5px] text-slate-400">
+                            <span id="activeKcalText">消耗: 0 kcal</span>
+                            <button type="button" onclick="launchAppleStrengthWorkout()" class="text-amber-300 font-bold underline">联动iPhone健身</button>
+                        </div>
+                    </div>
+
+                    <!-- 右卡：Apple Watch 实时心率监测面板（大号 BPM + 心率区间 + 实时心电脉冲线） -->
+                    <div class="bg-slate-900 text-white p-2 rounded-xl flex flex-col justify-between cursor-pointer" onclick="openWatchConnectModal()">
+                        <div class="flex items-center justify-between text-[10px]">
+                            <span class="text-rose-400 font-bold">Watch 实时心率</span>
+                            <span id="watchConnStatusBadge" class="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 font-bold text-[9.5px]">智能同步中</span>
+                        </div>
+                        <div class="flex items-baseline justify-between mt-1">
+                            <div>
+                                <span id="watchHrValueText" class="text-2xl font-extrabold text-rose-400 tabular-nums tracking-wider leading-none">86</span>
+                                <span class="text-[10px] text-slate-400 ml-0.5">BPM</span>
+                            </div>
+                            <span id="watchHrZoneBadge" class="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">热身准备区</span>
+                        </div>
+                        <div class="flex items-center justify-between mt-1 pt-1 border-t border-slate-800">
+                            <canvas id="ecgWaveCanvas" width="110" height="14" class="w-24 h-3.5 block"></canvas>
+                            <span class="text-[9.5px] text-blue-300 font-bold underline shrink-0">连接/校准</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第二行：跟练方案选择 + 整体进度条 -->
+                <div class="flex items-center justify-between gap-1.5">
+                    <div class="flex items-center gap-1 flex-1 min-w-0">
+                        <span class="text-[11px] font-bold text-slate-500 shrink-0">跟练方案:</span>
+                        <select id="followPlanSelect" onchange="onFollowPlanSelectChange()" class="flex-1 min-w-0 px-2 py-1 text-xs font-bold text-slate-900 bg-slate-100 border border-slate-200 rounded-lg focus:outline-none">
+                        </select>
+                    </div>
+                    <button type="button" onclick="openFollowAddExModal()" class="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-[11px] font-bold shrink-0">+加动作</button>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="flex items-center justify-between text-[10px] text-slate-500">
+                        <span id="followSummaryStatText">动作进度：0/0 项 ｜ 已完成 0/0 组 ｜ 累计容量 0 kg</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div id="followOverallProgressBar" class="h-full bg-emerald-500 transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- 跟练动作队列网格（屏内换行显示全部待跟练动作，点击任意动作直接切换） -->
+                <div id="followQueueGrid" class="grid grid-cols-3 gap-1 max-h-16 overflow-y-auto custom-scroll pr-0.5 pt-0.5">
+                </div>
+            </div>
+
+            <!-- 当前跟练动作实训主卡（含实时肌群动画小窗 + 发力要领 + 逐组矩阵） -->
+            <div class="card p-2.5 space-y-2">
+                <!-- 当前动作标题 + 上一项/下一项切换 + 平替 -->
+                <div class="flex items-start justify-between gap-1.5">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-1">
+                            <span id="followCurrentIdxTag" class="px-1.5 py-0.2 rounded bg-blue-600 text-white text-[10px] font-bold shrink-0">第1项</span>
+                            <h2 id="followCurrentExTitle" class="text-xs font-bold text-slate-900 truncate">-</h2>
+                        </div>
+                        <div id="followCurrentMuscleRow" class="flex flex-wrap items-center gap-1 mt-1">
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="swapFollowCurrentToAlt()" class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                            换平替
+                        </button>
+                        <button type="button" onclick="stepFollowExercise(-1)" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">
+                            上一项
+                        </button>
+                        <button type="button" onclick="stepFollowExercise(1)" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">
+                            下一项
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 跟练专属实时动作与肌群解剖动画窗口（支持折叠/展开、0.5x慢放与节拍音） -->
+                <div class="space-y-1">
+                    <div id="followCanvasWrapper">
+                        <canvas id="follow_anim_canvas" class="stage-compact" width="410" height="152"></canvas>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1">
+                        <button type="button" onclick="toggleFollowCanvasVisible()" id="toggleFollowCanvasBtn" class="py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">收起动画</button>
+                        <button type="button" onclick="toggleAnimSpeed()" id="followSpeedBtn" class="py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">速度:1.0x</button>
+                        <button type="button" onclick="toggleTempoVoice()" id="followVoiceBtn" class="py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">节拍音:关</button>
+                        <button type="button" onclick="toggleFollowCueDetail()" class="py-1 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">动作要领</button>
+                    </div>
+                    <!-- 核心发力要领与防伤红线速览框 -->
+                    <div id="followCueBox" class="bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] leading-snug space-y-0.5">
+                        <!-- JS 动态填充当前动作核心口诀、上次成绩与防伤红线 -->
+                    </div>
+                </div>
+
+                <!-- 逐组跟练操作矩阵（Set-by-Set Matrix：每组一行，可改重量/次数/RPE，点完成自动启动休息计时） -->
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[11px] font-bold text-slate-800">逐组跟练记录表（点“完成”自动计时休息）：</span>
+                        <div class="flex items-center gap-1">
+                            <button type="button" onclick="addFollowWarmupSet()" class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">+热身组</button>
+                            <button type="button" onclick="addFollowWorkingSet(false)" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">+加一组</button>
+                            <button type="button" onclick="addFollowWorkingSet(true)" class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold">+递减组</button>
+                        </div>
+                    </div>
+
+                    <!-- 逐组列表容器 -->
+                    <div id="followSetsMatrixContainer" class="space-y-1 max-h-40 overflow-y-auto custom-scroll pr-0.5">
+                        <!-- JS 渲染每一组的独立行：组号/类型 | 重量微调 | 次数微调 | RPE | 完成本组按钮 -->
+                    </div>
+                </div>
+
+                <!-- 底部主操作栏：一键完成本动作全部组并存入云端 Hmrjs/Qmrjs + 查看今日跟练总结 -->
+                <div class="grid grid-cols-2 gap-1.5 pt-1 border-t border-slate-100">
+                    <button type="button" onclick="finishCurrentFollowExercise(event)" id="finishFollowExBtn" class="py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm active:scale-95 transition">
+                        完成本动作并切下一项
+                    </button>
+                    <button type="button" onclick="openFollowSummaryModal()" class="py-2 rounded-xl bg-slate-900 text-white text-xs font-bold active:scale-95 transition">
+                        今日跟练总结报告
+                    </button>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ==================== 视图 1：打卡与计划（已移除顶部热身/背部等选项卡） ==================== -->
+        <section id="view_records" class="hidden space-y-1.5 animate-fade-in">
+
+            <!-- 子选项卡（4列100%屏内可见）：今日打卡 | 我的计划 | 增肌看板 | 动作入库 -->
             <div class="grid grid-cols-4 gap-1 bg-white p-1 rounded-xl border border-slate-200">
                 <button onclick="switchRecordSubTab('checkin')" id="subTab_checkin" class="sub-seg active py-1 rounded-lg text-[11px] border border-transparent text-center">
                     今日打卡
@@ -155,7 +317,7 @@
                 </button>
             </div>
 
-            <!-- ---------- 子面板 1A：今日打卡 ---------- -->
+            <!-- ---------- 子面板 1A：今日打卡（无顶部部位选项卡，干净清爽） ---------- -->
             <div id="subView_checkin" class="space-y-1.5">
 
                 <!-- 本周各部位有效组数达标进度条 & 今日训练建议 -->
@@ -188,12 +350,17 @@
                             <input type="date" id="logDateInput" onchange="renderRecordsView()" class="text-xs font-bold text-slate-800 bg-slate-100 px-1.5 py-1 rounded-lg border border-slate-200 focus:outline-none">
                             <button onclick="resetDateToToday()" class="text-[11px] text-blue-600 font-bold px-1.5 py-1 bg-blue-50 rounded-lg shrink-0">今天</button>
                         </div>
-                        <button onclick="openImportPlanModal()" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold active:scale-95 transition shrink-0">
-                            导入计划动作
-                        </button>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="switchMainTab('follow')" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-xs font-bold active:scale-95 transition">
+                                去跟练页
+                            </button>
+                            <button onclick="openImportPlanModal()" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold active:scale-95 transition">
+                                导入计划动作
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- 导入的计划待练清单：固定高度篇幅，内部上下滑动，点击“微调”在该动作下方展开修改栏 + 新增“换平替” -->
+                    <!-- 导入的计划待练清单：固定高度篇幅，内部上下滑动，点击“微调”在该动作下方展开修改栏 -->
                     <div id="importedTodoBox" class="hidden bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-1.5">
                         <div class="flex items-center justify-between gap-1 px-0.5">
                             <span id="importedPlanTitle" class="text-[11px] font-bold text-slate-800 truncate">已导入待练清单</span>
@@ -202,44 +369,28 @@
                                 <button onclick="clearImportedTodos()" class="text-[11px] text-slate-400">收起</button>
                             </div>
                         </div>
-                        <div id="importedTodoList" class="h-32 overflow-y-auto custom-scroll pr-0.5 space-y-1.5">
-                            <!-- JS 动态渲染 -->
+                        <div id="importedTodoList" class="h-36 overflow-y-auto custom-scroll pr-0.5 space-y-1.5">
                         </div>
                     </div>
 
-                    <!-- 单动作直接选择与打卡区（3列网格，全部按钮均在屏幕内可见） -->
-                    <div>
-                        <div class="flex items-center justify-between mb-1 gap-1">
-                            <span class="text-[11px] text-slate-500 font-medium truncate">点选当前部位动作（共52项）：</span>
-                            <div class="flex items-center gap-2 shrink-0">
-                                <button onclick="swapToAlternativeEx()" class="text-[11px] font-bold text-amber-600">器械被占?换平替</button>
-                                <button onclick="jumpToCurrentExerciseAnim()" class="text-[11px] font-bold text-blue-600">看肌群动画</button>
-                            </div>
+                    <!-- 快速单动作选择框（内联分类下拉 + 动作下拉，不占用顶部选项卡） -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[11px] font-bold text-slate-600">快速单项打卡（先选分类再选动作）：</span>
+                            <button onclick="jumpToCurrentExerciseAnim()" class="text-[11px] font-bold text-blue-600 shrink-0">看此动作动画</button>
                         </div>
-                        <div id="recordExercisePills" class="grid grid-cols-3 gap-1 max-h-20 overflow-y-auto custom-scroll pr-0.5">
-                            <!-- JS 渲染 3 列网格胶囊 -->
+                        <div class="flex gap-1.5">
+                            <select id="quickCheckinCatSelect" onchange="onQuickCheckinCatChange()" class="w-20 px-1.5 py-1.5 text-xs font-bold bg-slate-100 border border-slate-200 rounded-lg focus:outline-none shrink-0">
+                                <option value="warmup">热身</option>
+                                <option value="back" selected>背部</option>
+                                <option value="legs">腿部</option>
+                                <option value="chest">胸肩</option>
+                                <option value="stretch">拉伸</option>
+                            </select>
+                            <select id="quickCheckinExSelect" onchange="onQuickCheckinExChange()" class="flex-1 min-w-0 px-2 py-1.5 text-xs font-bold bg-slate-50 border border-slate-200 rounded-lg focus:outline-none">
+                            </select>
                         </div>
-                        <!-- 渐进超负荷历史对比与一键进阶栏 -->
-                        <div id="recordHintBar" class="text-[11px] text-slate-600 mt-1.5 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 leading-snug space-y-1">
-                        </div>
-                    </div>
-
-                    <!-- Pro v2.0 升级：逐组跟练打钩进度条 + RPE 发力感受自评 -->
-                    <div class="bg-slate-50 p-2 rounded-xl border border-slate-200 space-y-1.5">
-                        <div class="flex items-center justify-between text-[10px]">
-                            <span class="font-bold text-slate-700">逐组跟练打钩（每点1组自动开启90s休息计时）：</span>
-                            <button type="button" onclick="resetLiveSets()" class="text-slate-400 hover:text-slate-600">重置组数</button>
-                        </div>
-                        <div id="liveSetTrackerBar" class="grid grid-cols-4 gap-1">
-                            <!-- JS 根据当前组数生成 第1组 ~ 第N组 按钮 -->
-                        </div>
-                        <div class="flex items-center justify-between gap-1 pt-0.5">
-                            <span class="text-[10px] text-slate-500 shrink-0">本项发力感(RPE)：</span>
-                            <div class="grid grid-cols-3 gap-1 flex-1">
-                                <button type="button" onclick="selectRpe('轻松(余3次)')" id="rpe_easy" class="rpe-btn py-0.5 rounded border border-slate-200 bg-white text-[10px] text-slate-600">轻松(余3次)</button>
-                                <button type="button" onclick="selectRpe('黄金(余1-2次)')" id="rpe_good" class="rpe-btn active py-0.5 rounded border text-[10px]">黄金(余1-2次)</button>
-                                <button type="button" onclick="selectRpe('力竭(0余力)')" id="rpe_max" class="rpe-btn py-0.5 rounded border border-slate-200 bg-white text-[10px] text-slate-600">力竭(0余力)</button>
-                            </div>
+                        <div id="recordHintBar" class="text-[11px] text-slate-600 bg-slate-50 px-2.5 py-1.5 rounded-lg border border-slate-100 leading-snug space-y-1">
                         </div>
                     </div>
 
@@ -248,9 +399,9 @@
                         <div class="bg-slate-50 p-1.5 rounded-xl border border-slate-200 text-center min-w-0">
                             <div class="text-[10px] text-slate-500 mb-0.5">组数 (组)</div>
                             <div class="flex items-center justify-between gap-0.5">
-                                <button type="button" onclick="adjustNum('inputSets', -1, 1, 20); renderLiveSetPills();" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">-</button>
-                                <input type="number" id="inputSets" value="4" onchange="renderLiveSetPills()" class="w-full min-w-0 text-center font-bold text-xs bg-transparent focus:outline-none">
-                                <button type="button" onclick="adjustNum('inputSets', 1, 1, 20); renderLiveSetPills();" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">+</button>
+                                <button type="button" onclick="adjustNum('inputSets', -1, 1, 20)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">-</button>
+                                <input type="number" id="inputSets" value="4" class="w-full min-w-0 text-center font-bold text-xs bg-transparent focus:outline-none">
+                                <button type="button" onclick="adjustNum('inputSets', 1, 1, 20)" class="w-6 h-6 rounded bg-white border border-slate-200 font-bold text-xs text-slate-700 shrink-0">+</button>
                             </div>
                         </div>
 
@@ -302,8 +453,7 @@
                         </div>
                     </div>
 
-                    <div id="dailyRecordsListContainer" class="space-y-1.5 max-h-28 overflow-y-auto custom-scroll pr-0.5">
-                        <!-- JS 按天渲染日期汇总卡片 -->
+                    <div id="dailyRecordsListContainer" class="space-y-1.5 max-h-36 overflow-y-auto custom-scroll pr-0.5">
                     </div>
                 </div>
             </div>
@@ -323,37 +473,31 @@
                         </button>
                     </div>
 
-                    <div id="myPlansListContainer" class="space-y-1.5 max-h-[58dvh] overflow-y-auto custom-scroll pr-0.5">
-                        <!-- JS 动态渲染 -->
+                    <div id="myPlansListContainer" class="space-y-1.5 max-h-[60dvh] overflow-y-auto custom-scroll pr-0.5">
                     </div>
                 </div>
             </div>
 
-            <!-- ---------- 子面板 1C（Pro v2.0 新增）：增肌看板（1RM力量评估 + 进阶曲线 + 营养/体测云端追踪 + 双人PK） ---------- -->
+            <!-- ---------- 子面板 1C：增肌看板 ---------- -->
             <div id="subView_analytics" class="hidden space-y-2 animate-fade-in">
-                <!-- 1. 哼哼 & 亲亲 双人本周训练PK激励卡 -->
                 <div class="card p-2.5 space-y-1.5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold text-slate-900">双人近7天训练完成度对比</h3>
                         <span class="text-[10px] text-slate-400">云端实时同步</span>
                     </div>
                     <div id="partnerPkBox" class="grid grid-cols-2 gap-1.5 text-xs">
-                        <!-- JS 渲染哼哼与亲亲近7天天数、组数、总容量对比 -->
                     </div>
                 </div>
 
-                <!-- 2. 四大复合主项 e1RM 极限力量估算与身高等级达标率 -->
                 <div class="card p-2.5 space-y-1.5">
                     <div class="flex items-center justify-between">
                         <h3 class="text-xs font-bold text-slate-900">四大王牌主项 e1RM 极限力量估算</h3>
                         <span class="text-[10px] text-blue-600 font-medium">Epley公式: W×(1+次/30)</span>
                     </div>
                     <div id="e1rmGridBox" class="grid grid-cols-2 gap-1.5 text-[11px]">
-                        <!-- JS 动态计算引体/下拉、深蹲/倒蹬、卧推/推胸、划船的最高 e1RM -->
                     </div>
                 </div>
 
-                <!-- 3. 单动作历史配重进阶趋势图 -->
                 <div class="card p-2.5 space-y-1.5">
                     <div class="flex items-center justify-between gap-1.5">
                         <span class="text-xs font-bold text-slate-900 shrink-0">动作负重进阶趋势：</span>
@@ -363,12 +507,10 @@
                     <canvas id="trendChartCanvas" width="380" height="110" class="w-full h-28 bg-slate-900 rounded-xl block"></canvas>
                 </div>
 
-                <!-- 4. 个性化增肌每日营养目标 + 体重/体围云端打卡 -->
                 <div class="card p-2.5 space-y-2">
                     <div>
                         <h3 class="text-xs font-bold text-slate-900">每日增肌营养目标 & 体重体围记录</h3>
                         <div id="nutritionTargetBox" class="text-[10px] text-slate-600 mt-1 bg-blue-50/60 p-2 rounded-lg border border-blue-100 leading-relaxed">
-                            <!-- JS 根据哼哼 53kg / 亲亲 67kg 自动计算每日热量、蛋白质、碳水、脂肪与饮水目标 -->
                         </div>
                     </div>
                     <div class="grid grid-cols-3 gap-1.5">
@@ -398,7 +540,7 @@
                 <div class="card p-3 space-y-2">
                     <div>
                         <h3 class="text-xs font-bold text-slate-900">创建新动作加入动作库</h3>
-                        <p class="text-[10px] text-slate-400 mt-0.5">自定义动作将保存在你的云端动作库中，可在计划与打卡中直接使用</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">自定义动作将保存在你的云端计划库文件 (Hjs/Qjs) 中</p>
                     </div>
 
                     <div class="grid grid-cols-2 gap-1.5">
@@ -460,7 +602,7 @@
 
         </section>
 
-        <!-- ==================== 视图 2：动作与肌群动画（Pro v2.0 慢放剖析 + 语音节拍 + 平替切换） ==================== -->
+        <!-- ==================== 视图 2：动作与肌群动画 ==================== -->
         <section id="view_actions" class="hidden space-y-1.5 animate-fade-in">
 
             <!-- 动作选项卡栏（3列网格自动换行，所有动作按钮100%在手机屏内可见） -->
@@ -484,14 +626,18 @@
                         <div id="actionMuscleChips" class="flex flex-wrap items-center gap-1 mt-1">
                         </div>
                     </div>
-                    <button onclick="jumpToRecordCurrentExercise()" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-xs font-bold shrink-0 active:scale-95 transition">
-                        去打卡
-                    </button>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="startFollowSingleExercise()" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold active:scale-95 transition">
+                            跟练此项
+                        </button>
+                        <button onclick="jumpToRecordCurrentExercise()" class="px-2 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold active:scale-95 transition">
+                            去打卡
+                        </button>
+                    </div>
                 </div>
 
                 <div>
-                    <canvas id="active_anim_canvas" class="stage" width="410" height="196"></canvas>
-                    <!-- 5步控制栏 -->
+                    <canvas id="active_anim_canvas" class="stage" width="410" height="190"></canvas>
                     <div class="grid grid-cols-5 gap-1 mt-1.5">
                         <button onclick="setAnimStep('loop')" id="stepBtn_loop" class="py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-white">连续动画</button>
                         <button onclick="setAnimStep(0)" id="stepBtn_0" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">1.准备</button>
@@ -499,7 +645,6 @@
                         <button onclick="setAnimStep(2)" id="stepBtn_2" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">3.顶峰</button>
                         <button onclick="setAnimStep(3)" id="stepBtn_3" class="py-1 rounded-lg text-[11px] font-medium bg-slate-100 text-slate-600">4.回放</button>
                     </div>
-                    <!-- Pro v2.0 动画辅助控制栏：0.5x慢速细节剖析 + 离心节拍音引导 -->
                     <div class="grid grid-cols-2 gap-1.5 mt-1">
                         <button type="button" onclick="toggleAnimSpeed()" id="animSpeedBtn" class="py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200">
                             播放速度：1.0x 正常
@@ -510,7 +655,6 @@
                     </div>
                 </div>
 
-                <!-- 动作文字解析区 -->
                 <div id="singleExerciseDetailsBox" class="space-y-1.5">
                 </div>
             </div>
@@ -527,7 +671,7 @@
     </footer>
 </div>
 
-<!-- ==================== 弹窗 1：计划详情与编辑弹窗（点击详情弹出，一条一行，点修改在下方展开修改栏，按分类选动作加入） ==================== -->
+<!-- ==================== 弹窗 1：计划详情与编辑弹窗 ==================== -->
 <div id="planDetailModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closePlanDetailModal()">
     <div class="bg-white rounded-2xl w-full max-w-sm max-h-[88dvh] shadow-2xl flex flex-col overflow-hidden">
         <div class="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50 shrink-0 gap-2">
@@ -549,13 +693,15 @@
             <div>
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-[11px] font-bold text-slate-700">计划内动作清单（共 <span id="modalPlanItemCount">0</span> 项）：</span>
-                    <button type="button" onclick="importCurrentModalPlanToToday()" class="text-[11px] font-bold text-blue-600">导入今日打卡</button>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="startFollowFromModalPlan()" class="text-[11px] font-bold text-emerald-600">直接去跟练</button>
+                        <button type="button" onclick="importCurrentModalPlanToToday()" class="text-[11px] font-bold text-blue-600">导入打卡</button>
+                    </div>
                 </div>
                 <div id="modalPlanItemsList" class="space-y-1.5 max-h-48 overflow-y-auto custom-scroll pr-0.5">
                 </div>
             </div>
 
-            <!-- 加入新动作区域：先展示分类（热身/背部/腿部/胸肩/拉伸），再在分类中选动作 -->
             <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 space-y-2">
                 <div class="text-[11px] font-bold text-slate-700">加入动作（第1步：选择分类 → 第2步：选择动作）：</div>
 
@@ -625,7 +771,7 @@
             <h3 class="text-xs font-bold text-slate-900 truncate">导入 <span id="importModalRoleName" class="text-blue-600">-</span> 的训练计划</h3>
             <button onclick="closeImportPlanModal()" class="text-slate-400 text-base font-bold px-1">&times;</button>
         </div>
-        <p class="text-[11px] text-slate-500 m-0 shrink-0">选择计划载入今日待练框（也可点击“详情”查看计划动作）：</p>
+        <p class="text-[11px] text-slate-500 m-0 shrink-0">可导入今日打卡微调框，或直接载入「跟练」逐组实训：</p>
         <div id="importPlansModalList" class="space-y-1.5 overflow-y-auto custom-scroll flex-1 min-h-0 pr-0.5">
         </div>
         <div class="pt-2 border-t border-slate-100 flex justify-between items-center shrink-0">
@@ -635,7 +781,7 @@
     </div>
 </div>
 
-<!-- ==================== 弹窗 4（Pro v2.0 新增）：热身组金字塔速算 & 杠铃单边配片计算器 ==================== -->
+<!-- ==================== 弹窗 4：热身组金字塔速算 & 杠铃单边配片计算器 ==================== -->
 <div id="warmupPlateModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeWarmupPlateModal()">
     <div class="bg-white rounded-2xl w-full max-w-sm p-3.5 shadow-xl space-y-3 max-h-[84dvh] flex flex-col overflow-hidden">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
@@ -657,6 +803,127 @@
             </div>
         </div>
         <button onclick="closeWarmupPlateModal()" class="w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shrink-0">关闭计算器</button>
+    </div>
+</div>
+
+<!-- ==================== 弹窗 5（跟练页专属）：临时加动作入跟练队列弹窗 ==================== -->
+<div id="followAddExModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeFollowAddExModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-3.5 shadow-xl space-y-2.5 max-h-[82dvh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
+            <h3 class="text-xs font-bold text-slate-900">向当前跟练队列追加动作</h3>
+            <button onclick="closeFollowAddExModal()" class="text-slate-400 text-base font-bold px-1">&times;</button>
+        </div>
+        <div class="space-y-2 text-xs">
+            <div class="text-[11px] font-bold text-slate-600">1. 选择部位分类：</div>
+            <div class="grid grid-cols-5 gap-1 bg-slate-100 p-1 rounded-lg">
+                <button type="button" onclick="selectFollowAddCat('warmup')" id="fAddCat_warmup" class="py-1 rounded text-[11px] text-center text-slate-600">热身</button>
+                <button type="button" onclick="selectFollowAddCat('back')" id="fAddCat_back" class="py-1 rounded text-[11px] font-bold text-center bg-blue-600 text-white">背部</button>
+                <button type="button" onclick="selectFollowAddCat('legs')" id="fAddCat_legs" class="py-1 rounded text-[11px] text-center text-slate-600">腿部</button>
+                <button type="button" onclick="selectFollowAddCat('chest')" id="fAddCat_chest" class="py-1 rounded text-[11px] text-center text-slate-600">胸肩</button>
+                <button type="button" onclick="selectFollowAddCat('stretch')" id="fAddCat_stretch" class="py-1 rounded text-[11px] text-center text-slate-600">拉伸</button>
+            </div>
+            <div class="text-[11px] font-bold text-slate-600">2. 选择具体动作：</div>
+            <select id="followAddExSelect" class="w-full px-2.5 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none">
+            </select>
+        </div>
+        <div class="flex gap-2 pt-2">
+            <button type="button" onclick="closeFollowAddExModal()" class="flex-1 py-2 rounded-xl bg-slate-100 text-slate-600 text-xs font-bold">取消</button>
+            <button type="button" onclick="confirmFollowAddEx()" class="flex-1 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">加入跟练队列</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 弹窗 6（跟练页专属）：今日跟练完成总结报告弹窗 ==================== -->
+<div id="followSummaryModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeFollowSummaryModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-4 shadow-xl space-y-3 max-h-[84dvh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
+            <h3 class="text-sm font-bold text-slate-900">今日跟练实训总结报告</h3>
+            <button onclick="closeFollowSummaryModal()" class="text-slate-400 text-base font-bold px-1">&times;</button>
+        </div>
+        <div id="followSummaryBody" class="overflow-y-auto custom-scroll space-y-2.5 flex-1 min-h-0 text-xs">
+        </div>
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 shrink-0">
+            <button type="button" onclick="closeFollowSummaryModal()" class="py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold">继续跟练</button>
+            <button type="button" onclick="saveRemainingFollowAndFinish(event)" class="py-2 rounded-xl bg-blue-600 text-white text-xs font-bold">一键归档未存项</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 弹窗 7：iPhone「健身」传统力量训练联动 & Apple Watch 心率接入弹窗 ==================== -->
+<div id="watchConnectModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeWatchConnectModal()">
+    <div class="bg-white rounded-2xl w-full max-w-sm p-4 shadow-xl space-y-3 max-h-[86dvh] flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
+            <div>
+                <h3 class="text-xs font-bold text-slate-900">iPhone 健身 & Apple Watch 心率联动中心</h3>
+                <p class="text-[10px] text-slate-500 mt-0.5">支持开启传统力量训练与实时读取/同步手表心率</p>
+            </div>
+            <button onclick="closeWatchConnectModal()" class="text-slate-400 text-base font-bold px-1">&times;</button>
+        </div>
+
+        <div class="overflow-y-auto custom-scroll space-y-2.5 flex-1 min-h-0 text-xs">
+            <!-- 方式 1：联动开启 iPhone / Apple Watch「传统力量训练」 -->
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center justify-between">
+                    <span>1. 开启 Apple Watch「传统力量训练」</span>
+                    <span class="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 font-bold">iOS 原生联动</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-snug m-0">
+                    点击下方按钮将通过 iOS 快捷指令协议（<code>shortcuts://run-shortcut?name=开启力量训练</code>）直接唤醒 iPhone 与 Apple Watch 的「体能训练 App → 传统力量训练」，同时启动本页实训计时：
+                </p>
+                <div class="flex items-center gap-1.5 pt-1">
+                    <label class="flex items-center gap-1 text-[11px] text-slate-700 font-medium cursor-pointer flex-1">
+                        <input type="checkbox" id="autoLaunchAppleWorkoutChk" onchange="toggleAutoLaunchAppleWorkout(this.checked)" class="rounded">
+                        <span>点“开启训练”时自动唤醒 iPhone 健身</span>
+                    </label>
+                    <button type="button" onclick="launchAppleStrengthWorkout()" class="px-2.5 py-1.5 rounded-lg bg-slate-900 text-white text-[11px] font-bold shrink-0">
+                        立即唤醒力量训练
+                    </button>
+                </div>
+            </div>
+
+            <!-- 方式 2：Web Bluetooth 蓝牙心率直连 (BLE 0x180D) -->
+            <div class="p-2.5 rounded-xl bg-blue-50/50 border border-blue-200 space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center justify-between">
+                    <span>2. 蓝牙心率广播直连 (BLE 0x180D)</span>
+                    <span id="bleModalStateText" class="text-[10px] text-blue-600 font-bold">支持心率广播设备</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-snug m-0">
+                    若使用支持 Web Bluetooth 的浏览器（如 iOS Bluefy / Mac Chrome）或开启心率广播，可直接订阅 GATT <code>0x2A37</code> 实时心率流：
+                </p>
+                <button type="button" onclick="connectBleHeartRate()" class="w-full py-1.5 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
+                    扫描并连接蓝牙心率设备
+                </button>
+            </div>
+
+            <!-- 方式 3：iOS 快捷指令回传 / 手表实时心率秒同与校准 -->
+            <div class="p-2.5 rounded-xl bg-rose-50/50 border border-rose-200 space-y-1.5">
+                <div class="font-bold text-slate-900 flex items-center justify-between">
+                    <span>3. Apple Watch 心率实时同步与校准</span>
+                    <span class="text-[10px] text-rose-600 font-bold">Safari 免插件可用</span>
+                </div>
+                <p class="text-[11px] text-slate-600 leading-snug m-0">
+                    支持从 iOS「同步手表心率」快捷指令自动回传（或读取剪贴板/手动输入当前表盘心率），跟练期间会根据你的做组完成与组间休息阶段实时计算心率冲高与恢复曲线：
+                </p>
+                <div class="flex gap-1.5 pt-0.5">
+                    <input type="number" id="manualWatchHrInput" placeholder="输入手表当前心率(如132)" class="flex-1 min-w-0 px-2.5 py-1.5 text-xs font-bold bg-white border border-rose-200 rounded-lg focus:outline-none">
+                    <button type="button" onclick="applyManualWatchHr()" class="px-3 py-1.5 rounded-lg bg-rose-600 text-white text-[11px] font-bold shrink-0">
+                        同步校准
+                    </button>
+                    <button type="button" onclick="pullWatchHrViaShortcut()" class="px-2.5 py-1.5 rounded-lg bg-slate-800 text-white text-[11px] font-bold shrink-0">
+                        快捷指令读取
+                    </button>
+                </div>
+            </div>
+
+            <!-- iOS 快捷指令 30 秒配置说明 -->
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10.5px] text-slate-600 space-y-1 leading-relaxed">
+                <div class="font-bold text-slate-800">iPhone 快捷指令 2 步配置说明（仅需首次设置）：</div>
+                <div>① 打开 iPhone「快捷指令」App，新建快捷指令命名为 <strong>开启力量训练</strong>，添加操作「<strong>开始体能训练 → 传统力量训练</strong>」（设置为开放式目标）。</div>
+                <div>②（可选）新建快捷指令命名为 <strong>同步手表心率</strong>，添加操作「<strong>查找健康样本（类型：心率，排序：最新，限制1条） → 拷贝到剪贴板</strong>」。</div>
+            </div>
+        </div>
+
+        <button type="button" onclick="closeWatchConnectModal()" class="w-full py-2 rounded-xl bg-slate-900 text-white text-xs font-bold shrink-0">完成并关闭</button>
     </div>
 </div>
 
@@ -682,7 +949,6 @@ const PART_NAMES = {
     stretch: '拉伸'
 };
 
-// 器械被占时的同肌群黄金平替动作链映射表
 const ALTERNATIVE_MAP = {
     pull_up: 'lat_pulldown',
     lat_pulldown: 'pull_up',
@@ -725,7 +991,6 @@ const ALTERNATIVE_MAP = {
     overhead_tricep_ext: 'tricep_pushdown'
 };
 
-// 全 52 个动作对应的解剖学主发力肌群、协同肌群、人体正背面视图与引线标注文字
 const MUSCLE_MAP_META = {
     warmup_back_roll: { view: 'back', primary: ['traps_mid', 'erectors'], secondary: ['lats_upper'], pText: '胸椎筋膜/中下斜方', sText: '竖脊肌胸段' },
     warmup_open_chest: { view: 'front', primary: ['chest_mid', 'delt_front'], secondary: ['obliques'], pText: '胸大肌/胸椎旋转', sText: '前锯肌/肋间肌' },
@@ -786,13 +1051,11 @@ const MUSCLE_MAP_META = {
 };
 
 const OWNER_REPO = '878481881-jpg/loveplan';
-// 健身计划与自建动作库文件（Hjs / Qjs）
 const FILE_PLAN_H = 'data/Hjs.json';
 const FILE_PLAN_Q = 'data/Qjs.json';
-// 每日完成打卡记录与体测文件（Hmrjs / Qmrjs），分开存储防止单文件过大
 const FILE_DAILY_H = 'data/Hmrjs.json';
 const FILE_DAILY_Q = 'data/Qmrjs.json';
-const LOCAL_CACHE_KEY = 'loveGacha_fitnessSuite_v9_split';
+const LOCAL_CACHE_KEY = 'loveGacha_fitnessSuite_v10_follow';
 
 if (!GITHUB_TOKEN || !myIdentity) {
     if (window.location.protocol.startsWith('http')) {
@@ -804,10 +1067,6 @@ if (!GITHUB_TOKEN || !myIdentity) {
 // 2. 详尽 52 项动作库
 // ============================================================================
 const BUILTIN_EXERCISES = [
-
-
-
-    // ---------- 热身 (warmup, 8项) ----------
     {
         id: 'warmup_back_roll', part: 'warmup', animType: 'warmup_back_roll', shortTab: '1. 泡沫轴滚背',
         name: '上肢热身 1：泡沫轴滚背部（胸椎筋膜松解）',
@@ -936,8 +1195,7 @@ const BUILTIN_EXERCISES = [
         explanation: '笔记下肢热身第3、4步（01:04:43）：打开髋关节外展能力，预防深蹲与宽距倒蹬时膝盖内扣。',
         precautions: '青蛙趴时双膝下方务必垫软垫；保持腰背平直不塌腰。'
     },
-
-    ,{
+    {
         id: 'warmup_core_brace', part: 'warmup', animType: 'warmup_core_brace', shortTab: '9. 核心抗超伸激活',
         name: '核心激活：死虫式腹内压建立与骨盆后倾控制',
         target: '腹横肌、腹直肌、多裂肌（建立深蹲/硬拉/推举核心刚性）',
@@ -953,25 +1211,6 @@ const BUILTIN_EXERCISES = [
         explanation: '所有大重量深蹲、硬拉、引体、推肩的核心安全基石，唤醒深层腹横肌，彻底杜绝正式组塌腰借力。',
         precautions: '下放手脚时一旦感觉下腰离开垫面，立即减小下放幅度；全程腰椎贴死地面。'
     },
-
-    ,{
-        id: 'warmup_core_brace', part: 'warmup', animType: 'warmup_core_brace', shortTab: '9. 核心抗超伸激活',
-        name: '核心激活：死虫式腹内压建立与骨盆后倾控制',
-        target: '腹横肌、腹直肌、多裂肌（建立深蹲/硬拉/推举核心刚性）',
-        defaultSets: 2, defaultReps: 16, unit: '次', weightHeng: 0, weightQin: 0,
-        hintHeng: '哼哼（165cm/53kg）：仰卧下背死贴地面，对侧手脚交替延伸 16 次',
-        hintQin: '亲亲（178cm/67kg）：仰卧下背死贴地面，对侧手脚交替延伸 16 次',
-        steps: [
-            '骨盆后倾贴地：仰卧在垫上，双臂举向天花板，屈髋屈膝呈90°；主动收腹使下背部（腰椎）死死压实垫面，不留一丝空隙。',
-            '吸气建立腹内压：用鼻子深吸气沉入腹腔，感受腹部四周像充气的轮胎一样向外撑紧。',
-            '吐气对侧延伸：缓慢吐气的同时，将左臂与右腿向地面方向缓慢伸展下放（悬空不触地），保持腰部绝不拱起。',
-            '慢速收回换侧：吸气收回至起始位，换右臂与左腿交替延伸，共完成 16 次。'
-        ],
-        explanation: '所有大重量深蹲、硬拉、引体、推肩的核心安全基石，唤醒深层腹横肌，彻底杜绝正式组塌腰借力。',
-        precautions: '下放手脚时一旦感觉下腰离开垫面，立即减小下放幅度；全程腰椎贴死地面。'
-    },
-
-    // ---------- 背部+二头 (back, 12项) ----------
     {
         id: 'pull_up', part: 'back', animType: 'pull_up', shortTab: '1. 正手引体向上',
         name: '1. 正手宽握引体向上（含弹力带/器械辅助 — 背宽王牌）',
@@ -1182,8 +1421,7 @@ const BUILTIN_EXERCISES = [
         explanation: '重点刺激深层肱肌与小臂肱桡肌，增加手臂侧面立体厚度并提升拉背握力耐力。',
         precautions: '手腕全程保持中立刚性，不借身体晃动甩起哑铃。'
     },
-
-    ,{
+    {
         id: 'chest_supported_row', part: 'back', animType: 'cable_row', shortTab: '坐姿胸托划船',
         name: '坐姿固定器械划船（胸托稳定版 — 零腰椎压力榨干背厚）',
         target: '背阔肌中下部、菱形肌、中下斜方肌',
@@ -1215,41 +1453,6 @@ const BUILTIN_EXERCISES = [
         explanation: '斜托垫物理锁死大臂位置，让肱二头肌在底部拉伸位承受最大张力，增粗手臂围度极佳。',
         precautions: '下放到底部时必须保留约 10° 微屈，严禁大重量到底猛放锁死肘关节以防肌腱拉伤。'
     },
-
-    ,{
-        id: 'chest_supported_row', part: 'back', animType: 'cable_row', shortTab: '坐姿胸托划船',
-        name: '坐姿固定器械划船（胸托稳定版 — 零腰椎压力榨干背厚）',
-        target: '背阔肌中下部、菱形肌、中下斜方肌',
-        defaultSets: 4, defaultReps: 12, unit: '次', weightHeng: 27.5, weightQin: 40,
-        hintHeng: '哼哼（165cm/53kg）推荐：25～32.5 kg × 12次（绳索划船被占时的最佳平替）',
-        hintQin: '亲亲（178cm/67kg）推荐：35～47.5 kg × 12次（绳索划船被占时的最佳平替）',
-        steps: [
-            '胸贴靠垫调整：调整座椅高度，使上腹部至下胸部紧贴前方胸垫，双手钩握对握或宽握把手。',
-            '沉肩送肩拉伸：起始位让肩胛骨适度前引，充分拉开背阔肌与菱形肌。',
-            '吐气手肘后驱：吐气发力，想象用手肘带动向后拉动把手，在顶峰用力夹紧肩胛骨停顿 1 秒。',
-            '慢速离心控制：吸气用 2~3 秒缓慢放回，胸部全程不离开靠垫。'
-        ],
-        explanation: '有胸垫支撑可彻底消除下背部疲劳与晃动借力，非常适合绳索划船机排队时平替或练背收尾力竭。',
-        precautions: '不要靠胸口猛顶靠垫反作用力拉起重量；全程沉肩。'
-    },
-    {
-        id: 'preacher_curl', part: 'back', animType: 'bicep_curl', shortTab: '牧师凳二头弯举',
-        name: '牧师凳曲杆/器械斜托弯举（锁死大臂孤立二头肌短头与肌峰）',
-        target: '肱二头肌短头、肱肌（彻底消除身体晃动借力）',
-        defaultSets: 3, defaultReps: 12, unit: '次', weightHeng: 12.5, weightQin: 17.5,
-        hintHeng: '哼哼（165cm/53kg）推荐：10～15 kg × 12次（大臂全程贴死斜托垫）',
-        hintQin: '亲亲（178cm/67kg）推荐：15～22.5 kg × 12次（大臂全程贴死斜托垫）',
-        steps: [
-            '腋下卡稳斜垫：调座椅高度使腋窝刚好卡在牧师凳斜垫上沿，大臂后侧完全贴实斜托垫。',
-            '手腕中立握杆：双手握住W曲杆或器械把手，沉肩挺胸。',
-            '吐气弯举挤压：吐气发力将小臂向上弯举，在小臂接近垂直前停住并强力挤压二头肌 1 秒。',
-            '慢吸控制下放：吸气用 3 秒缓慢下放至肘部保留微屈（底部切勿完全锁死过伸肘关节）。'
-        ],
-        explanation: '斜托垫物理锁死大臂位置，让肱二头肌在底部拉伸位承受最大张力，增粗手臂围度极佳。',
-        precautions: '下放到底部时必须保留约 10° 微屈，严禁大重量到底猛放锁死肘关节以防肌腱拉伤。'
-    },
-
-    // ---------- 腿臀+小腿 (legs, 10项) ----------
     {
         id: 'smith_squat', part: 'legs', animType: 'smith_squat', shortTab: '1. 史密斯深蹲',
         name: '1. 史密斯杠铃深蹲（常规臀腿均衡 & 孤立练臀变式）',
@@ -1410,8 +1613,7 @@ const BUILTIN_EXERCISES = [
         explanation: '强化大腿后侧腘绳肌膝屈曲功能，与坐姿腿屈伸前后平衡保护膝关节。',
         precautions: '弯举时骨盆严禁翘起离开垫面。'
     },
-
-    ,{
+    {
         id: 'hip_thrust', part: 'legs', animType: 'hip_thrust', shortTab: '杠铃/器械臀推',
         name: '杠铃 / 器械臀推 Hip Thrust（塑造饱满上翘臀大肌第一王牌）',
         target: '臀大肌全长、腘绳肌协同（零膝关节压力）',
@@ -1427,25 +1629,6 @@ const BUILTIN_EXERCISES = [
         explanation: '臀大肌在髋关节完全伸展（水平顶峰位）时张力达到峰值，与深蹲（底部张力最大）形成完美互补。',
         precautions: '顶峰严禁过度挺肚子导致腰椎超伸代偿；全程收下巴、沉肋骨，用臀部推动而非拿腰顶起。'
     },
-
-    ,{
-        id: 'hip_thrust', part: 'legs', animType: 'hip_thrust', shortTab: '杠铃/器械臀推',
-        name: '杠铃 / 器械臀推 Hip Thrust（塑造饱满上翘臀大肌第一王牌）',
-        target: '臀大肌全长、腘绳肌协同（零膝关节压力）',
-        defaultSets: 4, defaultReps: 12, unit: '次', weightHeng: 45, weightQin: 65,
-        hintHeng: '哼哼（165cm/53kg）推荐：40～55 kg × 12次（顶峰夹臀停顿 1.5 秒）',
-        hintQin: '亲亲（178cm/67kg）推荐：60～80 kg × 12次（顶峰夹臀停顿 1.5 秒）',
-        steps: [
-            '肩胛下角靠凳：上背部（肩胛骨下角位置）靠稳平凳边缘，将加厚海绵垫套在杠铃杆上置于髋部折痕处。',
-            '小腿垂直地面：双脚分开与肩同宽，脚尖微外展 15°；调整双脚前后距离，确保顶髋到最高点时小腿恰好垂直于地面（膝屈90°）。',
-            '收下巴吐气顶髋：下巴微收看向胸前（目视前方），吐气用臀大肌发力将髋部向上推起至大腿与躯干呈一条水平直线，顶峰死死夹紧臀部停顿 1.5 秒。',
-            '慢吸折髋下放：吸气保持肋骨下沉，控制髋部缓慢下放至臀部接近地面但不断开张力。'
-        ],
-        explanation: '臀大肌在髋关节完全伸展（水平顶峰位）时张力达到峰值，与深蹲（底部张力最大）形成完美互补。',
-        precautions: '顶峰严禁过度挺肚子导致腰椎超伸代偿；全程收下巴、沉肋骨，用臀部推动而非拿腰顶起。'
-    },
-
-    // ---------- 胸肩+三头 (chest, 9项) ----------
     {
         id: 'bench_press', part: 'chest', animType: 'bench_press', shortTab: '1. 平板杠铃卧推',
         name: '1. 平板杠铃卧推（胸部复合力量与整体厚度王牌主项）',
@@ -1608,8 +1791,7 @@ const BUILTIN_EXERCISES = [
         explanation: '手臂举过头顶能充分拉长肱三头肌长头，与绳索下压互补最大化手臂围度。',
         precautions: '手肘不要向两侧过度外翻；收紧腹肌防腰椎反弓。'
     },
-
-    ,{
+    {
         id: 'incline_barbell_press', part: 'chest', animType: 'db_press', shortTab: '上斜杠铃卧推',
         name: '上斜平板/史密斯杠铃卧推（攻克上胸锁骨部薄弱王牌）',
         target: '胸大肌上束（锁骨部）、三角肌前束、肱三头肌',
@@ -1625,25 +1807,6 @@ const BUILTIN_EXERCISES = [
         explanation: '把上胸（锁骨下方）练饱满能让整个胸型在视觉上更加挺拔立体，30°上斜是激活上胸且减少前束代偿的最佳角度。',
         precautions: '落点必须在锁骨下方的高位上胸处，不要落到下胸乳头以下。'
     },
-
-    ,{
-        id: 'incline_barbell_press', part: 'chest', animType: 'db_press', shortTab: '上斜杠铃卧推',
-        name: '上斜平板/史密斯杠铃卧推（攻克上胸锁骨部薄弱王牌）',
-        target: '胸大肌上束（锁骨部）、三角肌前束、肱三头肌',
-        defaultSets: 4, defaultReps: 10, unit: '次', weightHeng: 30, weightQin: 42.5,
-        hintHeng: '哼哼（165cm/53kg）推荐：含杆总重 27.5～35 kg × 10~12次（倾角30°最佳）',
-        hintQin: '亲亲（178cm/67kg）推荐：含杆总重 40～50 kg × 10~12次（倾角30°最佳）',
-        steps: [
-            '30°黄金倾角：将卧推凳调至 30°（第2~3格，倾角过高会变成纯练肩），仰卧双脚踩实地面，肩胛后缩下沉。',
-            '1.3倍肩宽握杠：双手掌根握杠，手腕中立刚性，吸气出杠移至上胸锁骨正上方。',
-            '微收肘慢放锁骨下：吸气用 2~3 秒控制杠铃垂直下放至锁骨下方 2~3 厘米处，手肘与躯干呈 45°~60° 夹角。',
-            '吐气向内夹推：吐气发力将杠铃推回锁骨上方，顶峰手肘微屈不锁死。'
-        ],
-        explanation: '把上胸（锁骨下方）练饱满能让整个胸型在视觉上更加挺拔立体，30°上斜是激活上胸且减少前束代偿的最佳角度。',
-        precautions: '落点必须在锁骨下方的高位上胸处，不要落到下胸乳头以下。'
-    },
-
-    // ---------- 练后拉伸 (stretch, 6项) ----------
     {
         id: 'stretch_chest', part: 'stretch', animType: 'stretch_chest', shortTab: '1. 胸部拉伸',
         name: '练后拉伸 1：胸部静态拉伸（缓解胸肌紧张改善体态）',
@@ -1798,7 +1961,7 @@ function getDefaultPlansForRole(role) {
 }
 
 // ============================================================================
-// 3. 全局状态与参照 task.html 的云端同步函数
+// 3. 全局状态与分离云端存储同步函数（Hjs/Qjs 存计划，Hmrjs/Qmrjs 存每日完成内容）
 // ============================================================================
 let dataH = { role: '哼哼', height: 165, weight: 53, records: [], plans: getDefaultPlansForRole('哼哼'), customExercises: [], bodyMetrics: [] };
 let dataQ = { role: '亲亲', height: 178, weight: 67, records: [], plans: getDefaultPlansForRole('亲亲'), customExercises: [], bodyMetrics: [] };
@@ -1807,7 +1970,8 @@ let shaDailyH = null, shaDailyQ = null;
 let pollInterval = null;
 let isLoading = true;
 
-let currentMainTab = 'records';
+// 首屏默认进入独立「跟练」页
+let currentMainTab = 'follow';
 let currentRecordSubTab = 'checkin';
 let currentPartTab = 'warmup';
 let selectedExByPart = {
@@ -1829,15 +1993,26 @@ let showOnlyCurrentRoleInLog = true;
 const animStates = {};
 let animLoopStarted = false;
 
-// Pro v2.0 状态：逐组跟练打钩、RPE自评、0.5x慢放剖析、语音节拍器
-let completedSetIndices = new Set();
-let currentRpeTag = '黄金(余1-2次)';
 let animSpeedFactor = 1.0;
 let tempoVoiceEnabled = false;
 let lastPhaseIdx = -1;
 
 let restRemainSec = 0;
 let restTimerInterval = null;
+
+// ==================== 独立「跟练」页面的完整状态 ====================
+let followSession = {
+    planId: '',
+    planName: '',
+    currentIdx: 0,
+    canvasVisible: true,
+    showFullCues: false,
+    elapsedSec: 0,
+    stopwatchRunning: false,
+    stopwatchTimer: null,
+    items: [] // 每项包含: { exId, name, part, unit, savedToCloud, setsList: [{ setNo, type: '正式'|'热身'|'递减', weight, reps, rpe, done }] }
+};
+let followAddCat = 'back';
 
 const now = new Date();
 const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -1861,8 +2036,862 @@ function getCurrentEx() {
 }
 
 // ============================================================================
-// Pro v2.0 增效功能：器械被占一键切换平替动作
+// 4. 独立「跟练」页面完整业务逻辑
 // ============================================================================
+function initFollowSessionFromPlan(planId) {
+    const myData = getMyData();
+    if (!myData.plans || !myData.plans.length) {
+        myData.plans = getDefaultPlansForRole(myIdentity);
+    }
+    const selEl = document.getElementById('followPlanSelect');
+    if (selEl) {
+        selEl.innerHTML = myData.plans.map(pl => `<option value="${pl.id}">${pl.name}</option>`).join('');
+    }
+    const targetPlan = myData.plans.find(p => p.id === planId) || myData.plans[0];
+    if (!targetPlan) return;
+    if (selEl) selEl.value = targetPlan.id;
+
+    followSession.planId = targetPlan.id;
+    followSession.planName = targetPlan.name;
+    followSession.currentIdx = 0;
+    followSession.items = targetPlan.items.map(it => {
+        const totalSets = Math.max(1, Number(it.sets) || 4);
+        const hist = getExerciseHistoryStats(it.exId);
+        const recWeight = hist ? hist.lastRec.weight : it.weight;
+        const recReps = hist ? hist.lastRec.reps : it.reps;
+        const setsList = [];
+        for (let s = 1; s <= totalSets; s++) {
+            setsList.push({
+                setNo: s,
+                type: '正式',
+                weight: recWeight,
+                reps: recReps,
+                rpe: '标准',
+                done: false
+            });
+        }
+        return {
+            exId: it.exId,
+            name: it.name,
+            part: it.part || 'back',
+            unit: it.unit || '次',
+            savedToCloud: false,
+            setsList
+        };
+    });
+    renderFollowView();
+}
+
+function onFollowPlanSelectChange() {
+    const selEl = document.getElementById('followPlanSelect');
+    if (!selEl) return;
+    initFollowSessionFromPlan(selEl.value);
+    showToast('已切换跟练计划');
+}
+
+// ==================== Apple Watch 实时心率 & iPhone 健身联动引擎 ====================
+let watchHrState = {
+    mode: 'smart', // 'ble' | 'shortcut' | 'smart'
+    currentBpm: 86,
+    baseRestBpm: 76,
+    targetBpm: 92,
+    bleDevice: null,
+    autoLaunchAppleWorkout: localStorage.getItem('loveGacha_autoAppleWorkout') === '1',
+    kcalBurned: 0,
+    ecgPhase: 0
+};
+
+function initWatchHrEngine() {
+    // 检查 URL 是否带有 iOS 快捷指令回传的 ?hr=xxx 参数
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const urlHr = parseInt(params.get('hr') || params.get('bpm'));
+        if (urlHr && urlHr >= 45 && urlHr <= 220) {
+            watchHrState.currentBpm = urlHr;
+            watchHrState.targetBpm = urlHr;
+            watchHrState.mode = 'shortcut';
+            const badge = document.getElementById('watchConnStatusBadge');
+            if (badge) badge.innerText = 'Health已回传';
+        }
+    } catch (e) {}
+
+    const chk = document.getElementById('autoLaunchAppleWorkoutChk');
+    if (chk) chk.checked = watchHrState.autoLaunchAppleWorkout;
+
+    // 每秒更新心率生理动态与卡路里消耗
+    setInterval(() => {
+        if (watchHrState.mode !== 'ble') {
+            // 根据当前是否正在训练、是否在组间休息倒计时，动态拟合真实力量训练心率波动与组间心率回落(HRR)
+            if (!followSession.stopwatchRunning && restRemainSec <= 0) {
+                watchHrState.targetBpm = 82 + Math.round(Math.sin(Date.now() / 4000) * 3);
+            } else if (restRemainSec > 0) {
+                // 组间休息期：心率从做组峰值逐步回落至 110~118 BPM
+                watchHrState.targetBpm = Math.max(108, 112 + Math.round(restRemainSec * 0.25));
+            } else {
+                // 正在进行力量训练做组期
+                watchHrState.targetBpm = 128 + Math.round(Math.sin(Date.now() / 2500) * 6);
+            }
+            const diff = watchHrState.targetBpm - watchHrState.currentBpm;
+            const step = diff === 0 ? (Math.random() > 0.5 ? 1 : -1) : Math.sign(diff) * Math.min(Math.abs(diff), 2);
+            watchHrState.currentBpm = Math.max(55, Math.min(195, watchHrState.currentBpm + step));
+        }
+
+        // 计算实时主动消耗千卡 (基于身高体重与当前心率)
+        if (followSession.stopwatchRunning) {
+            const bw = (ROLES[myIdentity] ? ROLES[myIdentity].weight : 60);
+            const kcalPerSec = ((watchHrState.currentBpm * 0.45 - 20) * (bw / 65)) / 3600;
+            watchHrState.kcalBurned += Math.max(0.05, kcalPerSec);
+            const kEl = document.getElementById('activeKcalText');
+            if (kEl) kEl.innerText = `消耗: ${Math.round(watchHrState.kcalBurned)} kcal`;
+        }
+
+        updateWatchHrUI();
+    }, 1000);
+}
+
+function updateWatchHrUI() {
+    const bpm = Math.round(watchHrState.currentBpm);
+    const valEl = document.getElementById('watchHrValueText');
+    const zoneEl = document.getElementById('watchHrZoneBadge');
+    if (valEl) valEl.innerText = bpm;
+
+    let zoneName = '热身激活区';
+    let zoneCls = 'px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-bold';
+    if (bpm >= 152) {
+        zoneName = '无氧极限区';
+        zoneCls = 'px-1.5 py-0.5 rounded bg-rose-500/30 text-rose-300 text-[10px] font-bold';
+    } else if (bpm >= 132) {
+        zoneName = '增肌做组区';
+        zoneCls = 'px-1.5 py-0.5 rounded bg-amber-500/25 text-amber-300 text-[10px] font-bold';
+    } else if (bpm >= 112) {
+        zoneName = '组间恢复区';
+        zoneCls = 'px-1.5 py-0.5 rounded bg-blue-500/25 text-blue-300 text-[10px] font-bold';
+    }
+    if (zoneEl) {
+        zoneEl.innerText = zoneName;
+        zoneEl.className = zoneCls;
+    }
+
+    // 同步更新顶部组间休息大横幅中的心率恢复建议
+    const tipEl = document.getElementById('restHrRecoveryTip');
+    if (tipEl && restRemainSec > 0) {
+        if (bpm <= 118) {
+            tipEl.innerText = `当前心率 ${bpm} BPM (已回落至最佳恢复区，可随时开练)`;
+        } else {
+            tipEl.innerText = `当前心率 ${bpm} BPM · 深呼吸等待回落至 120 BPM 以下`;
+        }
+    }
+}
+
+function drawEcgWave(nowMs) {
+    const c = document.getElementById('ecgWaveCanvas');
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
+    const W = c.width, H = c.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#fb7185';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const speed = (watchHrState.currentBpm / 60) * 0.008;
+    const offset = (nowMs || 0) * speed;
+    for (let x = 0; x < W; x++) {
+        const phase = ((x / 22) + offset) % 1.0;
+        let y = H * 0.55;
+        if (phase > 0.42 && phase < 0.48) y = H * 0.12;
+        else if (phase >= 0.48 && phase < 0.54) y = H * 0.90;
+        else if (phase >= 0.54 && phase < 0.62) y = H * 0.35;
+        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+}
+
+function openWatchConnectModal() {
+    document.getElementById('manualWatchHrInput').value = Math.round(watchHrState.currentBpm);
+    document.getElementById('watchConnectModal').classList.remove('hidden');
+}
+
+function closeWatchConnectModal() {
+    document.getElementById('watchConnectModal').classList.add('hidden');
+}
+
+function toggleAutoLaunchAppleWorkout(checked) {
+    watchHrState.autoLaunchAppleWorkout = !!checked;
+    localStorage.setItem('loveGacha_autoAppleWorkout', checked ? '1' : '0');
+}
+
+// 唤醒 iPhone「健身 / 体能训练」开启「传统力量训练」
+function launchAppleStrengthWorkout() {
+    if (!followSession.stopwatchRunning) {
+        toggleWorkoutStopwatch(false);
+    }
+    const stateTag = document.getElementById('appleWorkoutStateTag');
+    if (stateTag) {
+        stateTag.innerText = '力量训练进行中';
+        stateTag.className = 'px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold';
+    }
+    showToast('正在唤醒 iPhone/Apple Watch「传统力量训练」...');
+    // 调用 iOS Shortcuts URL Scheme 启动「开启力量训练」快捷指令
+    setTimeout(() => {
+        window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('开启力量训练');
+    }, 150);
+}
+
+// 通过 Web Bluetooth API 直连心率设备 (0x180D / 0x2A37)
+async function connectBleHeartRate() {
+    if (!navigator.bluetooth) {
+        showToast('当前浏览器不支持直接蓝牙扫描，已启用智能心率同步模式');
+        return;
+    }
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            filters: [{ services: ['heart_rate'] }]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('heart_rate');
+        const char = await service.getCharacteristic('heart_rate_measurement');
+        await char.startNotifications();
+        char.addEventListener('characteristicvaluechanged', (event) => {
+            const val = event.target.value;
+            const flags = val.getUint8(0);
+            const hr = (flags & 0x01) ? val.getUint16(1, true) : val.getUint8(1);
+            if (hr > 35 && hr < 230) {
+                watchHrState.mode = 'ble';
+                watchHrState.currentBpm = hr;
+                updateWatchHrUI();
+            }
+        });
+        document.getElementById('watchConnStatusBadge').innerText = '蓝牙实时连接';
+        document.getElementById('bleModalStateText').innerText = '已连接: ' + (device.name || 'Watch HR');
+        closeWatchConnectModal();
+        showToast('蓝牙心率已成功直连');
+    } catch (err) {
+        showToast('未选择蓝牙设备或取消连接');
+    }
+}
+
+function applyManualWatchHr() {
+    const val = parseInt(document.getElementById('manualWatchHrInput').value);
+    if (!val || val < 40 || val > 220) {
+        showToast('请输入有效的心率数值 (40~220 BPM)');
+        return;
+    }
+    watchHrState.currentBpm = val;
+    watchHrState.targetBpm = val;
+    document.getElementById('watchConnStatusBadge').innerText = '已同步校准';
+    updateWatchHrUI();
+    closeWatchConnectModal();
+    showToast(`已同步当前 Apple Watch 心率：${val} BPM`);
+}
+
+async function pullWatchHrViaShortcut() {
+    // 优先尝试读取剪贴板中由快捷指令写入的最新心率数字
+    try {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            const txt = await navigator.clipboard.readText();
+            const m = txt && txt.match(/([4-9][0-9]|1[0-9]{2}|2[0-1][0-9])/);
+            if (m) {
+                const hr = parseInt(m[1]);
+                watchHrState.currentBpm = hr;
+                watchHrState.targetBpm = hr;
+                document.getElementById('watchConnStatusBadge').innerText = 'Watch已同步';
+                updateWatchHrUI();
+                closeWatchConnectModal();
+                showToast(`已从 Apple Health 读取最新心率：${hr} BPM`);
+                return;
+            }
+        }
+    } catch (e) {}
+    window.location.href = 'shortcuts://run-shortcut?name=' + encodeURIComponent('同步手表心率');
+}
+
+function toggleWorkoutStopwatch(checkAutoLaunch = false) {
+    const btn = document.getElementById('stopwatchToggleBtn');
+    const stateTag = document.getElementById('appleWorkoutStateTag');
+    if (followSession.stopwatchRunning) {
+        clearInterval(followSession.stopwatchTimer);
+        followSession.stopwatchRunning = false;
+        if (btn) { btn.innerText = '继续训练'; btn.className = 'px-2 py-1 bg-blue-600 text-white rounded-lg text-[11px] font-bold shrink-0'; }
+        if (stateTag) { stateTag.innerText = '已暂停'; stateTag.className = 'px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold'; }
+    } else {
+        followSession.stopwatchRunning = true;
+        if (btn) { btn.innerText = '暂停计时'; btn.className = 'px-2 py-1 bg-amber-600 text-white rounded-lg text-[11px] font-bold shrink-0'; }
+        if (stateTag) { stateTag.innerText = '力量训练中'; stateTag.className = 'px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-bold'; }
+        followSession.stopwatchTimer = setInterval(() => {
+            followSession.elapsedSec++;
+            const m = Math.floor(followSession.elapsedSec / 60);
+            const s = followSession.elapsedSec % 60;
+            const el = document.getElementById('workoutStopwatchText');
+            if (el) el.innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }, 1000);
+        if (checkAutoLaunch && watchHrState.autoLaunchAppleWorkout && followSession.elapsedSec < 3) {
+            launchAppleStrengthWorkout();
+        }
+    }
+}
+
+function getFollowActiveItem() {
+    if (!followSession.items.length) return null;
+    if (followSession.currentIdx < 0) followSession.currentIdx = 0;
+    if (followSession.currentIdx >= followSession.items.length) followSession.currentIdx = followSession.items.length - 1;
+    return followSession.items[followSession.currentIdx];
+}
+
+function getFollowActiveExerciseObj() {
+    const item = getFollowActiveItem();
+    if (!item) return getAllExercises()[0];
+    return getAllExercises().find(e => e.id === item.exId) || getAllExercises()[0];
+}
+
+function renderFollowView() {
+    const items = followSession.items || [];
+    const totalEx = items.length;
+    const doneEx = items.filter(it => it.savedToCloud || (it.setsList.length > 0 && it.setsList.every(s => s.done))).length;
+
+    let totalSets = 0, doneSets = 0, totalVol = 0;
+    items.forEach(it => {
+        it.setsList.forEach(s => {
+            totalSets++;
+            if (s.done) {
+                doneSets++;
+                totalVol += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+            }
+        });
+    });
+
+    const badge = document.getElementById('followProgressBadge');
+    if (badge) badge.innerText = `${doneEx}/${totalEx}`;
+
+    const statText = document.getElementById('followSummaryStatText');
+    if (statText) statText.innerText = `进度：${doneEx}/${totalEx} 项 ｜ 已完成 ${doneSets}/${totalSets} 组 ｜ 累计容量 ${Math.round(totalVol)} kg`;
+
+    const pBar = document.getElementById('followOverallProgressBar');
+    if (pBar) pBar.style.width = `${totalSets > 0 ? Math.round((doneSets / totalSets) * 100) : 0}%`;
+
+    // 渲染队列网格（全部在手机屏幕内可见）
+    const qGrid = document.getElementById('followQueueGrid');
+    if (qGrid) {
+        qGrid.innerHTML = items.map((it, idx) => {
+            const isCur = (idx === followSession.currentIdx);
+            const allSetsDone = it.savedToCloud || (it.setsList.length > 0 && it.setsList.every(s => s.done));
+            const doneCnt = it.setsList.filter(s => s.done).length;
+            let cls = 'bg-slate-50 text-slate-600 border-slate-200';
+            if (isCur) cls = 'bg-blue-600 text-white border-blue-600 font-bold';
+            else if (allSetsDone) cls = 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+            return `
+                <button type="button" onclick="selectFollowQueueIdx(${idx})"
+                    class="px-1.5 py-1 rounded-lg border text-[10px] truncate text-left flex items-center justify-between gap-1 ${cls}">
+                    <span class="truncate">${idx + 1}.${it.name.replace(/^[0-9]+\.\s*/, '').replace(/^.*：/, '')}</span>
+                    <span class="shrink-0 opacity-80">${doneCnt}/${it.setsList.length}</span>
+                </button>
+            `;
+        }).join('');
+    }
+
+    const curItem = getFollowActiveItem();
+    const exObj = getFollowActiveExerciseObj();
+    if (!curItem || !exObj) return;
+
+    document.getElementById('followCurrentIdxTag').innerText = `第${followSession.currentIdx + 1}/${totalEx}项`;
+    document.getElementById('followCurrentExTitle').innerText = exObj.name;
+
+    const meta = MUSCLE_MAP_META[exObj.animType || exObj.id] || { pText: exObj.target, sText: '' };
+    document.getElementById('followCurrentMuscleRow').innerHTML = `
+        <span class="px-1.5 py-0.2 rounded bg-rose-50 text-rose-600 border border-rose-200 text-[10px] font-bold">主肌群：${meta.pText}</span>
+        ${meta.sText ? `<span class="px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 text-[10px]">协同：${meta.sText}</span>` : ''}
+        ${curItem.savedToCloud ? `<span class="px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold">已存云端</span>` : ''}
+    `;
+
+    // 要领与上次历史成绩提示框
+    const hist = getExerciseHistoryStats(exObj.id);
+    const histLine = hist
+        ? `上次记录(${hist.lastRec.date.slice(5)})：<strong>${hist.lastRec.sets}组×${hist.lastRec.reps}${curItem.unit}×${hist.lastRec.weight}kg</strong> ｜ 历史最高PR：<strong class="text-rose-600">${hist.maxWeight}kg</strong>`
+        : `推荐标准：${myIdentity === '亲亲' ? exObj.hintQin : exObj.hintHeng}`;
+
+    const cueBox = document.getElementById('followCueBox');
+    if (cueBox) {
+        if (followSession.showFullCues) {
+            cueBox.innerHTML = `
+                <div class="text-blue-700 font-medium">${histLine}</div>
+                <ol class="pl-4 list-decimal space-y-0.5 text-slate-700 mt-1">
+                    ${exObj.steps.map(s => `<li>${s}</li>`).join('')}
+                </ol>
+                <div class="text-rose-600 font-medium mt-1">防伤红线：${exObj.precautions}</div>
+            `;
+        } else {
+            cueBox.innerHTML = `
+                <div class="text-blue-700 font-medium truncate">${histLine}</div>
+                <div class="text-slate-700 truncate"><strong>核心要领：</strong>${exObj.explanation}</div>
+                <div class="text-rose-600 truncate"><strong>防伤红线：</strong>${exObj.precautions}</div>
+            `;
+        }
+    }
+
+    // 渲染逐组实训矩阵
+    const matrixEl = document.getElementById('followSetsMatrixContainer');
+    if (matrixEl) {
+        matrixEl.innerHTML = curItem.setsList.map((st, sIdx) => {
+            const typeBadgeCls = st.type === '热身'
+                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                : (st.type === '递减' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200');
+            return `
+                <div class="p-1.5 rounded-xl border ${st.done ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-200'} flex items-center justify-between gap-1 text-xs">
+                    <div class="flex items-center gap-1 shrink-0">
+                        <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold ${typeBadgeCls}">${st.type}${sIdx + 1}</span>
+                    </div>
+
+                    <!-- 重量调节 -->
+                    <div class="flex items-center bg-white px-1 py-0.5 rounded border border-slate-200">
+                        <button type="button" onclick="adjustFollowSetWeight(${sIdx}, -2.5)" class="w-5 h-5 font-bold text-slate-500">-</button>
+                        <input type="number" value="${st.weight}" step="0.5" onchange="updateFollowSetVal(${sIdx}, 'weight', this.value)" class="w-11 text-center font-bold text-blue-600 text-[11px] focus:outline-none">
+                        <span class="text-[9px] text-slate-400 mr-0.5">kg</span>
+                        <button type="button" onclick="adjustFollowSetWeight(${sIdx}, 2.5)" class="w-5 h-5 font-bold text-slate-500">+</button>
+                    </div>
+
+                    <!-- 次数调节 -->
+                    <div class="flex items-center bg-white px-1 py-0.5 rounded border border-slate-200">
+                        <button type="button" onclick="adjustFollowSetReps(${sIdx}, -1)" class="w-5 h-5 font-bold text-slate-500">-</button>
+                        <input type="number" value="${st.reps}" onchange="updateFollowSetVal(${sIdx}, 'reps', this.value)" class="w-8 text-center font-bold text-slate-800 text-[11px] focus:outline-none">
+                        <span class="text-[9px] text-slate-400 mr-0.5">${curItem.unit}</span>
+                        <button type="button" onclick="adjustFollowSetReps(${sIdx}, 1)" class="w-5 h-5 font-bold text-slate-500">+</button>
+                    </div>
+
+                    <!-- RPE 切换与完成按钮 -->
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="cycleFollowSetRpe(${sIdx})" class="px-1.5 py-1 rounded bg-white border border-slate-200 text-[10px] text-slate-600">
+                            ${st.rpe}
+                        </button>
+                        <button type="button" onclick="toggleFollowSetDone(${sIdx})"
+                            class="px-2 py-1 rounded-lg text-[10px] font-bold ${st.done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'}">
+                            ${st.done ? '已完' : '完成'}
+                        </button>
+                        ${curItem.setsList.length > 1 ? `
+                        <button type="button" onclick="removeFollowSet(${sIdx})" class="text-slate-400 hover:text-rose-500 font-bold px-0.5 text-xs">&times;</button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    const finBtn = document.getElementById('finishFollowExBtn');
+    if (finBtn) {
+        finBtn.innerText = curItem.savedToCloud ? '已存云端 · 切下一项' : '完成本动作并切下一项';
+    }
+}
+
+function selectFollowQueueIdx(idx) {
+    followSession.currentIdx = idx;
+    renderFollowView();
+    const c = document.getElementById('follow_anim_canvas');
+    if (c && followSession.canvasVisible) drawStage(c, getFollowActiveExerciseObj(), performance.now());
+}
+
+function stepFollowExercise(delta) {
+    const len = followSession.items.length;
+    if (!len) return;
+    followSession.currentIdx = (followSession.currentIdx + delta + len) % len;
+    renderFollowView();
+}
+
+function toggleFollowCanvasVisible() {
+    followSession.canvasVisible = !followSession.canvasVisible;
+    document.getElementById('followCanvasWrapper').classList.toggle('hidden', !followSession.canvasVisible);
+    document.getElementById('toggleFollowCanvasBtn').innerText = followSession.canvasVisible ? '收起动画' : '展开动画';
+}
+
+function toggleFollowCueDetail() {
+    followSession.showFullCues = !followSession.showFullCues;
+    renderFollowView();
+}
+
+function swapFollowCurrentToAlt() {
+    const curItem = getFollowActiveItem();
+    if (!curItem) return;
+    const altId = ALTERNATIVE_MAP[curItem.exId];
+    const all = getAllExercises();
+    const altEx = all.find(e => e.id === altId) || all.filter(e => e.part === curItem.part && e.id !== curItem.exId)[0];
+    if (!altEx) { showToast('当前动作暂无其他平替'); return; }
+    const isQ = (myIdentity === '亲亲');
+    const newW = isQ ? altEx.weightQin : altEx.weightHeng;
+    curItem.exId = altEx.id;
+    curItem.name = altEx.name;
+    curItem.unit = altEx.unit || '次';
+    curItem.setsList.forEach(s => { s.weight = newW; s.reps = altEx.defaultReps; });
+    renderFollowView();
+    showToast(`已切换平替动作：${altEx.shortTab || altEx.name}`);
+}
+
+function adjustFollowSetWeight(sIdx, delta) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || !curItem.setsList[sIdx]) return;
+    curItem.setsList[sIdx].weight = Math.max(0, Number((Number(curItem.setsList[sIdx].weight || 0) + delta).toFixed(1)));
+    renderFollowView();
+}
+
+function adjustFollowSetReps(sIdx, delta) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || !curItem.setsList[sIdx]) return;
+    curItem.setsList[sIdx].reps = Math.max(1, (parseInt(curItem.setsList[sIdx].reps) || 1) + delta);
+    renderFollowView();
+}
+
+function updateFollowSetVal(sIdx, field, val) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || !curItem.setsList[sIdx]) return;
+    curItem.setsList[sIdx][field] = Math.max(0, parseFloat(val) || 0);
+    renderFollowView();
+}
+
+function cycleFollowSetRpe(sIdx) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || !curItem.setsList[sIdx]) return;
+    const order = ['轻松', '标准', '力竭'];
+    const cur = curItem.setsList[sIdx].rpe || '标准';
+    curItem.setsList[sIdx].rpe = order[(order.indexOf(cur) + 1) % order.length];
+    renderFollowView();
+}
+
+function toggleFollowSetDone(sIdx) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || !curItem.setsList[sIdx]) return;
+    const st = curItem.setsList[sIdx];
+    st.done = !st.done;
+    if (st.done) {
+        if (!followSession.stopwatchRunning) toggleWorkoutStopwatch(false);
+        // 做组刚结束时心率冲高至做组峰值
+        if (watchHrState.mode !== 'ble') {
+            watchHrState.currentBpm = st.type === '热身' ? 126 : (st.rpe === '力竭' ? 154 : 142);
+            updateWatchHrUI();
+        }
+        const restSec = st.type === '热身' ? 45 : (curItem.part === 'warmup' || curItem.part === 'stretch' ? 30 : 90);
+        startRestTimer(restSec);
+        showToast(`第 ${sIdx + 1} 组完成！已开启 ${restSec} 秒大号休息倒计时`);
+    }
+    renderFollowView();
+}
+
+function addFollowWarmupSet() {
+    const curItem = getFollowActiveItem();
+    if (!curItem) return;
+    const baseW = curItem.setsList[0] ? curItem.setsList[0].weight : 30;
+    const warmW = baseW > 20 ? Math.max(20, Math.round((baseW * 0.6) / 2.5) * 2.5) : Math.round(baseW * 0.5);
+    curItem.setsList.unshift({
+        setNo: 1,
+        type: '热身',
+        weight: warmW,
+        reps: 12,
+        rpe: '轻松',
+        done: false
+    });
+    renderFollowView();
+    showToast('已在首行插入 60% 配重热身组');
+}
+
+function addFollowWorkingSet(isDropSet) {
+    const curItem = getFollowActiveItem();
+    if (!curItem) return;
+    const last = curItem.setsList[curItem.setsList.length - 1] || { weight: 30, reps: 12 };
+    const newW = isDropSet ? Math.max(0, Math.round((last.weight * 0.8) / 2.5) * 2.5) : last.weight;
+    curItem.setsList.push({
+        setNo: curItem.setsList.length + 1,
+        type: isDropSet ? '递减' : '正式',
+        weight: newW,
+        reps: last.reps,
+        rpe: isDropSet ? '力竭' : '标准',
+        done: false
+    });
+    renderFollowView();
+    showToast(isDropSet ? `已追加递减组 (${newW}kg)` : '已追加 1 组正式组');
+}
+
+function removeFollowSet(sIdx) {
+    const curItem = getFollowActiveItem();
+    if (!curItem || curItem.setsList.length <= 1) return;
+    curItem.setsList.splice(sIdx, 1);
+    renderFollowView();
+}
+
+// 完成当前跟练动作并自动将该动作存入 Hmrjs.json / Qmrjs.json，随后切换到下一动作
+async function finishCurrentFollowExercise(ev) {
+    const curItem = getFollowActiveItem();
+    if (!curItem) return;
+
+    if (curItem.savedToCloud) {
+        if (followSession.currentIdx < followSession.items.length - 1) {
+            followSession.currentIdx++;
+            renderFollowView();
+        } else {
+            openFollowSummaryModal();
+        }
+        return;
+    }
+
+    // 将所有未勾选的组自动标记为完成
+    curItem.setsList.forEach(s => { s.done = true; });
+    renderFollowView();
+
+    const btn = document.getElementById('finishFollowExBtn');
+    if (btn) { btn.innerText = '同步云端中...'; btn.disabled = true; }
+
+    await fetchAllData(true);
+
+    const myData = myIdentity === '哼哼' ? dataH : dataQ;
+    const nowMs = Date.now();
+    const setsCount = curItem.setsList.length;
+    const maxW = Math.max(...curItem.setsList.map(s => Number(s.weight) || 0));
+    const avgReps = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.reps) || 0), 0) / setsCount);
+    const totalVol = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
+    const setDetailsStr = curItem.setsList.map((s, i) => `${s.type}${i + 1}:${s.weight}kg×${s.reps}(${s.rpe})`).join(' / ');
+
+    const newRec = {
+        id: `rec_${nowMs}`,
+        time: nowMs,
+        date: document.getElementById('logDateInput').value || todayStr,
+        part: curItem.part,
+        exerciseId: curItem.exId,
+        exerciseName: curItem.name,
+        unit: curItem.unit || '次',
+        sets: setsCount,
+        reps: avgReps,
+        weight: maxW,
+        volume: totalVol,
+        note: `跟练完成 [${setDetailsStr}]`,
+        author: myIdentity
+    };
+
+    myData.records.unshift(newRec);
+    myData.updatedAt = nowMs;
+
+    const upRes = await syncRoleDailyToCloud(myIdentity);
+    if (upRes.success || !GITHUB_TOKEN) {
+        curItem.savedToCloud = true;
+        saveLocalCache();
+        renderRecordsView();
+        showToast(`「${curItem.name.replace(/^[0-9]+\.\s*/, '')}」已存入云端每日记录`);
+        if (followSession.currentIdx < followSession.items.length - 1) {
+            followSession.currentIdx++;
+            renderFollowView();
+        } else {
+            renderFollowView();
+            openFollowSummaryModal();
+        }
+    } else {
+        myData.records.shift();
+        showToast('保存云端失败，请重试');
+    }
+    if (btn) btn.disabled = false;
+}
+
+function openFollowAddExModal() {
+    selectFollowAddCat(followAddCat || 'back');
+    document.getElementById('followAddExModal').classList.remove('hidden');
+}
+
+function closeFollowAddExModal() {
+    document.getElementById('followAddExModal').classList.add('hidden');
+}
+
+function selectFollowAddCat(cat) {
+    followAddCat = cat;
+    ['warmup', 'back', 'legs', 'chest', 'stretch'].forEach(c => {
+        const b = document.getElementById(`fAddCat_${c}`);
+        if (!b) return;
+        b.className = (c === cat)
+            ? 'py-1 rounded text-[11px] font-bold text-center bg-blue-600 text-white'
+            : 'py-1 rounded text-[11px] text-center text-slate-600';
+    });
+    const list = getAllExercises().filter(e => e.part === cat);
+    document.getElementById('followAddExSelect').innerHTML = list.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+}
+
+function confirmFollowAddEx() {
+    const exId = document.getElementById('followAddExSelect').value;
+    const ex = getAllExercises().find(e => e.id === exId);
+    if (!ex) return;
+    const isQ = (myIdentity === '亲亲');
+    const w = isQ ? ex.weightQin : ex.weightHeng;
+    const setsList = [];
+    for (let s = 1; s <= ex.defaultSets; s++) {
+        setsList.push({ setNo: s, type: '正式', weight: w, reps: ex.defaultReps, rpe: '标准', done: false });
+    }
+    followSession.items.push({
+        exId: ex.id,
+        name: ex.name,
+        part: ex.part,
+        unit: ex.unit || '次',
+        savedToCloud: false,
+        setsList
+    });
+    followSession.currentIdx = followSession.items.length - 1;
+    closeFollowAddExModal();
+    renderFollowView();
+    showToast(`已将「${ex.shortTab || ex.name}」加入跟练队列`);
+}
+
+function startFollowSingleExercise() {
+    const ex = getCurrentEx();
+    if (!ex) return;
+    const existingIdx = followSession.items.findIndex(it => it.exId === ex.id);
+    if (existingIdx >= 0) {
+        followSession.currentIdx = existingIdx;
+    } else {
+        const isQ = (myIdentity === '亲亲');
+        const w = isQ ? ex.weightQin : ex.weightHeng;
+        const setsList = [];
+        for (let s = 1; s <= ex.defaultSets; s++) {
+            setsList.push({ setNo: s, type: '正式', weight: w, reps: ex.defaultReps, rpe: '标准', done: false });
+        }
+        followSession.items.push({
+            exId: ex.id,
+            name: ex.name,
+            part: ex.part,
+            unit: ex.unit || '次',
+            savedToCloud: false,
+            setsList
+        });
+        followSession.currentIdx = followSession.items.length - 1;
+    }
+    switchMainTab('follow');
+}
+
+function startFollowFromModalPlan() {
+    if (!editingPlanObj) return;
+    initFollowSessionFromPlan(editingPlanObj.id);
+    closePlanDetailModal();
+    switchMainTab('follow');
+    showToast(`已载入「${editingPlanObj.name}」开启跟练`);
+}
+
+function openFollowSummaryModal() {
+    const items = followSession.items || [];
+    let doneSets = 0, totalSets = 0, totalVol = 0;
+    items.forEach(it => {
+        it.setsList.forEach(s => {
+            totalSets++;
+            if (s.done) {
+                doneSets++;
+                totalVol += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+            }
+        });
+    });
+    const mins = Math.max(1, Math.round(followSession.elapsedSec / 60));
+    const bodyEl = document.getElementById('followSummaryBody');
+    bodyEl.innerHTML = `
+        <div class="p-3 rounded-xl bg-slate-900 text-white grid grid-cols-3 gap-2 text-center">
+            <div><div class="text-[10px] text-slate-400">训练用时</div><div class="text-sm font-bold text-emerald-400 mt-0.5">${mins} 分钟</div></div>
+            <div><div class="text-[10px] text-slate-400">完成组数</div><div class="text-sm font-bold text-blue-400 mt-0.5">${doneSets}/${totalSets} 组</div></div>
+            <div><div class="text-[10px] text-slate-400">总训练容量</div><div class="text-sm font-bold text-amber-400 mt-0.5">${Math.round(totalVol)} kg</div></div>
+        </div>
+        <div class="space-y-1.5">
+            ${items.map((it, i) => {
+                const dCnt = it.setsList.filter(s => s.done).length;
+                return `
+                    <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between">
+                        <span class="font-bold text-slate-800 truncate flex-1">${i + 1}. ${it.name.replace(/^[0-9]+\.\s*/, '')}</span>
+                        <span class="text-[11px] text-slate-500 mx-2">${dCnt}/${it.setsList.length}组</span>
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${it.savedToCloud ? 'bg-emerald-100 text-emerald-700' : (dCnt > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')}">
+                            ${it.savedToCloud ? '已归档云端' : (dCnt > 0 ? '待归档' : '未开始')}
+                        </span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+    document.getElementById('followSummaryModal').classList.remove('hidden');
+}
+
+function closeFollowSummaryModal() {
+    document.getElementById('followSummaryModal').classList.add('hidden');
+}
+
+async function saveRemainingFollowAndFinish(ev) {
+    const unsaved = (followSession.items || []).filter(it => !it.savedToCloud && it.setsList.some(s => s.done));
+    if (!unsaved.length) {
+        closeFollowSummaryModal();
+        showToast('所有已完成动作均已归档至云端');
+        return;
+    }
+    const btn = ev && ev.currentTarget ? ev.currentTarget : null;
+    if (btn) { btn.innerText = '同步中...'; btn.disabled = true; }
+
+    await fetchAllData(true);
+    const myData = myIdentity === '哼哼' ? dataH : dataQ;
+    const nowMs = Date.now();
+    const dateStr = document.getElementById('logDateInput').value || todayStr;
+
+    const added = unsaved.map((it, idx) => {
+        const doneList = it.setsList.filter(s => s.done);
+        const setsCount = doneList.length;
+        const maxW = Math.max(...doneList.map(s => Number(s.weight) || 0));
+        const avgReps = Math.round(doneList.reduce((a, s) => a + (Number(s.reps) || 0), 0) / setsCount);
+        const totalVol = Math.round(doneList.reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
+        return {
+            id: `rec_${nowMs}_${idx}`,
+            time: nowMs + idx,
+            date: dateStr,
+            part: it.part,
+            exerciseId: it.exId,
+            exerciseName: it.name,
+            unit: it.unit || '次',
+            sets: setsCount,
+            reps: avgReps,
+            weight: maxW,
+            volume: totalVol,
+            note: '跟练汇总归档',
+            author: myIdentity
+        };
+    });
+
+    myData.records.unshift(...added);
+    myData.updatedAt = nowMs;
+
+    const upRes = await syncRoleDailyToCloud(myIdentity);
+    if (upRes.success || !GITHUB_TOKEN) {
+        unsaved.forEach(it => { it.savedToCloud = true; });
+        saveLocalCache();
+        renderFollowView();
+        renderRecordsView();
+        closeFollowSummaryModal();
+        showToast(`已将 ${added.length} 项跟练记录归档至云端`);
+    } else {
+        myData.records.splice(0, added.length);
+        showToast('归档失败，请重试');
+    }
+    if (btn) { btn.innerText = '一键归档未存项'; btn.disabled = false; }
+}
+
+// ============================================================================
+// 5. 快速单项打卡下拉选择（替代打卡与计划页顶部的部位选项卡）
+// ============================================================================
+function initQuickCheckinSelectors() {
+    const catSel = document.getElementById('quickCheckinCatSelect');
+    if (!catSel) return;
+    catSel.value = currentPartTab || 'back';
+    onQuickCheckinCatChange();
+}
+
+function onQuickCheckinCatChange() {
+    const catSel = document.getElementById('quickCheckinCatSelect');
+    const exSel = document.getElementById('quickCheckinExSelect');
+    if (!catSel || !exSel) return;
+    const cat = catSel.value;
+    currentPartTab = cat;
+    const list = getAllExercises().filter(e => e.part === cat);
+    exSel.innerHTML = list.map(e => `<option value="${e.id}">${e.name}</option>`).join('');
+    if (selectedExByPart[cat]) exSel.value = selectedExByPart[cat];
+    onQuickCheckinExChange();
+}
+
+function onQuickCheckinExChange() {
+    const exSel = document.getElementById('quickCheckinExSelect');
+    if (!exSel) return;
+    const ex = getAllExercises().find(e => e.id === exSel.value);
+    if (!ex) return;
+    selectedExByPart[ex.part] = ex.id;
+    syncInputsWithSelectedExercise();
+}
+
 function swapToAlternativeEx() {
     const cur = getCurrentEx();
     if (!cur) return;
@@ -1902,66 +2931,16 @@ function swapTodoAlternative(idx) {
 }
 
 // ============================================================================
-// Pro v2.0 增效功能：逐组跟练打钩推进器 + RPE自评
-// ============================================================================
-function renderLiveSetPills() {
-    const totalSets = Math.max(1, Math.min(12, parseInt(document.getElementById('inputSets').value) || 4));
-    const bar = document.getElementById('liveSetTrackerBar');
-    if (!bar) return;
-    let html = '';
-    for (let i = 1; i <= totalSets; i++) {
-        const isDone = completedSetIndices.has(i);
-        html += `
-            <button type="button" onclick="toggleLiveSet(${i}, ${totalSets})"
-                class="set-pill py-1 rounded-lg border text-[11px] text-center ${isDone ? 'done' : 'bg-white text-slate-600 border-slate-200'}">
-                第${i}组 ${isDone ? '完成' : '待练'}
-            </button>
-        `;
-    }
-    bar.innerHTML = html;
-}
-
-function toggleLiveSet(setNum, totalSets) {
-    if (completedSetIndices.has(setNum)) {
-        completedSetIndices.delete(setNum);
-    } else {
-        completedSetIndices.add(setNum);
-        startRestTimer(90);
-        if (completedSetIndices.size === totalSets) {
-            showToast(`已完成全部 ${totalSets} 组，点击“保存打卡”记录到云端`);
-        } else {
-            showToast(`第 ${setNum}/${totalSets} 组完成，已启动 90 秒组间休息计时`);
-        }
-    }
-    renderLiveSetPills();
-}
-
-function resetLiveSets() {
-    completedSetIndices.clear();
-    renderLiveSetPills();
-}
-
-function selectRpe(rpeLabel) {
-    currentRpeTag = rpeLabel;
-    const map = {
-        '轻松(余3次)': 'rpe_easy',
-        '黄金(余1-2次)': 'rpe_good',
-        '力竭(0余力)': 'rpe_max'
-    };
-    Object.entries(map).forEach(([k, btnId]) => {
-        const b = document.getElementById(btnId);
-        if (!b) return;
-        b.className = (k === rpeLabel)
-            ? 'rpe-btn active py-0.5 rounded border text-[10px]'
-            : 'rpe-btn py-0.5 rounded border border-slate-200 bg-white text-[10px] text-slate-600';
-    });
-}
-
-// ============================================================================
-// Pro v2.0 增效功能：科学热身金字塔 & 杠铃单边配片计算器
+// 科学热身金字塔 & 杠铃单边配片计算器
 // ============================================================================
 function openWarmupPlateModal() {
-    const curW = parseFloat(document.getElementById('inputWeight').value) || 50;
+    let curW = 50;
+    if (currentMainTab === 'follow') {
+        const curItem = getFollowActiveItem();
+        if (curItem && curItem.setsList[0] && curItem.setsList[0].weight > 0) curW = curItem.setsList[0].weight;
+    } else {
+        curW = parseFloat(document.getElementById('inputWeight').value) || 50;
+    }
     document.getElementById('calcTargetWeight').value = curW > 0 ? curW : 50;
     renderWarmupAndPlates();
     document.getElementById('warmupPlateModal').classList.remove('hidden');
@@ -2011,7 +2990,7 @@ function renderWarmupAndPlates() {
 }
 
 // ============================================================================
-// Pro v2.0 增效功能：组间休息倒计时 + 动画慢放与语音节拍器
+// 组间休息倒计时 + 动画慢放与语音节拍器
 // ============================================================================
 function playTone(freq = 660, duration = 0.12, gainVal = 0.1) {
     try {
@@ -2033,23 +3012,37 @@ function playTone(freq = 660, duration = 0.12, gainVal = 0.1) {
 
 function toggleAnimSpeed() {
     animSpeedFactor = (animSpeedFactor === 1.0) ? 0.5 : 1.0;
-    const btn = document.getElementById('animSpeedBtn');
-    if (btn) {
-        btn.innerText = animSpeedFactor === 0.5 ? '播放速度：0.5x 慢速剖析' : '播放速度：1.0x 正常';
-        btn.className = animSpeedFactor === 0.5
+    const btn1 = document.getElementById('animSpeedBtn');
+    const btn2 = document.getElementById('followSpeedBtn');
+    if (btn1) {
+        btn1.innerText = animSpeedFactor === 0.5 ? '播放速度：0.5x 慢速剖析' : '播放速度：1.0x 正常';
+        btn1.className = animSpeedFactor === 0.5
             ? 'py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold border border-blue-600'
             : 'py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200';
+    }
+    if (btn2) {
+        btn2.innerText = animSpeedFactor === 0.5 ? '速度:0.5x慢' : '速度:1.0x';
+        btn2.className = animSpeedFactor === 0.5
+            ? 'py-1 rounded bg-blue-600 text-white text-[10px] font-bold'
+            : 'py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-medium';
     }
 }
 
 function toggleTempoVoice() {
     tempoVoiceEnabled = !tempoVoiceEnabled;
-    const btn = document.getElementById('tempoVoiceBtn');
-    if (btn) {
-        btn.innerText = tempoVoiceEnabled ? '离心节拍音：开启中' : '离心节拍音：已关闭';
-        btn.className = tempoVoiceEnabled
+    const btn1 = document.getElementById('tempoVoiceBtn');
+    const btn2 = document.getElementById('followVoiceBtn');
+    if (btn1) {
+        btn1.innerText = tempoVoiceEnabled ? '离心节拍音：开启中' : '离心节拍音：已关闭';
+        btn1.className = tempoVoiceEnabled
             ? 'py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold border border-emerald-600'
             : 'py-1 rounded-lg bg-slate-100 text-slate-700 text-[11px] font-bold border border-slate-200';
+    }
+    if (btn2) {
+        btn2.innerText = tempoVoiceEnabled ? '节拍音:开' : '节拍音:关';
+        btn2.className = tempoVoiceEnabled
+            ? 'py-1 rounded bg-emerald-600 text-white text-[10px] font-bold'
+            : 'py-1 rounded bg-slate-100 text-slate-700 text-[10px] font-medium';
     }
     if (tempoVoiceEnabled) {
         playTone(784, 0.1, 0.08);
@@ -2057,33 +3050,52 @@ function toggleTempoVoice() {
     }
 }
 
+let restTotalSec = 90;
 function startRestTimer(seconds) {
     if (restTimerInterval) clearInterval(restTimerInterval);
+    restTotalSec = Math.max(1, seconds);
     restRemainSec = seconds;
     const disp = document.getElementById('restTimerDisplay');
+    const bigBar = document.getElementById('restBigExpandedBar');
+    const bigDigits = document.getElementById('restBigDigits');
+    const pFill = document.getElementById('restProgressBarFill');
     const stopBtn = document.getElementById('restStopBtn');
+    const minusBtn = document.getElementById('restMinusBtn');
+    const plusBtn = document.getElementById('restPlusBtn');
     if (stopBtn) stopBtn.classList.remove('hidden');
+    if (minusBtn) minusBtn.classList.remove('hidden');
+    if (plusBtn) plusBtn.classList.remove('hidden');
+    if (bigBar) bigBar.classList.remove('hidden');
 
     function tick() {
         const m = Math.floor(restRemainSec / 60);
         const s = restRemainSec % 60;
+        const fmt = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         if (disp) {
-            disp.innerText = `${m}:${String(s).padStart(2, '0')}`;
+            disp.innerText = fmt;
             disp.className = restRemainSec <= 10
-                ? 'font-bold text-amber-400 tabular-nums'
-                : 'font-bold text-emerald-400 tabular-nums';
+                ? 'text-base font-extrabold text-amber-400 tabular-nums tracking-wide'
+                : 'text-base font-extrabold text-emerald-400 tabular-nums tracking-wide';
         }
+        if (bigDigits) {
+            bigDigits.innerText = fmt;
+            bigDigits.className = restRemainSec <= 10
+                ? 'text-2xl font-extrabold text-amber-400 tabular-nums tracking-wider leading-none'
+                : 'text-2xl font-extrabold text-emerald-400 tabular-nums tracking-wider leading-none';
+        }
+        if (pFill) {
+            pFill.style.width = `${Math.max(0, Math.min(100, Math.round((restRemainSec / restTotalSec) * 100)))}%`;
+        }
+        updateWatchHrUI();
         if (restRemainSec <= 0) {
-            clearInterval(restTimerInterval);
-            restTimerInterval = null;
+            stopRestTimer();
             if (disp) {
                 disp.innerText = '到时·开练';
-                disp.className = 'font-bold text-rose-400';
+                disp.className = 'text-base font-extrabold text-rose-400';
             }
-            if (stopBtn) stopBtn.classList.add('hidden');
             playTone(587.33, 0.15, 0.14);
             setTimeout(() => playTone(880, 0.18, 0.14), 180);
-            showToast('组间休息结束，可以开始下一组训练');
+            showToast('组间休息结束，心率已恢复，请开始下一组');
             return;
         }
         restRemainSec--;
@@ -2092,17 +3104,36 @@ function startRestTimer(seconds) {
     restTimerInterval = setInterval(tick, 1000);
 }
 
+function adjustRestTimer(deltaSec) {
+    if (!restTimerInterval) return;
+    restRemainSec = Math.max(1, restRemainSec + deltaSec);
+    restTotalSec = Math.max(restTotalSec, restRemainSec);
+    const m = Math.floor(restRemainSec / 60);
+    const s = restRemainSec % 60;
+    const fmt = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    const disp = document.getElementById('restTimerDisplay');
+    const bigDigits = document.getElementById('restBigDigits');
+    if (disp) disp.innerText = fmt;
+    if (bigDigits) bigDigits.innerText = fmt;
+}
+
 function stopRestTimer() {
     if (restTimerInterval) clearInterval(restTimerInterval);
     restTimerInterval = null;
     restRemainSec = 0;
     const disp = document.getElementById('restTimerDisplay');
+    const bigBar = document.getElementById('restBigExpandedBar');
     const stopBtn = document.getElementById('restStopBtn');
+    const minusBtn = document.getElementById('restMinusBtn');
+    const plusBtn = document.getElementById('restPlusBtn');
     if (disp) {
         disp.innerText = '未计时';
-        disp.className = 'font-bold text-emerald-400 tabular-nums';
+        disp.className = 'text-base font-extrabold text-emerald-400 tabular-nums tracking-wide';
     }
+    if (bigBar) bigBar.classList.add('hidden');
     if (stopBtn) stopBtn.classList.add('hidden');
+    if (minusBtn) minusBtn.classList.add('hidden');
+    if (plusBtn) plusBtn.classList.add('hidden');
 }
 
 function getExerciseHistoryStats(exId) {
@@ -2117,7 +3148,6 @@ function applyWeightQuick(w, sets, reps) {
     if (w !== undefined) document.getElementById('inputWeight').value = w;
     if (sets !== undefined) document.getElementById('inputSets').value = sets;
     if (reps !== undefined) document.getElementById('inputReps').value = reps;
-    renderLiveSetPills();
     showToast(`已填入：${sets || document.getElementById('inputSets').value}组 × ${reps || document.getElementById('inputReps').value}次 × ${w}kg`);
 }
 
@@ -2159,11 +3189,7 @@ function updateWeeklyVolumeDashboard() {
     if (sugEl) sugEl.innerText = `今日优先推荐：${arr[0].name}`;
 }
 
-// ============================================================================
-// Pro v2.0 增肌看板（双人PK + 四大项 e1RM + 历史折线图 + 营养目标与体测记录）
-// ============================================================================
 function renderAnalyticsSubView() {
-    // 1. 双人近7天 PK
     const sevenDaysAgo = Date.now() - 7 * 24 * 3600 * 1000;
     function calcRoleWeek(rData) {
         const recs = (rData.records || []).filter(r => (r.time || new Date(r.date || todayStr).getTime()) >= sevenDaysAgo);
@@ -2190,7 +3216,6 @@ function renderAnalyticsSubView() {
         `;
     }
 
-    // 2. 四大复合主项 e1RM 计算
     const myRecs = getMyData().records || [];
     const bw = ROLES[myIdentity] ? ROLES[myIdentity].weight : 60;
     function best1RM(ids, fallbackW) {
@@ -2224,7 +3249,6 @@ function renderAnalyticsSubView() {
         `).join('');
     }
 
-    // 3. 填充趋势图下拉框并绘制
     const sel = document.getElementById('trendExSelect');
     if (sel && !sel.options.length) {
         const mainExs = getAllExercises().filter(e => e.part !== 'warmup' && e.part !== 'stretch');
@@ -2232,7 +3256,6 @@ function renderAnalyticsSubView() {
     }
     renderStrengthTrendChart();
 
-    // 4. 每日增肌营养目标与体测记录
     const nutBox = document.getElementById('nutritionTargetBox');
     if (nutBox) {
         const curWeight = (getMyData().bodyMetrics && getMyData().bodyMetrics.length)
@@ -2274,7 +3297,6 @@ function renderStrengthTrendChart() {
     ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, 0, W, H);
 
-    // 若尚无历史记录，展示推荐起步 -> 4周进阶目标示意曲线
     const isDemo = recs.length === 0;
     const baseW = ex ? (myIdentity === '亲亲' ? ex.weightQin : ex.weightHeng) || 20 : 30;
     const pts = isDemo
@@ -2390,11 +3412,12 @@ function renderBodyMetricsList() {
 window.onload = async function() {
     document.getElementById('logDateInput').value = todayStr;
     loadLocalCache();
+    initWatchHrEngine();
     startAnimationLoop();
     await fetchAllData(false);
     lockReadonlyIdentityUI();
-    renderRecordPills();
-    renderLiveSetPills();
+    initQuickCheckinSelectors();
+    initFollowSessionFromPlan('');
     renderRecordsView();
     renderPlansSubView();
     renderCustomExSubView();
@@ -2445,7 +3468,6 @@ function normalizeRoleData(rawPlan, roleName, rawDaily) {
     const pObj = (rawPlan && typeof rawPlan === 'object') ? rawPlan : {};
     const dObj = (rawDaily && typeof rawDaily === 'object') ? rawDaily : {};
 
-    // 兼容历史数据：若旧版 Hjs/Qjs 中曾存有 records，自动合并至内存中的每日记录列表，后续写入时彻底分离
     const dailyRecs = Array.isArray(dObj.records) ? dObj.records : [];
     const legacyRecs = Array.isArray(pObj.records) ? pObj.records : [];
     const recMap = new Map();
@@ -2476,7 +3498,6 @@ function normalizeRoleData(rawPlan, roleName, rawDaily) {
     };
 }
 
-// 构造仅包含【训练计划与自建动作库】的精简数据体（存入 Hjs.json / Qjs.json）
 function buildPlanPayload(roleData) {
     return {
         role: roleData.role,
@@ -2488,10 +3509,8 @@ function buildPlanPayload(roleData) {
     };
 }
 
-// 构造仅包含【每日完成内容与体测记录】的精简数据体（存入 Hmrjs.json / Qmrjs.json）
 function buildDailyPayload(roleData) {
     const recs = Array.isArray(roleData.records) ? roleData.records : [];
-    // 按天（YYYY-MM-DD）聚合构建 dailyRecords 索引，方便按日查阅
     const dailyRecords = {};
     recs.forEach(r => {
         const d = r.date || todayStr;
@@ -2509,7 +3528,6 @@ function buildDailyPayload(roleData) {
     };
 }
 
-// 独立上传【训练计划/动作库】到 Hjs.json 或 Qjs.json
 async function syncRolePlanToCloud(roleName) {
     const isHeng = (roleName !== '亲亲');
     const targetData = isHeng ? dataH : dataQ;
@@ -2523,7 +3541,6 @@ async function syncRolePlanToCloud(roleName) {
     return upRes;
 }
 
-// 独立上传【每日完成打卡/体测】到 Hmrjs.json 或 Qmrjs.json
 async function syncRoleDailyToCloud(roleName) {
     const isHeng = (roleName !== '亲亲');
     const targetData = isHeng ? dataH : dataQ;
@@ -2633,8 +3650,8 @@ function loadLocalCache() {
         const raw = localStorage.getItem(LOCAL_CACHE_KEY);
         if (raw) {
             const parsed = JSON.parse(raw);
-            if (parsed.dataH) dataH = normalizeRoleData(parsed.dataH, '哼哼');
-            if (parsed.dataQ) dataQ = normalizeRoleData(parsed.dataQ, '亲亲');
+            if (parsed.dataH) dataH = normalizeRoleData(parsed.dataH, '哼哼', parsed.dataH);
+            if (parsed.dataQ) dataQ = normalizeRoleData(parsed.dataQ, '亲亲', parsed.dataQ);
         }
     } catch (e) {}
 }
@@ -2646,22 +3663,32 @@ function saveLocalCache() {
 }
 
 // ============================================================================
-// 4. 选项卡切换
+// 6. 三大主选项卡切换（跟练 | 打卡与计划 | 动作与动画）
+//    仅在「动作与动画」时显示顶部的 #partTabsRow（热身/背部/腿部/胸肩/拉伸）！
 // ============================================================================
 function switchMainTab(tab) {
     currentMainTab = tab;
+    document.getElementById('view_follow').classList.toggle('hidden', tab !== 'follow');
     document.getElementById('view_records').classList.toggle('hidden', tab !== 'records');
     document.getElementById('view_actions').classList.toggle('hidden', tab !== 'actions');
 
-    document.getElementById('mainTab_records').className = tab === 'records'
-        ? 'seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1'
-        : 'seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1';
-    document.getElementById('mainTab_actions').className = tab === 'actions'
-        ? 'seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1'
-        : 'seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1';
+    // 关键要求：打卡与计划（以及跟练）中不显示顶部的热身/背部等部位选项卡，仅在动作与动画页显示
+    document.getElementById('partTabsRow').classList.toggle('hidden', tab !== 'actions');
 
-    if (tab === 'records') {
-        renderRecordPills();
+    ['follow', 'records', 'actions'].forEach(k => {
+        const b = document.getElementById(`mainTab_${k}`);
+        if (!b) return;
+        b.className = (k === tab)
+            ? 'seg-btn active py-1.5 rounded-lg text-xs flex items-center justify-center gap-1'
+            : 'seg-btn py-1.5 rounded-lg text-xs text-slate-600 flex items-center justify-center gap-1';
+    });
+
+    if (tab === 'follow') {
+        renderFollowView();
+        const c = document.getElementById('follow_anim_canvas');
+        if (c && followSession.canvasVisible) drawStage(c, getFollowActiveExerciseObj(), performance.now());
+    } else if (tab === 'records') {
+        initQuickCheckinSelectors();
         renderRecordsView();
     } else {
         renderSingleActionView();
@@ -2695,9 +3722,7 @@ function switchPartTab(part) {
             ? 'part-tab active py-1 rounded-lg text-xs text-center'
             : 'part-tab py-1 rounded-lg text-xs text-slate-600 text-center';
     });
-    if (currentMainTab === 'records') {
-        renderRecordPills();
-    } else {
+    if (currentMainTab === 'actions') {
         renderSingleActionView();
         const canvas = document.getElementById('active_anim_canvas');
         const ex = getCurrentEx();
@@ -2709,11 +3734,9 @@ function selectExercise(exId) {
     const ex = getAllExercises().find(e => e.id === exId);
     if (!ex) return;
     selectedExByPart[ex.part] = ex.id;
-    completedSetIndices.clear();
     if (currentMainTab === 'records') {
-        renderRecordPills();
-        renderLiveSetPills();
-    } else {
+        syncInputsWithSelectedExercise();
+    } else if (currentMainTab === 'actions') {
         renderSingleActionView();
         const canvas = document.getElementById('active_anim_canvas');
         if (canvas) drawStage(canvas, ex, performance.now());
@@ -2721,35 +3744,20 @@ function selectExercise(exId) {
 }
 
 function jumpToCurrentExerciseAnim() {
+    const ex = getCurrentEx();
+    if (ex) switchPartTab(ex.part);
     switchMainTab('actions');
 }
 
 function jumpToRecordCurrentExercise() {
     switchMainTab('records');
     switchRecordSubTab('checkin');
-    syncInputsWithSelectedExercise();
+    initQuickCheckinSelectors();
 }
 
 // ============================================================================
-// 5. 今日打卡、渐进超负荷历史对比与待练清单
+// 7. 今日打卡与待练清单
 // ============================================================================
-function renderRecordPills() {
-    const list = getAllExercises().filter(e => e.part === currentPartTab);
-    const activeEx = getCurrentEx();
-    const box = document.getElementById('recordExercisePills');
-    box.innerHTML = list.map(ex => {
-        const isAct = (ex.id === activeEx.id);
-        return `
-            <button type="button" onclick="selectExercise('${ex.id}')"
-                class="ex-tab px-1.5 py-1 rounded-lg text-[11px] border truncate text-center ${isAct ? 'active' : 'bg-slate-50 text-slate-600 border-slate-200'}">
-                ${ex.shortTab || ex.name}
-            </button>
-        `;
-    }).join('');
-    syncInputsWithSelectedExercise();
-    renderLiveSetPills();
-}
-
 function syncInputsWithSelectedExercise() {
     const ex = getCurrentEx();
     if (!ex) return;
@@ -2780,10 +3788,13 @@ function syncInputsWithSelectedExercise() {
         histHtml = `<div class="text-[10px] text-slate-400">尚无此动作历史打卡，已为你预填当前身高体重推荐配重</div>`;
     }
 
-    document.getElementById('recordHintBar').innerHTML =
-        `<div class="font-bold text-slate-900 truncate">${ex.name}</div>
-         <div class="text-blue-600 font-medium truncate">${hint}</div>
-         ${histHtml}`;
+    const hintEl = document.getElementById('recordHintBar');
+    if (hintEl) {
+        hintEl.innerHTML =
+            `<div class="font-bold text-slate-900 truncate">${ex.name}</div>
+             <div class="text-blue-600 font-medium truncate">${hint}</div>
+             ${histHtml}`;
+    }
 }
 
 function adjustNum(id, delta, minV, maxV) {
@@ -2817,11 +3828,14 @@ function openImportPlanModal() {
             <div class="min-w-0 flex-1">
                 <div class="text-xs font-bold text-slate-900 truncate">${pl.name}</div>
             </div>
-            <div class="flex items-center gap-1.5 shrink-0">
-                <button onclick="closeImportPlanModal(); openPlanDetailModal('${pl.id}');" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-medium">
+            <div class="flex items-center gap-1 shrink-0">
+                <button onclick="closeImportPlanModal(); openPlanDetailModal('${pl.id}');" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-600 text-[11px] font-medium">
                     详情
                 </button>
-                <button onclick="importPlanToToday('${pl.id}')" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold active:scale-95 transition">
+                <button onclick="closeImportPlanModal(); initFollowSessionFromPlan('${pl.id}'); switchMainTab('follow');" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold">
+                    跟练
+                </button>
+                <button onclick="importPlanToToday('${pl.id}')" class="px-2 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
                     导入
                 </button>
             </div>
@@ -3054,8 +4068,7 @@ async function saveWorkoutRecord(event) {
     const sets = Math.max(1, parseInt(document.getElementById('inputSets').value) || 1);
     const reps = Math.max(1, parseInt(document.getElementById('inputReps').value) || 1);
     const weight = Math.max(0, parseFloat(document.getElementById('inputWeight').value) || 0);
-    const rawNote = document.getElementById('inputNote').value.trim();
-    const note = rawNote ? `${rawNote} [${currentRpeTag}]` : currentRpeTag;
+    const note = document.getElementById('inputNote').value.trim();
 
     const btn = document.getElementById('saveRecordBtn');
     const oldText = btn.innerHTML;
@@ -3090,12 +4103,10 @@ async function saveWorkoutRecord(event) {
     if (upRes.success || !GITHUB_TOKEN) {
         saveLocalCache();
         document.getElementById('inputNote').value = '';
-        completedSetIndices.clear();
-        renderLiveSetPills();
         renderRecordsView();
         syncInputsWithSelectedExercise();
         startRestTimer(90);
-        showToast(GITHUB_TOKEN ? "打卡成功·已启动90秒休息计时" : "已保存本地·已启动90秒休息计时");
+        showToast(GITHUB_TOKEN ? "打卡成功·已存入每日云端" : "已保存本地·已启动90秒休息计时");
     } else {
         myData.records.shift();
         showToast("保存失败，请重试");
@@ -3136,7 +4147,7 @@ function getAllMergedRecords() {
 }
 
 // ============================================================================
-// 6. 打卡记录本：以天为单位聚合展示 + 点击打开当天详情弹窗
+// 8. 打卡记录本：以天为单位聚合展示 + 点击打开当天详情弹窗
 // ============================================================================
 function renderRecordsView() {
     updateWeeklyVolumeDashboard();
@@ -3167,7 +4178,7 @@ function renderRecordsView() {
 
     const box = document.getElementById('dailyRecordsListContainer');
     if (daysArr.length === 0) {
-        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">暂无打卡记录，选择动作点击“保存打卡”或“导入计划动作”即可记录</div>`;
+        box.innerHTML = `<div class="text-center py-4 text-xs text-slate-400">暂无打卡记录，可在「跟练」页完成跟练或在上方快速打卡</div>`;
         return;
     }
 
@@ -3259,7 +4270,7 @@ function closeDayDetailModal() {
 }
 
 // ============================================================================
-// 7. 我的计划：列表仅显示计划名称，点击“详情”弹窗查看详细内容（一条一行，点击修改在动作正下方展开修改栏，按分类选动作）
+// 9. 我的计划：列表仅显示计划名称，点击“详情”弹窗查看详细内容（一条一行，点击修改在动作正下方展开修改栏，按分类选动作）
 // ============================================================================
 function renderPlansSubView() {
     const myData = getMyData();
@@ -3275,13 +4286,16 @@ function renderPlansSubView() {
                 <div class="text-xs font-bold text-slate-900 truncate">${pl.name}</div>
             </div>
             <div class="flex items-center gap-1 shrink-0">
-                <button onclick="openPlanDetailModal('${pl.id}')" class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-blue-600 text-[11px] font-bold">
+                <button onclick="openPlanDetailModal('${pl.id}')" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-blue-600 text-[11px] font-bold">
                     详情
                 </button>
-                <button onclick="importPlanToToday('${pl.id}'); switchRecordSubTab('checkin');" class="px-2.5 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
+                <button onclick="initFollowSessionFromPlan('${pl.id}'); switchMainTab('follow');" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[11px] font-bold">
+                    跟练
+                </button>
+                <button onclick="importPlanToToday('${pl.id}'); switchRecordSubTab('checkin');" class="px-2 py-1 rounded-lg bg-blue-600 text-white text-[11px] font-bold">
                     导入
                 </button>
-                <button onclick="deletePlan('${pl.id}')" class="px-2 py-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-[11px]">
+                <button onclick="deletePlan('${pl.id}')" class="px-1.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-[11px]">
                     删除
                 </button>
             </div>
@@ -3520,6 +4534,7 @@ async function saveModalPlanToCloud(event) {
         saveLocalCache();
         closePlanDetailModal();
         renderPlansSubView();
+        initFollowSessionFromPlan(planToSave.id);
         showToast("计划已保存至云端 (" + (myIdentity === '哼哼' ? 'Hjs' : 'Qjs') + ")");
     } else {
         showToast("保存失败，请重试");
@@ -3538,6 +4553,7 @@ async function deletePlan(planId) {
     if (upRes.success || !GITHUB_TOKEN) {
         saveLocalCache();
         renderPlansSubView();
+        initFollowSessionFromPlan('');
         showToast("计划已删除并同步云端");
     } else {
         showToast("删除失败，请重试");
@@ -3581,7 +4597,7 @@ async function addCurrentExToMyPlanQuick(ev) {
 }
 
 // ============================================================================
-// 8. 自建动作入库并同步云端
+// 10. 自建动作入库并同步云端 (Hjs.json / Qjs.json)
 // ============================================================================
 async function saveCustomExerciseToCloud(event) {
     const name = document.getElementById('custExName').value.trim();
@@ -3642,8 +4658,8 @@ async function saveCustomExerciseToCloud(event) {
         document.getElementById('custExPrec').value = '';
         selectedExByPart[part] = newEx.id;
         renderCustomExSubView();
-        renderRecordPills();
-        showToast(`已将动作「${name}」加入云端动作库`);
+        initQuickCheckinSelectors();
+        showToast(`已将动作「${name}」存入云端计划库`);
     } else {
         myData.customExercises.pop();
         showToast("保存失败，请重试");
@@ -3678,7 +4694,7 @@ async function deleteCustomEx(exId) {
     if (upRes.success || !GITHUB_TOKEN) {
         saveLocalCache();
         renderCustomExSubView();
-        renderRecordPills();
+        initQuickCheckinSelectors();
         showToast('已删除该自建动作');
     } else {
         showToast('删除失败，请重试');
@@ -3686,7 +4702,7 @@ async function deleteCustomEx(exId) {
 }
 
 // ============================================================================
-// 9. 单动作动画与解析展示页（含同肌群平替显示）
+// 11. 单动作动画与解析展示页
 // ============================================================================
 function renderSingleActionView() {
     const list = getAllExercises().filter(e => e.part === currentPartTab);
@@ -3768,7 +4784,7 @@ function setAnimStep(mode) {
 }
 
 // ============================================================================
-// 10. Pro v2.0 双栏解剖动画引擎（含慢速剖析、语音节拍触发、张力负荷计、正背面解剖热力图）
+// 12. 双画布通用解剖动画引擎（同时驱动「跟练页小窗 follow_anim_canvas」与「动作页画布 active_anim_canvas」）
 // ============================================================================
 function lerp(a, b, t) { return a + (b - a) * t; }
 
@@ -3801,12 +4817,11 @@ function getCycleMetrics(exId, nowMs) {
         title = '4.离心回放 · 慢吸控制'; breath = '慢吸回放 (2.5s)';
     }
 
-    // 若开启了语音节拍器，在阶段切换瞬间发出对应音频脉冲
-    if (tempoVoiceEnabled && currentMainTab === 'actions' && phaseIdx !== lastPhaseIdx) {
+    if (tempoVoiceEnabled && (currentMainTab === 'actions' || currentMainTab === 'follow') && phaseIdx !== lastPhaseIdx) {
         lastPhaseIdx = phaseIdx;
-        if (phaseIdx === 1) playTone(660, 0.09, 0.08);      // 向心发力起点
-        else if (phaseIdx === 2) playTone(880, 0.12, 0.10);  // 顶峰收缩高音
-        else if (phaseIdx === 3) playTone(440, 0.10, 0.07);  // 离心慢放起点
+        if (phaseIdx === 1) playTone(660, 0.09, 0.08);
+        else if (phaseIdx === 2) playTone(880, 0.12, 0.10);
+        else if (phaseIdx === 3) playTone(440, 0.10, 0.07);
     }
 
     return { p, phaseIdx, title, breath };
@@ -3814,13 +4829,14 @@ function getCycleMetrics(exId, nowMs) {
 
 function drawAnatomicalMuscleMap(ctx, W, H, animKey, p) {
     const meta = MUSCLE_MAP_META[animKey] || { view: 'front', primary: ['chest_mid'], secondary: ['delt_front'], pText: '目标主肌群', sText: '协同肌群' };
-    const panelW = 104;
-    const px = W - panelW - 6;
-    const py = 26;
-    const ph = H - 44;
+    const panelW = 98;
+    const px = W - panelW - 5;
+    const py = 24;
+    const ph = H - 38;
+    const vScale = Math.min(1.0, ph / 138);
 
     ctx.save();
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.90)';
     ctx.strokeStyle = '#334155';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -3828,34 +4844,34 @@ function drawAnatomicalMuscleMap(ctx, W, H, animKey, p) {
     ctx.fill();
     ctx.stroke();
 
-    ctx.font = 'bold 9.5px -apple-system, "PingFang SC", sans-serif';
+    ctx.font = 'bold 9px -apple-system, "PingFang SC", sans-serif';
     ctx.fillStyle = '#cbd5e1';
     ctx.textAlign = 'center';
-    ctx.fillText(meta.view === 'back' ? '背面肌群热力图' : '正面肌群热力图', px + panelW * 0.5, py + 12);
+    ctx.fillText(meta.view === 'back' ? '背面肌群热力图' : '正面肌群热力图', px + panelW * 0.5, py + 11);
 
     const mcx = px + panelW * 0.5;
-    const mcy = py + 16;
+    const mcy = py + 14;
 
     function mPart(key, x, y, rx, ry, deg = 0) {
         const isPri = meta.primary.includes(key);
         const isSec = meta.secondary.includes(key);
         ctx.save();
-        ctx.translate(mcx + x, mcy + y);
+        ctx.translate(mcx + x * vScale, mcy + y * vScale);
         ctx.rotate((deg * Math.PI) / 180);
         ctx.beginPath();
-        ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 0, rx * vScale, ry * vScale, 0, 0, Math.PI * 2);
         if (isPri) {
             ctx.fillStyle = `rgba(244, 63, 94, ${0.55 + 0.42 * p})`;
             ctx.strokeStyle = '#fda4af';
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.1;
         } else if (isSec) {
             ctx.fillStyle = `rgba(245, 158, 11, ${0.45 + 0.35 * p})`;
             ctx.strokeStyle = '#fde68a';
-            ctx.lineWidth = 1.0;
+            ctx.lineWidth = 0.9;
         } else {
             ctx.fillStyle = '#1e293b';
             ctx.strokeStyle = '#475569';
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 0.7;
         }
         ctx.fill();
         ctx.stroke();
@@ -3863,90 +4879,85 @@ function drawAnatomicalMuscleMap(ctx, W, H, animKey, p) {
     }
 
     ctx.beginPath();
-    ctx.arc(mcx, mcy + 9, 6.5, 0, Math.PI * 2);
+    ctx.arc(mcx, mcy + 8 * vScale, 6 * vScale, 0, Math.PI * 2);
     ctx.fillStyle = '#334155';
     ctx.fill();
     ctx.strokeStyle = '#64748b';
-    ctx.lineWidth = 0.9;
+    ctx.lineWidth = 0.8;
     ctx.stroke();
 
     if (meta.view === 'front') {
-        mPart('chest_upper', -6.5, 22, 6.5, 3.2, 8);
-        mPart('chest_upper', 6.5, 22, 6.5, 3.2, -8);
-        mPart('chest_mid', -6.5, 27, 6.8, 4.2, -4);
-        mPart('chest_mid', 6.5, 27, 6.8, 4.2, 4);
-        mPart('chest_lower', -6.2, 31, 6.0, 2.5, -10);
-        mPart('chest_lower', 6.2, 31, 6.0, 2.5, 10);
+        mPart('chest_upper', -6.5, 20, 6.2, 3.0, 8);
+        mPart('chest_upper', 6.5, 20, 6.2, 3.0, -8);
+        mPart('chest_mid', -6.5, 25, 6.5, 4.0, -4);
+        mPart('chest_mid', 6.5, 25, 6.5, 4.0, 4);
+        mPart('chest_lower', -6.2, 29, 5.8, 2.4, -10);
+        mPart('chest_lower', 6.2, 29, 5.8, 2.4, 10);
 
-        mPart('delt_mid', -15.5, 22, 3.5, 5.2, 15);
-        mPart('delt_mid', 15.5, 22, 3.5, 5.2, -15);
-        mPart('delt_front', -13.5, 23, 3.2, 4.5, 10);
-        mPart('delt_front', 13.5, 23, 3.2, 4.5, -10);
+        mPart('delt_mid', -15.0, 20, 3.3, 4.8, 15);
+        mPart('delt_mid', 15.0, 20, 3.3, 4.8, -15);
+        mPart('delt_front', -13.0, 21, 3.0, 4.2, 10);
+        mPart('delt_front', 13.0, 21, 3.0, 4.2, -10);
 
-        mPart('biceps', -17.5, 33, 3.2, 6.5, 8);
-        mPart('biceps', 17.5, 33, 3.2, 6.5, -8);
-        mPart('forearms', -19.5, 45, 2.6, 6.2, 6);
-        mPart('forearms', 19.5, 45, 2.6, 6.2, -6);
+        mPart('biceps', -17.0, 31, 3.0, 6.0, 8);
+        mPart('biceps', 17.0, 31, 3.0, 6.0, -8);
+        mPart('forearms', -19.0, 42, 2.5, 5.8, 6);
+        mPart('forearms', 19.0, 42, 2.5, 5.8, -6);
 
-        mPart('abs', 0, 39, 6.5, 8.5, 0);
-        mPart('obliques', -8.5, 40, 2.8, 7.5, 5);
-        mPart('obliques', 8.5, 40, 2.8, 7.5, -5);
+        mPart('abs', 0, 36, 6.2, 8.0, 0);
+        mPart('obliques', -8.0, 37, 2.6, 7.0, 5);
+        mPart('obliques', 8.0, 37, 2.6, 7.0, -5);
 
-        mPart('glute_med', -10.5, 51, 2.8, 5.0, -8);
-        mPart('glute_med', 10.5, 51, 2.8, 5.0, 8);
-        mPart('adductors', -4.2, 60, 2.8, 8.0, -4);
-        mPart('adductors', 4.2, 60, 2.8, 8.0, 4);
-        mPart('quads', -8.2, 63, 4.8, 12.0, 3);
-        mPart('quads', 8.2, 63, 4.8, 12.0, -3);
+        mPart('glute_med', -10.0, 48, 2.6, 4.6, -8);
+        mPart('glute_med', 10.0, 48, 2.6, 4.6, 8);
+        mPart('adductors', -4.0, 56, 2.6, 7.5, -4);
+        mPart('adductors', 4.0, 56, 2.6, 7.5, 4);
+        mPart('quads', -8.0, 59, 4.5, 11.0, 3);
+        mPart('quads', 8.0, 59, 4.5, 11.0, -3);
 
-        mPart('calves', -8.5, 84, 3.4, 9.5, 0);
-        mPart('calves', 8.5, 84, 3.4, 9.5, 0);
+        mPart('calves', -8.0, 78, 3.2, 8.8, 0);
+        mPart('calves', 8.0, 78, 3.2, 8.8, 0);
     } else {
-        mPart('traps_mid', 0, 22, 7.5, 5.0, 0);
-        mPart('traps_lower', 0, 30, 5.5, 5.5, 0);
+        mPart('traps_mid', 0, 20, 7.0, 4.6, 0);
+        mPart('traps_lower', 0, 28, 5.2, 5.0, 0);
 
-        mPart('delt_mid', -15.5, 22, 3.5, 4.8, 15);
-        mPart('delt_mid', 15.5, 22, 3.5, 4.8, -15);
-        mPart('delt_rear', -13.2, 23, 3.5, 4.2, 20);
-        mPart('delt_rear', 13.2, 23, 3.5, 4.2, -20);
+        mPart('delt_mid', -15.0, 20, 3.3, 4.5, 15);
+        mPart('delt_mid', 15.0, 20, 3.3, 4.5, -15);
+        mPart('delt_rear', -12.8, 21, 3.3, 4.0, 20);
+        mPart('delt_rear', 12.8, 21, 3.3, 4.0, -20);
 
-        mPart('teres', -11.2, 27, 3.2, 3.5, 28);
-        mPart('teres', 11.2, 27, 3.2, 3.5, -28);
+        mPart('teres', -10.8, 25, 3.0, 3.2, 28);
+        mPart('teres', 10.8, 25, 3.0, 3.2, -28);
 
-        mPart('lats_upper', -9.2, 32, 4.8, 6.5, 16);
-        mPart('lats_upper', 9.2, 32, 4.8, 6.5, -16);
-        mPart('lats_lower', -7.2, 39, 4.5, 6.5, 10);
-        mPart('lats_lower', 7.2, 39, 4.5, 6.5, -10);
-        mPart('erectors', 0, 42, 3.8, 7.5, 0);
+        mPart('lats_upper', -8.8, 30, 4.5, 6.0, 16);
+        mPart('lats_upper', 8.8, 30, 4.5, 6.0, -16);
+        mPart('lats_lower', -7.0, 36, 4.2, 6.0, 10);
+        mPart('lats_lower', 7.0, 36, 4.2, 6.0, -10);
+        mPart('erectors', 0, 39, 3.5, 7.0, 0);
 
-        mPart('triceps', -17.5, 33, 3.4, 6.8, 8);
-        mPart('triceps', 17.5, 33, 3.4, 6.8, -8);
-        mPart('forearms', -19.5, 45, 2.6, 6.2, 6);
-        mPart('forearms', 19.5, 45, 2.6, 6.2, -6);
+        mPart('triceps', -17.0, 31, 3.2, 6.2, 8);
+        mPart('triceps', 17.0, 31, 3.2, 6.2, -8);
+        mPart('forearms', -19.0, 42, 2.5, 5.8, 6);
+        mPart('forearms', 19.0, 42, 2.5, 5.8, -6);
 
-        mPart('glute_med', -9.8, 50, 3.8, 4.2, -15);
-        mPart('glute_med', 9.8, 50, 3.8, 4.2, 15);
-        mPart('glutes', -6.2, 54, 5.5, 6.2, -5);
-        mPart('glutes', 6.2, 54, 5.5, 6.2, 5);
+        mPart('glute_med', -9.2, 47, 3.5, 4.0, -15);
+        mPart('glute_med', 9.2, 47, 3.5, 4.0, 15);
+        mPart('glutes', -6.0, 51, 5.2, 5.8, -5);
+        mPart('glutes', 6.0, 51, 5.2, 5.8, 5);
 
-        mPart('hamstrings', -7.5, 67, 4.5, 10.5, 2);
-        mPart('hamstrings', 7.5, 67, 4.5, 10.5, -2);
-        mPart('calves', -7.8, 84, 3.8, 9.5, 0);
-        mPart('calves', 7.8, 84, 3.8, 9.5, 0);
+        mPart('hamstrings', -7.2, 63, 4.2, 9.8, 2);
+        mPart('hamstrings', 7.2, 63, 4.2, 9.8, -2);
+        mPart('calves', -7.5, 78, 3.5, 8.8, 0);
+        mPart('calves', 7.5, 78, 3.5, 8.8, 0);
     }
 
-    const legY = py + ph - 18;
+    const legY = py + ph - 5;
     ctx.fillStyle = '#f43f5e';
-    ctx.fillRect(px + 6, legY - 6, 6, 6);
+    ctx.fillRect(px + 5, legY - 7, 5, 5);
     ctx.fillStyle = '#fda4af';
-    ctx.font = 'bold 8.5px -apple-system, "PingFang SC", sans-serif';
+    ctx.font = 'bold 8px -apple-system, "PingFang SC", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(meta.pText.slice(0, 9), px + 15, legY - 0.5);
-
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(px + 6, legY + 5, 6, 6);
-    ctx.fillStyle = '#fde68a';
-    ctx.fillText((meta.sText || '核心稳定').slice(0, 9), px + 15, legY + 10.5);
+    ctx.fillText(meta.pText.slice(0, 9), px + 13, legY - 2);
 
     ctx.restore();
 }
@@ -3955,7 +4966,7 @@ function drawStage(canvas, ex, nowMs) {
     if (!canvas || !ex) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const W = canvas.clientWidth || 410;
-    const H = canvas.clientHeight || 196;
+    const H = canvas.clientHeight || 176;
     const targetW = Math.round(W * dpr);
     const targetH = Math.round(H * dpr);
     if (canvas.width !== targetW || canvas.height !== targetH) {
@@ -3973,22 +4984,22 @@ function drawStage(canvas, ex, nowMs) {
         ctx.fillStyle = '#0f172a';
         ctx.fillRect(0, 0, W, H);
 
-        const stageW = W - 112;
+        const stageW = W - 106;
 
-        ctx.strokeStyle = 'rgba(51, 65, 85, 0.32)';
+        ctx.strokeStyle = 'rgba(51, 65, 85, 0.30)';
         ctx.lineWidth = 1;
         for (let gx = 34; gx < stageW; gx += 36) {
-            ctx.beginPath(); ctx.moveTo(gx, 26); ctx.lineTo(gx, H - 22); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(gx, 24); ctx.lineTo(gx, H - 18); ctx.stroke();
         }
-        for (let gy = 46; gy < H - 22; gy += 34) {
-            ctx.beginPath(); ctx.moveTo(12, gy); ctx.lineTo(stageW - 6, gy); ctx.stroke();
+        for (let gy = 44; gy < H - 18; gy += 32) {
+            ctx.beginPath(); ctx.moveTo(10, gy); ctx.lineTo(stageW - 6, gy); ctx.stroke();
         }
 
-        const floorY = H - 22;
+        const floorY = H - 18;
         ctx.strokeStyle = '#475569';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(12, floorY);
+        ctx.moveTo(10, floorY);
         ctx.lineTo(stageW - 6, floorY);
         ctx.stroke();
 
@@ -3997,25 +5008,25 @@ function drawStage(canvas, ex, nowMs) {
         const animKey = ex.animType || ex.id;
         const meta = MUSCLE_MAP_META[animKey] || { view: 'front', primary: ['chest_mid'], secondary: [], pText: ex.target, sText: '' };
 
-        ctx.font = 'bold 11px -apple-system, "PingFang SC", sans-serif';
+        ctx.font = 'bold 10.5px -apple-system, "PingFang SC", sans-serif';
         ctx.fillStyle = '#f8fafc';
         ctx.textAlign = 'left';
-        ctx.fillText(m.title, 10, 17);
+        ctx.fillText(m.title, 8, 16);
 
         ctx.textAlign = 'right';
         ctx.fillStyle = m.phaseIdx === 1 ? '#34d399' : (m.phaseIdx === 2 ? '#fbbf24' : '#38bdf8');
-        ctx.font = 'bold 10px -apple-system, "PingFang SC", sans-serif';
-        ctx.fillText(`${m.breath} · 张力${Math.round(30 + 70 * p)}%`, W - 10, 17);
+        ctx.font = 'bold 9.5px -apple-system, "PingFang SC", sans-serif';
+        ctx.fillText(`${m.breath} · 张力${Math.round(30 + 70 * p)}%`, W - 8, 16);
         ctx.textAlign = 'left';
 
-        const barW = (W - 20) / 4;
+        const barW = (W - 16) / 4;
         for (let i = 0; i < 4; i++) {
             ctx.fillStyle = (i === m.phaseIdx) ? '#3b82f6' : '#1e293b';
-            ctx.fillRect(10 + i * barW + 2, H - 10, barW - 4, 3.5);
+            ctx.fillRect(8 + i * barW + 2, H - 8, barW - 4, 3);
         }
 
         const cx0 = stageW * 0.50;
-        const scale = (H - 48) / 7.2;
+        const scale = (H - 42) / 7.2;
         const tx = x => cx0 + (x - 5.0) * scale;
         const ty = y => floorY - (y - 1.5) * scale;
 
@@ -4063,7 +5074,7 @@ function drawStage(canvas, ex, nowMs) {
             ctx.beginPath();
             ctx.arc(tx(pt[0]), ty(pt[1]), r * scale, 0, Math.PI * 2);
             if (fill) { ctx.fillStyle = fill; ctx.fill(); }
-            if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.6; ctx.stroke(); }
+            if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1.5; ctx.stroke(); }
             ctx.restore();
         }
 
@@ -4075,22 +5086,22 @@ function drawStage(canvas, ex, nowMs) {
             ctx.fillStyle = '#e2e8f0';
             ctx.fill();
             ctx.strokeStyle = cTorso;
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 1.8;
             ctx.stroke();
 
             ctx.fillStyle = '#0f172a';
             if (faceDir === 1) {
-                ctx.beginPath(); ctx.arc(hx + rad * 0.48, hy - rad * 0.12, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hx + rad * 0.48, hy - rad * 0.12, 1.8, 0, Math.PI * 2); ctx.fill();
             } else if (faceDir === -1) {
-                ctx.beginPath(); ctx.arc(hx - rad * 0.48, hy - rad * 0.12, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hx - rad * 0.48, hy - rad * 0.12, 1.8, 0, Math.PI * 2); ctx.fill();
             } else if (faceDir === 2) {
-                ctx.beginPath(); ctx.arc(hx - rad * 0.12, hy - rad * 0.48, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hx - rad * 0.12, hy - rad * 0.48, 1.8, 0, Math.PI * 2); ctx.fill();
             } else if (faceDir === -2) {
-                ctx.beginPath(); ctx.arc(hx + rad * 0.12, hy + rad * 0.48, 2, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(hx + rad * 0.12, hy + rad * 0.48, 1.8, 0, Math.PI * 2); ctx.fill();
             } else {
                 ctx.beginPath();
-                ctx.arc(hx - rad * 0.3, hy - rad * 0.08, 1.6, 0, Math.PI * 2);
-                ctx.arc(hx + rad * 0.3, hy - rad * 0.08, 1.6, 0, Math.PI * 2);
+                ctx.arc(hx - rad * 0.3, hy - rad * 0.08, 1.5, 0, Math.PI * 2);
+                ctx.arc(hx + rad * 0.3, hy - rad * 0.08, 1.5, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.restore();
@@ -4106,7 +5117,7 @@ function drawStage(canvas, ex, nowMs) {
             ctx.fillStyle = `rgba(244, 63, 94, ${0.42 + 0.50 * p})`;
             ctx.fill();
             ctx.strokeStyle = '#fda4af';
-            ctx.lineWidth = 1.4;
+            ctx.lineWidth = 1.3;
             ctx.stroke();
             ctx.restore();
         }
@@ -4117,15 +5128,15 @@ function drawStage(canvas, ex, nowMs) {
             ctx.save();
             ctx.strokeStyle = col;
             ctx.fillStyle = col;
-            ctx.lineWidth = 1.8;
+            ctx.lineWidth = 1.6;
             ctx.beginPath();
             ctx.moveTo(x1, y1);
             ctx.lineTo(x2, y2);
             ctx.stroke();
             ctx.beginPath();
             ctx.moveTo(x2, y2);
-            ctx.lineTo(x2 - 6 * Math.cos(ang - 0.45), y2 - 6 * Math.sin(ang - 0.45));
-            ctx.lineTo(x2 - 6 * Math.cos(ang + 0.45), y2 - 6 * Math.sin(ang + 0.45));
+            ctx.lineTo(x2 - 5.5 * Math.cos(ang - 0.45), y2 - 5.5 * Math.sin(ang - 0.45));
+            ctx.lineTo(x2 - 5.5 * Math.cos(ang + 0.45), y2 - 5.5 * Math.sin(ang + 0.45));
             ctx.closePath();
             ctx.fill();
             ctx.restore();
@@ -4133,7 +5144,7 @@ function drawStage(canvas, ex, nowMs) {
 
         function label(x, y, text, col = '#94a3b8') {
             ctx.save();
-            ctx.font = 'bold 9.5px -apple-system, "PingFang SC", sans-serif';
+            ctx.font = 'bold 9px -apple-system, "PingFang SC", sans-serif';
             ctx.fillStyle = col;
             ctx.textAlign = 'center';
             ctx.fillText(text, tx(x), ty(y));
@@ -4143,13 +5154,13 @@ function drawStage(canvas, ex, nowMs) {
         function dumbbell(pt, w = 0.42, vertical = false) {
             const [x, y] = pt;
             if (vertical) {
-                seg([x, y - w * 0.5], [x, y + w * 0.5], 3, cBar);
-                seg([x - 0.16, y - w * 0.5], [x + 0.16, y - w * 0.5], 4.5, cPlate);
-                seg([x - 0.16, y + w * 0.5], [x + 0.16, y + w * 0.5], 4.5, cPlate);
+                seg([x, y - w * 0.5], [x, y + w * 0.5], 2.8, cBar);
+                seg([x - 0.16, y - w * 0.5], [x + 0.16, y - w * 0.5], 4, cPlate);
+                seg([x - 0.16, y + w * 0.5], [x + 0.16, y + w * 0.5], 4, cPlate);
             } else {
-                seg([x - w * 0.5, y], [x + w * 0.5, y], 3, cBar);
-                seg([x - w * 0.5, y - 0.18], [x - w * 0.5, y + 0.18], 4.5, cPlate);
-                seg([x + w * 0.5, y - 0.18], [x + w * 0.5, y + 0.18], 4.5, cPlate);
+                seg([x - w * 0.5, y], [x + w * 0.5, y], 2.8, cBar);
+                seg([x - w * 0.5, y - 0.18], [x - w * 0.5, y + 0.18], 4, cPlate);
+                seg([x + w * 0.5, y - 0.18], [x + w * 0.5, y + 0.18], 4, cPlate);
             }
         }
 
@@ -5118,48 +6129,6 @@ function drawStage(canvas, ex, nowMs) {
             arrow([4.55, 2.0], [4.55, 4.2], '#38bdf8');
         }
 
-        
-        else if (animKey === 'warmup_core_brace') {
-            // 核心激活：死虫式（仰卧下背死贴垫面，对侧手脚向地面延伸并保持骨盆后倾腹内压）
-            seg([2.0, 1.6], [8.0, 1.6], 4.5, cPad);
-            const ext = lerp(0.0, 1.0, p);
-            const hip = [4.6, 1.85], sh = [6.3, 1.85], hd = [6.95, 2.05];
-            // 固定侧腿（屈髋屈膝90度）与固定侧手臂（指向天花板）
-            poly([hip, [4.55, 3.25], [3.55, 3.25]], 5.5, cBackLimb);
-            seg(sh, [6.25, 3.65], 4.5, cBackLimb);
-            // 动态延伸侧腿与对侧手臂
-            const movKnee = [lerp(4.5, 3.4, ext), lerp(3.25, 2.25, ext)];
-            const movFoot = [lerp(3.5, 2.2, ext), lerp(3.25, 2.05, ext)];
-            const movHand = [lerp(6.35, 7.75, ext), lerp(3.65, 2.25, ext)];
-            poly([hip, movKnee, movFoot], 6.5, cLimb);
-            seg(sh, movHand, 5, '#fbbf24');
-            seg(hip, sh, 8.8, cTorso);
-            glow(5.45, 2.18, 0.68, 0.28, 0); // 腹横肌/腹直肌高亮
-            head(hd, 0.34, 2);
-            joint(hip, 0.12); joint(sh, 0.12); joint(movKnee, 0.11);
-            arrow([5.45, 2.85], [5.45, 1.95], '#38bdf8');
-        }
-        else if (animKey === 'hip_thrust') {
-            // 杠铃/器械臀推：肩胛骨下角靠平凳，双脚踩地，杠铃置于髋部向上顶髋至水平并强力夹臀
-            seg([5.8, 1.55], [7.6, 1.55], 4, cEquip);
-            seg([6.0, 1.55], [6.0, 3.45], 5, cEquip);
-            seg([7.3, 1.55], [7.3, 3.45], 5, cEquip);
-            seg([5.75, 3.45], [7.55, 3.45], 6.5, cPad); // 靠背平凳
-            const foot = [3.15, 1.55];
-            const knee = [3.2, 3.25]; // 顶峰小腿垂直地面
-            const hipY = lerp(2.15, 3.45, p);
-            const hip = [4.55, hipY];
-            const sh = [6.15, 3.55];
-            const hd = [6.65, 3.95]; // 收下巴目视前方
-            poly([foot, knee, hip], 7, cLimb);
-            seg(hip, sh, 8.8, cTorso);
-            glow(4.65, hipY - 0.18, 0.48, 0.34, 0); // 臀大肌强力收缩发光
-            head(hd, 0.35, 2);
-            barbellSide([4.55, hipY + 0.28], 0.38); // 髋部杠铃
-            joint(knee, 0.12); joint(hip, 0.13); joint(sh, 0.12);
-            arrow([4.55, 2.0], [4.55, 4.2], '#38bdf8');
-        }
-
         else {
             // 6. 腿部后侧与脚尖拉伸（坐姿单腿伸直，折髋下压上半身同时用手回拉脚尖，拉伸腘绳肌与小腿）
             const bd = lerp(0, 0.48, p);
@@ -5177,15 +6146,14 @@ function drawStage(canvas, ex, nowMs) {
             label(5.1, 6.5, '伸直腿折髋下压 · 用手回拉脚尖 · 静态保持30s', '#38bdf8');
         }
 
-        // 在左侧动作人像上方绘制动态引线，直接指向当前正在收缩的主发力肌群
         if (primaryGlowPt) {
             const gx = tx(primaryGlowPt[0]);
             const gy = ty(primaryGlowPt[1]);
-            const tagX = Math.max(46, Math.min(stageW - 52, gx < stageW * 0.5 ? gx - 18 : gx + 18));
-            const tagY = Math.max(34, gy - 26);
+            const tagX = Math.max(44, Math.min(stageW - 48, gx < stageW * 0.5 ? gx - 16 : gx + 16));
+            const tagY = Math.max(32, gy - 22);
             ctx.save();
             ctx.strokeStyle = '#fda4af';
-            ctx.lineWidth = 1.2;
+            ctx.lineWidth = 1.1;
             ctx.setLineDash([2, 2]);
             ctx.beginPath();
             ctx.moveTo(gx, gy);
@@ -5194,18 +6162,17 @@ function drawStage(canvas, ex, nowMs) {
             ctx.setLineDash([]);
             ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
             const txt = `发力: ${meta.pText.split('/')[0]}`;
-            ctx.font = 'bold 9px -apple-system, "PingFang SC", sans-serif';
-            const tw = ctx.measureText(txt).width + 8;
-            ctx.fillRect(tagX - tw * 0.5, tagY - 8, tw, 13);
+            ctx.font = 'bold 8.5px -apple-system, "PingFang SC", sans-serif';
+            const tw = ctx.measureText(txt).width + 6;
+            ctx.fillRect(tagX - tw * 0.5, tagY - 7, tw, 12);
             ctx.strokeStyle = '#f43f5e';
-            ctx.strokeRect(tagX - tw * 0.5, tagY - 8, tw, 13);
+            ctx.strokeRect(tagX - tw * 0.5, tagY - 7, tw, 12);
             ctx.fillStyle = '#fda4af';
             ctx.textAlign = 'center';
             ctx.fillText(txt, tagX, tagY + 1.5);
             ctx.restore();
         }
 
-        // 在右侧绘制人体正/背面肌群解剖热力图
         drawAnatomicalMuscleMap(ctx, W, H, animKey, p);
 
     } catch (err) {
@@ -5223,8 +6190,13 @@ function startAnimationLoop() {
         if (currentMainTab === 'actions') {
             const canvas = document.getElementById('active_anim_canvas');
             const ex = getCurrentEx();
-            if (canvas && ex) {
-                drawStage(canvas, ex, nowMs);
+            if (canvas && ex) drawStage(canvas, ex, nowMs);
+        } else if (currentMainTab === 'follow') {
+            drawEcgWave(nowMs);
+            if (followSession.canvasVisible) {
+                const fCanvas = document.getElementById('follow_anim_canvas');
+                const fEx = getFollowActiveExerciseObj();
+                if (fCanvas && fEx) drawStage(fCanvas, fEx, nowMs);
             }
         }
     }
