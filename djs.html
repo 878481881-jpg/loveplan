@@ -2,8 +2,16 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>时光纪念馆 ⏳</title>
+    <!-- iOS 主屏幕全屏 Web App (Standalone PWA) 核心配置 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="秘密基地">
+    <meta name="theme-color" content="#fdf2f8">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="manifest" href="manifest.json">
     <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入农历/公历转换库 -->
@@ -119,6 +127,49 @@
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #fbcfe8; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #f472b6; }
         #imageViewerModal { touch-action: none; }
+    
+        /* === iOS 全屏 App 安全区与手机一页自适应优化 (100dvh) === */
+        html {
+            height: 100dvh;
+            width: 100%;
+            overflow: hidden;
+            background-color: #fdf2f8;
+            -webkit-text-size-adjust: 100%;
+        }
+        body {
+            height: 100dvh !important;
+            max-height: 100dvh !important;
+            min-height: 100dvh !important;
+            overflow: hidden !important;
+            overscroll-behavior: none;
+            padding-top: max(0.5rem, env(safe-area-inset-top)) !important;
+            padding-bottom: max(0.5rem, env(safe-area-inset-bottom)) !important;
+            padding-left: max(0.65rem, env(safe-area-inset-left));
+            padding-right: max(0.65rem, env(safe-area-inset-right));
+            box-sizing: border-box;
+        }
+        body > header {
+            flex-shrink: 0 !important;
+            margin-top: 0 !important;
+            margin-bottom: 0.45rem !important;
+        }
+        body > nav {
+            flex-shrink: 0 !important;
+        }
+        body > main {
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+            max-height: 100% !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding-bottom: 0.35rem;
+        }
+        body > main::-webkit-scrollbar {
+            display: none;
+        }
     </style>
 </head>
 <body class="flex flex-col items-center justify-start py-6 px-4 pb-28 relative">
@@ -1632,6 +1683,21 @@
             modal.classList.add('opacity-0');
             setTimeout(() => { modal.classList.add('hidden'); document.getElementById('fullSizeImage').src = ''; }, 300);
         }
+    </script>
+    <!-- iOS 主屏幕 App 内部无感跳转拦截器（防止点击 a 标签跳出 Safari 顶部/底部浏览器按钮栏） -->
+    <script>
+        (function() {
+            document.addEventListener("click", function(e) {
+                var a = e.target.closest("a");
+                if (!a) return;
+                var href = a.getAttribute("href");
+                if (!href || href.startsWith("#") || href.startsWith("javascript:") || a.getAttribute("target") === "_blank") return;
+                if (window.navigator.standalone || window.matchMedia("(display-mode: standalone)").matches) {
+                    e.preventDefault();
+                    window.location.href = href;
+                }
+            }, false);
+        })();
     </script>
 </body>
 </html>
