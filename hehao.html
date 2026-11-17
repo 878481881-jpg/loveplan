@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>和平恋爱急救站 🕊️</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+            background-color: #fdf2f8;
+            background-image: radial-gradient(#fbcfe8 1px, transparent 1px);
+            background-size: 20px 20px;
+            overflow-x: hidden;
+            min-height: 100vh;
+            color: #475569;
+        }
+        .font-num {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-variant-numeric: tabular-nums;
+        }
+        @keyframes float { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-6px); } }
+        .animate-float { animation: float 3.5s ease-in-out infinite; }
+
+        @keyframes breathe {
+            0%, 100% { transform: scale(0.85); opacity: 0.75; }
+            40% { transform: scale(1.22); opacity: 1; }
+            60% { transform: scale(1.22); opacity: 1; }
+        }
+        .animate-breathe { animation: breathe 10s ease-in-out infinite; }
+
+        @keyframes slideUpFade {
+            0% { opacity: 0; transform: translate(-50%, 30px); }
+            15% { opacity: 1; transform: translate(-50%, 0); }
+            85% { opacity: 1; transform: translate(-50%, 0); }
+            100% { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        .toast-animate { animation: slideUpFade 3.2s forwards cubic-bezier(0.16, 1, 0.3, 1); }
+
+        #confetti-canvas {
+            position: fixed; inset: 0; pointer-events: none; z-index: 100; overflow: hidden;
+        }
+        .particle { position: absolute; animation: fall linear forwards; will-change: transform; }
+        @keyframes fall {
+            0% { transform: translateY(-5vh) rotate(0deg) scale(0.6); opacity: 0; }
+            10% { opacity: 1; transform: translateY(5vh) rotate(45deg) scale(1); }
+            90% { opacity: 1; }
+            100% { transform: translateY(105vh) rotate(720deg) scale(0.8); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-start py-6 px-4 pb-24 relative">
+
+    <div id="confetti-canvas" class="hidden"></div>
+
+    <!-- 顶部导航 -->
+    <header class="max-w-md w-full flex justify-between items-center px-1 mb-5 z-10">
+        <a href="index.html" class="w-10 h-10 bg-white text-rose-500 rounded-full shadow-sm flex items-center justify-center border border-rose-100 hover:shadow-md active:scale-95 transition-all">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7"></path></svg>
+        </a>
+        <div class="text-center animate-float">
+            <h1 class="text-xl font-black text-rose-500 flex items-center justify-center gap-1.5 tracking-wider">
+                <span>🕊️</span> 和平恋爱急救站
+            </h1>
+            <p class="text-[11px] text-rose-400 font-bold mt-0.5">当前身份：<span id="myIdentityBadge">哼哼</span></p>
+        </div>
+        <button onclick="refreshAll()" class="w-10 h-10 bg-white text-rose-400 rounded-full shadow-sm border border-rose-100 hover:shadow-md active:scale-95 transition-all flex items-center justify-center group" title="刷新同步">
+            <svg class="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+    </header>
+
+    <main class="w-full max-w-md space-y-5 z-10">
+
+        <!-- 1. 事前防爆：今日情绪气象台 -->
+        <section class="bg-white/95 backdrop-blur-md rounded-[2rem] p-5 border-2 border-rose-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-black text-rose-500 flex items-center gap-1.5">
+                    <span>🔋</span> 今日情绪气象台
+                </h2>
+                <button onclick="openBreathingModal()" class="text-xs font-bold bg-gradient-to-r from-sky-400 to-indigo-400 text-white px-3 py-1.5 rounded-full shadow-sm hover:shadow active:scale-95 transition-all flex items-center gap-1">
+                    <span>🫧</span> 3分钟冷静舱
+                </button>
+            </div>
+
+            <!-- 双方当前状态展示 -->
+            <div class="grid grid-cols-2 gap-2.5 mb-3">
+                <div class="bg-rose-50/70 border border-rose-100 rounded-2xl p-3">
+                    <div class="text-[11px] font-bold text-rose-400 mb-1">我的状态 (<span id="myMoodName">哼哼</span>)</div>
+                    <div class="text-sm font-black text-slate-700" id="myMoodDisplay">🔋 满电贴贴</div>
+                </div>
+                <div class="bg-sky-50/70 border border-sky-100 rounded-2xl p-3">
+                    <div class="text-[11px] font-bold text-sky-500 mb-1">TA的状态 (<span id="partnerMoodName">亲亲</span>)</div>
+                    <div class="text-sm font-black text-slate-700" id="partnerMoodDisplay">🔋 满电贴贴</div>
+                </div>
+            </div>
+
+            <!-- 对方低电量提醒条 -->
+            <div id="partnerAlertBanner" class="hidden mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700 font-bold leading-relaxed flex items-start gap-2">
+                <span class="text-base shrink-0">⚠️</span>
+                <span id="partnerAlertText">提示内容</span>
+            </div>
+
+            <!-- 快速切换我的电量 -->
+            <div class="text-[11px] font-bold text-gray-400 mb-2">点选切换我此刻的状态（防误伤）：</div>
+            <div class="grid grid-cols-2 gap-2" id="moodButtonsGrid">
+                <button onclick="setMyMood('happy')" data-mood="happy" class="mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-white border-rose-100 hover:bg-rose-50">
+                    🔋 满电贴贴
+                </button>
+                <button onclick="setMyMood('tired')" data-mood="tired" class="mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-white border-rose-100 hover:bg-rose-50">
+                    🪫 累瘫求抱抱
+                </button>
+                <button onclick="setMyMood('sad')" data-mood="sad" class="mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-white border-rose-100 hover:bg-rose-50">
+                    🌧️ 委屈勿讲道理
+                </button>
+                <button onclick="setMyMood('angry')" data-mood="angry" class="mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-white border-rose-100 hover:bg-rose-50">
+                    🔥 烦躁需冷静
+                </button>
+            </div>
+        </section>
+
+        <!-- 2. 光速破冰：双盲“递台阶”开关 + 破冰小转盘 -->
+        <section class="bg-white/95 backdrop-blur-md rounded-[2rem] p-5 border-2 border-rose-100 shadow-sm relative overflow-hidden">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-black text-rose-500 flex items-center gap-1.5">
+                    <span>🏳️</span> 双盲“递台阶”开关
+                </h2>
+                <span class="text-[10px] font-bold bg-emerald-50 text-emerald-600 px-2.5 py-0.5 rounded-full border border-emerald-100">两边都点才揭晓</span>
+            </div>
+            <p class="text-xs text-gray-500 leading-relaxed mb-4">
+                冷战时怕自己先低头对方不领情？偷偷点下按钮，只有当<b>哼哼和亲亲都点下</b>时，才会一起放烟花破冰！
+            </p>
+
+            <button id="peaceToggleBtn" onclick="togglePeaceOffer()" class="w-full py-3.5 rounded-2xl font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-400 to-pink-500 text-white">
+                <span>🤍</span> 我其实想和好了（悄悄递台阶）
+            </button>
+
+            <div id="peaceStatusHint" class="mt-3 text-center text-xs font-bold text-rose-400 hidden"></div>
+
+            <!-- 破冰台阶小转盘 -->
+            <div class="mt-4 pt-4 border-t border-rose-100">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-black text-slate-600">🎡 不知道怎么哄？抽个无痛台阶</span>
+                    <button onclick="spinIcebreaker()" class="text-xs font-bold bg-rose-50 text-rose-500 px-3 py-1 rounded-full border border-rose-200 hover:bg-rose-100 active:scale-95 transition-all">
+                        抽一个 ✨
+                    </button>
+                </div>
+                <div id="icebreakerResult" class="bg-rose-50/70 border border-rose-100 rounded-xl p-3 text-center text-xs font-bold text-rose-600">
+                    点击右上角「抽一个」，给彼此一个顺理成章的台阶~
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 事中翻译：非暴力“委屈翻译器” -->
+        <section class="bg-white/95 backdrop-blur-md rounded-[2rem] p-5 border-2 border-rose-100 shadow-sm">
+            <h2 class="text-base font-black text-rose-500 flex items-center gap-1.5 mb-2">
+                <span>💌</span> 委屈翻译器
+            </h2>
+            <p class="text-xs text-gray-400 mb-3">把带刺的气话翻译成“我真正需要被爱的方式”，直接发给对方。</p>
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-[11px] font-bold text-rose-400 mb-1.5">1. 刚才让我有点难受/委屈的是：</label>
+                    <div class="flex flex-wrap gap-1.5" id="triggerChips"></div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-rose-400 mb-1.5">2. 其实我内心真正想要的是：</label>
+                    <div class="flex flex-wrap gap-1.5" id="needChips"></div>
+                </div>
+
+                <input type="text" id="customNoteInput" placeholder="补充一句软话（可选，例如：其实我只是太想你了）" class="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-300">
+
+                <div class="flex gap-2">
+                    <button onclick="sendTelegram()" class="flex-1 py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-xl font-bold text-xs shadow-sm hover:shadow active:scale-95 transition-all">
+                        发送翻译电报 🕊️
+                    </button>
+                    <button onclick="copyTelegram()" class="px-4 py-2.5 bg-rose-50 text-rose-500 border border-rose-200 rounded-xl font-bold text-xs hover:bg-rose-100 active:scale-95 transition-all">
+                        复制发微信 📋
+                    </button>
+                </div>
+            </div>
+
+            <!-- 最近收到的翻译电报 -->
+            <div class="mt-4 pt-4 border-t border-rose-100">
+                <div class="text-[11px] font-bold text-gray-400 mb-2">最近的温柔电报：</div>
+                <div id="telegramList" class="space-y-2 max-h-48 overflow-y-auto"></div>
+            </div>
+        </section>
+
+        <!-- 4. 事后免疫：我们的防雷说明书 -->
+        <section class="bg-white/95 backdrop-blur-md rounded-[2rem] p-5 border-2 border-rose-100 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-base font-black text-rose-500 flex items-center gap-1.5">
+                    <span>🛡️</span> 我们的防雷说明书
+                </h2>
+                <button onclick="openManualModal()" class="text-xs font-bold bg-rose-500 text-white px-3 py-1 rounded-full shadow-sm hover:bg-rose-600 active:scale-95 transition-all">
+                    + 记一条
+                </button>
+            </div>
+            <p class="text-xs text-gray-400 mb-3">不翻旧账，只存经验：下次遇到同样情况直接按说明书哄！</p>
+            <div id="manualList" class="space-y-2.5"></div>
+        </section>
+
+        <div class="text-center pt-2">
+            <a href="djs.html?tab=argue" class="text-xs font-bold text-rose-400 underline hover:text-rose-500">
+                查看历史吵架记录与和平共处天数 &rarr;
+            </a>
+        </div>
+    </main>
+
+    <!-- 3分钟冷静呼吸舱弹窗 -->
+    <div id="breathingModal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-md z-50 hidden flex flex-col items-center justify-center p-6 text-white text-center">
+        <button onclick="closeBreathingModal()" class="absolute top-6 right-6 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-xl font-bold">✕</button>
+        <div class="w-44 h-44 rounded-full bg-gradient-to-br from-rose-300/40 to-sky-300/40 border-2 border-white/40 flex items-center justify-center mb-8 animate-breathe shadow-[0_0_60px_rgba(244,114,182,0.4)]">
+            <span class="text-5xl">🫧</span>
+        </div>
+        <h3 class="text-2xl font-black tracking-widest mb-2" id="breathGuideText">深吸一口气...</h3>
+        <div class="text-4xl font-black font-num text-rose-200 mb-4" id="breathTimer">03:00</div>
+        <p class="text-xs text-white/75 max-w-xs leading-relaxed mb-8">
+            现在心跳有点快，先不回带刺的消息。<br>记住：你们是一个战壕里的队友，不是对手。
+        </p>
+        <button onclick="closeBreathingModal()" class="px-8 py-3 bg-white/20 hover:bg-white/30 rounded-full text-sm font-bold backdrop-blur-sm border border-white/20 transition-all">
+            我平静下来了
+        </button>
+    </div>
+
+    <!-- 和好成功庆祝弹窗 -->
+    <div id="peaceSuccessModal" class="fixed inset-0 bg-rose-900/40 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2.5rem] border-4 border-rose-100 shadow-2xl max-w-sm w-full p-8 text-center">
+            <div class="text-6xl mb-4 animate-bounce">🕊️💖</div>
+            <h2 class="text-2xl font-black text-rose-500 mb-2">双向奔赴 · 破冰成功！</h2>
+            <p class="text-sm text-gray-500 leading-relaxed mb-6">
+                你们两个人都悄悄按下了「想和好」开关！<br>快去给对方一个大大的拥抱吧~
+            </p>
+            <button onclick="resetPeaceAndClose()" class="w-full py-3.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-2xl font-black shadow-lg active:scale-95 transition-all">
+                抱抱和好啦 🤗
+            </button>
+        </div>
+    </div>
+
+    <!-- 添加防雷贴弹窗 -->
+    <div id="manualModal" class="fixed inset-0 bg-rose-900/30 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-[2rem] border-4 border-rose-100 shadow-2xl max-w-sm w-full p-6 relative">
+            <button onclick="closeManualModal()" class="absolute top-4 right-4 w-8 h-8 bg-gray-50 text-gray-400 rounded-full font-bold hover:text-rose-500">✕</button>
+            <h3 class="text-lg font-black text-rose-500 mb-4 text-center">🛡️ 新增防雷说明书</h3>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="font-bold text-rose-400 block mb-1">当谁遇到什么情况：</label>
+                    <input type="text" id="manSituation" placeholder="例如：亲亲加班很累 / 哼哼打游戏输了" class="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-3 py-2.5 font-bold text-slate-700 focus:outline-none">
+                </div>
+                <div>
+                    <label class="font-bold text-rose-400 block mb-1">绝对不要做什么（雷区）：</label>
+                    <input type="text" id="manAvoid" placeholder="例如：不要长篇大论讲道理 / 不要冷战" class="w-full bg-rose-50/50 border border-rose-100 rounded-xl px-3 py-2.5 font-bold text-slate-700 focus:outline-none">
+                </div>
+                <div>
+                    <label class="font-bold text-emerald-500 block mb-1">只要做什么就能一秒满血（解药）：</label>
+                    <input type="text" id="manRemedy" placeholder="例如：先抱抱说辛苦啦 + 买杯热奶茶" class="w-full bg-emerald-50/40 border border-emerald-100 rounded-xl px-3 py-2.5 font-bold text-slate-700 focus:outline-none">
+                </div>
+            </div>
+            <button onclick="saveManual()" class="mt-5 w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-xl font-black text-sm shadow-md active:scale-95 transition-all">
+                存入防雷手册 💾
+            </button>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-gray-800/90 backdrop-blur-md text-white px-5 py-3 rounded-full shadow-xl text-xs font-bold hidden z-[80] whitespace-nowrap flex items-center gap-2">
+        <span id="toastIcon">✨</span>
+        <span id="toastMsg">提示</span>
+    </div>
+
+    <script>
+        const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
+        const myIdentity = localStorage.getItem('loveGacha_myIdentity') || '哼哼';
+        const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
+        const OWNER_REPO = '878481881-jpg/loveplan';
+        const HEHAO_FILE = 'data/hehao.json';
+
+        document.getElementById('myIdentityBadge').innerText = myIdentity;
+        document.getElementById('myMoodName').innerText = myIdentity;
+        document.getElementById('partnerMoodName').innerText = partnerIdentity;
+
+        const MOOD_META = {
+            happy: { label: '🔋 满电贴贴', alert: '' },
+            tired: { label: '🪫 累瘫求抱抱', alert: `${partnerIdentity}现在电量不足啦！请多用抱抱和夸夸，少安排烧脑的事~` },
+            sad:   { label: '🌧️ 委屈勿讲道理', alert: `${partnerIdentity}心情有点低落，今日严禁讲道理，请直接无条件偏爱和顺毛！` },
+            angry: { label: '🔥 烦躁需冷静', alert: `${partnerIdentity}有点小烦躁，先给TA 15 分钟冷静空间，过会儿再温柔贴贴~` }
+        };
+
+        const TRIGGERS = ['回消息太慢了', '说话语气有点冲', '只讲道理不哄我', '忽略了我的小情绪', '各自太忙没陪伴'];
+        const NEEDS = ['一个大大的抱抱', '听你说句软话哄哄我', '单纯想撒娇求关注', '站在我这边安慰我', '一起吃顿好吃的'];
+        const ICEBREAKERS = [
+            '🧧 给对方发一个 5.20 元的小红包，附言“不许生气啦”',
+            '📸 立刻发一张自己的搞怪自拍逗对方笑',
+            '🤗 见面或下次见面时，无条件抱紧 30 秒不许松手',
+            '🧋 请对方喝一杯最喜欢的奶茶或热饮',
+            '🎙️ 发一条 5 秒语音，连说三遍“我最喜欢你啦”',
+            '🔄 把今天的不开心一键清零，重新说一句“你好呀宝宝”',
+            '🍰 帮对方点一份爱吃的小零食或小甜品',
+            '🎬 今晚一起看一部轻松搞笑的电影并连麦吐槽'
+        ];
+
+        let selectedTrigger = TRIGGERS[0];
+        let selectedNeed = NEEDS[0];
+
+        let hehaoData = {
+            moods: {
+                '哼哼': { status: 'happy', updatedAt: 0 },
+                '亲亲': { status: 'happy', updatedAt: 0 }
+            },
+            telegrams: [],
+            peaceOffer: { '哼哼': false, '亲亲': false, lastIceBrokenAt: 0 },
+            manuals: []
+        };
+        let hehaoSha = null;
+        let breathInterval = null;
+
+        function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
+        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>'"]/g, t => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' }[t]));
+        }
+
+        async function fetchHehaoData() {
+            if (!GITHUB_TOKEN) return loadLocal();
+            try {
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${HEHAO_FILE}?t=${Date.now()}`, {
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+                });
+                if (res.status === 404) { hehaoSha = null; return loadLocal(); }
+                if (!res.ok) throw new Error('fetch err');
+                const json = await res.json();
+                const parsed = JSON.parse(b64_to_utf8(json.content));
+                hehaoData = mergeDefaults(parsed);
+                hehaoSha = json.sha;
+                localStorage.setItem('hehao_app_data', JSON.stringify(hehaoData));
+            } catch (e) {
+                loadLocal();
+            }
+        }
+
+        function mergeDefaults(d) {
+            return {
+                moods: d.moods || { '哼哼': { status: 'happy' }, '亲亲': { status: 'happy' } },
+                telegrams: Array.isArray(d.telegrams) ? d.telegrams : [],
+                peaceOffer: d.peaceOffer || { '哼哼': false, '亲亲': false, lastIceBrokenAt: 0 },
+                manuals: Array.isArray(d.manuals) ? d.manuals : []
+            };
+        }
+
+        function loadLocal() {
+            const raw = localStorage.getItem('hehao_app_data');
+            if (raw) {
+                try { hehaoData = mergeDefaults(JSON.parse(raw)); } catch (e) {}
+            }
+        }
+
+        async function saveHehaoData(msg) {
+            localStorage.setItem('hehao_app_data', JSON.stringify(hehaoData));
+            if (!GITHUB_TOKEN) return true;
+            try {
+                const body = { message: msg, content: utf8_to_b64(JSON.stringify(hehaoData, null, 2)) };
+                if (hehaoSha) body.sha = hehaoSha;
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${HEHAO_FILE}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error('save err');
+                const json = await res.json();
+                hehaoSha = json.content.sha;
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        window.onload = async function() {
+            renderChips();
+            await refreshAll();
+        };
+
+        async function refreshAll() {
+            await fetchHehaoData();
+            renderMoods();
+            renderPeaceOffer();
+            renderTelegrams();
+            renderManuals();
+        }
+
+        function renderMoods() {
+            const myM = (hehaoData.moods[myIdentity] && hehaoData.moods[myIdentity].status) || 'happy';
+            const ptM = (hehaoData.moods[partnerIdentity] && hehaoData.moods[partnerIdentity].status) || 'happy';
+
+            document.getElementById('myMoodDisplay').innerText = (MOOD_META[myM] || MOOD_META.happy).label;
+            document.getElementById('partnerMoodDisplay').innerText = (MOOD_META[ptM] || MOOD_META.happy).label;
+
+            document.querySelectorAll('.mood-btn').forEach(btn => {
+                if (btn.dataset.mood === myM) {
+                    btn.className = 'mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-rose-500 text-white border-rose-500 shadow-sm';
+                } else {
+                    btn.className = 'mood-btn text-left px-3 py-2 rounded-xl border text-xs font-bold transition-all bg-white text-slate-600 border-rose-100 hover:bg-rose-50';
+                }
+            });
+
+            const banner = document.getElementById('partnerAlertBanner');
+            const alertText = (MOOD_META[ptM] || MOOD_META.happy).alert;
+            if (alertText) {
+                document.getElementById('partnerAlertText').innerText = alertText;
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        async function setMyMood(status) {
+            if (!hehaoData.moods[myIdentity]) hehaoData.moods[myIdentity] = {};
+            hehaoData.moods[myIdentity] = { status, updatedAt: Date.now() };
+            renderMoods();
+            showToast('🔋', '已更新我的情绪状态');
+            await saveHehaoData(`Update mood ${myIdentity}: ${status}`);
+        }
+
+        function renderPeaceOffer() {
+            const myOffer = !!(hehaoData.peaceOffer && hehaoData.peaceOffer[myIdentity]);
+            const ptOffer = !!(hehaoData.peaceOffer && hehaoData.peaceOffer[partnerIdentity]);
+            const btn = document.getElementById('peaceToggleBtn');
+            const hint = document.getElementById('peaceStatusHint');
+
+            if (myOffer && ptOffer) {
+                btn.innerHTML = '<span>🕊️</span> 双方已达成破冰！点击庆祝';
+                btn.className = 'w-full py-3.5 rounded-2xl font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-400 to-teal-500 text-white';
+                hint.innerText = '✨ 恭喜！两边都悄悄按下了想和好开关！';
+                hint.classList.remove('hidden');
+                triggerPeaceCelebration();
+            } else if (myOffer) {
+                btn.innerHTML = '<span>🏳️</span> 已悄悄递出台阶（点击可撤回）';
+                btn.className = 'w-full py-3.5 rounded-2xl font-bold text-sm shadow-sm transition-all active:scale-95 flex items-center justify-center gap-2 bg-rose-100 text-rose-600 border-2 border-rose-200';
+                hint.innerText = '已秘密记录你的心意，对方还没打开前不会显示哦~';
+                hint.classList.remove('hidden');
+            } else {
+                btn.innerHTML = '<span>🤍</span> 我其实想和好了（悄悄递台阶）';
+                btn.className = 'w-full py-3.5 rounded-2xl font-black text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 bg-gradient-to-r from-rose-400 to-pink-500 text-white';
+                hint.classList.add('hidden');
+            }
+        }
+
+        async function togglePeaceOffer() {
+            if (!hehaoData.peaceOffer) hehaoData.peaceOffer = { '哼哼': false, '亲亲': false };
+            const myOffer = !!hehaoData.peaceOffer[myIdentity];
+            const ptOffer = !!hehaoData.peaceOffer[partnerIdentity];
+            if (myOffer && ptOffer) {
+                triggerPeaceCelebration();
+                return;
+            }
+            hehaoData.peaceOffer[myIdentity] = !myOffer;
+            renderPeaceOffer();
+            await saveHehaoData(`Toggle peaceOffer ${myIdentity}`);
+        }
+
+        function triggerPeaceCelebration() {
+            document.getElementById('peaceSuccessModal').classList.remove('hidden');
+            startConfetti();
+        }
+
+        async function resetPeaceAndClose() {
+            document.getElementById('peaceSuccessModal').classList.add('hidden');
+            hehaoData.peaceOffer = { '哼哼': false, '亲亲': false, lastIceBrokenAt: Date.now() };
+            renderPeaceOffer();
+            await saveHehaoData('Peace offer completed and reset');
+        }
+
+        function spinIcebreaker() {
+            const box = document.getElementById('icebreakerResult');
+            const pick = ICEBREAKERS[Math.floor(Math.random() * ICEBREAKERS.length)];
+            box.innerText = pick;
+            box.classList.add('scale-105');
+            setTimeout(() => box.classList.remove('scale-105'), 200);
+        }
+
+        function renderChips() {
+            document.getElementById('triggerChips').innerHTML = TRIGGERS.map(t => `
+                <button type="button" onclick="selectTrigger('${t}')" class="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${t === selectedTrigger ? 'bg-rose-500 text-white border-rose-500' : 'bg-rose-50/50 text-slate-600 border-rose-100'}">${t}</button>
+            `).join('');
+            document.getElementById('needChips').innerHTML = NEEDS.map(n => `
+                <button type="button" onclick="selectNeed('${n}')" class="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all ${n === selectedNeed ? 'bg-sky-500 text-white border-sky-500' : 'bg-sky-50/50 text-slate-600 border-sky-100'}">${n}</button>
+            `).join('');
+        }
+        function selectTrigger(t) { selectedTrigger = t; renderChips(); }
+        function selectNeed(n) { selectedNeed = n; renderChips(); }
+
+        function buildTelegramText() {
+            const note = document.getElementById('customNoteInput').value.trim();
+            return `🕊️ 来自${myIdentity}的温柔翻译：刚才因为「${selectedTrigger}」让我有点委屈，但我不是想和你吵架，其实我现在最需要「${selectedNeed}」${note ? `（${note}）` : ''}。`;
+        }
+
+        async function sendTelegram() {
+            const text = buildTelegramText();
+            hehaoData.telegrams.unshift({
+                id: 'tg_' + Date.now(),
+                sender: myIdentity,
+                text,
+                time: new Date().toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' })
+            });
+            if (hehaoData.telegrams.length > 20) hehaoData.telegrams = hehaoData.telegrams.slice(0, 20);
+            document.getElementById('customNoteInput').value = '';
+            renderTelegrams();
+            showToast('🕊️', '温柔电报已送达！');
+            await saveHehaoData(`Send telegram by ${myIdentity}`);
+        }
+
+        function copyTelegram() {
+            const text = buildTelegramText();
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('📋', '已复制温柔电报，快去发给TA吧');
+            }).catch(() => {
+                showToast('📋', '请手动长按复制');
+            });
+        }
+
+        function renderTelegrams() {
+            const list = document.getElementById('telegramList');
+            if (!hehaoData.telegrams.length) {
+                list.innerHTML = '<div class="text-center text-xs text-gray-400 py-3">还没有发送过温柔电报哦~</div>';
+                return;
+            }
+            list.innerHTML = hehaoData.telegrams.map(t => `
+                <div class="bg-rose-50/60 border border-rose-100 rounded-xl p-3 text-xs">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="font-black text-rose-500">${escapeHTML(t.sender)}</span>
+                        <span class="text-[10px] text-gray-400 font-num">${escapeHTML(t.time)}</span>
+                    </div>
+                    <p class="text-slate-700 leading-relaxed">${escapeHTML(t.text)}</p>
+                </div>
+            `).join('');
+        }
+
+        function openManualModal() { document.getElementById('manualModal').classList.remove('hidden'); }
+        function closeManualModal() { document.getElementById('manualModal').classList.add('hidden'); }
+
+        async function saveManual() {
+            const situation = document.getElementById('manSituation').value.trim();
+            const avoid = document.getElementById('manAvoid').value.trim();
+            const remedy = document.getElementById('manRemedy').value.trim();
+            if (!situation || !remedy) { showToast('✍️', '请至少填写情况和解药哦'); return; }
+            hehaoData.manuals.unshift({
+                id: 'man_' + Date.now(),
+                situation,
+                avoid: avoid || '讲大道理 / 冷战',
+                remedy,
+                author: myIdentity
+            });
+            document.getElementById('manSituation').value = '';
+            document.getElementById('manAvoid').value = '';
+            document.getElementById('manRemedy').value = '';
+            closeManualModal();
+            renderManuals();
+            showToast('🛡️', '已写入防雷说明书');
+            await saveHehaoData('Add anti-friction manual');
+        }
+
+        async function deleteManual(id) {
+            hehaoData.manuals = hehaoData.manuals.filter(m => m.id !== id);
+            renderManuals();
+            await saveHehaoData('Delete manual');
+        }
+
+        function renderManuals() {
+            const list = document.getElementById('manualList');
+            if (!hehaoData.manuals.length) {
+                list.innerHTML = '<div class="text-center text-xs text-gray-400 py-4 bg-rose-50/30 rounded-xl border border-dashed border-rose-200">还没有防雷贴，点右上角记下你们的第一条专属解药吧~</div>';
+                return;
+            }
+            list.innerHTML = hehaoData.manuals.map(m => `
+                <div class="bg-rose-50/50 border border-rose-100 rounded-2xl p-3.5 text-xs relative">
+                    <button onclick="deleteManual('${m.id}')" class="absolute top-2.5 right-3 text-gray-300 hover:text-rose-500 font-bold">✕</button>
+                    <div class="font-black text-slate-700 mb-1.5 pr-5">📌 当遇到：${escapeHTML(m.situation)}</div>
+                    <div class="text-rose-500 mb-1">🚫 雷区：${escapeHTML(m.avoid)}</div>
+                    <div class="text-emerald-600 font-bold">✅ 解药：${escapeHTML(m.remedy)}</div>
+                </div>
+            `).join('');
+        }
+
+        function openBreathingModal() {
+            document.getElementById('breathingModal').classList.remove('hidden');
+            let sec = 180;
+            const timerEl = document.getElementById('breathTimer');
+            const guideEl = document.getElementById('breathGuideText');
+            const update = () => {
+                const m = String(Math.floor(sec / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                timerEl.innerText = `${m}:${s}`;
+                const phase = (180 - sec) % 10;
+                guideEl.innerText = phase < 4 ? '慢慢吸气...' : (phase < 6 ? '轻轻屏住呼吸...' : '缓缓呼出委屈...');
+            };
+            update();
+            if (breathInterval) clearInterval(breathInterval);
+            breathInterval = setInterval(() => {
+                sec--;
+                if (sec < 0) {
+                    clearInterval(breathInterval);
+                    guideEl.innerText = '冷静完成，抱抱自己和对方吧 🕊️';
+                    return;
+                }
+                update();
+            }, 1000);
+        }
+
+        function closeBreathingModal() {
+            if (breathInterval) clearInterval(breathInterval);
+            document.getElementById('breathingModal').classList.add('hidden');
+        }
+
+        function startConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.classList.remove('hidden'); canvas.innerHTML = '';
+            const emojis = ['🕊️', '💖', '🌸', '✨', '🤗', '🎀'];
+            for (let i = 0; i < 45; i++) {
+                setTimeout(() => {
+                    const p = document.createElement('div');
+                    p.className = 'particle';
+                    p.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                    p.style.left = Math.random() * 100 + 'vw';
+                    p.style.top = '-10vh';
+                    p.style.fontSize = (Math.random() * 20 + 16) + 'px';
+                    const dur = Math.random() * 2.5 + 2;
+                    p.style.animationDuration = dur + 's';
+                    canvas.appendChild(p);
+                    setTimeout(() => p.remove(), dur * 1000);
+                }, i * 40);
+            }
+            setTimeout(() => { canvas.classList.add('hidden'); canvas.innerHTML = ''; }, 6000);
+        }
+
+        function showToast(icon, msg) {
+            const t = document.getElementById('toast');
+            document.getElementById('toastIcon').innerText = icon;
+            document.getElementById('toastMsg').innerText = msg;
+            t.classList.remove('toast-animate', 'hidden');
+            void t.offsetWidth;
+            t.classList.add('toast-animate');
+            setTimeout(() => { t.classList.add('hidden'); t.classList.remove('toast-animate'); }, 3200);
+        }
+    </script>
+</body>
+</html>
