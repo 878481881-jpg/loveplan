@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>恋爱商场 🛍️</title>
+    <title>心愿商城 🛍️🐷🎁</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
     
     <style>
         body { 
@@ -15,128 +16,256 @@
             background-size: 20px 20px; 
             overflow-x: hidden; 
         }
-        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-8px); } 100% { transform: translateY(0px); } }
         .animate-float { animation: float 3s ease-in-out infinite; }
-        
         @keyframes slideUpFade { 0% { opacity: 0; transform: translate(-50%, 20px); } 10% { opacity: 1; transform: translate(-50%, 0); } 90% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, -20px); } }
         .toast-animate { animation: slideUpFade 3s forwards; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
-        
+        .animate-fade-in { animation: fadeIn 0.4s ease-in-out forwards; }
         @keyframes pop { 0% { transform: scale(0.8); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
         .animate-pop { animation: pop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-
-        /* Blob 动画用于盲盒结果弹窗 */
-        @keyframes blob { 0% { transform: translate(0px, 0px) scale(1); } 33% { transform: translate(10px, -20px) scale(1.1); } 66% { transform: translate(-10px, 10px) scale(0.9); } 100% { transform: translate(0px, 0px) scale(1); } }
-        .animate-blob { animation: blob 5s infinite; }
-        .animation-delay-2000 { animation-delay: 2s; }
+        @keyframes shake {
+            0%, 100% { transform: translate(1px, 1px) rotate(0deg); }
+            25% { transform: translate(-2px, -1px) rotate(-2deg); }
+            50% { transform: translate(2px, 1px) rotate(2deg); }
+            75% { transform: translate(-1px, 2px) rotate(-1deg); }
+        }
+        .animate-shake { animation: shake 0.45s infinite; }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        .tab-active { background-color: #f43f5e; color: white; border-color: #f43f5e; box-shadow: 0 4px 6px -1px rgba(244, 63, 94, 0.2); }
-        .tab-inactive { background-color: white; color: #6b7280; border-color: #e5e7eb; }
-
-        /* 子选项卡样式 */
         .subtab-active { background-color: #fff1f2; color: #f43f5e; font-weight: bold; }
         .subtab-inactive { color: #9ca3af; font-weight: bold; }
+        .btn-disabled { filter: grayscale(1); opacity: 0.65; cursor: not-allowed; pointer-events: none; }
+
+        .accordion-content { transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out, margin 0.3s ease-in-out; max-height: 0; opacity: 0; overflow: hidden; }
+        .accordion-content.expanded { max-height: 500px; opacity: 1; margin-top: 1rem; }
+        .chevron { transition: transform 0.3s ease; }
+        .chevron.expanded { transform: rotate(180deg); }
+        .progress-bar-stripes {
+            background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+            background-size: 1rem 1rem;
+        }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-start py-8 px-4 pb-20">
+<body class="min-h-screen flex flex-col items-center justify-start py-6 px-4 pb-24">
     
+    <!-- 顶部栏 -->
     <header class="text-center mb-4 max-w-md animate-float mt-2 w-full flex justify-between items-center px-2">
         <a href="index.html" class="p-2 bg-white text-rose-500 rounded-full shadow-sm border border-rose-100">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
         </a>
         <div>
-            <h1 class="text-2xl font-bold text-rose-500 flex items-center justify-center gap-2">
-                🛍️ 恋爱商场
-            </h1>
+            <h1 class="text-2xl font-black text-rose-500 flex items-center justify-center gap-2">🛍️ 心愿商城</h1>
         </div>
         <div class="w-9 h-9"></div>
     </header>
 
     <main class="w-full max-w-md flex flex-col items-center">
-        
         <!-- 积分余额卡片 -->
-        <div class="w-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 shadow-md text-white flex justify-between items-center mb-6 relative overflow-hidden">
+        <div class="w-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-2xl p-4 shadow-md text-white flex justify-between items-center mb-5 relative overflow-hidden">
             <div class="absolute -right-2 -top-2 text-6xl opacity-20">🪙</div>
             <div class="relative z-10">
                 <p class="text-xs text-rose-100 mb-1">我的小金库 (<span id="identityText">-</span>)</p>
                 <div class="flex items-baseline gap-1">
-                    <span class="text-3xl font-bold" id="myPoints">--</span>
+                    <span class="text-3xl font-black" id="myPoints">--</span>
                     <span class="text-sm">积分</span>
                 </div>
             </div>
-            <button onclick="refreshData()" class="relative z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-2 rounded-full transition-colors">
+            <button onclick="refreshAllData()" class="relative z-10 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-2.5 rounded-full transition-colors">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
             </button>
         </div>
 
-        <!-- 选项卡导航 -->
-        <div class="flex gap-2 w-full mb-6 p-1 bg-gray-100 rounded-full">
-            <button onclick="switchTab('mall')" id="tab_mall" class="flex-1 py-2 rounded-full text-sm font-bold transition-all tab-active">逛商场</button>
-            <button onclick="switchTab('inventory')" id="tab_inventory" class="flex-1 py-2 rounded-full text-sm font-bold transition-all tab-inactive">我的仓库</button>
-            <button onclick="switchTab('verify')" id="tab_verify" class="flex-1 py-2 rounded-full text-sm font-bold transition-all tab-inactive">核销中心</button>
+        <!-- 顶层三大模块切换 -->
+        <div class="grid grid-cols-3 gap-1.5 w-full mb-5 p-1.5 bg-white/85 backdrop-blur-md rounded-full shadow-sm border border-rose-100">
+            <button onclick="switchModule('shop')" id="modBtn-shop" class="py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-sm">🛍️ 恋爱商场</button>
+            <button onclick="switchModule('cqg')" id="modBtn-cqg" class="py-2 rounded-full text-xs sm:text-sm font-bold transition-all text-rose-400 hover:bg-rose-50">🐷 存钱罐</button>
+            <button onclick="switchModule('manghe')" id="modBtn-manghe" class="py-2 rounded-full text-xs sm:text-sm font-bold transition-all text-rose-400 hover:bg-rose-50">🎁 惊喜盲盒</button>
         </div>
 
         <!-- 加载状态 -->
-        <div id="loadingView" class="w-full flex flex-col items-center py-10 animate-fade-in">
+        <div id="loadingView" class="w-full flex flex-col items-center py-16 animate-fade-in">
             <div class="text-4xl animate-bounce mb-3">📦</div>
-            <p class="text-rose-400 font-bold">正在整理货架...</p>
+            <p class="text-rose-400 font-bold">正在连接云端金库...</p>
         </div>
 
-        <!-- 视图区 -->
+        <!-- 主内容区 -->
         <div id="contentView" class="w-full hidden">
-            
-            <!-- 1. 商场视图 -->
-            <div id="view_mall" class="w-full animate-fade-in hidden">
-                <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm overflow-hidden p-1 gap-1 border border-gray-100">
-                    <button onclick="switchSubTab('props')" id="subtab_props" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-active">🎁 道具</button>
-                    <button onclick="switchSubTab('pets')" id="subtab_pets" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50">🐾 宠物</button>
-                </div>
-                <div id="mall_props" class="w-full animate-fade-in">
-                    <div id="blindBoxContainer" class="mb-3"></div>
-                    <div class="grid grid-cols-2 gap-3" id="mallGrid"></div>
-                </div>
-                <div id="mall_pets" class="w-full animate-fade-in hidden">
-                    <div class="grid grid-cols-2 gap-3" id="petsGrid"></div>
-                </div>
-            </div>
 
-            <!-- 2. 仓库视图 -->
-            <div id="view_inventory" class="w-full animate-fade-in hidden">
-                <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm overflow-hidden p-1 gap-1 border border-gray-100">
-                    <button onclick="switchInventorySubTab('props')" id="inv_subtab_props" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-active">🎁 我的道具</button>
-                    <button onclick="switchInventorySubTab('pets')" id="inv_subtab_pets" class="flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50">🐾 宠物道具</button>
+            <!-- =================================================== -->
+            <!-- 模块 1：恋爱商场 (逛商场 / 我的仓库 / 核销中心) -->
+            <!-- =================================================== -->
+            <div id="mod-shop" class="w-full animate-fade-in">
+                <div class="flex gap-2 w-full mb-5 p-1 bg-gray-100 rounded-full">
+                    <button onclick="switchShopTab('mall')" id="tab_mall" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-rose-500 text-white shadow-sm">逛商场</button>
+                    <button onclick="switchShopTab('inventory')" id="tab_inventory" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500">我的仓库</button>
+                    <button onclick="switchShopTab('verify')" id="tab_verify" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500">核销中心</button>
                 </div>
-                
-                <div id="inventory_props" class="space-y-3 animate-fade-in"></div>
-                <div id="inventory_pets" class="space-y-3 animate-fade-in hidden"></div>
-            </div>
 
-            <!-- 3. 核销视图 -->
-            <div id="view_verify" class="w-full animate-fade-in hidden">
-                <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-100 mb-6 text-center">
-                    <h3 class="font-bold text-gray-800 mb-2">核销对方的使用码</h3>
-                    <p class="text-xs text-gray-500 mb-4">当对方在仓库点击使用物品后，会生成一个6位码。在此处输入核销后，物品才正式生效。</p>
-                    <div class="flex gap-2">
-                        <input type="text" id="verifyInput" placeholder="输入6位使用码" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-center font-mono font-bold text-lg focus:outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400 uppercase">
-                        <button onclick="verifyCode()" class="bg-rose-500 text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-rose-600 transition-colors">核销</button>
+                <!-- 1.1 逛商场 -->
+                <div id="view_mall" class="w-full">
+                    <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm p-1 gap-1 border border-gray-100">
+                        <button onclick="switchSubTab('props')" id="subtab_props" class="flex-1 py-2 text-sm rounded-lg subtab-active">🎁 道具</button>
+                        <button onclick="switchSubTab('pets')" id="subtab_pets" class="flex-1 py-2 text-sm rounded-lg subtab-inactive">🐾 宠物</button>
+                    </div>
+                    <div id="mall_props" class="w-full">
+                        <div id="blindBoxContainer" class="mb-3"></div>
+                        <div class="grid grid-cols-2 gap-3" id="mallGrid"></div>
+                    </div>
+                    <div id="mall_pets" class="w-full hidden">
+                        <div class="grid grid-cols-2 gap-3" id="petsGrid"></div>
                     </div>
                 </div>
-                <div class="text-left w-full">
+
+                <!-- 1.2 仓库 -->
+                <div id="view_inventory" class="w-full hidden">
+                    <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm p-1 gap-1 border border-gray-100">
+                        <button onclick="switchInventorySubTab('props')" id="inv_subtab_props" class="flex-1 py-2 text-sm rounded-lg subtab-active">🎁 我的道具</button>
+                        <button onclick="switchInventorySubTab('pets')" id="inv_subtab_pets" class="flex-1 py-2 text-sm rounded-lg subtab-inactive">🐾 宠物道具</button>
+                    </div>
+                    <div id="inventory_props" class="space-y-3"></div>
+                    <div id="inventory_pets" class="space-y-3 hidden"></div>
+                </div>
+
+                <!-- 1.3 核销 -->
+                <div id="view_verify" class="w-full hidden">
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-rose-100 mb-6 text-center">
+                        <h3 class="font-bold text-gray-800 mb-2">核销对方的使用码</h3>
+                        <p class="text-xs text-gray-500 mb-4">对方在仓库点击使用物品后会生成 6 位码，核销后正式生效。</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="verifyInput" placeholder="输入6位使用码" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-center font-mono font-bold text-lg focus:outline-none focus:border-rose-400 uppercase">
+                            <button onclick="verifyCode()" class="bg-rose-500 text-white px-5 py-2 rounded-xl font-bold shadow-sm hover:bg-rose-600">核销</button>
+                        </div>
+                    </div>
                     <h4 class="text-sm font-bold text-gray-700 mb-3 ml-1">对方待核销的请求</h4>
                     <div class="space-y-3" id="partnerPendingList"></div>
                 </div>
             </div>
+
+            <!-- =================================================== -->
+            <!-- 模块 2：心愿存钱罐 -->
+            <!-- =================================================== -->
+            <div id="mod-cqg" class="w-full hidden animate-fade-in">
+                <div class="w-full flex justify-between items-center mb-4 px-1">
+                    <h2 class="text-base font-black text-gray-800">我们的共同心愿清单 📜</h2>
+                    <button onclick="openAddWishModal()" class="text-xs bg-rose-100 text-rose-600 px-3 py-1.5 rounded-full font-bold hover:bg-rose-200 transition-colors shadow-sm">
+                        ➕ 新增心愿
+                    </button>
+                </div>
+                <div id="wishListContainer" class="w-full space-y-4"></div>
+            </div>
+
+            <!-- =================================================== -->
+            <!-- 模块 3：惊喜盲盒机 -->
+            <!-- =================================================== -->
+            <div id="mod-manghe" class="w-full hidden animate-fade-in">
+                <div class="flex gap-2 w-full mb-5 p-1 bg-gray-100 rounded-full">
+                    <button onclick="switchMhTab('draw')" id="mhtab_draw" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-purple-500 text-white shadow-sm">抽盲盒</button>
+                    <button onclick="switchMhTab('deposit')" id="mhtab_deposit" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500">放盲盒</button>
+                    <button onclick="switchMhTab('rewards')" id="mhtab_rewards" class="flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500">我的奖励</button>
+                </div>
+
+                <!-- 3.1 抽盲盒 -->
+                <div id="mh_view_draw" class="w-full flex flex-col items-center">
+                    <div class="flex gap-1 w-full bg-purple-50/60 p-1 rounded-xl mb-3 border border-purple-100">
+                        <button onclick="setDrawType('normal')" id="drawTypeBtnNormal" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white text-purple-600 shadow-sm">🎲 普通池</button>
+                        <button onclick="setDrawType('premium')" id="drawTypeBtnPremium" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500">👑 高级池(碎片)</button>
+                    </div>
+                    <div class="w-full bg-white rounded-3xl p-6 shadow-sm border border-purple-100 text-center relative overflow-hidden mb-4" id="drawPanelBg">
+                        <div class="flex justify-between items-center mb-5">
+                            <div class="text-left">
+                                <h3 class="font-black text-gray-800 text-base">当前盲盒池</h3>
+                                <p class="text-xs text-gray-500">共 <span id="poolCount" class="font-bold text-purple-500">0</span> 个惊喜</p>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <div id="drawLimitBadge" class="bg-purple-50 text-purple-600 px-2.5 py-1 rounded-full text-xs font-bold border border-purple-100">今日可用: -/-</div>
+                                <button onclick="openPoolModal()" class="text-xs bg-purple-50 text-purple-600 px-2.5 py-1 rounded-full font-bold border border-purple-200">查看 🔍</button>
+                            </div>
+                        </div>
+                        <div id="premiumTargetSelector" class="hidden mb-4 bg-orange-50/60 p-3 rounded-xl border border-orange-100 text-left">
+                            <label class="text-xs font-bold text-orange-600 block mb-1">抽取模式</label>
+                            <select id="premiumTargetSelect" onchange="updateDrawPanelUI()" class="w-full bg-white border border-orange-200 text-sm font-bold text-gray-700 py-2 px-3 rounded-lg">
+                                <option value="random">🎲 随机奖池目标 (20积分)</option>
+                            </select>
+                        </div>
+                        <div class="relative w-40 h-40 mx-auto mb-4 cursor-pointer flex items-center justify-center" onclick="startDrawFlow()" id="drawBoxArea">
+                            <div class="text-[100px] filter drop-shadow-xl hover:scale-110 transition-transform">🎁</div>
+                        </div>
+                        <div class="bg-gray-50 rounded-2xl p-3.5 border border-gray-100">
+                            <p class="text-xs text-gray-600 mb-1">本次抽取消耗</p>
+                            <div class="flex justify-center items-center gap-1.5">
+                                <span class="text-2xl font-black text-purple-600" id="drawCost">--</span>
+                                <span class="text-gray-500 text-sm font-bold">积分</span>
+                            </div>
+                            <p class="text-[10px] text-gray-400 mt-1" id="drawCostTip"></p>
+                        </div>
+                    </div>
+                    <button onclick="startDrawFlow()" id="drawBtn" class="w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-2xl font-black text-base shadow-lg">✨ 立即抽取盲盒 ✨</button>
+                </div>
+
+                <!-- 3.2 放盲盒 -->
+                <div id="mh_view_deposit" class="w-full hidden">
+                    <div class="flex gap-1 w-full bg-pink-50/60 p-1 rounded-xl mb-3 border border-pink-100">
+                        <button onclick="setDepositType('normal')" id="depositTypeBtnNormal" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-pink-600">🎲 普通奖励</button>
+                        <button onclick="setDepositType('premium')" id="depositTypeBtnPremium" class="flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500">👑 高级碎片</button>
+                    </div>
+                    <div class="bg-white rounded-3xl p-6 shadow-sm border border-pink-100">
+                        <h3 class="font-black text-gray-800 text-lg text-center mb-2" id="depositTitle">向普通池投入惊喜</h3>
+                        <p class="text-xs text-gray-500 text-center mb-5" id="depositDesc">自定义奖励放入盲盒池，对方抽取后立刻归对方所有</p>
+                        <div id="depositNormalFields" class="space-y-4">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 mb-1 block">盲盒内容</label>
+                                <input type="text" id="depositNameNormal" class="w-full px-4 py-3 text-sm border-2 border-pink-100 rounded-xl bg-gray-50" placeholder="例如：做一顿大餐 / 50元红包">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 mb-1 block">估值 (积分)</label>
+                                <input type="number" id="depositPrice" class="w-full px-4 py-3 text-sm border-2 border-pink-100 rounded-xl bg-gray-50 font-bold text-pink-500" placeholder="如：50">
+                            </div>
+                        </div>
+                        <div id="depositPremiumFields" class="space-y-4 hidden">
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 mb-1 block">终极目标内容</label>
+                                <input type="text" id="depositNamePremium" class="w-full px-4 py-3 text-sm border-2 border-amber-100 rounded-xl bg-gray-50" placeholder="例如：一台Switch / 清空购物车">
+                            </div>
+                            <div>
+                                <label class="text-xs font-bold text-gray-600 mb-1 block">所需碎片个数</label>
+                                <input type="number" id="depositPieces" class="w-full px-4 py-3 text-sm border-2 border-amber-100 rounded-xl bg-gray-50 font-bold text-amber-600" placeholder="建议 5 到 10">
+                            </div>
+                        </div>
+                        <button onclick="confirmDeposit()" id="depositBtn" class="w-full mt-6 py-3.5 bg-gradient-to-r from-pink-400 to-rose-500 text-white rounded-xl font-black shadow-md text-sm">塞入盲盒机</button>
+                    </div>
+                </div>
+
+                <!-- 3.3 盲盒奖励 -->
+                <div id="mh_view_rewards" class="w-full hidden">
+                    <div class="flex w-full mb-4 bg-white rounded-xl shadow-sm p-1 gap-1 border border-gray-100">
+                        <button onclick="switchRewardSubTab('mine')" id="mh_subtab_mine" class="flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-active">🎒 战利品与碎片</button>
+                        <button onclick="switchRewardSubTab('verify')" id="mh_subtab_verify" class="flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-inactive">✍️ 核销对方请求</button>
+                    </div>
+                    <div id="mh_rewards_mine" class="w-full"></div>
+                    <div id="mh_rewards_verify" class="w-full hidden">
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-purple-100 mb-5 text-center">
+                            <h3 class="font-bold text-gray-800 mb-2">核销盲盒使用码</h3>
+                            <p class="text-xs text-gray-500 mb-4">对方使用盲盒奖励后会生成 6 位码，在此确认生效。</p>
+                            <div class="flex gap-2">
+                                <input type="text" id="mhVerifyInput" placeholder="输入6位码" class="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 text-center font-mono font-bold text-lg uppercase">
+                                <button onclick="executeMhVerify()" class="bg-purple-500 text-white px-5 py-2 rounded-xl font-bold shadow-sm">核销</button>
+                            </div>
+                        </div>
+                        <h4 class="text-sm font-bold text-gray-700 mb-3 ml-1">对方待核销的盲盒请求</h4>
+                        <div class="space-y-3" id="mhPartnerPendingList"></div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
-    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-[70] whitespace-nowrap"></div>
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-gray-800/95 text-white px-6 py-3 rounded-full shadow-lg text-sm font-medium hidden z-[90] whitespace-nowrap"></div>
 
-    <!-- 确认购买弹窗 -->
+    <!-- 各种弹窗 (商场购买/出售、存钱罐新增/存入、盲盒奖池/开盒/核销) -->
     <div id="buyModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="buyModalContent">
             <div class="text-center mb-4">
@@ -149,94 +278,127 @@
                 <span class="text-rose-500 font-bold text-lg"><span id="buyPrice"></span> 积分</span>
             </div>
             <div class="flex gap-3">
-                <button onclick="closeModal('buyModal', 'buyModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
-                <button id="confirmBuyBtn" class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">确认购买</button>
+                <button onclick="closeModal('buyModal', 'buyModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold">取消</button>
+                <button id="confirmBuyBtn" class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold shadow-md">确认购买</button>
             </div>
         </div>
     </div>
 
-    <!-- 新增：出售数量选择弹窗 -->
     <div id="sellModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="sellModalContent">
             <div class="flex items-center justify-between mb-5 pb-4 border-b border-gray-100">
                 <div class="flex items-center gap-3">
                     <span id="sellIcon" class="text-3xl"></span>
-                    <div>
-                        <h3 id="sellName" class="font-bold text-gray-800"></h3>
-                        <p class="text-xs text-gray-500 mt-0.5">回收价: <span id="sellUnitPrice" class="font-bold text-amber-500"></span> 积分/个</p>
-                    </div>
+                    <div><h3 id="sellName" class="font-bold text-gray-800"></h3><p class="text-xs text-gray-500">回收价: <span id="sellUnitPrice" class="font-bold text-amber-500"></span> 积分/个</p></div>
                 </div>
-                <div class="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-md">8折回收</div>
+                <span class="text-xs text-gray-400 bg-gray-50 px-2 py-1 rounded-md">8折回收</span>
             </div>
-            
             <div class="mb-6 flex flex-col items-center">
                 <p class="text-sm text-gray-600 font-medium mb-3">请选择出售数量</p>
                 <div class="flex items-center gap-4 bg-gray-50 p-2 rounded-2xl border border-gray-100">
-                    <button onclick="changeSellQty(-1)" class="w-10 h-10 flex items-center justify-center bg-white text-gray-600 rounded-xl shadow-sm border border-gray-200 active:scale-95 transition text-lg font-bold hover:text-rose-500">-</button>
+                    <button onclick="changeSellQty(-1)" class="w-10 h-10 bg-white text-gray-600 rounded-xl shadow-sm font-bold text-lg">-</button>
                     <span id="sellQtyDisplay" class="text-2xl font-black text-gray-800 w-12 text-center">1</span>
-                    <button onclick="changeSellQty(1)" class="w-10 h-10 flex items-center justify-center bg-white text-gray-600 rounded-xl shadow-sm border border-gray-200 active:scale-95 transition text-lg font-bold hover:text-rose-500">+</button>
+                    <button onclick="changeSellQty(1)" class="w-10 h-10 bg-white text-gray-600 rounded-xl shadow-sm font-bold text-lg">+</button>
                 </div>
             </div>
-
             <div class="bg-amber-50 rounded-xl p-3 flex justify-between items-center mb-6 border border-amber-100">
-                <span class="text-sm text-gray-600 font-medium">预计可获得</span>
+                <span class="text-sm text-gray-600 font-medium">预计获得</span>
                 <span class="text-amber-500 font-bold text-lg">+<span id="sellTotalPrice"></span> 积分</span>
             </div>
-
             <div class="flex gap-3">
-                <button onclick="closeModal('sellModal', 'sellModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">取消</button>
-                <button onclick="confirmSellStep()" class="flex-1 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all">确认出售</button>
+                <button onclick="closeModal('sellModal', 'sellModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold">取消</button>
+                <button onclick="executeSell()" class="flex-1 py-2.5 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl font-bold shadow-md">确定卖出</button>
             </div>
         </div>
     </div>
 
-    <!-- 新增：二次确认出售弹窗 -->
-    <div id="confirmSellModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform text-center" id="confirmSellModalContent">
-            <div class="text-5xl mb-3">⚠️</div>
-            <h3 class="font-bold text-gray-800 text-lg mb-3">最终确认</h3>
-            <p id="confirmSellText" class="text-sm text-gray-600 mb-6 leading-relaxed"></p>
-            
-            <div class="flex gap-3">
-                <button onclick="closeModal('confirmSellModal', 'confirmSellModalContent')" class="flex-1 py-2.5 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">点错了</button>
-                <button onclick="executeSell()" class="flex-1 py-2.5 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">确定卖出</button>
-            </div>
-        </div>
-    </div>
-    
-    <!-- 盲盒抽取结果弹窗 (简略，保留原有结构) -->
     <div id="blindBoxResultModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
-        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-50 transition-transform text-center relative overflow-hidden" id="blindBoxResultModalContent">
-            <div class="absolute -top-10 -left-10 w-40 h-40 bg-purple-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob"></div>
-            <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-pink-200 rounded-full mix-blend-multiply filter blur-2xl opacity-70 animate-blob animation-delay-2000"></div>
-            <h3 class="font-bold text-gray-800 text-lg mb-6 relative z-10 flex items-center justify-center gap-2"><span>🎉</span> 盲盒开启成功！</h3>
-            <div class="mb-6 relative z-10 flex flex-col items-center">
-                <div class="text-8xl animate-pop mb-4 filter drop-shadow-md" id="bbResultIcon"></div>
-                <h4 class="font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-500 to-pink-500" id="bbResultName"></h4>
-                <p class="text-sm text-gray-500 mt-2 font-medium" id="bbResultDesc"></p>
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-50 transition-transform text-center" id="blindBoxResultModalContent">
+            <h3 class="font-bold text-gray-800 text-lg mb-5">🎉 盲盒开启成功！</h3>
+            <div class="mb-6 flex flex-col items-center">
+                <div class="text-7xl animate-pop mb-3" id="bbResultIcon"></div>
+                <h4 class="font-black text-2xl text-rose-500" id="bbResultName"></h4>
+                <p class="text-sm text-gray-500 mt-2" id="bbResultDesc"></p>
             </div>
-            <button onclick="closeBbModal()" class="relative z-10 w-full py-3.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-lg shadow-pink-200 hover:opacity-90 active:scale-95 transition-all">开心收下</button>
+            <button onclick="closeModal('blindBoxResultModal', 'blindBoxResultModalContent'); switchShopTab('inventory');" class="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold">开心收下</button>
         </div>
     </div>
 
-    <!-- 使用码与核销弹窗 -->
-    <div id="codeModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+    <!-- 新增心愿弹窗 -->
+    <div id="addWishModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform" id="addWishModalContent">
+            <h3 class="font-bold text-gray-800 text-lg mb-4">✨ 许下新的共同心愿</h3>
+            <div class="space-y-4">
+                <div><label class="text-xs font-bold text-gray-500 mb-1 block">心愿名称</label><input type="text" id="newWishName" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl bg-gray-50" placeholder="例如：三亚五日游 / 大烤箱"></div>
+                <div><label class="text-xs font-bold text-gray-500 mb-1 block">目标积分</label><input type="number" id="newWishTarget" class="w-full px-4 py-3 text-sm border-2 border-rose-100 rounded-xl bg-gray-50" placeholder="设定积分目标"></div>
+                <div class="flex gap-3 pt-2">
+                    <button onclick="closeModal('addWishModal', 'addWishModalContent')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">取消</button>
+                    <button onclick="confirmAddWish()" class="flex-1 py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-xl font-bold shadow-md">创建心愿</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存入积分弹窗 -->
+    <div id="donateModal" class="fixed inset-0 bg-black/50 z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform text-center" id="donateModalContent">
+            <div class="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-3">🪙</div>
+            <h3 class="font-bold text-gray-800 text-lg mb-1">存入积分</h3>
+            <p class="text-xs text-gray-500 mb-5" id="donateTargetName"></p>
+            <div class="relative max-w-[200px] mx-auto mb-6">
+                <input type="number" id="donateAmount" class="w-full px-4 py-2 text-center text-2xl font-black text-rose-500 border-b-2 border-rose-200 focus:outline-none" placeholder="0">
+                <button onclick="setDonateMax()" class="absolute right-0 bottom-2 text-xs bg-rose-50 text-rose-500 px-2 py-1 rounded font-bold">ALL</button>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeModal('donateModal', 'donateModalContent')" class="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold">取消</button>
+                <button onclick="confirmDonate()" class="flex-1 py-3 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl font-bold shadow-md">确认存入</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 盲盒奖池总览弹窗 -->
+    <div id="poolModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+        <div class="bg-white rounded-3xl w-full max-w-md shadow-2xl transform scale-95 transition-transform flex flex-col max-h-[80vh]" id="poolModalContent">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center">
+                <h3 class="font-black text-gray-800 text-lg">🔍 奖池一览</h3>
+                <button onclick="closeModal('poolModal', 'poolModalContent')" class="text-gray-400 hover:text-gray-600 bg-gray-100 rounded-full w-8 h-8 font-bold">✕</button>
+            </div>
+            <div class="overflow-y-auto p-4 flex-1 bg-gray-50/40" id="poolListContainer"></div>
+        </div>
+    </div>
+
+    <!-- 盲盒开盒动画/结果弹窗 -->
+    <div id="drawResultModal" class="fixed inset-0 bg-black/70 backdrop-blur-md z-[70] hidden flex flex-col items-center justify-center p-4 opacity-0 transition-opacity">
+        <div id="drawAnimationPhase" class="text-center w-full max-w-sm">
+            <h2 class="text-white text-xl font-bold mb-8 animate-pulse">正在开启惊喜...</h2>
+            <div class="text-[120px] animate-shake inline-block">🎁</div>
+        </div>
+        <div id="drawResultPhase" class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl text-center hidden transform scale-50">
+            <h3 class="font-bold text-gray-400 text-xs mb-3 tracking-widest uppercase">恭喜抽中</h3>
+            <div class="text-6xl mb-3 animate-pop" id="resultIcon">🎉</div>
+            <h4 class="font-black text-2xl text-purple-600 mb-4" id="resultItemName"></h4>
+            <div id="resultPriceTag" class="bg-purple-50 rounded-xl p-3 mb-5 text-sm text-purple-700 font-bold">估值: <span id="resultItemPrice"></span> 积分</div>
+            <div id="resultPremiumTag" class="bg-amber-50 rounded-xl p-3 mb-5 text-xs text-amber-700 font-bold hidden">已存入碎片背包，集齐可合成终极目标！</div>
+            <button onclick="closeDrawResult()" class="w-full py-3 bg-gray-900 text-white rounded-xl font-bold">开心收下</button>
+        </div>
+    </div>
+
+    <!-- 使用码 & 核销成功弹窗 -->
+    <div id="codeModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform text-center" id="codeModalContent">
-            <h3 class="font-bold text-gray-800 text-lg mb-1">物品使用申请已生成</h3>
-            <p class="text-xs text-gray-500 mb-5">请将此码发送给对方，核销后即代表使用成功</p>
-            <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 mb-5">
-                <span id="generatedCode" class="text-3xl font-mono font-bold text-rose-500 tracking-widest"></span>
-            </div>
-            <button onclick="copyCodeAndClose()" class="w-full py-3 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">复制核销码并关闭</button>
+            <h3 class="font-bold text-gray-800 text-lg mb-1">使用申请已生成</h3>
+            <p class="text-xs text-gray-500 mb-5">请将此码发给对方核销</p>
+            <div class="bg-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-4 mb-5"><span id="generatedCode" class="text-3xl font-mono font-black text-rose-500 tracking-widest"></span></div>
+            <button onclick="copyCodeAndClose()" class="w-full py-3 bg-rose-500 text-white rounded-xl font-bold shadow-md">复制核销码并关闭</button>
         </div>
     </div>
 
-    <div id="verifySuccessModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
+    <div id="verifySuccessModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] hidden flex items-center justify-center p-4 opacity-0 transition-opacity">
         <div class="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl transform scale-95 transition-transform text-center" id="verifySuccessModalContent">
-            <div class="text-6xl mb-4 animate-pop">🎉</div>
+            <div class="text-6xl mb-3">🎉</div>
             <h3 class="font-bold text-gray-800 text-xl mb-2">核销成功！</h3>
-            <p class="text-sm text-gray-500 mb-6">对方的 <span id="verifiedItemName" class="font-bold text-rose-500"></span> 已正式生效，快去履行吧~</p>
-            <button onclick="closeModal('verifySuccessModal', 'verifySuccessModalContent')" class="w-full py-3 bg-rose-500 text-white rounded-xl font-bold shadow-md hover:bg-rose-600 transition-colors">我知道啦</button>
+            <p class="text-sm text-gray-500 mb-6">对方的 <span id="verifiedItemName" class="font-bold text-rose-500"></span> 已正式生效！</p>
+            <button onclick="closeModal('verifySuccessModal', 'verifySuccessModalContent')" class="w-full py-3 bg-rose-500 text-white rounded-xl font-bold">我知道啦</button>
         </div>
     </div>
 
@@ -245,838 +407,584 @@
     <script>
         const GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken');
         const myIdentity = localStorage.getItem('loveGacha_myIdentity');
-
-        if (!GITHUB_TOKEN || !myIdentity) {
-            window.location.href = 'index.html'; 
-        }
+        if (!GITHUB_TOKEN || !myIdentity) window.location.href = 'index.html';
 
         const partnerIdentity = (myIdentity === '哼哼') ? '亲亲' : '哼哼';
         document.getElementById('identityText').innerText = myIdentity;
 
-        const OWNER_REPO = '878481881-jpg/loveplan'; 
+        const OWNER_REPO = '878481881-jpg/loveplan';
         const MY_FILE = `data/${myIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
         const PARTNER_FILE = `data/${partnerIdentity === '哼哼' ? 'hck' : 'qck'}.json`;
-        
-        const SCWP_FILE = 'data/scwp.json'; 
-        const CWSP_FILE = 'data/cwsp.json'; 
-        const CW_FILE = 'data/cw.json';     
+        const SCWP_FILE = 'data/scwp.json';
+        const CWSP_FILE = 'data/cwsp.json';
+        const CW_FILE = 'data/cw.json';
+        const FILE_FUND = 'data/cqg.json';
+        const FILE_MH = 'data/mh.json';
+        const FILE_MHJL_MY = `data/${myIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`;
+        const FILE_MHJL_PARTNER = `data/${partnerIdentity === '哼哼' ? 'hmhjl' : 'qmhjl'}.json`;
 
-        let mallItems = []; 
-        let petItems = [];  
-        
-        let myData = { points: 50, inventory: {}, pendingUses: [], sha: null }; 
+        let currentModule = 'shop';
+        let mallItems = [], petItems = [];
+        let myData = { points: 50, inventory: {}, pendingUses: [], sha: null };
         let partnerData = { points: 50, inventory: {}, pendingUses: [], sha: null };
-        let cwData = { sha: null }; 
+        let cwData = { sha: null };
+        let fundData = { wishFunds: [] }, fundSha = null;
+        let mhData = { pool: [], premiumPool: [], sha: null };
+        let myMhjlData = { inventory: {}, fragments: {}, pendingUses: [], drawTimestamps: [], premiumDrawTimestamps: [], sha: null };
+        let partnerMhjlData = { pendingUses: [], sha: null };
 
-        // 交易与出售状态管理
-        let currentBuyingItem = null;
-        let sellState = { id: null, type: null, maxQty: 0, qty: 1, unitPrice: 0, itemDef: null };
+        let currentBuyingItem = null, sellState = { id: null, type: null, maxQty: 0, qty: 1, unitPrice: 0, itemDef: null };
+        let currentDonateGoalId = null;
+        let currentDrawType = 'normal', currentDepositType = 'normal', currentMineTab = 'loot', calculatedAvgPrice = 0;
 
         function utf8_to_b64(str) { return window.btoa(unescape(encodeURIComponent(str))); }
-        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str))); }
-
-        window.onload = async function() {
-            await refreshData();
-        };
+        function b64_to_utf8(str) { return decodeURIComponent(escape(window.atob(str.replace(/\s/g, '')))); }
 
         async function fetchFile(filePath) {
             try {
-                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${Date.now()}`, {
-                    headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` }
-                });
-                
-                if (response.status === 404) return { data: null, sha: null };
-                if (!response.ok) throw new Error('Network response was not ok');
-                
-                const result = await response.json();
-                const contentStr = b64_to_utf8(result.content);
-                return { data: JSON.parse(contentStr), sha: result.sha };
-            } catch (error) {
-                console.error("Fetch Error:", error);
-                return { error: true };
-            }
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${Date.now()}`, { headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}` } });
+                if (res.status === 404) return { data: null, sha: null };
+                if (!res.ok) throw new Error('Network error');
+                const result = await res.json();
+                return { data: JSON.parse(b64_to_utf8(result.content) || '{}'), sha: result.sha };
+            } catch (e) { return { error: true }; }
         }
 
         async function updateFile(filePath, contentObj, sha, message) {
             try {
-                const contentBase64 = utf8_to_b64(JSON.stringify(contentObj, null, 2));
-                const body = { message: message, content: contentBase64 };
+                const body = { message, content: utf8_to_b64(JSON.stringify(contentObj, null, 2)) };
                 if (sha) body.sha = sha;
-
-                const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Authorization': `Bearer ${GITHUB_TOKEN}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(body)
+                const res = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+                    method: 'PUT', headers: { 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body)
                 });
-                if (!response.ok) throw new Error('Update failed');
-                const res = await response.json();
-                return { success: true, sha: res.content.sha };
-            } catch (error) {
-                console.error("Update Error:", error);
-                return { success: false };
-            }
+                if (!res.ok) throw new Error('Update failed');
+                const r = await res.json();
+                return { success: true, sha: r.content.sha };
+            } catch (e) { return { success: false }; }
         }
 
-        async function refreshData() {
-            document.getElementById('loadingView').classList.remove('hidden');
-            document.getElementById('contentView').classList.add('hidden');
+        window.onload = async function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const initMod = urlParams.get('tab');
+            if (['shop', 'cqg', 'manghe'].includes(initMod)) currentModule = initMod;
+            await refreshAllData();
+            switchModule(currentModule);
+        };
 
-            const [myRes, partnerRes, scwpRes, cwspRes, cwRes] = await Promise.all([
-                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE), 
-                fetchFile(CWSP_FILE), fetchFile(CW_FILE)
-            ]);
-
-            if (myRes.error || partnerRes.error || scwpRes.error || cwspRes.error || cwRes.error) {
-                showToast("获取数据失败，请检查网络或Token");
-                return;
-            }
-
-            if (scwpRes.data && Array.isArray(scwpRes.data)) {
-                mallItems = scwpRes.data;
-            } else {
-                mallItems = [
-                    { id: 'truth', name: '真心话卷', price: 3, icon: '🙊', desc: '强制对方如实回答一个问题' },
-                    { id: 'peace', name: '和解卷', price: 10, icon: '🕊️', desc: '吵架时使用，无条件和好如初' }
-                ];
-            }
-
-            if (cwspRes.data && Array.isArray(cwspRes.data)) {
-                petItems = cwspRes.data;
-            } else {
-                petItems = [
-                    { id: 'pet_food', name: '高级罐头', price: 15, icon: '🥫', desc: '美味的宠物罐头' },
-                    { id: 'pet_toy', name: '毛绒玩具', price: 20, icon: '🪀', desc: '宠物最喜欢的互动玩具' }
-                ];
-            }
-
-            if (myRes.data) {
-                myData = { ...myData, ...myRes.data, sha: myRes.sha };
-                if(typeof myData.points !== 'number') myData.points = 50;
-                if(!myData.inventory) myData.inventory = {};
-                if(!myData.pendingUses) myData.pendingUses = [];
-            }
-            if (partnerRes.data) {
-                partnerData = { ...partnerData, ...partnerRes.data, sha: partnerRes.sha };
-                if(!partnerData.pendingUses) partnerData.pendingUses = [];
-            }
-
-            if (cwRes.data) {
-                cwData = { ...cwRes.data, sha: cwRes.sha };
-            }
-            if (!cwData[myIdentity]) cwData[myIdentity] = { inventory: {} };
-            if (!cwData[partnerIdentity]) cwData[partnerIdentity] = { inventory: {} };
-            if (!cwData.shared) cwData.shared = { inventory: {} }; 
-            if (!cwData.equipped) cwData.equipped = []; 
-
-            document.getElementById('myPoints').innerText = myData.points;
-            renderMall();
-            renderInventory();
-            renderVerify();
-
-            document.getElementById('loadingView').classList.add('hidden');
-            document.getElementById('contentView').classList.remove('hidden');
-            
-            switchTab('mall'); 
-            switchSubTab('props');
-        }
-
-        function switchTab(tabName) {
-            ['mall', 'inventory', 'verify'].forEach(name => {
-                const btn = document.getElementById(`tab_${name}`);
-                const view = document.getElementById(`view_${name}`);
-                if (name === tabName) {
-                    btn.className = "flex-1 py-2 rounded-full text-sm font-bold transition-all tab-active";
+        function switchModule(mod) {
+            currentModule = mod;
+            ['shop', 'cqg', 'manghe'].forEach(m => {
+                const btn = document.getElementById(`modBtn-${m}`);
+                const view = document.getElementById(`mod-${m}`);
+                if (m === mod) {
+                    btn.className = "py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-gradient-to-r from-rose-400 to-pink-500 text-white shadow-sm";
                     view.classList.remove('hidden');
                 } else {
-                    btn.className = "flex-1 py-2 rounded-full text-sm font-bold transition-all tab-inactive";
+                    btn.className = "py-2 rounded-full text-xs sm:text-sm font-bold transition-all text-rose-400 hover:bg-rose-50";
                     view.classList.add('hidden');
                 }
             });
         }
 
-        function switchSubTab(tabName) {
-            const propsBtn = document.getElementById('subtab_props');
-            const petsBtn = document.getElementById('subtab_pets');
-            const propsView = document.getElementById('mall_props');
-            const petsView = document.getElementById('mall_pets');
+        async function refreshAllData() {
+            document.getElementById('loadingView').classList.remove('hidden');
+            document.getElementById('contentView').classList.add('hidden');
 
-            if (tabName === 'props') {
-                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
-                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
-                propsView.classList.remove('hidden');
-                petsView.classList.add('hidden');
-            } else {
-                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
-                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
-                petsView.classList.remove('hidden');
-                propsView.classList.add('hidden');
-            }
+            const [myRes, partnerRes, scwpRes, cwspRes, cwRes, fundRes, mhRes, myMhjlRes, partnerMhjlRes] = await Promise.all([
+                fetchFile(MY_FILE), fetchFile(PARTNER_FILE), fetchFile(SCWP_FILE), fetchFile(CWSP_FILE),
+                fetchFile(CW_FILE), fetchFile(FILE_FUND), fetchFile(FILE_MH), fetchFile(FILE_MHJL_MY), fetchFile(FILE_MHJL_PARTNER)
+            ]);
+
+            mallItems = Array.isArray(scwpRes.data) ? scwpRes.data : [{ id: 'truth', name: '真心话卷', price: 3, icon: '🙊', desc: '强制对方如实回答一个问题' }];
+            petItems = Array.isArray(cwspRes.data) ? cwspRes.data : [{ id: 'pet_food', name: '高级罐头', price: 15, icon: '🥫', desc: '美味宠物罐头' }];
+
+            if (myRes.data) myData = { points: 50, inventory: {}, pendingUses: [], ...myRes.data, sha: myRes.sha };
+            if (partnerRes.data) partnerData = { points: 50, inventory: {}, pendingUses: [], ...partnerRes.data, sha: partnerRes.sha };
+            if (cwRes.data) cwData = { ...cwRes.data, sha: cwRes.sha };
+            if (!cwData[myIdentity]) cwData[myIdentity] = { inventory: {} };
+            if (!cwData[partnerIdentity]) cwData[partnerIdentity] = { inventory: {} };
+            if (!cwData.shared) cwData.shared = { inventory: {} };
+            if (!cwData.equipped) cwData.equipped = [];
+
+            const rawFund = fundRes.data || {};
+            if (Array.isArray(rawFund.wishFunds)) fundData = rawFund;
+            else if (rawFund.targetPoints) fundData = { wishFunds: [{ id: 1, targetName: rawFund.targetName || '神秘心愿', targetPoints: rawFund.targetPoints, currentTotal: rawFund.currentTotal || 0, contributions: rawFund.contributions || { "哼哼": 0, "亲亲": 0 } }] };
+            else fundData = { wishFunds: [] };
+            fundSha = fundRes.sha;
+
+            mhData = { pool: mhRes.data?.pool ?? [], premiumPool: mhRes.data?.premiumPool ?? [], sha: mhRes.sha };
+            myMhjlData = { inventory: {}, fragments: {}, pendingUses: [], drawTimestamps: [], premiumDrawTimestamps: [], ...myMhjlRes.data, sha: myMhjlRes.sha };
+            partnerMhjlData = { pendingUses: [], ...partnerMhjlRes.data, sha: partnerMhjlRes.sha };
+
+            document.getElementById('myPoints').innerText = myData.points;
+            renderMall(); renderInventory(); renderVerify();
+            renderWishList();
+            updateMangheUI();
+
+            document.getElementById('loadingView').classList.add('hidden');
+            document.getElementById('contentView').classList.remove('hidden');
         }
 
-        function switchInventorySubTab(tabName) {
-            const propsBtn = document.getElementById('inv_subtab_props');
-            const petsBtn = document.getElementById('inv_subtab_pets');
-            const propsView = document.getElementById('inventory_props');
-            const petsView = document.getElementById('inventory_pets');
-
-            if (tabName === 'props') {
-                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
-                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
-                propsView.classList.remove('hidden');
-                petsView.classList.add('hidden');
-            } else {
-                petsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-active";
-                propsBtn.className = "flex-1 py-2 text-sm rounded-lg transition-colors subtab-inactive hover:bg-gray-50";
-                petsView.classList.remove('hidden');
-                propsView.classList.add('hidden');
-            }
+        // ================= 模块 1：恋爱商场 =================
+        function switchShopTab(tabName) {
+            ['mall', 'inventory', 'verify'].forEach(n => {
+                document.getElementById(`tab_${n}`).className = n === tabName ? "flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-rose-500 text-white shadow-sm" : "flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500";
+                document.getElementById(`view_${n}`).classList.toggle('hidden', n !== tabName);
+            });
+        }
+        function switchSubTab(n) {
+            document.getElementById('subtab_props').className = n === 'props' ? "flex-1 py-2 text-sm rounded-lg subtab-active" : "flex-1 py-2 text-sm rounded-lg subtab-inactive";
+            document.getElementById('subtab_pets').className = n === 'pets' ? "flex-1 py-2 text-sm rounded-lg subtab-active" : "flex-1 py-2 text-sm rounded-lg subtab-inactive";
+            document.getElementById('mall_props').classList.toggle('hidden', n !== 'props');
+            document.getElementById('mall_pets').classList.toggle('hidden', n !== 'pets');
+        }
+        function switchInventorySubTab(n) {
+            document.getElementById('inv_subtab_props').className = n === 'props' ? "flex-1 py-2 text-sm rounded-lg subtab-active" : "flex-1 py-2 text-sm rounded-lg subtab-inactive";
+            document.getElementById('inv_subtab_pets').className = n === 'pets' ? "flex-1 py-2 text-sm rounded-lg subtab-active" : "flex-1 py-2 text-sm rounded-lg subtab-inactive";
+            document.getElementById('inventory_props').classList.toggle('hidden', n !== 'props');
+            document.getElementById('inventory_pets').classList.toggle('hidden', n !== 'pets');
         }
 
         function renderMall() {
             document.getElementById('blindBoxContainer').innerHTML = `
-                <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-md text-white flex items-center justify-between relative overflow-hidden transform transition active:scale-95 cursor-pointer" onclick="promptBuyBlindBox()">
-                    <div class="absolute -right-6 -bottom-6 text-8xl opacity-10 transform -rotate-12">🎁</div>
-                    <div class="relative z-10 w-2/3">
-                        <h3 class="font-black text-lg mb-1 flex items-center gap-1 text-yellow-200 drop-shadow-md">✨ 惊喜盲盒</h3>
-                        <p class="text-[11px] text-white/90 mb-3 leading-snug">花 10 积分抽取商场任意道具，试试手气！</p>
-                        <div class="bg-black/20 backdrop-blur-md rounded-full py-1.5 px-4 text-xs font-bold w-fit border border-white/20">
-                            🪙 10 积分抽取
-                        </div>
-                    </div>
-                    <div class="relative z-10 text-5xl animate-bounce mt-2 mr-2 drop-shadow-lg">🎁</div>
-                </div>
-            `;
-
-            const grid = document.getElementById('mallGrid');
-            grid.innerHTML = mallItems.map(item => `
-                <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-sm text-center transform transition-transform active:scale-95 flex flex-col justify-between">
-                    <div>
-                        <div class="text-4xl mb-2 filter drop-shadow-sm">${item.icon}</div>
-                        <h3 class="font-bold text-gray-800 text-sm leading-tight">${item.name}</h3>
-                    </div>
-                    <div>
-                        <div class="mt-2 mb-3 bg-rose-50 text-rose-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">
-                            🪙 ${item.price || 0} 积分
-                        </div>
-                        <button onclick="promptBuy('${item.id}', 'prop')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold shadow hover:bg-rose-600 transition">购买</button>
-                    </div>
-                </div>
-            `).join('');
-
-            const petsGrid = document.getElementById('petsGrid');
-            petsGrid.innerHTML = petItems.map(item => {
-                const currentCount = item.sfgy === 1 
-                    ? (cwData.shared.inventory[item.id] || 0) 
-                    : (cwData[myIdentity].inventory[item.id] || 0);
-                const hasLimit = item.gmcs !== undefined;
-                const reachedLimit = hasLimit && currentCount >= item.gmcs;
-
+                <div class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-2xl p-4 shadow-md text-white flex items-center justify-between cursor-pointer" onclick="promptBuyBlindBox()">
+                    <div><h3 class="font-black text-base mb-1 text-yellow-200">✨ 商城道具盲盒</h3><p class="text-[11px] text-white/90 mb-2">花 10 积分随机抽取商场道具</p><span class="bg-black/20 rounded-full py-1 px-3 text-xs font-bold">🪙 10 积分抽取</span></div>
+                    <div class="text-4xl animate-bounce">🎁</div>
+                </div>`;
+            document.getElementById('mallGrid').innerHTML = mallItems.map(item => `
+                <div class="bg-white rounded-2xl p-4 border border-rose-100 shadow-sm text-center flex flex-col justify-between">
+                    <div><div class="text-4xl mb-2">${item.icon}</div><h3 class="font-bold text-gray-800 text-sm">${item.name}</h3></div>
+                    <div><div class="my-2 bg-rose-50 text-rose-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">🪙 ${item.price || 0} 积分</div>
+                    <button onclick="promptBuy('${item.id}', 'prop')" class="w-full py-2 bg-rose-500 text-white rounded-xl text-xs font-bold">购买</button></div>
+                </div>`).join('');
+            document.getElementById('petsGrid').innerHTML = petItems.map(item => {
+                const cnt = item.sfgy === 1 ? (cwData.shared.inventory[item.id] || 0) : (cwData[myIdentity].inventory[item.id] || 0);
+                const limit = item.gmcs !== undefined && cnt >= item.gmcs;
                 return `
-                <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm text-center transform transition-transform active:scale-95 flex flex-col justify-between relative overflow-hidden">
-                    <div class="absolute -top-3 -right-3 text-5xl opacity-5">🐾</div>
-                    <div>
-                        <div class="text-4xl mb-2 filter drop-shadow-sm">${item.icon}</div>
-                        <h3 class="font-bold text-gray-800 text-sm leading-tight">${item.name}</h3>
-                        <p class="text-[10px] text-gray-400 mt-1 line-clamp-2">${item.desc}</p>
-                        ${hasLimit ? `<p class="text-[10px] text-pink-500 font-bold mt-1">限购: ${currentCount}/${item.gmcs}</p>` : ''}
-                    </div>
-                    <div>
-                        <div class="mt-2 mb-3 bg-pink-50 text-pink-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">🪙 ${item.price || 0} 积分</div>
-                        ${reachedLimit 
-                            ? `<button class="w-full py-2 bg-gray-300 text-white rounded-xl text-xs font-bold shadow cursor-not-allowed">已达限购</button>` 
-                            : `<button onclick="promptBuy('${item.id}', 'pet')" class="w-full py-2 bg-pink-500 text-white rounded-xl text-xs font-bold shadow hover:bg-pink-600 transition">购买</button>`
-                        }
-                    </div>
+                <div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm text-center flex flex-col justify-between">
+                    <div><div class="text-4xl mb-2">${item.icon}</div><h3 class="font-bold text-gray-800 text-sm">${item.name}</h3><p class="text-[10px] text-gray-400 mt-1">${item.desc}</p></div>
+                    <div><div class="my-2 bg-pink-50 text-pink-500 rounded-full py-1 text-xs font-bold w-fit mx-auto px-3">🪙 ${item.price || 0} 积分</div>
+                    ${limit ? `<button class="w-full py-2 bg-gray-300 text-white rounded-xl text-xs font-bold">已达限购</button>` : `<button onclick="promptBuy('${item.id}', 'pet')" class="w-full py-2 bg-pink-500 text-white rounded-xl text-xs font-bold">购买</button>`}</div>
                 </div>`;
             }).join('');
         }
 
         function renderInventory() {
-            const propsContainer = document.getElementById('inventory_props');
-            const petsContainer = document.getElementById('inventory_pets');
-            
-            const personalPets = Object.keys(cwData[myIdentity].inventory)
-                .filter(id => cwData[myIdentity].inventory[id] > 0)
-                .map(id => ({ id, count: cwData[myIdentity].inventory[id], isShared: false }));
-                
-            const sharedPets = Object.keys(cwData.shared.inventory)
-                .filter(id => cwData.shared.inventory[id] > 0)
-                .map(id => ({ id, count: cwData.shared.inventory[id], isShared: true }));
-                
-            const allPets = [...personalPets, ...sharedPets];
-            const cwEquipped = cwData.equipped || [];
-
-            const ownedPetsHtml = allPets.map(pet => {
-                const id = pet.id;
-                const itemDef = petItems.find(i => i.id === id) || { name: id, icon: '🐾', desc: '神秘宠物道具', price: 0 };
-                const badgeText = pet.isShared ? '👫 双方共有' : '宠物专属';
-                const badgeClass = pet.isShared ? 'text-purple-500 bg-purple-50 border-purple-200' : 'text-pink-400 bg-white border-pink-200';
-                
-                let actionButtonHtml = '';
-                if (itemDef.sfgy === 1) {
-                    const isEquipped = cwEquipped.includes(id);
-                    if (isEquipped) {
-                        actionButtonHtml = `<button onclick="toggleEquipPetItem('${id}', false)" class="px-4 py-1.5 bg-gray-200 text-gray-600 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap">卸下</button>`;
-                    } else {
-                        actionButtonHtml = `<button onclick="toggleEquipPetItem('${id}', true)" class="px-4 py-1.5 bg-purple-500 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap shadow-purple-200">穿戴</button>`;
-                    }
-                } else {
-                    actionButtonHtml = `<button onclick="usePetItem('${id}')" class="px-4 py-1.5 bg-gradient-to-r from-pink-400 to-rose-400 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap shadow-pink-200">使用</button>`;
-                }
-
-                // 只有个人拥有的宠物道具可以出售
-                let sellBtnHtml = '';
-                if (!pet.isShared) {
-                    sellBtnHtml = `<button onclick="promptSell('${id}', 'pet')" class="px-3 py-1.5 bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition whitespace-nowrap">出售</button>`;
-                }
-
-                return `
-                <div class="bg-gradient-to-r from-pink-50 to-white rounded-2xl p-4 border border-pink-100 shadow-sm flex items-center justify-between relative overflow-hidden">
-                    <div class="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-pink-100/50 to-transparent"></div>
-                    <div class="flex items-center gap-3 w-[60%] relative z-10">
-                        <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 animate-bounce" style="animation-duration: 3s;">${itemDef.icon}</div>
-                        <div class="flex-1 truncate">
-                            <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                <span class="truncate">${itemDef.name}</span>
-                                <span class="bg-pink-100 text-pink-500 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">x${pet.count}</span>
-                            </h4>
-                            <p class="text-[10px] text-gray-400 mt-1 truncate">${itemDef.desc}</p>
-                        </div>
-                    </div>
-                    <div class="relative z-10 flex flex-col items-end gap-2 flex-shrink-0">
-                        <div class="text-[10px] font-bold ${badgeClass} border px-2 py-1 rounded-xl shadow-sm whitespace-nowrap">
-                            ${badgeText}
-                        </div>
-                        <div class="flex gap-2">
-                            ${sellBtnHtml}
-                            ${actionButtonHtml}
-                        </div>
-                    </div>
+            const propsC = document.getElementById('inventory_props'), petsC = document.getElementById('inventory_pets');
+            const avail = Object.keys(myData.inventory).filter(id => myData.inventory[id] > 0).map(id => {
+                const d = mallItems.find(i => i.id === id) || { name: id, icon: '🎁', desc: '' };
+                return `<div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
+                    <div class="flex items-center gap-3 w-[55%]"><div class="w-11 h-11 bg-rose-50 rounded-xl flex items-center justify-center text-2xl">${d.icon}</div>
+                    <div class="truncate"><h4 class="font-bold text-gray-800 text-sm truncate">${d.name} <span class="bg-rose-100 text-rose-500 px-1.5 rounded-full text-[10px]">x${myData.inventory[id]}</span></h4><p class="text-[10px] text-gray-400 truncate">${d.desc}</p></div></div>
+                    <div class="flex gap-2"><button onclick="promptSell('${id}', 'prop')" class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold">出售</button><button onclick="useItem('${id}')" class="px-3.5 py-1.5 bg-amber-400 text-white rounded-xl text-xs font-bold">使用</button></div>
                 </div>`;
             }).join('');
+            const pend = (myData.pendingUses || []).filter(p => p.status === 'pending').map(p => {
+                const d = mallItems.find(i => i.id === p.itemId) || { name: p.itemId, icon: '🎁' };
+                return `<div class="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-300 flex items-center justify-between">
+                    <div class="flex items-center gap-3"><div class="text-2xl grayscale">${d.icon}</div><div><h4 class="font-bold text-gray-500 text-sm">${d.name} <span class="text-[10px] text-amber-600 bg-amber-100 px-1.5 rounded">待核销</span></h4><div class="text-xs text-gray-500">核销码: <b class="text-rose-500 font-mono">${p.code}</b></div></div></div>
+                    <button onclick="copySpecificCode('${p.code}')" class="px-3 py-1.5 bg-white border rounded-xl text-xs font-bold">复制</button>
+                </div>`;
+            }).join('');
+            propsC.innerHTML = (avail + pend) || `<div class="text-center py-10 text-gray-400 text-sm">🕸️ 仓库空空如也</div>`;
 
-            const availablePropsHtml = Object.keys(myData.inventory)
-                .filter(id => myData.inventory[id] > 0)
-                .map(id => {
-                    const itemDef = mallItems.find(i => i.id === id) || { name: id, icon: '🎁', desc: '神秘物品', price: 0 };
-                    return `
-                    <div class="bg-white rounded-2xl p-4 border border-gray-200 shadow-sm flex items-center justify-between">
-                        <div class="flex items-center gap-3 w-[55%]">
-                            <div class="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-2xl flex-shrink-0">${itemDef.icon}</div>
-                            <div class="truncate">
-                                <h4 class="font-bold text-gray-800 text-sm flex items-center gap-2">
-                                    <span class="truncate">${itemDef.name}</span>
-                                    <span class="bg-rose-100 text-rose-500 px-2 py-0.5 rounded-full text-[10px] flex-shrink-0">x${myData.inventory[id]}</span>
-                                </h4>
-                                <p class="text-[10px] text-gray-400 mt-1 truncate">${itemDef.desc}</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-2 flex-shrink-0">
-                            <button onclick="promptSell('${id}', 'prop')" class="px-3 py-2 bg-gray-50 text-gray-500 border border-gray-200 hover:bg-gray-100 rounded-xl text-xs font-bold shadow-sm active:scale-95 transition">出售</button>
-                            <button onclick="useItem('${id}')" class="px-4 py-2 bg-gradient-to-r from-amber-400 to-orange-400 text-white rounded-xl text-xs font-bold shadow-sm active:scale-95 transition">使用</button>
-                        </div>
-                    </div>`;
-                }).join('');
-
-            const pendingItemsHtml = (myData.pendingUses || [])
-                .filter(p => p.status === 'pending')
-                .map(p => {
-                    const itemDef = mallItems.find(i => i.id === p.itemId) || { name: p.itemId, icon: '🎁', desc: '神秘物品' };
-                    return `
-                    <div class="bg-gray-50 rounded-2xl p-4 border border-dashed border-gray-300 shadow-sm flex items-center justify-between opacity-90">
-                        <div class="flex items-center gap-3">
-                            <div class="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center text-2xl grayscale">${itemDef.icon}</div>
-                            <div>
-                                <h4 class="font-bold text-gray-500 text-sm flex items-center gap-2">
-                                    ${itemDef.name} 
-                                    <span class="bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full text-[10px]">等待核销</span>
-                                </h4>
-                                <div class="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
-                                    核销码: <span class="font-mono font-bold text-rose-500 tracking-wider">${p.code}</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="copySpecificCode('${p.code}')" class="px-3 py-1.5 bg-white border border-gray-200 text-gray-600 rounded-xl text-xs font-bold shadow-sm hover:bg-gray-100 active:scale-95 transition flex items-center gap-1">复制</button>
-                    </div>`;
-                }).join('');
-
-            if (!ownedPetsHtml) {
-                petsContainer.innerHTML = `<div class="text-center py-10 text-gray-400 text-sm flex flex-col items-center"><div class="text-4xl mb-2 opacity-50">🐾</div><p>没有宠物道具，快去商场进货吧~</p></div>`;
-            } else {
-                petsContainer.innerHTML = ownedPetsHtml;
-            }
-
-            if (!availablePropsHtml && !pendingItemsHtml) {
-                propsContainer.innerHTML = `<div class="text-center py-10 text-gray-400 text-sm flex flex-col items-center"><div class="text-4xl mb-2 opacity-50">🕸️</div><p>仓库空空如也，快去商场进货吧~</p></div>`;
-            } else {
-                propsContainer.innerHTML = availablePropsHtml + pendingItemsHtml;
-            }
+            const pPets = Object.keys(cwData[myIdentity].inventory).filter(id => cwData[myIdentity].inventory[id] > 0).map(id => ({ id, count: cwData[myIdentity].inventory[id], isShared: false }));
+            const sPets = Object.keys(cwData.shared.inventory).filter(id => cwData.shared.inventory[id] > 0).map(id => ({ id, count: cwData.shared.inventory[id], isShared: true }));
+            const cwEquipped = cwData.equipped || [];
+            petsC.innerHTML = [...pPets, ...sPets].map(pet => {
+                const d = petItems.find(i => i.id === pet.id) || { name: pet.id, icon: '🐾', desc: '' };
+                const btn = d.sfgy === 1 ? (cwEquipped.includes(pet.id) ? `<button onclick="toggleEquipPetItem('${pet.id}', false)" class="px-3 py-1.5 bg-gray-200 text-gray-600 rounded-xl text-xs font-bold">卸下</button>` : `<button onclick="toggleEquipPetItem('${pet.id}', true)" class="px-3 py-1.5 bg-purple-500 text-white rounded-xl text-xs font-bold">穿戴</button>`) : `<button onclick="usePetItem('${pet.id}')" class="px-3 py-1.5 bg-pink-500 text-white rounded-xl text-xs font-bold">使用</button>`;
+                const sell = !pet.isShared ? `<button onclick="promptSell('${pet.id}', 'pet')" class="px-3 py-1.5 bg-gray-100 text-gray-600 rounded-xl text-xs font-bold">出售</button>` : '';
+                return `<div class="bg-white rounded-2xl p-4 border border-pink-100 shadow-sm flex items-center justify-between">
+                    <div class="flex items-center gap-3 w-[55%]"><div class="w-11 h-11 bg-pink-50 rounded-xl flex items-center justify-center text-2xl">${d.icon}</div>
+                    <div class="truncate"><h4 class="font-bold text-gray-800 text-sm truncate">${d.name} <span class="bg-pink-100 text-pink-500 px-1.5 rounded-full text-[10px]">x${pet.count}</span></h4><p class="text-[10px] text-gray-400 truncate">${d.desc}</p></div></div>
+                    <div class="flex gap-2">${sell}${btn}</div>
+                </div>`;
+            }).join('') || `<div class="text-center py-10 text-gray-400 text-sm">🐾 暂无宠物道具</div>`;
         }
 
         function renderVerify() {
-            const list = document.getElementById('partnerPendingList');
-            const pendingItems = partnerData.pendingUses.filter(p => p.status === 'pending');
-            
-            if (pendingItems.length === 0) {
-                list.innerHTML = `<div class="text-center py-6 text-gray-400 text-xs bg-gray-50 rounded-xl">对方目前没有待核销的物品哦</div>`;
-                return;
-            }
+            const pend = (partnerData.pendingUses || []).filter(p => p.status === 'pending');
+            document.getElementById('partnerPendingList').innerHTML = pend.length ? pend.map(p => {
+                const d = mallItems.find(i => i.id === p.itemId) || { name: p.itemId, icon: '🎁' };
+                return `<div class="bg-white rounded-xl p-3 border border-gray-100 flex justify-between items-center"><div class="flex items-center gap-2"><span class="text-2xl">${d.icon}</span><span class="font-bold text-sm text-gray-700">${d.name}</span></div><span class="text-xs bg-amber-50 text-amber-500 px-2 py-1 rounded">待核销</span></div>`;
+            }).join('') : `<div class="text-center py-6 text-gray-400 text-xs bg-white rounded-xl">对方暂无待核销物品</div>`;
+        }
 
-            list.innerHTML = pendingItems.map(p => {
-                const itemDef = mallItems.find(i => i.id === p.itemId) || { name: p.itemId, icon: '🎁' };
-                const dateStr = new Date(p.time).toLocaleString('zh-CN', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
-                return `
-                <div class="bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div class="text-2xl">${itemDef.icon}</div>
-                        <div>
-                            <div class="font-bold text-gray-700 text-sm">${itemDef.name}</div>
-                            <div class="text-[10px] text-gray-400 mt-0.5">申请时间: ${dateStr}</div>
-                        </div>
+        function promptBuyBlindBox() {
+            if (myData.points < 10) return showToast("🪙 积分不足！");
+            currentBuyingItem = { id: 'blind_box', type: 'prop', name: '惊喜盲盒', price: 10, icon: '🎁', desc: '随机抽取商场任意道具！' };
+            document.getElementById('buyIcon').innerText = '🎁'; document.getElementById('buyName').innerText = '惊喜盲盒';
+            document.getElementById('buyDesc').innerText = currentBuyingItem.desc; document.getElementById('buyPrice').innerText = 10;
+            document.getElementById('confirmBuyBtn').onclick = executeBuy;
+            openModal('buyModal', 'buyModalContent');
+        }
+        function promptBuy(id, type) {
+            const item = (type === 'pet' ? petItems : mallItems).find(i => i.id === id);
+            if (!item || myData.points < item.price) return showToast("🪙 积分不足！");
+            currentBuyingItem = { ...item, type };
+            document.getElementById('buyIcon').innerText = item.icon; document.getElementById('buyName').innerText = item.name;
+            document.getElementById('buyDesc').innerText = item.desc; document.getElementById('buyPrice').innerText = item.price;
+            document.getElementById('confirmBuyBtn').onclick = executeBuy;
+            openModal('buyModal', 'buyModalContent');
+        }
+        async function executeBuy() {
+            const item = currentBuyingItem; closeModal('buyModal', 'buyModalContent'); showToast("付款处理中...");
+            const isBB = item.id === 'blind_box';
+            const give = isBB ? mallItems[Math.floor(Math.random() * mallItems.length)] : item;
+            myData.points -= item.price;
+            if (item.type === 'pet') {
+                if (give.sfgy === 1) cwData.shared.inventory[give.id] = (cwData.shared.inventory[give.id] || 0) + 1;
+                else cwData[myIdentity].inventory[give.id] = (cwData[myIdentity].inventory[give.id] || 0) + 1;
+            } else myData.inventory[give.id] = (myData.inventory[give.id] || 0) + 1;
+            const res = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Buy ${give.name}`);
+            let cwRes = { success: true };
+            if (item.type === 'pet' && res.success) { const p = { ...cwData }; delete p.sha; cwRes = await updateFile(CW_FILE, p, cwData.sha, `Buy pet item`); if (cwRes.success) cwData.sha = cwRes.sha; }
+            if (res.success && cwRes.success) {
+                myData.sha = res.sha; document.getElementById('myPoints').innerText = myData.points; renderInventory(); renderMall();
+                if (isBB) { document.getElementById('bbResultIcon').innerText = give.icon; document.getElementById('bbResultName').innerText = give.name; document.getElementById('bbResultDesc').innerText = give.desc; openModal('blindBoxResultModal', 'blindBoxResultModalContent'); }
+                else { showToast(`🎉 成功获得【${give.name}】!`); switchShopTab('inventory'); }
+            } else { showToast("购买失败，请重试"); refreshAllData(); }
+        }
+
+        function promptSell(id, type) {
+            const d = (type === 'pet' ? petItems : mallItems).find(i => i.id === id);
+            const max = type === 'pet' ? (cwData[myIdentity].inventory[id] || 0) : (myData.inventory[id] || 0);
+            if (!d || max <= 0) return;
+            sellState = { id, type, maxQty: max, qty: 1, unitPrice: Math.round((d.price || 0) * 0.8), itemDef: d };
+            updateSellUI(); openModal('sellModal', 'sellModalContent');
+        }
+        function changeSellQty(delta) { sellState.qty = Math.max(1, Math.min(sellState.maxQty, sellState.qty + delta)); updateSellUI(); }
+        function updateSellUI() {
+            document.getElementById('sellIcon').innerText = sellState.itemDef.icon; document.getElementById('sellName').innerText = sellState.itemDef.name;
+            document.getElementById('sellUnitPrice').innerText = sellState.unitPrice; document.getElementById('sellQtyDisplay').innerText = sellState.qty;
+            document.getElementById('sellTotalPrice').innerText = sellState.qty * sellState.unitPrice;
+        }
+        async function executeSell() {
+            closeModal('sellModal', 'sellModalContent'); showToast("回收处理中...");
+            const { id, type, qty, unitPrice } = sellState, add = qty * unitPrice;
+            myData.points += add;
+            if (type === 'pet') { cwData[myIdentity].inventory[id] -= qty; if (cwData[myIdentity].inventory[id] <= 0) delete cwData[myIdentity].inventory[id]; }
+            else { myData.inventory[id] -= qty; if (myData.inventory[id] <= 0) delete myData.inventory[id]; }
+            const res = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Sell ${qty}`);
+            let cwRes = { success: true };
+            if (type === 'pet' && res.success) { const p = { ...cwData }; delete p.sha; cwRes = await updateFile(CW_FILE, p, cwData.sha, `Sell pet item`); if (cwRes.success) cwData.sha = cwRes.sha; }
+            if (res.success && cwRes.success) { myData.sha = res.sha; document.getElementById('myPoints').innerText = myData.points; renderInventory(); showToast(`🎉 出售成功 +${add} 积分！`); }
+            else { showToast("出售失败"); refreshAllData(); }
+        }
+
+        async function usePetItem(id) {
+            cwData[myIdentity].inventory[id] -= 1;
+            if (id === 'cwsjk') cwData.level = (cwData.level || 0) + 1;
+            else if (id === 'cwsw') cwData.hunger = Math.min(100, (cwData.hunger || 0) + 60);
+            const p = { ...cwData }; delete p.sha;
+            const res = await updateFile(CW_FILE, p, cwData.sha, `Use pet item`);
+            if (res.success) { cwData.sha = res.sha; renderInventory(); showToast("🎉 使用成功！"); } else refreshAllData();
+        }
+        async function toggleEquipPetItem(id, equip) {
+            if (!cwData.equipped) cwData.equipped = [];
+            cwData.equipped = equip ? [...new Set([...cwData.equipped, id])] : cwData.equipped.filter(x => x !== id);
+            const p = { ...cwData }; delete p.sha;
+            const res = await updateFile(CW_FILE, p, cwData.sha, `Toggle equip`);
+            if (res.success) { cwData.sha = res.sha; renderInventory(); showToast(equip ? "穿戴成功！" : "已卸下"); } else refreshAllData();
+        }
+        async function useItem(id) {
+            myData.inventory[id] = Math.max(0, (myData.inventory[id] || 0) - 1);
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let code = '';
+            for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+            myData.pendingUses.push({ code, itemId: id, time: Date.now(), status: 'pending' });
+            const res = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Use ${id}`);
+            if (res.success) { myData.sha = res.sha; renderInventory(); document.getElementById('generatedCode').innerText = code; openModal('codeModal', 'codeModalContent'); }
+            else refreshAllData();
+        }
+        async function verifyCode() {
+            const code = document.getElementById('verifyInput').value.trim().toUpperCase();
+            const idx = partnerData.pendingUses.findIndex(p => p.code === code && p.status === 'pending');
+            if (idx === -1) return showToast("❌ 未找到该使用码");
+            partnerData.pendingUses[idx].status = 'verified';
+            const res = await updateFile(PARTNER_FILE, { points: partnerData.points, inventory: partnerData.inventory, pendingUses: partnerData.pendingUses }, partnerData.sha, `Verify ${code}`);
+            if (res.success) {
+                partnerData.sha = res.sha; document.getElementById('verifyInput').value = ''; renderVerify();
+                const d = mallItems.find(i => i.id === partnerData.pendingUses[idx].itemId) || { name: partnerData.pendingUses[idx].itemId };
+                document.getElementById('verifiedItemName').innerText = `【${d.name}】`;
+                openModal('verifySuccessModal', 'verifySuccessModalContent');
+            } else showToast("核销失败");
+        }
+
+        // ================= 模块 2：心愿存钱罐 =================
+        function renderWishList() {
+            const c = document.getElementById('wishListContainer');
+            if (!fundData.wishFunds.length) { c.innerHTML = `<div class="bg-white p-8 rounded-2xl text-center text-gray-400 text-sm">还没有建立任何心愿，点击右上角新增吧~</div>`; return; }
+            c.innerHTML = fundData.wishFunds.map(g => {
+                const pct = Math.min(100, Math.floor((g.currentTotal / g.targetPoints) * 100));
+                const myC = g.contributions[myIdentity] || 0, pC = g.contributions[partnerIdentity] || 0;
+                let myP = (myC / g.targetPoints) * 100, pP = (pC / g.targetPoints) * 100;
+                if (myP + pP > 100) { const r = 100 / (myP + pP); myP *= r; pP *= r; }
+                const done = pct >= 100;
+                return `<div class="bg-white/90 rounded-2xl border border-rose-100 shadow-sm overflow-hidden">
+                    <div class="p-4 flex justify-between items-center cursor-pointer" onclick="toggleWish(${g.id})">
+                        <div class="flex items-center gap-3"><span class="text-2xl">${done ? '🎊' : '🐖'}</span>
+                        <div><h3 class="font-bold text-gray-800 text-sm">${g.targetName} <span class="text-[10px] px-2 py-0.5 rounded-full ml-1 ${done ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-50 text-rose-500'}">${done ? '已达成' : '进行中'}</span></h3>
+                        <p class="text-[10px] text-gray-400 mt-0.5">进度 ${pct}% (${g.currentTotal}/${g.targetPoints})</p></div></div>
+                        <svg class="w-5 h-5 text-gray-400 chevron" id="chevron-${g.id}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
-                    <div class="text-xs bg-amber-50 text-amber-500 border border-amber-200 px-2 py-1 rounded-md font-mono">待核销</div>
+                    <div class="accordion-content px-4 pb-4" id="content-${g.id}">
+                        <div class="relative w-full h-3.5 bg-gray-100 rounded-full overflow-hidden mb-3">
+                            <div class="absolute left-0 top-0 h-full bg-rose-400 progress-bar-stripes" style="width:${myP}%"></div>
+                            <div class="absolute top-0 h-full bg-blue-300 progress-bar-stripes" style="left:${myP}%;width:${pP}%"></div>
+                        </div>
+                        <div class="flex justify-between text-xs mb-4 font-medium">
+                            <span class="text-rose-500">● ${myIdentity}: ${myC}</span>
+                            <span class="text-blue-500">${partnerIdentity}: ${pC} ●</span>
+                        </div>
+                        ${!done ? `<button onclick="openDonateModal(${g.id})" class="w-full py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white font-bold rounded-xl text-sm">💰 存入积分</button>` : `<div class="py-2 bg-emerald-50 text-emerald-600 rounded-xl text-center text-xs font-bold">🌟 你们已达成这个心愿！</div>`}
+                    </div>
                 </div>`;
             }).join('');
         }
-
-        // ---------- 新增：出售相关逻辑 ----------
-        function promptSell(itemId, type) {
-            const list = type === 'pet' ? petItems : mallItems;
-            const itemDef = list.find(i => i.id === itemId);
-            if (!itemDef) return;
-
-            let maxQty = 0;
-            if (type === 'pet') {
-                maxQty = cwData[myIdentity].inventory[itemId] || 0;
-            } else {
-                maxQty = myData.inventory[itemId] || 0;
-            }
-
-            if (maxQty <= 0) return;
-
-            // 8折出售，四舍五入
-            const unitPrice = Math.round((itemDef.price || 0) * 0.8);
-
-            sellState = { id: itemId, type, maxQty, qty: 1, unitPrice, itemDef };
-
-            updateSellModalUI();
-            openModal('sellModal', 'sellModalContent');
+        function toggleWish(id) { document.getElementById(`content-${id}`).classList.toggle('expanded'); document.getElementById(`chevron-${id}`).classList.toggle('expanded'); }
+        function openAddWishModal() { document.getElementById('newWishName').value = ''; document.getElementById('newWishTarget').value = ''; openModal('addWishModal', 'addWishModalContent'); }
+        async function confirmAddWish() {
+            const name = document.getElementById('newWishName').value.trim(), target = parseInt(document.getElementById('newWishTarget').value);
+            if (!name || isNaN(target) || target <= 0) return showToast("请填写正确的心愿名称与目标积分");
+            closeModal('addWishModal', 'addWishModalContent');
+            const goal = { id: Date.now(), targetName: name, targetPoints: target, currentTotal: 0, contributions: { "哼哼": 0, "亲亲": 0 }, status: "ongoing" };
+            fundData.wishFunds.unshift(goal);
+            const res = await updateFile(FILE_FUND, fundData, fundSha, `Add wish ${name}`);
+            if (res.success) { fundSha = res.sha; renderWishList(); showToast("✨ 新心愿创建成功！"); } else { fundData.wishFunds.shift(); showToast("创建失败"); }
+        }
+        function openDonateModal(id) {
+            currentDonateGoalId = id;
+            const g = fundData.wishFunds.find(x => x.id === id); if (!g) return;
+            document.getElementById('donateTargetName').innerText = `目标: ${g.targetName}`;
+            document.getElementById('donateAmount').value = '';
+            openModal('donateModal', 'donateModalContent');
+        }
+        function setDonateMax() {
+            const g = fundData.wishFunds.find(x => x.id === currentDonateGoalId); if (!g) return;
+            document.getElementById('donateAmount').value = Math.min(myData.points, Math.max(0, g.targetPoints - g.currentTotal));
+        }
+        async function confirmDonate() {
+            const amt = parseInt(document.getElementById('donateAmount').value);
+            if (isNaN(amt) || amt <= 0 || amt > myData.points) return showToast("请输入有效的积分数量");
+            const g = fundData.wishFunds.find(x => x.id === currentDonateGoalId); if (!g) return;
+            closeModal('donateModal', 'donateModalContent');
+            myData.points -= amt; g.contributions[myIdentity] = (g.contributions[myIdentity] || 0) + amt; g.currentTotal += amt;
+            const fRes = await updateFile(FILE_FUND, fundData, fundSha, `Donate ${amt}`);
+            if (!fRes.success) { myData.points += amt; g.contributions[myIdentity] -= amt; g.currentTotal -= amt; return showToast("存入失败"); }
+            fundSha = fRes.sha;
+            const mRes = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Donate to wish`);
+            if (mRes.success) { myData.sha = mRes.sha; document.getElementById('myPoints').innerText = myData.points; renderWishList(); showToast(`🎉 成功存入 ${amt} 积分！`); }
+            else refreshAllData();
         }
 
-        function changeSellQty(delta) {
-            let newQty = sellState.qty + delta;
-            if (newQty < 1) newQty = 1;
-            if (newQty > sellState.maxQty) newQty = sellState.maxQty;
-            sellState.qty = newQty;
-            updateSellModalUI();
-        }
-
-        function updateSellModalUI() {
-            document.getElementById('sellIcon').innerText = sellState.itemDef.icon;
-            document.getElementById('sellName').innerText = sellState.itemDef.name;
-            document.getElementById('sellUnitPrice').innerText = sellState.unitPrice;
-            document.getElementById('sellQtyDisplay').innerText = sellState.qty;
-            document.getElementById('sellTotalPrice').innerText = sellState.qty * sellState.unitPrice;
-        }
-
-        function confirmSellStep() {
-            closeModal('sellModal', 'sellModalContent');
-            
-            const totalPoints = sellState.qty * sellState.unitPrice;
-            document.getElementById('confirmSellText').innerHTML = `确定要以 <span class="text-amber-500 font-bold text-lg">${totalPoints} 积分</span> 的价格，<br/>出售 <span class="font-bold text-gray-800">${sellState.qty}</span> 个 【${sellState.itemDef.name}】 吗？<br/><span class="text-xs text-gray-400 mt-2 block">此操作不可撤销，积分将立即到账。</span>`;
-            
-            setTimeout(() => {
-                openModal('confirmSellModal', 'confirmSellModalContent');
-            }, 300); // 等待上一个弹窗关闭动画
-        }
-
-        async function executeSell() {
-            closeModal('confirmSellModal', 'confirmSellModalContent');
-            showToast("正在回收处理中...");
-
-            const { id, type, qty, unitPrice, itemDef } = sellState;
-            const totalPrice = qty * unitPrice;
-
-            // 本地状态更新
-            myData.points += totalPrice;
-
-            if (type === 'pet') {
-                cwData[myIdentity].inventory[id] -= qty;
-                if (cwData[myIdentity].inventory[id] <= 0) delete cwData[myIdentity].inventory[id];
-            } else {
-                myData.inventory[id] -= qty;
-                if (myData.inventory[id] <= 0) delete myData.inventory[id];
-            }
-
-            // 同步云端防冲突
-            const [latestMy, latestCw] = await Promise.all([
-                fetchFile(MY_FILE),
-                type === 'pet' ? fetchFile(CW_FILE) : Promise.resolve({sha: cwData.sha})
-            ]);
-            
-            if (latestMy.sha) myData.sha = latestMy.sha;
-            if (type === 'pet' && latestCw.sha) cwData.sha = latestCw.sha;
-
-            const myRes = await updateFile(MY_FILE, { 
-                points: myData.points, 
-                inventory: myData.inventory, 
-                pendingUses: myData.pendingUses 
-            }, myData.sha, `Sell ${qty} ${itemDef.name}`);
-
-            let cwRes = { success: true };
-            if (type === 'pet' && myRes.success) {
-                const cwPayload = { ...cwData };
-                delete cwPayload.sha;
-                cwRes = await updateFile(CW_FILE, cwPayload, cwData.sha, `Sell Pet Item ${itemDef.name}`);
-            }
-
-            if (myRes.success && cwRes.success) {
-                myData.sha = myRes.sha;
-                if (type === 'pet') cwData.sha = cwRes.sha;
-                
-                document.getElementById('myPoints').innerText = myData.points;
-                renderInventory();
-                showToast(`🎉 出售成功，获得 ${totalPrice} 积分!`);
-            } else {
-                // 失败回滚
-                myData.points -= totalPrice;
-                if (type === 'pet') {
-                    cwData[myIdentity].inventory[id] = (cwData[myIdentity].inventory[id] || 0) + qty;
-                } else {
-                    myData.inventory[id] = (myData.inventory[id] || 0) + qty;
-                }
-                showToast("网络错误，出售失败，请重试");
-                document.getElementById('myPoints').innerText = myData.points;
-                renderInventory();
-            }
-        }
-
-        // ---------- 原有购买与使用逻辑 ----------
-        function promptBuyBlindBox() {
-            if (mallItems.length === 0) return showToast("商场商品还在准备中哦~");
-            if (myData.points < 10) return showToast("🪙 积分不足，快去做任务赚积分吧！");
-            
-            currentBuyingItem = { id: 'blind_box', type: 'prop', name: '惊喜盲盒', price: 10, icon: '🎁', desc: '随机抽取商场内的任意一件道具！' };
-            document.getElementById('buyIcon').innerText = currentBuyingItem.icon;
-            document.getElementById('buyName').innerText = currentBuyingItem.name;
-            document.getElementById('buyDesc').innerText = currentBuyingItem.desc;
-            document.getElementById('buyPrice').innerText = currentBuyingItem.price;
-            document.getElementById('confirmBuyBtn').onclick = executeBuy;
-            openModal('buyModal', 'buyModalContent');
-        }
-
-        function promptBuy(itemId, type = 'prop') {
-            const list = type === 'pet' ? petItems : mallItems;
-            const item = list.find(i => i.id === itemId);
-            if (!item) return;
-            
-            if (type === 'pet' && item.gmcs !== undefined) {
-                const currentCount = item.sfgy === 1 ? (cwData.shared.inventory[item.id] || 0) : (cwData[myIdentity].inventory[item.id] || 0);
-                if (currentCount >= item.gmcs) return showToast("❌ 已经达到该物品的限购次数啦！");
-            }
-
-            if (myData.points < item.price) return showToast("🪙 积分不足，快去做任务赚积分吧！");
-
-            currentBuyingItem = { ...item, type };
-            document.getElementById('buyIcon').innerText = item.icon;
-            document.getElementById('buyName').innerText = item.name;
-            document.getElementById('buyDesc').innerText = item.desc;
-            document.getElementById('buyPrice').innerText = item.price;
-            document.getElementById('confirmBuyBtn').onclick = executeBuy;
-            openModal('buyModal', 'buyModalContent');
-        }
-
-        async function executeBuy() {
-            const item = currentBuyingItem;
-            closeModal('buyModal', 'buyModalContent');
-            showToast("正在付款处理中，请稍候...");
-
-            let itemToGive = item;
-            let isBlindBox = false;
-
-            if (item.id === 'blind_box') {
-                isBlindBox = true;
-                itemToGive = mallItems[Math.floor(Math.random() * mallItems.length)];
-            }
-
-            myData.points -= item.price; 
-            
-            if (item.type === 'pet') {
-                if (itemToGive.sfgy === 1) {
-                    if (!cwData.shared.inventory[itemToGive.id]) cwData.shared.inventory[itemToGive.id] = 0;
-                    cwData.shared.inventory[itemToGive.id] += 1;
-                } else {
-                    if (!cwData[myIdentity].inventory[itemToGive.id]) cwData[myIdentity].inventory[itemToGive.id] = 0;
-                    cwData[myIdentity].inventory[itemToGive.id] += 1;
-                }
-            } else {
-                myData.inventory[itemToGive.id] = (myData.inventory[itemToGive.id] || 0) + 1;
-            }
-
-            const [latestMy, latestCw] = await Promise.all([
-                fetchFile(MY_FILE),
-                item.type === 'pet' ? fetchFile(CW_FILE) : Promise.resolve({sha: cwData.sha})
-            ]);
-            
-            if (latestMy.sha) myData.sha = latestMy.sha;
-            if (item.type === 'pet' && latestCw.sha) cwData.sha = latestCw.sha;
-
-            const myRes = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Buy ${isBlindBox ? 'Blind Box' : item.name}`);
-
-            let cwRes = { success: true };
-            if (item.type === 'pet' && myRes.success) {
-                const cwPayload = { ...cwData };
-                delete cwPayload.sha;
-                cwRes = await updateFile(CW_FILE, cwPayload, cwData.sha, `Buy Pet ${item.name} for ${myIdentity}`);
-            }
-
-            if (myRes.success && cwRes.success) {
-                myData.sha = myRes.sha;
-                if (item.type === 'pet') cwData.sha = cwRes.sha;
-                document.getElementById('myPoints').innerText = myData.points;
-                renderInventory();
-                renderMall(); 
-                
-                if (isBlindBox) {
-                    showBlindBoxResult(itemToGive);
-                } else {
-                    showToast(`🎉 成功获得【${item.name}】!`);
-                    switchTab('inventory');
-                }
-            } else {
-                myData.points += item.price;
-                if (item.type === 'pet') {
-                    if (itemToGive.sfgy === 1) cwData.shared.inventory[itemToGive.id] -= 1;
-                    else cwData[myIdentity].inventory[itemToGive.id] -= 1;
-                } else {
-                    myData.inventory[itemToGive.id] -= 1;
-                }
-                showToast("网络错误，购买未能完成");
-                renderInventory();
-                document.getElementById('myPoints').innerText = myData.points;
-            }
-        }
-
-        function showBlindBoxResult(item) {
-            document.getElementById('bbResultIcon').innerText = item.icon;
-            document.getElementById('bbResultName').innerText = item.name;
-            document.getElementById('bbResultDesc').innerText = item.desc;
-            openModal('blindBoxResultModal', 'blindBoxResultModalContent');
-        }
-
-        function closeBbModal() {
-            closeModal('blindBoxResultModal', 'blindBoxResultModalContent');
-            switchTab('inventory');
-        }
-
-        async function usePetItem(itemId) {
-            const itemDef = petItems.find(i => i.id === itemId) || { name: itemId };
-            if (!cwData[myIdentity].inventory[itemId] || cwData[myIdentity].inventory[itemId] <= 0) return showToast("物品数量不足");
-
-            cwData[myIdentity].inventory[itemId] -= 1;
-            showToast("正在喂给宠物...");
-            
-            const latestCw = await fetchFile(CW_FILE);
-            if (latestCw.sha) {
-                cwData.sha = latestCw.sha;
-                if (latestCw.data) {
-                    cwData.level = latestCw.data.level !== undefined ? latestCw.data.level : cwData.level;
-                    cwData.hunger = latestCw.data.hunger !== undefined ? latestCw.data.hunger : cwData.hunger;
-                }
-            }
-
-            let effectMsg = "";
-            if (itemId === 'cwsjk') { 
-                cwData.level = (cwData.level || 0) + 1;
-                effectMsg = "宠物升了 1 级！";
-            } else if (itemId === 'cwsw') { 
-                const addHunger = Math.floor(Math.random() * 51) + 50; 
-                cwData.hunger = (cwData.hunger || 0) + addHunger;
-                if (cwData.hunger > 100) cwData.hunger = 100; 
-                effectMsg = `饱腹值增加了 ${addHunger}！`;
-            }
-
-            const cwPayload = { ...cwData };
-            delete cwPayload.sha;
-            const res = await updateFile(CW_FILE, cwPayload, cwData.sha, `Use Pet Item ${itemDef.name}`);
-
-            if (res.success) {
-                cwData.sha = res.sha;
-                renderInventory();
-                showToast(`🎉 成功使用【${itemDef.name}】! ${effectMsg}`);
-            } else {
-                cwData[myIdentity].inventory[itemId] += 1;
-                if (itemId === 'cwsjk') cwData.level -= 1;
-                showToast("网络错误，使用失败");
-            }
-        }
-
-        async function toggleEquipPetItem(itemId, isEquip) {
-            const itemDef = petItems.find(i => i.id === itemId) || { name: itemId };
-            showToast("正在为宠物换装...");
-            
-            const latestCw = await fetchFile(CW_FILE);
-            if (latestCw.sha) {
-                cwData.sha = latestCw.sha;
-                if (latestCw.data) cwData.equipped = latestCw.data.equipped || [];
-            }
-            if (!cwData.equipped) cwData.equipped = [];
-
-            if (isEquip) {
-                if (!cwData.equipped.includes(itemId)) cwData.equipped.push(itemId);
-            } else {
-                cwData.equipped = cwData.equipped.filter(id => id !== itemId);
-            }
-
-            const cwPayload = { ...cwData };
-            delete cwPayload.sha;
-            const res = await updateFile(CW_FILE, cwPayload, cwData.sha, `${isEquip ? 'Equip' : 'Unequip'} Pet Item ${itemDef.name}`);
-
-            if (res.success) {
-                cwData.sha = res.sha;
-                renderInventory(); 
-                showToast(`🎉 成功${isEquip ? '穿戴' : '卸下'}了【${itemDef.name}】!`);
-            } else {
-                if (isEquip) cwData.equipped = cwData.equipped.filter(id => id !== itemId);
-                else cwData.equipped.push(itemId);
-                showToast("网络错误，换装失败");
-            }
-        }
-
-        async function useItem(itemId) {
-            const itemDef = mallItems.find(i => i.id === itemId) || { name: itemId };
-            
-            myData.inventory[itemId] -= 1;
-            if (myData.inventory[itemId] < 0) myData.inventory[itemId] = 0;
-
-            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; 
-            let code = '';
-            for(let i=0; i<6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-
-            myData.pendingUses.push({ code: code, itemId: itemId, time: Date.now(), status: 'pending' });
-            
-            showToast("生成使用码中...");
-            const latest = await fetchFile(MY_FILE);
-            if(latest.sha) myData.sha = latest.sha;
-
-            const res = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Use ${itemDef.name}`);
-
-            if (res.success) {
-                myData.sha = res.sha;
-                renderInventory();
-                document.getElementById('generatedCode').innerText = code;
-                openModal('codeModal', 'codeModalContent');
-            } else {
-                myData.inventory[itemId] += 1;
-                myData.pendingUses.pop();
-                showToast("网络错误，使用失败");
-            }
-        }
-
-        async function verifyCode() {
-            const inputEl = document.getElementById('verifyInput');
-            const code = inputEl.value.trim().toUpperCase();
-
-            if (!code || code.length !== 6) return showToast("请输入完整的6位使用码！");
-
-            const recordIndex = partnerData.pendingUses.findIndex(p => p.code === code && p.status === 'pending');
-            if (recordIndex === -1) return showToast("❌ 核销失败：找不到该使用码，或已被核销");
-
-            const record = partnerData.pendingUses[recordIndex];
-            const itemDef = mallItems.find(i => i.id === record.itemId) || { name: record.itemId };
-
-            showToast("核销中...");
-            partnerData.pendingUses[recordIndex].status = 'verified';
-
-            const latest = await fetchFile(PARTNER_FILE);
-            if(latest.sha) partnerData.sha = latest.sha;
-
-            const res = await updateFile(PARTNER_FILE, { points: partnerData.points, inventory: partnerData.inventory, pendingUses: partnerData.pendingUses }, partnerData.sha, `Verify code ${code}`);
-
-            if (res.success) {
-                partnerData.sha = res.sha;
-                inputEl.value = '';
-                renderVerify();
-                document.getElementById('verifiedItemName').innerText = `【${itemDef.name}】`;
-                openModal('verifySuccessModal', 'verifySuccessModalContent');
-            } else {
-                partnerData.pendingUses[recordIndex].status = 'pending';
-                showToast("网络错误，核销失败");
-            }
-        }
-
-        function openModal(bgId, contentId) {
-            const modal = document.getElementById(bgId);
-            const content = document.getElementById(contentId);
-            modal.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                modal.classList.remove('opacity-0');
-                if (contentId === 'blindBoxResultModalContent') {
-                     content.classList.remove('scale-50');
-                } else {
-                     content.classList.remove('scale-95');
-                }
-                content.classList.add('scale-100');
+        // ================= 模块 3：惊喜盲盒机 =================
+        function switchMhTab(t) {
+            ['draw', 'deposit', 'rewards'].forEach(k => {
+                document.getElementById(`mhtab_${k}`).className = k === t ? "flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-purple-500 text-white shadow-sm" : "flex-1 py-2 rounded-full text-xs sm:text-sm font-bold transition-all bg-white text-gray-500";
+                document.getElementById(`mh_view_${k}`).classList.toggle('hidden', k !== t);
             });
+            if (t === 'draw') updateDrawPanelUI();
         }
-
-        function closeModal(bgId, contentId) {
-            const modal = document.getElementById(bgId);
-            const content = document.getElementById(contentId);
-            modal.classList.add('opacity-0');
-            content.classList.remove('scale-100');
-            if (contentId === 'blindBoxResultModalContent') {
-                content.classList.add('scale-50');
-            } else {
-                content.classList.add('scale-95');
+        function switchRewardSubTab(t) {
+            document.getElementById('mh_subtab_mine').className = t === 'mine' ? "flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-active" : "flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-inactive";
+            document.getElementById('mh_subtab_verify').className = t === 'verify' ? "flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-active" : "flex-1 py-2 text-xs sm:text-sm rounded-lg subtab-inactive";
+            document.getElementById('mh_rewards_mine').classList.toggle('hidden', t !== 'mine');
+            document.getElementById('mh_rewards_verify').classList.toggle('hidden', t !== 'verify');
+        }
+        function updateMangheUI() {
+            if (!mhData.pool.length) calculatedAvgPrice = 0;
+            else calculatedAvgPrice = Math.max(1, Math.round(mhData.pool.reduce((s, i) => s + parseInt(i.price || 0), 0) / mhData.pool.length));
+            const sel = document.getElementById('premiumTargetSelect');
+            sel.innerHTML = `<option value="random">🎲 随机抽取目标 (20积分)</option>` + mhData.premiumPool.map(i => `<option value="${i.name}">🎯 指定: ${i.name} (100积分)</option>`).join('');
+            updateDrawPanelUI(); renderMhRewards(); renderMhVerify();
+        }
+        function setDrawType(type) {
+            currentDrawType = type;
+            document.getElementById('drawTypeBtnNormal').className = type === 'normal' ? "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white text-purple-600 shadow-sm" : "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500";
+            document.getElementById('drawTypeBtnPremium').className = type === 'premium' ? "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white text-amber-600 shadow-sm" : "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500";
+            document.getElementById('premiumTargetSelector').classList.toggle('hidden', type !== 'premium');
+            updateDrawPanelUI();
+        }
+        function updateDrawPanelUI() {
+            const poolSize = currentDrawType === 'normal' ? mhData.pool.length : mhData.premiumPool.length;
+            const tsArr = currentDrawType === 'normal' ? myMhjlData.drawTimestamps : myMhjlData.premiumDrawTimestamps;
+            const todayCnt = (tsArr || []).filter(ts => new Date(ts).toDateString() === new Date().toDateString()).length;
+            const remain = Math.max(0, 1 - todayCnt);
+            document.getElementById('poolCount').innerText = poolSize;
+            document.getElementById('drawLimitBadge').innerText = `今日可用: ${remain}/1`;
+            const isTgt = currentDrawType === 'premium' && document.getElementById('premiumTargetSelect').value !== 'random';
+            document.getElementById('drawCost').innerText = currentDrawType === 'normal' ? (poolSize ? calculatedAvgPrice : '--') : (isTgt ? 100 : 20);
+            document.getElementById('drawCostTip').innerText = currentDrawType === 'normal' ? "（按普通池物品平均价值计算）" : (isTgt ? "（指定目标固定消耗100积分）" : "（随机高级池消耗20积分）");
+            document.getElementById('drawBtn').classList.toggle('btn-disabled', remain === 0);
+            document.getElementById('drawBoxArea').classList.toggle('btn-disabled', remain === 0);
+        }
+        function setDepositType(type) {
+            currentDepositType = type;
+            document.getElementById('depositTypeBtnNormal').className = type === 'normal' ? "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-pink-600" : "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500";
+            document.getElementById('depositTypeBtnPremium').className = type === 'premium' ? "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg bg-white shadow-sm text-amber-600" : "flex-1 py-2 text-xs sm:text-sm font-bold rounded-lg text-gray-500";
+            document.getElementById('depositNormalFields').classList.toggle('hidden', type !== 'normal');
+            document.getElementById('depositPremiumFields').classList.toggle('hidden', type !== 'premium');
+            document.getElementById('depositTitle').innerText = type === 'normal' ? "向普通池投入惊喜" : "创建高级碎片目标";
+        }
+        function openPoolModal() {
+            const list = currentDrawType === 'normal' ? mhData.pool : mhData.premiumPool;
+            document.getElementById('poolListContainer').innerHTML = list.length ? list.map(i => `
+                <div class="bg-white rounded-xl p-3 mb-2 border border-purple-100 flex justify-between items-center">
+                    <div><div class="font-bold text-sm text-gray-800">${i.name}</div><div class="text-[10px] text-gray-400">提供方: ${i.creator || '神秘人'}</div></div>
+                    <span class="text-xs font-bold px-2 py-1 rounded bg-purple-50 text-purple-600">${currentDrawType === 'normal' ? `🪙 ${i.price}` : `🧩 需 ${i.piecesCount} 碎片`}</span>
+                </div>`).join('') : `<div class="text-center py-8 text-gray-400 text-xs">当前奖池空空如也</div>`;
+            openModal('poolModal', 'poolModalContent');
+        }
+        async function startDrawFlow() {
+            const pool = currentDrawType === 'normal' ? mhData.pool : mhData.premiumPool;
+            if (!pool.length) return showToast("当前奖池是空的！");
+            let cost = currentDrawType === 'normal' ? calculatedAvgPrice : 20, idx = Math.floor(Math.random() * pool.length);
+            if (currentDrawType === 'premium' && document.getElementById('premiumTargetSelect').value !== 'random') {
+                cost = 100; idx = pool.findIndex(i => i.name === document.getElementById('premiumTargetSelect').value);
+                if (idx === -1) return showToast("目标已失效");
             }
-            setTimeout(() => { modal.classList.add('hidden'); }, 300);
+            if (myData.points < cost) return showToast(`积分不足！需要 ${cost} 积分`);
+            const item = pool[idx];
+            const modal = document.getElementById('drawResultModal');
+            document.getElementById('drawAnimationPhase').classList.remove('hidden');
+            document.getElementById('drawResultPhase').classList.add('hidden');
+            modal.classList.remove('hidden'); requestAnimationFrame(() => modal.classList.remove('opacity-0'));
+
+            myData.points -= cost;
+            if (currentDrawType === 'normal') {
+                myMhjlData.inventory[item.name] = (myMhjlData.inventory[item.name] || 0) + 1;
+                mhData.pool.splice(idx, 1);
+                myMhjlData.drawTimestamps.push(Date.now());
+            } else {
+                const pNo = Math.floor(Math.random() * item.piecesCount) + 1;
+                if (!myMhjlData.fragments[item.name]) myMhjlData.fragments[item.name] = { total: parseInt(item.piecesCount), pieces: [] };
+                myMhjlData.fragments[item.name].pieces.push(pNo);
+                myMhjlData.premiumDrawTimestamps.push(Date.now());
+                item._pieceNo = pNo;
+            }
+            const r1 = await updateFile(MY_FILE, { points: myData.points, inventory: myData.inventory, pendingUses: myData.pendingUses }, myData.sha, `Draw box`);
+            const r2 = currentDrawType === 'normal' ? await updateFile(FILE_MH, { pool: mhData.pool, premiumPool: mhData.premiumPool }, mhData.sha, `Update pool`) : { success: true, sha: mhData.sha };
+            const r3 = await updateFile(FILE_MHJL_MY, { ...myMhjlData, sha: undefined }, myMhjlData.sha, `Save box reward`);
+            if (r1.success && r2.success && r3.success) {
+                myData.sha = r1.sha; mhData.sha = r2.sha; myMhjlData.sha = r3.sha;
+                setTimeout(() => {
+                    document.getElementById('drawAnimationPhase').classList.add('hidden');
+                    const rp = document.getElementById('drawResultPhase'); rp.classList.remove('hidden'); rp.classList.remove('scale-50'); rp.classList.add('scale-100');
+                    document.getElementById('resultIcon').innerText = currentDrawType === 'normal' ? '🎉' : '🧩';
+                    document.getElementById('resultItemName').innerText = currentDrawType === 'normal' ? item.name : `${item.name} 碎片 No.${item._pieceNo}`;
+                    document.getElementById('resultPriceTag').classList.toggle('hidden', currentDrawType !== 'normal');
+                    document.getElementById('resultItemPrice').innerText = item.price || '';
+                    document.getElementById('resultPremiumTag').classList.toggle('hidden', currentDrawType !== 'premium');
+                    confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    document.getElementById('myPoints').innerText = myData.points;
+                    updateMangheUI();
+                }, 1000);
+            } else { closeDrawResult(); showToast("抽取同步失败，正在校准"); refreshAllData(); }
+        }
+        function closeDrawResult() { const m = document.getElementById('drawResultModal'); m.classList.add('opacity-0'); setTimeout(() => m.classList.add('hidden'), 300); }
+        async function confirmDeposit() {
+            const item = { id: Date.now().toString(), creator: myIdentity };
+            if (currentDepositType === 'normal') {
+                item.name = document.getElementById('depositNameNormal').value.trim(); item.price = parseInt(document.getElementById('depositPrice').value);
+                if (!item.name || isNaN(item.price) || item.price < 1) return showToast("请填写名称与合理估值");
+                mhData.pool.push(item);
+            } else {
+                item.name = document.getElementById('depositNamePremium').value.trim(); item.piecesCount = parseInt(document.getElementById('depositPieces').value);
+                if (!item.name || isNaN(item.piecesCount) || item.piecesCount < 1) return showToast("请填写目标与碎片个数");
+                mhData.premiumPool.push(item);
+            }
+            const res = await updateFile(FILE_MH, { pool: mhData.pool, premiumPool: mhData.premiumPool }, mhData.sha, `Deposit ${item.name}`);
+            if (res.success) {
+                mhData.sha = res.sha;
+                document.getElementById('depositNameNormal').value = ''; document.getElementById('depositPrice').value = '';
+                document.getElementById('depositNamePremium').value = ''; document.getElementById('depositPieces').value = '';
+                updateMangheUI(); showToast("🎉 成功投入盲盒！"); switchMhTab('draw');
+            } else showToast("投入失败");
+        }
+        function renderMhRewards() {
+            const c = document.getElementById('mh_rewards_mine');
+            const inv = Object.keys(myMhjlData.inventory).filter(n => myMhjlData.inventory[n] > 0);
+            const pend = (myMhjlData.pendingUses || []).filter(p => p.status === 'pending');
+            const frags = Object.keys(myMhjlData.fragments).filter(n => myMhjlData.fragments[n]?.pieces?.length > 0);
+            let html = `<div class="flex gap-1 mb-3 bg-gray-100 p-1 rounded-xl">
+                <button onclick="currentMineTab='loot';renderMhRewards()" class="flex-1 py-1.5 text-xs font-bold rounded-lg ${currentMineTab==='loot'?'bg-white text-purple-600 shadow-sm':'text-gray-500'}">🎁 完整道具</button>
+                <button onclick="currentMineTab='fragments';renderMhRewards()" class="flex-1 py-1.5 text-xs font-bold rounded-lg ${currentMineTab==='fragments'?'bg-white text-orange-600 shadow-sm':'text-gray-500'}">🧩 碎片收集</button>
+            </div>`;
+            if (currentMineTab === 'loot') {
+                html += inv.map(n => `<div class="bg-white rounded-2xl p-4 mb-2 border border-purple-100 flex justify-between items-center">
+                    <div><h4 class="font-bold text-sm text-gray-800">🎁 ${n} <span class="text-xs text-purple-600">x${myMhjlData.inventory[n]}</span></h4></div>
+                    <button onclick="requestUseMhReward('${n}')" class="px-3.5 py-1.5 bg-purple-500 text-white rounded-xl text-xs font-bold">使用兑换</button>
+                </div>`).join('') + pend.map(p => `<div class="bg-gray-50 rounded-2xl p-4 mb-2 border border-dashed flex justify-between items-center">
+                    <div><h4 class="font-bold text-sm text-gray-500">🎫 ${p.itemName}</h4><div class="text-xs text-gray-400">凭证码: <b class="text-purple-500 font-mono">${p.code}</b></div></div>
+                    <button onclick="copySpecificCode('${p.code}')" class="px-3 py-1 bg-white border rounded-xl text-xs font-bold">复制</button>
+                </div>`).join('') || `<div class="text-center py-8 text-gray-400 text-xs bg-white rounded-2xl">🎒 暂无完整道具</div>`;
+            } else {
+                html += frags.map(n => {
+                    const f = myMhjlData.fragments[n], uniq = new Set(f.pieces).size, can = uniq >= f.total;
+                    return `<div class="bg-white rounded-2xl p-4 mb-2 border border-amber-100">
+                        <div class="flex justify-between items-center mb-2"><span class="font-bold text-sm text-gray-800">🧩 ${n}</span><span class="text-xs text-orange-600 font-bold">${uniq}/${f.total}</span></div>
+                        ${can ? `<button onclick="composeFragment('${n}')" class="w-full py-2 bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-xl text-xs font-bold">✨ 立即合成 ✨</button>` : `<div class="text-[11px] text-gray-400">已收集编号: ${[...new Set(f.pieces)].sort((a,b)=>a-b).join(', ')}</div>`}
+                    </div>`;
+                }).join('') || `<div class="text-center py-8 text-gray-400 text-xs bg-white rounded-2xl">🧩 暂无碎片</div>`;
+            }
+            c.innerHTML = html;
+        }
+        async function composeFragment(name) {
+            const f = myMhjlData.fragments[name];
+            for (let i = 1; i <= f.total; i++) { const idx = f.pieces.indexOf(i); if (idx !== -1) f.pieces.splice(idx, 1); }
+            myMhjlData.inventory[name] = (myMhjlData.inventory[name] || 0) + 1;
+            const res = await updateFile(FILE_MHJL_MY, { ...myMhjlData, sha: undefined }, myMhjlData.sha, `Compose ${name}`);
+            if (res.success) { myMhjlData.sha = res.sha; currentMineTab = 'loot'; renderMhRewards(); showToast("🎉 合成成功！"); }
+        }
+        async function requestUseMhReward(name) {
+            myMhjlData.inventory[name] -= 1; if (myMhjlData.inventory[name] <= 0) delete myMhjlData.inventory[name];
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let code = '';
+            for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+            myMhjlData.pendingUses.push({ code, itemName: name, time: Date.now(), status: 'pending' });
+            const res = await updateFile(FILE_MHJL_MY, { ...myMhjlData, sha: undefined }, myMhjlData.sha, `Use reward ${name}`);
+            if (res.success) { myMhjlData.sha = res.sha; renderMhRewards(); document.getElementById('generatedCode').innerText = code; openModal('codeModal', 'codeModalContent'); }
+        }
+        function renderMhVerify() {
+            const pend = (partnerMhjlData.pendingUses || []).filter(p => p.status === 'pending');
+            document.getElementById('mhPartnerPendingList').innerHTML = pend.length ? pend.map(p => `<div class="bg-white rounded-xl p-3 border flex justify-between items-center"><span class="font-bold text-sm">🎫 ${p.itemName}</span><span class="text-xs text-amber-500">待核销</span></div>`).join('') : `<div class="text-center py-6 text-gray-400 text-xs bg-white rounded-xl">对方暂无待核销盲盒奖励</div>`;
+        }
+        async function executeMhVerify() {
+            const code = document.getElementById('mhVerifyInput').value.trim().toUpperCase();
+            const idx = partnerMhjlData.pendingUses.findIndex(p => p.code === code && p.status === 'pending');
+            if (idx === -1) return showToast("❌ 未找到该凭证码");
+            partnerMhjlData.pendingUses[idx].status = 'verified';
+            const res = await updateFile(FILE_MHJL_PARTNER, { ...partnerMhjlData, sha: undefined }, partnerMhjlData.sha, `Verify box ${code}`);
+            if (res.success) {
+                partnerMhjlData.sha = res.sha; document.getElementById('mhVerifyInput').value = ''; renderMhVerify();
+                document.getElementById('verifiedItemName').innerText = `【${partnerMhjlData.pendingUses[idx].itemName}】`;
+                openModal('verifySuccessModal', 'verifySuccessModalContent');
+            }
         }
 
-        function copyCodeAndClose() {
-            const code = document.getElementById('generatedCode').innerText;
-            const input = document.getElementById('clipboardInput');
-            input.value = `请求核销！\n使用码：${code}\n快去恋爱商场核销吧~`;
-            input.classList.remove('hidden');
-            input.select();
-            document.execCommand('copy');
-            input.classList.add('hidden');
-            
-            closeModal('codeModal', 'codeModalContent');
-            showToast("已复制核销码，快发给TA吧！");
+        // ================= 通用工具 =================
+        function openModal(bgId, contentId) {
+            const m = document.getElementById(bgId), c = document.getElementById(contentId);
+            m.classList.remove('hidden'); requestAnimationFrame(() => { m.classList.remove('opacity-0'); c.classList.remove('scale-50', 'scale-95'); c.classList.add('scale-100'); });
         }
-
+        function closeModal(bgId, contentId) {
+            const m = document.getElementById(bgId), c = document.getElementById(contentId);
+            m.classList.add('opacity-0'); c.classList.remove('scale-100'); c.classList.add('scale-95');
+            setTimeout(() => m.classList.add('hidden'), 300);
+        }
+        function copyCodeAndClose() { copySpecificCode(document.getElementById('generatedCode').innerText); closeModal('codeModal', 'codeModalContent'); }
         function copySpecificCode(code) {
             const input = document.getElementById('clipboardInput');
-            input.value = `请求核销！\n使用码：${code}\n快去恋爱商场核销吧~`;
-            input.classList.remove('hidden');
-            input.select();
-            document.execCommand('copy');
-            input.classList.add('hidden');
-            
-            showToast("已复制核销码，快发给TA吧！");
+            input.value = `请求核销！\n使用码：${code}\n快去心愿商城核销吧~`;
+            input.classList.remove('hidden'); input.select(); document.execCommand('copy'); input.classList.add('hidden');
+            showToast("已复制核销码！");
         }
-
-        let toastTimeout;
-        function showToast(msg) { 
-            const toast = document.getElementById('toast'); 
-            toast.innerText = msg; 
-            toast.classList.remove('hidden'); 
-            
-            toast.classList.remove('toast-animate');
-            void toast.offsetWidth; 
-            toast.classList.add('toast-animate'); 
-            
-            if (toastTimeout) clearTimeout(toastTimeout);
-            toastTimeout = setTimeout(() => { 
-                toast.classList.add('hidden'); 
-                toast.classList.remove('toast-animate'); 
-            }, 3000); 
+        let toastTimer;
+        function showToast(msg) {
+            const t = document.getElementById('toast'); t.innerText = msg;
+            t.classList.remove('hidden', 'toast-animate'); void t.offsetWidth; t.classList.add('toast-animate');
+            clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 3000);
         }
-
     </script>
 </body>
 </html>
