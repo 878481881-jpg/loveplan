@@ -78,6 +78,16 @@
         }
         .toast-animate { animation: slideUpFade 2.6s forwards; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes modalSmoothSwitch {
+            0% { opacity: 0; transform: translateY(10px) scale(0.975); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes nextExSlideIn {
+            0% { opacity: 0; transform: translateX(18px); }
+            100% { opacity: 1; transform: translateX(0); }
+        }
+        .animate-smooth-switch { animation: modalSmoothSwitch 0.34s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+        .animate-next-ex { animation: nextExSlideIn 0.36s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.18s ease-in-out forwards; }
         @keyframes pulseBorder {
             0%, 100% { border-color: rgba(16, 185, 129, 0.45); }
@@ -131,63 +141,16 @@
     <!-- ==================== 主内容顺滑滚动视口（彻底解决卡片挤压与框图堆叠问题） ==================== -->
     <main class="flex-1 min-h-0 w-full overflow-y-auto custom-scroll pr-0.5 space-y-2">
 
-        <!-- ==================== 视图 0（首屏默认）：跟练打卡与本周训练日历 ==================== -->
+        <!-- ==================== 视图 0（首屏默认）：本周训练日历 + 训前项目调整 + 开始训练 ==================== -->
         <section id="view_follow" class="flex flex-col gap-2 pb-2 animate-fade-in">
-
-            <!-- 模块 A（训练计时与快捷工具舱：上下双层防遮挡布局） -->
-            <div class="bg-slate-900 text-white rounded-2xl p-2.5 shadow-sm space-y-2">
-                <!-- 第一层：左侧总计时与状态评估 | 右侧日期与当日容量汇总 -->
-                <div class="flex items-center justify-between gap-2">
-                    <div onclick="toggleWorkoutStopwatch()" class="flex items-center gap-2.5 cursor-pointer min-w-0">
-                        <div id="workoutStopwatchText" class="text-2xl font-black text-emerald-400 tabular-nums tracking-wider leading-none shrink-0">00:00</div>
-                        <div class="flex flex-col gap-0.5 min-w-0">
-                            <span class="text-[10px] text-slate-400 font-bold leading-tight">训练总计时</span>
-                            <span id="readinessModeBadge" onclick="event.stopPropagation(); openReadinessModal()" class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[9.5px] font-bold cursor-pointer w-fit">状态:标准</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-800/90 border border-slate-700/80 rounded-xl px-2.5 py-1 text-right shrink-0">
-                        <input type="date" id="logDateInput" onchange="onFollowDateChange()" class="bg-transparent text-slate-200 font-bold text-[10px] focus:outline-none w-28 text-right block ml-auto">
-                        <div class="flex items-baseline justify-end gap-1 mt-0.5 whitespace-nowrap text-[10.5px]">
-                            <strong id="liveBannerExCount" class="text-blue-400 font-extrabold">0</strong><span class="text-slate-400 text-[9px]">项</span>
-                            <strong id="liveBannerSetCount" class="text-emerald-400 font-extrabold">0</strong><span class="text-slate-400 text-[9px]">组</span>
-                            <strong id="liveBannerVolCount" class="text-amber-400 font-extrabold">0</strong><span class="text-slate-400 text-[9px]">kg</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 第二层：4列等宽快捷操作栏（彻底杜绝右侧日期框遮挡清零按钮） -->
-                <div class="grid grid-cols-4 gap-1.5 pt-1.5 border-t border-slate-800/90">
-                    <button type="button" onclick="toggleWorkoutStopwatch()" id="stopwatchToggleBtn" class="py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[11px] font-bold text-center transition active:scale-95">
-                        开始计时
-                    </button>
-                    <button type="button" onclick="startRestTimer(90, true)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 text-[11px] font-bold text-center transition active:scale-95">
-                        休 90s
-                    </button>
-                    <button type="button" onclick="openWarmupPlateModal()" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/25 text-[11px] font-bold text-center transition active:scale-95">
-                        1RM/配片
-                    </button>
-                    <button type="button" onclick="resetWorkoutStopwatch()" title="清零计时" class="py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 rounded-xl text-[11px] font-bold text-center transition active:scale-95">
-                        ↺ 清零
-                    </button>
-                </div>
-                <span id="restStatusInlineText" class="hidden"></span>
-
-                <!-- 组间休息内嵌迷你条 -->
-                <div id="restBigExpandedBar" class="hidden mt-2 px-2.5 py-1.5 rounded-xl bg-slate-800 border border-emerald-500/50 flex items-center justify-between gap-2 animate-fade-in">
-                    <div onclick="openRestFocusModal()" class="cursor-pointer flex items-center gap-2 min-w-0 flex-1">
-                        <span class="px-1.5 py-0.5 rounded bg-emerald-500 text-slate-950 text-[9.5px] font-black">休息中</span>
-                        <span id="restBigDigits" class="text-lg font-black text-emerald-400 tabular-nums">01:30</span>
-                        <div class="flex-1 h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                            <div id="restProgressBarFill" class="h-full bg-emerald-400 transition-all duration-300" style="width:100%"></div>
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        <button type="button" onclick="openRestFocusModal()" class="px-2 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold">RIR微调</button>
-                        <button type="button" onclick="skipRestAndOpenTrainingModal()" class="px-2 py-0.5 rounded bg-rose-600 text-white text-[10px] font-bold">下一组</button>
-                    </div>
-                </div>
-            </div>
+            <!-- 隐藏日期与状态锚点（由周历和训练弹窗内部联动） -->
+            <input type="date" id="logDateInput" onchange="onFollowDateChange()" class="hidden">
+            <span id="liveBannerExCount" class="hidden">0</span>
+            <span id="liveBannerSetCount" class="hidden">0</span>
+            <span id="liveBannerVolCount" class="hidden">0</span>
+            <span id="workoutStopwatchText" class="hidden">00:00</span>
+            <span id="readinessModeBadge" class="hidden">状态:标准</span>
+            <span id="restStatusInlineText" class="hidden"></span>
 
             <!-- 模块 B（周一至周日日历导航 + 点击查看当日训练内容与训练计划） -->
             <div class="card p-2.5 space-y-2">
@@ -227,9 +190,20 @@
                     <div id="followQueueGrid" class="flex items-center gap-1 overflow-x-auto custom-scroll pb-0.5">
                     </div>
                 </div>
+
+                <!-- 核心大号「开始训练」启动按钮（训前可随时调整下方动作、组数与配重） -->
+                <div class="pt-1.5 border-t border-slate-100 flex items-center gap-2">
+                    <button type="button" onclick="startGuidedWorkoutModal()" id="startWorkoutHeroBtn" class="flex-1 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white text-sm font-black shadow-md shadow-blue-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2">
+                        <span>▶ 开始训练</span>
+                        <span id="startWorkoutHeroSub" class="text-[10.5px] font-bold bg-white/20 px-2 py-0.5 rounded-full">开启专注计时</span>
+                    </button>
+                    <button type="button" onclick="openReadinessModal()" title="练前状态评估" class="py-2.5 px-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold shrink-0 active:scale-95 transition">
+                        状态调节
+                    </button>
+                </div>
             </div>
 
-            <!-- 模块 C（当前动作跟练与防重叠逐组打卡面板） -->
+            <!-- 模块 C（训前动作调整与手动打卡区） -->
             <div class="card p-2.5 flex flex-col space-y-2">
                 <!-- 动作标题与切换栏 -->
                 <div class="flex items-center justify-between gap-1.5">
@@ -241,16 +215,13 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-1 shrink-0">
-                        <button type="button" onclick="openActiveTrainingModal()" class="px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-bold shadow-sm">
-                            专注弹窗
+                        <button type="button" onclick="swapFollowCurrentToAlt()" class="px-2 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
+                            换平替
                         </button>
-                        <button type="button" onclick="swapFollowCurrentToAlt()" class="px-1.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-[10px] font-bold">
-                            平替
-                        </button>
-                        <button type="button" onclick="stepFollowExercise(-1)" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">
+                        <button type="button" onclick="stepFollowExercise(-1)" title="上一项" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-bold">
                             ◀
                         </button>
-                        <button type="button" onclick="stepFollowExercise(1)" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-bold">
+                        <button type="button" onclick="stepFollowExercise(1)" title="下一项" class="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10.5px] font-bold">
                             ▶
                         </button>
                     </div>
@@ -266,15 +237,14 @@
                 <div class="space-y-1.5">
                     <div class="flex flex-wrap items-center justify-between gap-1.5">
                         <div class="flex items-center gap-1.5 min-w-0">
-                            <span class="text-xs font-bold text-slate-900">逐组打卡</span>
+                            <span class="text-xs font-bold text-slate-900">训前组次与配重调整</span>
                             <span id="followActiveExLiveStat" class="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200">0/4组</span>
                             <span id="followActiveExPrTag" class="hidden px-1 py-0.2 rounded bg-rose-600 text-white text-[9px] font-bold">破PR</span>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            <button type="button" onclick="batchSyncWorkingSetsWeight()" class="px-1.5 py-0.5 rounded bg-slate-800 text-white text-[10px] font-bold">统一配重</button>
-                            <button type="button" onclick="addFollowWarmupSet()" class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-medium">+热身</button>
-                            <button type="button" onclick="addFollowWorkingSet(false)" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-[10px] font-bold">+正式</button>
-                            <button type="button" onclick="addFollowWorkingSet(true)" class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold">+递减</button>
+                            <button type="button" onclick="batchSyncWorkingSetsWeight()" class="px-2 py-0.5 rounded-lg bg-slate-800 text-white text-[10px] font-bold">同配重</button>
+                            <button type="button" onclick="addFollowWorkingSet(false)" class="px-2 py-0.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-bold">+加一组</button>
+                            <button type="button" onclick="addFollowWarmupSet()" class="px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-medium">+热身</button>
                         </div>
                     </div>
 
@@ -283,17 +253,9 @@
                     </div>
                 </div>
 
-                <!-- 底部操作栏 -->
-                <div class="pt-1.5 border-t border-slate-100 space-y-1.5">
-                    <input type="text" id="followExNoteInput" oninput="onFollowNoteInput(this.value)" placeholder="选填本项备注（如：沉肩稳定、最后一组力竭）..." class="w-full px-2.5 py-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="finishCurrentFollowExercise(event)" id="finishFollowExBtn" class="py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-sm active:scale-95 transition px-2">
-                            保存本项并切下一项
-                        </button>
-                        <button type="button" onclick="openFollowSummaryModal()" class="py-2 rounded-xl bg-slate-900 text-white text-xs font-bold active:scale-95 transition px-2">
-                            当日战报与归档
-                        </button>
-                    </div>
+                <!-- 训前备注栏（所有打卡、保存与归档操作统一在「开始训练」弹窗内完成） -->
+                <div class="pt-1 border-t border-slate-100">
+                    <input type="text" id="followExNoteInput" oninput="onFollowNoteInput(this.value)" placeholder="选填本项训前备注（如：沉肩稳定、慢放离心）..." class="w-full px-2.5 py-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-blue-400">
                 </div>
             </div>
 
@@ -347,30 +309,62 @@
                     </div>
                 </div>
 
-                <!-- 打卡记录本列表（自动占满剩余高度） -->
-                <div class="card p-3 flex-1 min-h-0 flex flex-col overflow-hidden">
-                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 gap-1 shrink-0">
-                        <div class="min-w-0 flex-1 overflow-hidden">
-                            <h3 class="text-xs font-bold text-slate-800 flex items-center gap-1 whitespace-nowrap">
-                                <span>打卡记录本（按天汇总）</span>
-                                <span id="recordOwnerTag" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px]">-</span>
-                            </h3>
-                            <p id="statSummaryText" class="text-[10px] text-slate-400 whitespace-nowrap truncate mt-0.5">点击任意日期查看当天训练详情</p>
+                <!-- 月度健身日历卡片（显示每天的训练计划标题，点击任意日期按日期读取云端文件） -->
+                <div class="card p-2.5 space-y-2 shrink-0">
+                    <div class="flex items-center justify-between gap-1">
+                        <div class="flex items-center gap-1.5 min-w-0">
+                            <span class="text-xs font-extrabold text-slate-900 whitespace-nowrap">📅 健身月历</span>
+                            <span id="recordOwnerTag" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold shrink-0">-</span>
                         </div>
                         <div class="flex items-center gap-1 shrink-0">
-                            <button onclick="switchMainTab('follow')" class="text-[10px] px-2 py-1 rounded-lg bg-blue-600 text-white font-bold">
-                                去跟练
+                            <button type="button" onclick="shiftLogbookMonth(-1)" class="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold">◀上月</button>
+                            <span id="logbookMonthTitle" class="text-[11px] font-extrabold text-slate-900 px-1 whitespace-nowrap">2026年11月</span>
+                            <button type="button" onclick="shiftLogbookMonth(0)" class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 text-[10px] font-bold">本月</button>
+                            <button type="button" onclick="shiftLogbookMonth(1)" class="px-1.5 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-[10px] font-bold">下月▶</button>
+                        </div>
+                    </div>
+
+                    <!-- 星期表头 -->
+                    <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
+                        <div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div><div>日</div>
+                    </div>
+
+                    <!-- 月度每一天网格（每格显示日期 + 训练计划标题） -->
+                    <div id="monthlyFitnessCalendarGrid" class="grid grid-cols-7 gap-1">
+                    </div>
+
+                    <div class="flex items-center justify-between text-[9.5px] text-slate-400 pt-1 border-t border-slate-100">
+                        <span id="statSummaryText" class="truncate">点击日历中任意一天，按日期读取云端记录</span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <span class="inline-flex items-center gap-0.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>已训练（云端记录标题）</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 按日期读取的当日训练记录详情面板 -->
+                <div class="card p-3 flex flex-col space-y-2">
+                    <div class="flex items-center justify-between pb-2 border-b border-slate-100 gap-1">
+                        <div class="min-w-0 flex-1 overflow-hidden">
+                            <h3 class="text-xs font-extrabold text-slate-900 flex items-center gap-1.5 whitespace-nowrap">
+                                <span id="logbookSelectedDateTitle">2026-11-19 记录</span>
+                                <span id="logbookCloudFileTag" class="hidden"></span>
+                            </h3>
+                            <p id="logbookSelectedDateSub" class="text-[10px] text-slate-500 mt-0.5 truncate">按日期按需读取云端数据，防止单文件过大</p>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button type="button" onclick="selectLogbookCalendarDate(logbookSelectedDate, true)" class="text-[10px] px-2 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                                ↻读取
                             </button>
-                            <button onclick="toggleRoleViewMode()" id="roleViewBtn" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
+                            <button type="button" onclick="toggleRoleViewMode()" id="roleViewBtn" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
                                 只看自己
                             </button>
-                            <button onclick="exportRecordsCSV()" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
+                            <button type="button" onclick="exportRecordsCSV()" class="text-[10px] px-2 py-1 rounded-lg bg-slate-100 text-slate-600 font-medium">
                                 导出
                             </button>
                         </div>
                     </div>
 
-                    <div id="dailyRecordsListContainer" class="space-y-1.5 pt-2">
+                    <div id="dailyRecordsListContainer" class="space-y-1.5">
                     </div>
                 </div>
             </div>
@@ -630,78 +624,161 @@
     </footer>
 </div>
 
-<!-- ==================== 新增核心弹窗 A：独立「正在训练中」专注强调弹窗（强调当前训练动作、第几组、配重与次数） ==================== -->
-<div id="activeTrainingFocusModal" class="fixed inset-0 bg-black/70 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeActiveTrainingModal()">
-    <div class="bg-slate-900 text-white rounded-3xl w-full max-w-sm p-4 shadow-2xl border border-blue-500/40 space-y-3.5 animate-fade-in">
-        <!-- 顶部状态条 -->
-        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5 gap-2">
-            <div class="flex items-center gap-1.5 min-w-0">
-                <span class="px-2 py-0.5 rounded-full bg-blue-600 text-white text-[10px] font-bold whitespace-nowrap">正在训练中</span>
-                <span id="trainModalStopwatch" class="text-xs font-bold text-emerald-400 tabular-nums whitespace-nowrap">总计时 00:00</span>
+<!-- ==================== 核心弹窗 A：沉浸式美化「开始训练」双模态全流程弹窗（训练态 ⇄ 组间间歇态无缝循环） ==================== -->
+<div id="activeTrainingFocusModal" class="fixed inset-0 bg-slate-950/85 z-[60] hidden flex items-center justify-center p-3 backdrop-blur-md">
+    <div id="trainModalCard" class="bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white rounded-[28px] w-full max-w-[390px] max-h-[92dvh] overflow-y-auto custom-scroll p-4 shadow-2xl border border-blue-500/40 space-y-3.5 animate-fade-in">
+
+        <!-- 顶部标题栏：动态状态灯 + 快捷工具 + 收起 -->
+        <div class="flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+                <span id="trainModalModePill" class="px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/50 text-blue-300 text-[10.5px] font-black flex items-center gap-1.5 whitespace-nowrap">
+                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
+                    <span id="trainModalModeLabel">正在训练中</span>
+                </span>
+                <span id="trainModalExOrderTag" class="text-[11px] font-bold text-slate-400 whitespace-nowrap">动作 1/10</span>
             </div>
-            <button type="button" onclick="closeActiveTrainingModal()" class="text-slate-400 hover:text-white bg-slate-800 rounded-full px-2.5 py-0.5 text-xs font-bold whitespace-nowrap">
-                收起浮窗
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="openWarmupPlateModal()" class="px-2 py-1 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-amber-300 text-[10px] font-bold">
+                    配片
+                </button>
+                <button type="button" onclick="openSummaryFromGuidedModal()" class="px-2 py-1 rounded-full bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/40 text-emerald-300 text-[10px] font-bold">
+                    结束/战报
+                </button>
+                <button type="button" onclick="closeActiveTrainingModal()" class="px-2.5 py-1 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-700 text-slate-300 text-[10.5px] font-bold">
+                    收起
+                </button>
+            </div>
+        </div>
+
+        <!-- 三维实时科技计时仪表盘：总计时间 | 本动作时间 | 本组时间(休息时显示间歇) -->
+        <div class="grid grid-cols-3 gap-2">
+            <div class="bg-slate-900/90 rounded-2xl p-2.5 border border-slate-800 text-center">
+                <div class="text-[9.5px] text-slate-400 font-bold tracking-wide">总计时间</div>
+                <div id="trainModalTotalClock" class="text-lg font-black text-cyan-400 tabular-nums tracking-wider mt-0.5 leading-none">00:00</div>
+            </div>
+            <div class="bg-slate-900/90 rounded-2xl p-2.5 border border-slate-800 text-center">
+                <div class="text-[9.5px] text-slate-400 font-bold tracking-wide">本动作时间</div>
+                <div id="trainModalExClock" class="text-lg font-black text-blue-400 tabular-nums tracking-wider mt-0.5 leading-none">00:00</div>
+            </div>
+            <div id="trainModalThirdClockBox" class="bg-slate-900/90 rounded-2xl p-2.5 border border-emerald-500/30 text-center">
+                <div id="trainModalThirdClockLabel" class="text-[9.5px] text-emerald-300 font-bold tracking-wide">本组时间</div>
+                <div id="trainModalSetClock" class="text-lg font-black text-emerald-400 tabular-nums tracking-wider mt-0.5 leading-none">00:00</div>
+            </div>
+        </div>
+
+        <!-- 当前动作卡片 + 视觉化组进度胶囊 -->
+        <div id="trainModalExCard" class="bg-slate-900/80 rounded-2xl p-3 border border-slate-800 space-y-2 transition-all duration-300">
+            <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0 flex-1">
+                    <div id="trainModalExName" class="text-base font-black text-white leading-snug truncate">-</div>
+                    <div id="trainModalMuscleTarget" class="text-[11px] text-rose-300/90 font-bold mt-0.5 truncate">主发力肌群：-</div>
+                </div>
+                <button type="button" onclick="openExerciseAnimModal()" class="px-2.5 py-1 rounded-xl bg-blue-500/15 hover:bg-blue-500/25 border border-blue-400/40 text-blue-300 text-[10.5px] font-bold shrink-0 active:scale-95 transition">
+                    动作动画
+                </button>
+            </div>
+            <!-- 每一组的进度可视化胶囊条 -->
+            <div id="trainModalSetDots" class="flex items-center gap-1.5 pt-0.5">
+            </div>
+        </div>
+
+        <!-- ========== 模态 1：正在训练视图（第几组 + 重量 + 次数 + 完成本组） ========== -->
+        <div id="trainModalWorkView" class="space-y-3">
+            <div class="bg-gradient-to-b from-blue-950/70 via-slate-900/90 to-slate-900 rounded-3xl p-4 border border-blue-500/40 shadow-inner space-y-3.5">
+                <div class="flex items-center justify-between">
+                    <span id="trainModalSetBadge" class="px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-500 text-white text-xs font-black shadow-sm">
+                        第 1 / 4 组 · 正式组
+                    </span>
+                    <span id="trainModalRpeBadge" class="px-2.5 py-1 rounded-full bg-slate-800/90 text-amber-300 border border-amber-400/30 text-[10.5px] font-bold">
+                        到位(RIR2)
+                    </span>
+                </div>
+
+                <!-- 重量与次数超大发光数值卡片 -->
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div class="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 text-center space-y-2">
+                        <div class="text-[10.5px] text-slate-400 font-bold">本组重量</div>
+                        <div class="flex items-baseline justify-center gap-0.5">
+                            <span id="trainModalWeightVal" class="text-3xl font-black text-blue-400 tabular-nums tracking-tight">30</span>
+                            <span class="text-xs font-bold text-slate-400">kg</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+                            <button type="button" onclick="adjustModalTrainingSet('weight', -2.5)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs active:scale-95 transition">-2.5</button>
+                            <button type="button" onclick="adjustModalTrainingSet('weight', 2.5)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-blue-300 font-black text-xs active:scale-95 transition">+2.5</button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/80 rounded-2xl p-3 border border-slate-800 text-center space-y-2">
+                        <div class="text-[10.5px] text-slate-400 font-bold">本组次数</div>
+                        <div class="flex items-baseline justify-center gap-0.5">
+                            <span id="trainModalRepsVal" class="text-3xl font-black text-emerald-400 tabular-nums tracking-tight">12</span>
+                            <span id="trainModalUnitVal" class="text-xs font-bold text-slate-400">次</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-1.5 pt-0.5">
+                            <button type="button" onclick="adjustModalTrainingSet('reps', -1)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-black text-xs active:scale-95 transition">-1</button>
+                            <button type="button" onclick="adjustModalTrainingSet('reps', 1)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-black text-xs active:scale-95 transition">+1</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="trainModalTempoTip" class="text-[10.5px] text-slate-400 text-center truncate">
+                    向心吐气发力 · 顶峰停顿1秒 · 离心慢放3秒
+                </div>
+            </div>
+
+            <!-- 超大渐变主按钮：完成本组 -->
+            <button type="button" onclick="completeSetFromTrainingModal()" id="trainModalCompleteBtn" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition">
+                ✓ 完成本组（进入组间休息）
+            </button>
+
+            <!-- 底部动作微操栏 -->
+            <div class="grid grid-cols-3 gap-2">
+                <button type="button" onclick="stepExerciseInGuidedModal(-1)" class="py-2 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 text-[11px] font-bold active:scale-95 transition">
+                    ◀ 上一动作
+                </button>
+                <button type="button" onclick="swapFollowCurrentToAlt(); renderActiveTrainingModal();" class="py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-[11px] font-bold active:scale-95 transition">
+                    换平替动作
+                </button>
+                <button type="button" onclick="stepExerciseInGuidedModal(1)" class="py-2 rounded-xl bg-slate-800/90 hover:bg-slate-800 border border-slate-700/80 text-slate-300 text-[11px] font-bold active:scale-95 transition">
+                    下一动作 ▶
+                </button>
+            </div>
+        </div>
+
+        <!-- ========== 模态 2：组间间歇休息视图（同一弹窗内无缝切换） ========== -->
+        <div id="trainModalRestView" class="hidden space-y-3">
+            <div class="bg-gradient-to-b from-emerald-950/70 via-slate-900/95 to-slate-900 rounded-3xl p-4 border-2 border-emerald-500/50 rest-pulse-border text-center space-y-3">
+                <div class="text-[11px] font-bold text-emerald-300">深长腹式呼吸 · 等待心率与 ATP 恢复</div>
+                <div id="trainModalRestDigits" class="text-6xl font-black text-emerald-400 tabular-nums tracking-wider leading-none py-1">01:30</div>
+                <div class="w-full h-2.5 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+                    <div id="trainModalRestFill" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300 rounded-full" style="width:100%"></div>
+                </div>
+                <div class="grid grid-cols-4 gap-1.5 pt-0.5">
+                    <button type="button" onclick="adjustRestTimer(-15)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95">-15s</button>
+                    <button type="button" onclick="adjustRestTimer(15)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold active:scale-95">+15s</button>
+                    <button type="button" onclick="setGuidedRestSeconds(60)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold active:scale-95">60s</button>
+                    <button type="button" onclick="setGuidedRestSeconds(90)" class="py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 text-xs font-bold active:scale-95">90s</button>
+                </div>
+            </div>
+
+            <!-- 下一组预告 + 快捷配重微调 -->
+            <div id="trainModalRestNextBox" class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 space-y-2 text-xs">
+            </div>
+
+            <!-- 跳过休息立即开启下一组 -->
+            <button type="button" onclick="finishGuidedRestAndNextSet()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-500 hover:from-blue-500 hover:to-indigo-400 text-white text-sm font-black shadow-lg shadow-blue-500/25 active:scale-[0.98] transition">
+                ⏭ 结束间歇 · 开启下一组训练
             </button>
         </div>
 
-        <!-- 强调当前动作名称与主发力肌群 -->
-        <div class="bg-slate-800/90 rounded-2xl p-3 border border-slate-700 space-y-1.5">
-            <div class="flex items-center justify-between gap-2">
-                <span id="trainModalExOrderTag" class="text-[11px] font-bold text-blue-400 whitespace-nowrap">当前动作 1/10</span>
-                <button type="button" onclick="closeActiveTrainingModal(); openExerciseAnimModal();" class="px-2 py-0.5 rounded bg-blue-500/20 border border-blue-400/40 text-blue-300 text-[10px] font-bold whitespace-nowrap">
-                    查看动作动画
-                </button>
-            </div>
-            <div id="trainModalExName" class="text-base font-black text-white whitespace-nowrap truncate">-</div>
-            <div id="trainModalMuscleTarget" class="text-xs text-rose-300 font-bold whitespace-nowrap truncate">主发力肌群：-</div>
-        </div>
-
-        <!-- 超大号字强调：当前第几组 + 目标配重(kg) + 目标次数 -->
-        <div class="bg-gradient-to-b from-blue-950/90 to-slate-900 rounded-2xl p-3.5 border-2 border-blue-500/60 text-center space-y-3">
-            <div class="flex items-center justify-center gap-2">
-                <span id="trainModalSetBadge" class="px-3 py-0.5 rounded-full bg-blue-500 text-white text-xs font-extrabold whitespace-nowrap">第 1 / 4 组 · 正式组</span>
-                <span id="trainModalRpeBadge" class="px-2.5 py-0.5 rounded-full bg-slate-800 text-amber-300 border border-amber-400/40 text-xs font-bold whitespace-nowrap">到位(RIR2)</span>
-            </div>
-
-            <!-- 配重与次数超大强调并支持微调 -->
-            <div class="grid grid-cols-2 gap-2.5">
-                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-700">
-                    <div class="text-[10px] text-slate-400 font-bold whitespace-nowrap">本组目标配重</div>
-                    <div class="flex items-center justify-between mt-1">
-                        <button type="button" onclick="adjustModalTrainingSet('weight', -2.5)" class="w-7 h-7 rounded-lg bg-slate-800 text-white font-bold text-sm">-</button>
-                        <div class="whitespace-nowrap"><span id="trainModalWeightVal" class="text-2xl font-black text-blue-400 tabular-nums">30</span><span class="text-xs text-slate-400 ml-0.5">kg</span></div>
-                        <button type="button" onclick="adjustModalTrainingSet('weight', 2.5)" class="w-7 h-7 rounded-lg bg-slate-800 text-white font-bold text-sm">+</button>
-                    </div>
-                </div>
-                <div class="bg-slate-900/90 rounded-xl p-2.5 border border-slate-700">
-                    <div class="text-[10px] text-slate-400 font-bold whitespace-nowrap">本组目标次数</div>
-                    <div class="flex items-center justify-between mt-1">
-                        <button type="button" onclick="adjustModalTrainingSet('reps', -1)" class="w-7 h-7 rounded-lg bg-slate-800 text-white font-bold text-sm">-</button>
-                        <div class="whitespace-nowrap"><span id="trainModalRepsVal" class="text-2xl font-black text-emerald-400 tabular-nums">12</span><span id="trainModalUnitVal" class="text-xs text-slate-400 ml-0.5">次</span></div>
-                        <button type="button" onclick="adjustModalTrainingSet('reps', 1)" class="w-7 h-7 rounded-lg bg-slate-800 text-white font-bold text-sm">+</button>
-                    </div>
-                </div>
-            </div>
-
-            <div id="trainModalTempoTip" class="text-[11px] text-slate-300 whitespace-nowrap truncate">
-                节奏要求：向心吐气发力1.5秒 · 顶峰挤压1秒 · 离心吸气慢放3秒
-            </div>
-        </div>
-
-        <!-- 底部一键完成本组并自动转入「正在休息」弹窗 -->
-        <div class="space-y-2 pt-1">
-            <button type="button" onclick="completeSetFromTrainingModal()" id="trainModalCompleteBtn" class="w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg active:scale-95 transition whitespace-nowrap">
-                完成本组打卡（自动进入休息倒计时）
+        <!-- 底部全局取消训练按钮（训练态与间歇态均可随时取消） -->
+        <div class="pt-1 border-t border-slate-800/80">
+            <button type="button" onclick="cancelGuidedWorkoutModal()" class="w-full py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 text-xs font-bold active:scale-[0.98] transition">
+                取消本次训练
             </button>
-            <div class="grid grid-cols-2 gap-2">
-                <button type="button" onclick="stepFollowExercise(-1); renderActiveTrainingModal();" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap">
-                    切上一动作
-                </button>
-                <button type="button" onclick="stepFollowExercise(1); renderActiveTrainingModal();" class="py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-bold whitespace-nowrap">
-                    切下一动作
-                </button>
-            </div>
         </div>
+
+        <span id="trainModalStopwatch" class="hidden">总计时 00:00</span>
     </div>
 </div>
 
@@ -751,7 +828,7 @@
 </div>
 
 <!-- ==================== 核心弹窗 0：跟练打卡中点击动作时弹窗显示动态解剖动画 ==================== -->
-<div id="exerciseAnimModal" class="fixed inset-0 bg-black/55 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeExerciseAnimModal()">
+<div id="exerciseAnimModal" class="fixed inset-0 bg-black/65 z-[95] hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeExerciseAnimModal()">
     <div class="bg-white rounded-2xl w-full max-w-sm max-h-[88dvh] shadow-2xl flex flex-col overflow-hidden animate-fade-in">
         <div class="p-3 border-b border-slate-100 flex justify-between items-start bg-slate-50 shrink-0 gap-2">
             <div class="min-w-0 flex-1 overflow-hidden">
@@ -896,7 +973,7 @@
 </div>
 
 <!-- ==================== 弹窗 3（三合一）：1RM增肌区间换算 + 科学热身组金字塔 + 杠铃单边挂片计算器 ==================== -->
-<div id="warmupPlateModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeWarmupPlateModal()">
+<div id="warmupPlateModal" class="fixed inset-0 bg-black/60 z-[95] hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeWarmupPlateModal()">
     <div class="bg-white rounded-2xl w-full max-w-sm p-3.5 shadow-xl space-y-2.5 max-h-[86dvh] flex flex-col overflow-hidden">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
             <h3 class="text-xs font-bold text-slate-900 whitespace-nowrap">1RM增肌区间 · 热身金字塔 · 杠铃配片</h3>
@@ -972,7 +1049,7 @@
 </div>
 
 <!-- ==================== 弹窗 5：今日跟练完成总结报告弹窗 ==================== -->
-<div id="followSummaryModal" class="fixed inset-0 bg-black/45 z-50 hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeFollowSummaryModal()">
+<div id="followSummaryModal" class="fixed inset-0 bg-black/55 z-[80] hidden flex items-center justify-center p-3 backdrop-blur-sm" onclick="if(event.target === this) closeFollowSummaryModal()">
     <div class="bg-white rounded-2xl w-full max-w-sm p-4 shadow-xl space-y-3 max-h-[84dvh] flex flex-col overflow-hidden">
         <div class="flex items-center justify-between border-b border-slate-100 pb-2 shrink-0">
             <h3 class="text-sm font-bold text-slate-900 whitespace-nowrap">今日跟练实训战报与批量归档</h3>
@@ -1173,13 +1250,44 @@
     </div>
 </div>
 
-<div id="toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full shadow-lg text-xs font-medium hidden z-[80] whitespace-nowrap"></div>
+<!-- ==================== 弹窗 10：全局保存/删除等待遮罩（期间锁定操作，完成后自动消失） ==================== -->
+<div id="blockingSaveModal" class="fixed inset-0 bg-slate-950/75 z-[120] hidden flex items-center justify-center p-4 backdrop-blur-sm select-none" style="touch-action: none;">
+    <div class="bg-slate-900 text-white rounded-3xl w-full max-w-[270px] p-5 shadow-2xl border border-blue-500/40 flex flex-col items-center text-center space-y-3 animate-fade-in">
+        <div class="w-11 h-11 rounded-full border-4 border-slate-700 border-t-emerald-400 animate-spin"></div>
+        <div class="space-y-1">
+            <h3 id="blockingSaveTitle" class="text-sm font-black text-white">正在保存中...</h3>
+            <p id="blockingSaveSub" class="text-[11px] text-slate-400 leading-relaxed">请稍候，保存完成前请勿操作</p>
+        </div>
+    </div>
+</div>
+
+<div id="toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white px-5 py-2.5 rounded-full shadow-lg text-xs font-medium hidden z-[130] whitespace-nowrap"></div>
 
 <script>
 // ============================================================================
 // 1. 独立健身系统云端初始化与角色配置
 // ============================================================================
-let GITHUB_TOKEN = localStorage.getItem('loveGacha_githubToken') || '';
+function sanitizeTokenStr(raw) {
+    return String(raw || '').replace(/[^\x21-\x7E]/g, '').trim();
+}
+function loadSavedGithubToken() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hashParams = new URLSearchParams((window.location.hash || '').replace(/^#/, ''));
+        const urlToken = sanitizeTokenStr(urlParams.get('token') || hashParams.get('token') || '');
+        if (urlToken) {
+            localStorage.setItem('loveGacha_githubToken', urlToken);
+            return urlToken;
+        }
+    } catch (e) {}
+    return sanitizeTokenStr(
+        localStorage.getItem('loveGacha_githubToken') ||
+        localStorage.getItem('engPlan_githubToken') ||
+        localStorage.getItem('github_token') ||
+        ''
+    );
+}
+let GITHUB_TOKEN = loadSavedGithubToken();
 let myIdentity = localStorage.getItem('loveGacha_myIdentity') || '哼哼';
 
 const ROLES = {
@@ -3217,8 +3325,14 @@ function getScientificPlanTemplates(role) {
 // ============================================================================
 // 3. 全局状态与防锁屏真实时间戳计时状态
 // ============================================================================
-let dataH = { role: '哼哼', height: 165, weight: 53, records: [], plans: getDefaultPlansForRole('哼哼'), customExercises: [], bodyMetrics: [], dailyHabits: {}, readinessLogs: {} };
-let dataQ = { role: '亲亲', height: 178, weight: 67, records: [], plans: getDefaultPlansForRole('亲亲'), customExercises: [], bodyMetrics: [], dailyHabits: {}, readinessLogs: {} };
+let dataH = { role: '哼哼', height: 165, weight: 53, records: [], dateIndex: {}, plans: getDefaultPlansForRole('哼哼'), customExercises: [], bodyMetrics: [], dailyHabits: {}, readinessLogs: {} };
+let dataQ = { role: '亲亲', height: 178, weight: 67, records: [], dateIndex: {}, plans: getDefaultPlansForRole('亲亲'), customExercises: [], bodyMetrics: [], dailyHabits: {}, readinessLogs: {} };
+const dailyFileShas = {};      // { 'data/fitness/H/2026-11-19.json': sha }
+const loadedDateKeys = new Set(); // '哼哼|2026-11-19'
+let logbookCalYear = new Date().getFullYear();
+let logbookCalMonth = new Date().getMonth(); // 0-11
+let logbookSelectedDate = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+let isLogbookDateLoading = false;
 let shaPlanH = null, shaPlanQ = null;
 let shaDailyH = null, shaDailyQ = null;
 let pollInterval = null;
@@ -3256,6 +3370,39 @@ let stopwatchStartEpochMs = 0;   // 本次启动时的 Date.now()，0表示未�
 let restEndEpochMs = 0;          // 休息结束的目标 Date.now()，0表示未在休息
 let restTotalSec = 90;
 let lastCompletedSetIdx = 0;     // 刚完成的组号索引
+let activeSetStartEpochMs = 0;   // 当前组开始训练时间戳
+let activeRestStartEpochMs = 0;  // 当前组间歇开始时间戳
+let activeRestItemExId = '';     // 当前间歇归属的动作ID
+
+function formatDurationCN(sec) {
+    const s = Math.max(0, Math.round(Number(sec) || 0));
+    if (s <= 0) return '0秒';
+    if (s < 60) return `${s}秒`;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const rem = s % 60;
+    if (h > 0) return `${h}时${m}分`;
+    return rem > 0 ? `${m}分${rem}秒` : `${m}分`;
+}
+
+function formatHHMMSS(ms) {
+    const d = new Date(ms || Date.now());
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+}
+
+function finalizeActiveRestDuration(nowMs) {
+    if (activeRestStartEpochMs > 0) {
+        const curItem = getFollowActiveItem();
+        if (curItem && curItem.exId === activeRestItemExId && curItem.setsList[lastCompletedSetIdx]) {
+            const st = curItem.setsList[lastCompletedSetIdx];
+            if (!st.restSec || st.restSec <= 0) {
+                st.restSec = Math.max(1, Math.min(900, Math.round((nowMs - activeRestStartEpochMs) / 1000)));
+            }
+        }
+        activeRestStartEpochMs = 0;
+        activeRestItemExId = '';
+    }
+}
 let activeTrainingSetIdx = 0;    // 当前正在训练弹窗中的组号索引
 let masterTimerInterval = null;
 let wakeLockSentinel = null;
@@ -3429,9 +3576,12 @@ function shiftWeekOffset(delta) {
     if (targetDay) selectWeekDate(targetDay.dateStr, false);
 }
 
-function selectWeekDate(dateStr, showMsg = true) {
+async function selectWeekDate(dateStr, showMsg = true) {
     const dateIn = document.getElementById('logDateInput');
     if (dateIn) dateIn.value = dateStr;
+    if (GITHUB_TOKEN && !loadedDateKeys.has(`${myIdentity}|${dateStr}`)) {
+        await fetchRoleDateFromCloud(myIdentity, dateStr, false);
+    }
 
     // 如果当天已有训练记录，自动识别当时训练的主要部位并匹配对应计划展示
     const myData = getMyData();
@@ -3556,17 +3706,20 @@ function renderSelectedDayDetailPanel(selDate, wkList) {
     if (dayRecs.length > 0) {
         const totalSets = dayRecs.reduce((s, r) => s + (Number(r.sets) || 0), 0);
         const totalVol = Math.round(dayRecs.reduce((s, r) => s + (Number(r.volume) || 0), 0));
+        const sumExSec = dayRecs.reduce((s, r) => s + (Number(r.exerciseDurationSec) || 0), 0);
+        const maxSessSec = Math.max(0, ...dayRecs.map(r => Number(r.sessionTotalSec) || 0));
+        const dayTotalSec = Math.max(maxSessSec, sumExSec);
         const itemsHtml = dayRecs.slice(0, 6).map((r, i) => `
             <div onclick="openExerciseAnimModal('${r.exerciseId}')" class="flex items-center justify-between py-1 px-2 rounded-lg bg-white border border-slate-200/80 text-[10.5px] cursor-pointer hover:border-blue-300">
                 <span class="font-bold text-slate-800 truncate">${i + 1}. ${cleanDisplayExName(r.exerciseName)}</span>
-                <span class="text-blue-600 font-bold shrink-0 ml-2">${r.sets}组×${r.reps}${r.unit || '次'} ${r.weight > 0 ? `· ${r.weight}kg` : '· 自重'}</span>
+                <span class="text-blue-600 font-bold shrink-0 ml-2">${r.sets}组×${r.reps}${r.unit || '次'}${r.weight > 0 ? ` · ${r.weight}kg` : ''}${r.exerciseDurationSec > 0 ? ` · ⏱${formatDurationCN(r.exerciseDurationSec)}` : ''}</span>
             </div>
         `).join('');
 
         panel.innerHTML = `
             <div class="flex items-center justify-between gap-1">
                 <span class="font-extrabold text-slate-900">📅 ${dayTitle} 当时训练内容</span>
-                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">已完成 ${dayRecs.length}项 · ${totalSets}组 · ${totalVol}kg</span>
+                <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">${dayRecs.length}项 · ${totalSets}组${dayTotalSec > 0 ? ` · 总${formatDurationCN(dayTotalSec)}` : ` · ${totalVol}kg`}</span>
             </div>
             <div class="space-y-1 max-h-32 overflow-y-auto custom-scroll pr-0.5">
                 ${itemsHtml}
@@ -3574,8 +3727,8 @@ function renderSelectedDayDetailPanel(selDate, wkList) {
             <div class="flex items-center justify-between pt-1 border-t border-slate-200/70 text-[10px] text-slate-500 gap-2">
                 <span class="truncate">当日关联计划：<strong class="text-slate-800">${planTitle}</strong></span>
                 <div class="flex items-center gap-1 shrink-0">
-                    <button type="button" onclick="openDayDetailModal('${selDate}')" class="px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-700 font-bold">详情记录</button>
-                    <button type="button" onclick="loadDayRecordsIntoFollowSession('${selDate}')" class="px-2 py-0.5 rounded bg-blue-600 text-white font-bold">载入复盘</button>
+                    <button type="button" onclick="showDayDetail('${selDate}')" class="px-2 py-0.5 rounded bg-white border border-slate-300 text-slate-700 font-bold">详情记录</button>
+                    ${selDate === todayStr ? `<button type="button" onclick="loadDayRecordsIntoFollowSession('${selDate}')" class="px-2 py-0.5 rounded bg-blue-600 text-white font-bold">载入复盘</button>` : `<span class="px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-500 font-bold">仅查看</span>`}
                 </div>
             </div>
         `;
@@ -3701,6 +3854,26 @@ function syncMasterTimersNow() {
     const modalSwEl = document.getElementById('trainModalStopwatch');
     if (modalSwEl) modalSwEl.innerText = `总计时 ${swFmt}`;
 
+    // 更新美化训练弹窗内的三大实时计时（总计时间 / 本动作时间 / 本组时间）
+    const mTotalEl = document.getElementById('trainModalTotalClock');
+    if (mTotalEl) mTotalEl.innerText = swFmt;
+    const curExItem = getFollowActiveItem();
+    const mExEl = document.getElementById('trainModalExClock');
+    if (mExEl) {
+        const exSec = (curExItem && curExItem.startedAtMs > 0) ? Math.max(0, Math.floor((nowMs - curExItem.startedAtMs) / 1000)) : 0;
+        mExEl.innerText = formatMMSS(exSec);
+    }
+    const mSetEl = document.getElementById('trainModalSetClock');
+    if (mSetEl) {
+        if (restEndEpochMs > 0) {
+            const remS = Math.max(0, Math.ceil((restEndEpochMs - nowMs) / 1000));
+            mSetEl.innerText = formatMMSS(remS);
+        } else {
+            const setSec = activeSetStartEpochMs > 0 ? Math.max(0, Math.floor((nowMs - activeSetStartEpochMs) / 1000)) : 0;
+            mSetEl.innerText = formatMMSS(setSec);
+        }
+    }
+
     const swBtn = document.getElementById('stopwatchToggleBtn');
     if (swBtn) {
         if (followSession.stopwatchRunning) {
@@ -3745,21 +3918,30 @@ function syncMasterTimersNow() {
                 : 'text-6xl font-black text-emerald-400 tabular-nums tracking-wider leading-none py-1 whitespace-nowrap';
         }
         if (modalFill) modalFill.style.width = `${pct}%`;
+        const guidedRestDigits = document.getElementById('trainModalRestDigits');
+        const guidedRestFill = document.getElementById('trainModalRestFill');
+        if (guidedRestDigits) {
+            guidedRestDigits.innerText = fmt;
+            guidedRestDigits.className = remainSec <= 10
+                ? 'text-6xl font-black text-amber-400 tabular-nums tracking-wider leading-none py-1'
+                : 'text-6xl font-black text-emerald-400 tabular-nums tracking-wider leading-none py-1';
+        }
+        if (guidedRestFill) guidedRestFill.style.width = `${pct}%`;
 
         if (remainSec <= 0) {
-            // 休息倒计时自然结束：响铃提醒并自动切入下一组「正在训练」弹窗！
+            // 休息倒计时自然结束：记录实际间歇时长，响铃并无缝切回下一组训练态
+            finalizeActiveRestDuration(nowMs);
+            activeSetStartEpochMs = nowMs;
             restEndEpochMs = 0;
             saveTimerStateToStorage();
-            if (bigBar) bigBar.classList.add('hidden');
-            if (inlineTxt) {
-                inlineTxt.innerText = '休息结束 · 请开始下一组';
-                inlineTxt.className = 'text-rose-400 font-bold whitespace-nowrap truncate';
-            }
             playTone(587.33, 0.16, 0.16);
             setTimeout(() => playTone(880, 0.22, 0.18), 180);
             minimizeRestFocusModal();
-            openActiveTrainingModal();
-            showToast('组间休息结束！已为您弹出下一组训练目标');
+            const curIt = getFollowActiveItem();
+            if (curIt) activeTrainingSetIdx = findNextUncompletedSetIndex(curIt);
+            switchGuidedModalMode('work');
+            renderActiveTrainingModal();
+            showToast('⏱ 间歇结束！已自动开启下一组训练');
         }
     }
 }
@@ -3828,6 +4010,9 @@ function adjustRestTimer(deltaSec) {
 }
 
 function stopRestTimer() {
+    const nowMs = Date.now();
+    finalizeActiveRestDuration(nowMs);
+    activeSetStartEpochMs = nowMs;
     restEndEpochMs = 0;
     restRemainSec = 0;
     saveTimerStateToStorage();
@@ -3850,21 +4035,144 @@ function findNextUncompletedSetIndex(item) {
     return idx >= 0 ? idx : item.setsList.length - 1;
 }
 
-function openActiveTrainingModal(setIdx) {
-    const curItem = getFollowActiveItem();
-    if (!curItem) return;
+let guidedModalMode = 'work'; // 'work' | 'rest'
+
+function startGuidedWorkoutModal() {
+    const selDate = (document.getElementById('logDateInput') && document.getElementById('logDateInput').value) || todayStr;
+    if (selDate !== todayStr) {
+        // 点击非今天的按钮时直接切换回今天，不允许在过去或未来日期训练
+        currentWeekOffset = 0;
+        selectWeekDate(todayStr, false);
+        showToast('仅限当天（今天）训练，已为您切换回今天！');
+        return;
+    }
+    if (!followSession.items || !followSession.items.length) {
+        showToast('请先选择一个包含动作的训练计划');
+        return;
+    }
+    // 自动定位到第一个未归档的动作（若全归档则定位到当前选中项）
+    const firstUnsavedIdx = followSession.items.findIndex(it => !it.savedToCloud);
+    if (firstUnsavedIdx >= 0 && followSession.items[followSession.currentIdx] && followSession.items[followSession.currentIdx].savedToCloud) {
+        followSession.currentIdx = firstUnsavedIdx;
+    }
+    const nowMs = Date.now();
     if (!followSession.stopwatchRunning) {
         toggleWorkoutStopwatch();
     }
+    const curItem = getFollowActiveItem();
+    if (curItem && !curItem.startedAtMs) curItem.startedAtMs = nowMs;
+    if (restEndEpochMs > nowMs) {
+        switchGuidedModalMode('rest');
+        renderGuidedRestNextBox();
+    } else {
+        activeSetStartEpochMs = nowMs;
+        activeTrainingSetIdx = findNextUncompletedSetIndex(curItem);
+        switchGuidedModalMode('work');
+    }
+    renderActiveTrainingModal();
+    document.getElementById('activeTrainingFocusModal').classList.remove('hidden');
+    syncMasterTimersNow();
+}
+
+function openActiveTrainingModal(setIdx) {
+    const curItem = getFollowActiveItem();
+    if (!curItem) return;
+    const nowMs = Date.now();
+    if (!followSession.stopwatchRunning) toggleWorkoutStopwatch();
+    if (!curItem.startedAtMs) curItem.startedAtMs = nowMs;
+    if (activeSetStartEpochMs <= 0) activeSetStartEpochMs = nowMs;
     activeTrainingSetIdx = (setIdx !== undefined && curItem.setsList[setIdx])
         ? setIdx
         : findNextUncompletedSetIndex(curItem);
+    switchGuidedModalMode('work');
     renderActiveTrainingModal();
     document.getElementById('activeTrainingFocusModal').classList.remove('hidden');
+    syncMasterTimersNow();
 }
 
 function closeActiveTrainingModal() {
     document.getElementById('activeTrainingFocusModal').classList.add('hidden');
+}
+
+function triggerGuidedSmoothAnim(el, animCls) {
+    if (!el) return;
+    el.classList.remove('animate-smooth-switch', 'animate-next-ex');
+    void el.offsetWidth;
+    el.classList.add(animCls || 'animate-smooth-switch');
+}
+
+function openSummaryFromGuidedModal() {
+    closeActiveTrainingModal();
+    openFollowSummaryModal();
+}
+
+function cancelGuidedWorkoutModal() {
+    if (!confirm('确定要取消本次训练吗？当前计时将清零，未保存的进度将被重置。')) return;
+    resetWorkoutStopwatch();
+    restEndEpochMs = 0;
+    restRemainSec = 0;
+    activeSetStartEpochMs = 0;
+    activeRestStartEpochMs = 0;
+    activeRestItemExId = '';
+    saveTimerStateToStorage();
+
+    // 仅重置尚未归档的动作进度，已保存至云端的记录保持不变
+    (followSession.items || []).forEach(it => {
+        if (!it.savedToCloud) {
+            it.startedAtMs = 0;
+            (it.setsList || []).forEach(st => {
+                st.done = false;
+                st.trainSec = 0;
+                st.restSec = 0;
+                st.doneAt = '';
+            });
+        }
+    });
+    closeActiveTrainingModal();
+    renderFollowView();
+    showToast('已取消本次训练并重置计时');
+}
+
+function switchGuidedModalMode(mode, isNewExercise = false) {
+    guidedModalMode = mode;
+    const workView = document.getElementById('trainModalWorkView');
+    const restView = document.getElementById('trainModalRestView');
+    const exCard = document.getElementById('trainModalExCard');
+    const card = document.getElementById('trainModalCard');
+    const pill = document.getElementById('trainModalModePill');
+    const modeLabel = document.getElementById('trainModalModeLabel');
+    const thirdBox = document.getElementById('trainModalThirdClockBox');
+    const thirdLabel = document.getElementById('trainModalThirdClockLabel');
+    const setClock = document.getElementById('trainModalSetClock');
+
+    if (mode === 'rest') {
+        if (workView) workView.classList.add('hidden');
+        if (restView) {
+            restView.classList.remove('hidden');
+            triggerGuidedSmoothAnim(restView, 'animate-smooth-switch');
+        }
+        if (card) card.className = 'bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white rounded-[28px] w-full max-w-[390px] max-h-[92dvh] overflow-y-auto custom-scroll p-4 shadow-2xl border border-emerald-500/50 space-y-3.5 transition-all duration-300';
+        if (pill) pill.className = 'px-2.5 py-1 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-[10.5px] font-black flex items-center gap-1.5 whitespace-nowrap transition-all duration-300';
+        if (modeLabel) modeLabel.innerText = '组间间歇中';
+        if (thirdBox) thirdBox.className = 'bg-slate-900/90 rounded-2xl p-2.5 border border-amber-500/40 text-center transition-all duration-300';
+        if (thirdLabel) { thirdLabel.innerText = '间歇剩余'; thirdLabel.className = 'text-[9.5px] text-amber-300 font-bold tracking-wide'; }
+        if (setClock) setClock.className = 'text-lg font-black text-amber-400 tabular-nums tracking-wider mt-0.5 leading-none transition-colors duration-300';
+    } else {
+        if (restView) restView.classList.add('hidden');
+        if (workView) {
+            workView.classList.remove('hidden');
+            triggerGuidedSmoothAnim(workView, isNewExercise ? 'animate-next-ex' : 'animate-smooth-switch');
+        }
+        if (isNewExercise && exCard) {
+            triggerGuidedSmoothAnim(exCard, 'animate-next-ex');
+        }
+        if (card) card.className = 'bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white rounded-[28px] w-full max-w-[390px] max-h-[92dvh] overflow-y-auto custom-scroll p-4 shadow-2xl border border-blue-500/40 space-y-3.5 transition-all duration-300';
+        if (pill) pill.className = 'px-2.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/50 text-blue-300 text-[10.5px] font-black flex items-center gap-1.5 whitespace-nowrap transition-all duration-300';
+        if (modeLabel) modeLabel.innerText = '正在训练中';
+        if (thirdBox) thirdBox.className = 'bg-slate-900/90 rounded-2xl p-2.5 border border-emerald-500/30 text-center transition-all duration-300';
+        if (thirdLabel) { thirdLabel.innerText = '本组时间'; thirdLabel.className = 'text-[9.5px] text-emerald-300 font-bold tracking-wide'; }
+        if (setClock) setClock.className = 'text-lg font-black text-emerald-400 tabular-nums tracking-wider mt-0.5 leading-none transition-colors duration-300';
+    }
 }
 
 function renderActiveTrainingModal() {
@@ -3879,9 +4187,21 @@ function renderActiveTrainingModal() {
     const meta = MUSCLE_MAP_META[exObj.animType || exObj.id] || { pText: exObj.target };
 
     document.getElementById('trainModalExOrderTag').innerText =
-        `当前动作 第 ${followSession.currentIdx + 1} / ${followSession.items.length} 项`;
+        `动作 ${followSession.currentIdx + 1}/${followSession.items.length}`;
     document.getElementById('trainModalExName').innerText = cleanDisplayExName(exObj.name);
     document.getElementById('trainModalMuscleTarget').innerText = `主发力肌群：${meta.pText}`;
+
+    // 渲染每组进度胶囊
+    const dotsEl = document.getElementById('trainModalSetDots');
+    if (dotsEl) {
+        dotsEl.innerHTML = curItem.setsList.map((s, idx) => {
+            const isCur = (idx === activeTrainingSetIdx && guidedModalMode === 'work');
+            let cls = 'bg-slate-800 text-slate-500 border-slate-700';
+            if (s.done) cls = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50';
+            else if (isCur) cls = 'bg-blue-600 text-white border-blue-400 shadow-sm shadow-blue-500/40';
+            return `<div class="flex-1 py-1 rounded-lg border text-center text-[10px] font-extrabold ${cls}">${s.done ? `✓${idx + 1}` : `组${idx + 1}`}</div>`;
+        }).join('');
+    }
 
     const totalSets = curItem.setsList.length;
     document.getElementById('trainModalSetBadge').innerText =
@@ -3892,16 +4212,76 @@ function renderActiveTrainingModal() {
     document.getElementById('trainModalUnitVal').innerText = curItem.unit || '次';
 
     const btn = document.getElementById('trainModalCompleteBtn');
-    const allDone = curItem.setsList.every(s => s.done);
+    const undoneCount = curItem.setsList.filter(s => !s.done).length;
     if (btn) {
-        if (allDone) {
-            btn.innerText = '本动作各组已全部完成 · 保存并切下一动作';
-            btn.className = 'w-full py-3 rounded-2xl bg-blue-500 hover:bg-blue-400 text-white text-sm font-black shadow-lg active:scale-95 transition whitespace-nowrap';
+        if (undoneCount <= 1) {
+            const hasNextEx = (followSession.currentIdx < followSession.items.length - 1);
+            btn.innerText = hasNextEx ? '✓ 完成本组 · 保存并开启下一动作' : '✓ 完成最后一组 · 保存并结束训练';
+            btn.className = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-blue-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white text-sm font-black shadow-lg shadow-blue-500/25 active:scale-[0.98] transition';
         } else {
-            btn.innerText = `完成第 ${activeTrainingSetIdx + 1} 组打卡（自动进入组间休息弹窗）`;
-            btn.className = 'w-full py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-sm font-black shadow-lg active:scale-95 transition whitespace-nowrap';
+            btn.innerText = `✓ 完成第 ${activeTrainingSetIdx + 1} 组（进入组间休息）`;
+            btn.className = 'w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 text-sm font-black shadow-lg shadow-emerald-500/25 active:scale-[0.98] transition';
         }
     }
+    if (guidedModalMode === 'rest') renderGuidedRestNextBox();
+}
+
+function renderGuidedRestNextBox() {
+    const box = document.getElementById('trainModalRestNextBox');
+    const curItem = getFollowActiveItem();
+    if (!box || !curItem) return;
+    const nextIdx = curItem.setsList.findIndex(s => !s.done);
+    if (nextIdx >= 0) {
+        const nextSet = curItem.setsList[nextIdx];
+        box.innerHTML = `
+            <div class="flex items-center justify-between">
+                <span class="text-blue-400 font-extrabold">下一组：第 ${nextIdx + 1} / ${curItem.setsList.length} 组 (${nextSet.type})</span>
+                <span class="text-amber-300 font-black text-sm">${nextSet.weight > 0 ? nextSet.weight + 'kg' : '自重'} × ${nextSet.reps}${curItem.unit}</span>
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 pt-1">
+                <button type="button" onclick="applyRestSmartAdjust(-2.5, 0, 0); renderGuidedRestNextBox();" class="py-1.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-300 text-[10.5px] font-bold">太累 -2.5kg</button>
+                <button type="button" onclick="applyRestSmartAdjust(2.5, 0, 0); renderGuidedRestNextBox();" class="py-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10.5px] font-bold">轻松 +2.5kg</button>
+                <button type="button" onclick="applyRestSmartAdjust(0, 2, 0); renderGuidedRestNextBox();" class="py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10.5px] font-bold">加量 +2次</button>
+            </div>
+        `;
+    }
+}
+
+function setGuidedRestSeconds(sec) {
+    restTotalSec = sec;
+    restEndEpochMs = Date.now() + sec * 1000;
+    saveTimerStateToStorage();
+    syncMasterTimersNow();
+}
+
+function finishGuidedRestAndNextSet() {
+    const nowMs = Date.now();
+    finalizeActiveRestDuration(nowMs);
+    restEndEpochMs = 0;
+    restRemainSec = 0;
+    activeSetStartEpochMs = nowMs;
+    saveTimerStateToStorage();
+
+    const curItem = getFollowActiveItem();
+    if (curItem) activeTrainingSetIdx = findNextUncompletedSetIndex(curItem);
+    switchGuidedModalMode('work');
+    renderActiveTrainingModal();
+    renderFollowView();
+    syncMasterTimersNow();
+}
+
+function stepExerciseInGuidedModal(delta) {
+    const nowMs = Date.now();
+    finalizeActiveRestDuration(nowMs);
+    restEndEpochMs = 0;
+    stepFollowExercise(delta);
+    const curItem = getFollowActiveItem();
+    if (curItem && !curItem.startedAtMs) curItem.startedAtMs = nowMs;
+    activeSetStartEpochMs = nowMs;
+    activeTrainingSetIdx = findNextUncompletedSetIndex(curItem);
+    switchGuidedModalMode('work', true);
+    renderActiveTrainingModal();
+    syncMasterTimersNow();
 }
 
 function adjustModalTrainingSet(field, delta) {
@@ -3917,31 +4297,56 @@ function adjustModalTrainingSet(field, delta) {
     renderFollowView();
 }
 
-function completeSetFromTrainingModal() {
+async function completeSetFromTrainingModal() {
     const curItem = getFollowActiveItem();
     if (!curItem) return;
-
-    const allDoneBefore = curItem.setsList.every(s => s.done);
-    if (allDoneBefore) {
-        closeActiveTrainingModal();
-        finishCurrentFollowExercise();
-        return;
-    }
-
+    const nowMs = Date.now();
     const st = curItem.setsList[activeTrainingSetIdx];
-    if (st) {
+    if (st && !st.done) {
         st.done = true;
+        const defaultEstTrain = curItem.unit === '秒' ? (Number(st.reps) || 30) : Math.max(15, (Number(st.reps) || 10) * 3);
+        st.trainSec = activeSetStartEpochMs > 0 ? Math.max(1, Math.min(600, Math.round((nowMs - activeSetStartEpochMs) / 1000))) : defaultEstTrain;
+        st.doneAt = formatHHMMSS(nowMs);
         lastCompletedSetIdx = activeTrainingSetIdx;
     }
-    closeActiveTrainingModal();
-    renderFollowView();
 
-    let restSec = 90;
-    if (st && st.type === '热身') restSec = 45;
-    else if (st && st.type === '暂停') restSec = 20;
-    else if (curItem.part === 'warmup' || curItem.part === 'stretch') restSec = 30;
+    const nextUndoneIdx = curItem.setsList.findIndex(s => !s.done);
+    if (nextUndoneIdx >= 0) {
+        // 本动作还有下一组：记录间歇起点，在同一弹窗内无缝切入「组间间歇」态
+        let restTarget = 90;
+        if (st && st.type === '热身') restTarget = 45;
+        else if (st && st.type === '暂停') restTarget = 20;
+        else if (curItem.part === 'warmup' || curItem.part === 'stretch') restTarget = 30;
 
-    startRestTimer(restSec, true);
+        activeRestStartEpochMs = nowMs;
+        activeRestItemExId = curItem.exId;
+        activeSetStartEpochMs = 0;
+        restTotalSec = restTarget;
+        restEndEpochMs = nowMs + restTarget * 1000;
+        saveTimerStateToStorage();
+
+        switchGuidedModalMode('rest');
+        renderActiveTrainingModal();
+        renderFollowView();
+        syncMasterTimersNow();
+    } else {
+        // 本动作所有组已完成！弹出保存等待遮罩，保存本动作数据，完成后自动开启下一个动作！
+        const wasLastExercise = (followSession.currentIdx >= followSession.items.length - 1);
+        await finishCurrentFollowExercise();
+        if (wasLastExercise) {
+            closeActiveTrainingModal();
+            openFollowSummaryModal();
+        } else {
+            const nextNow = Date.now();
+            const nextItem = getFollowActiveItem();
+            if (nextItem) nextItem.startedAtMs = nextNow;
+            activeSetStartEpochMs = nextNow;
+            activeTrainingSetIdx = findNextUncompletedSetIndex(nextItem);
+            switchGuidedModalMode('work', true);
+            renderActiveTrainingModal();
+            syncMasterTimersNow();
+        }
+    }
 }
 
 function selectRestCompletedRpe(rpeVal) {
@@ -4450,7 +4855,10 @@ function initFollowSessionFromPlan(planId) {
                 weight: recWeight,
                 reps: recReps,
                 rpe: '到位(RIR2)',
-                done: false
+                done: false,
+                trainSec: 0,
+                restSec: 0,
+                doneAt: ''
             });
         }
         return {
@@ -4460,6 +4868,7 @@ function initFollowSessionFromPlan(planId) {
             unit: it.unit || '次',
             note: '',
             savedToCloud: false,
+            startedAtMs: 0,
             setsList
         };
     });
@@ -4545,6 +4954,23 @@ function renderFollowView() {
 
     const badge = document.getElementById('followProgressBadge');
     if (badge) badge.innerText = `${doneEx}/${totalEx}`;
+    const isViewingToday = (selDate === todayStr);
+    const heroBtn = document.getElementById('startWorkoutHeroBtn');
+    const heroSub = document.getElementById('startWorkoutHeroSub');
+    const modCCard = document.getElementById('followCurrentExTitle') ? document.getElementById('followCurrentExTitle').closest('.card') : null;
+    if (heroBtn) {
+        if (isViewingToday) {
+            heroBtn.className = 'flex-1 py-2.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500 hover:from-blue-500 hover:to-emerald-400 text-white text-sm font-black shadow-md shadow-blue-500/20 active:scale-[0.98] transition flex items-center justify-center gap-2';
+            heroBtn.innerHTML = `<span>▶ 开始训练</span><span id="startWorkoutHeroSub" class="text-[10.5px] font-bold bg-white/20 px-2 py-0.5 rounded-full">${doneEx > 0 ? `继续训练 (${doneEx}/${totalEx}项)` : `共 ${totalEx} 项动作`}</span>`;
+        } else {
+            const relLabel = selDate < todayStr ? '过去日期仅可查看' : '未来日期仅可查看';
+            heroBtn.className = 'flex-1 py-2.5 px-4 rounded-2xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-extrabold active:scale-[0.98] transition flex items-center justify-center gap-2';
+            heroBtn.innerHTML = `<span>🔒 ${relLabel}</span><span id="startWorkoutHeroSub" class="text-[10px] font-bold bg-white text-blue-600 px-2 py-0.5 rounded-full">点此回今天训练</span>`;
+        }
+    }
+    if (modCCard) {
+        modCCard.classList.toggle('hidden', !isViewingToday);
+    }
 
     const statText = document.getElementById('followSummaryStatText');
     if (statText) statText.innerText = `进度：${doneEx}/${totalEx}项 · 已打卡 ${doneSets}/${totalSets}组 · 容量 ${Math.round(sessionVol)}kg`;
@@ -4641,18 +5067,17 @@ function renderFollowView() {
                         </div>
 
                         <div class="flex items-center gap-1 shrink-0">
-                            <button type="button" onclick="cycleFollowSetRpe(${sIdx})" class="px-1.5 py-1 rounded bg-white border border-slate-200 text-[10px] text-slate-600 font-medium">
-                                ${st.rpe.replace(/\(.*?\)/, '')}
-                            </button>
-                            <button type="button" onclick="toggleFollowSetDone(${sIdx})"
-                                class="px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${st.done ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'}">
-                                ${st.done ? '✓ 已成' : '打卡'}
-                            </button>
+                            ${st.done ? '<span class="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-700 text-[10px] font-bold">✓ 已完成</span>' : ''}
                             ${curItem.setsList.length > 1 ? `
-                            <button type="button" onclick="removeFollowSet(${sIdx})" class="text-slate-400 hover:text-rose-500 font-bold px-0.5 text-xs">&times;</button>
+                            <button type="button" onclick="removeFollowSet(${sIdx})" title="删除本组" class="w-6 h-6 flex items-center justify-center rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-rose-500 font-bold text-sm">&times;</button>
                             ` : ''}
                         </div>
                     </div>
+                    ${st.done && (st.trainSec > 0 || st.restSec > 0) ? `
+                    <div class="flex items-center justify-between text-[10px] text-emerald-700/90 mt-1 pt-1 border-t border-emerald-200/70">
+                        <span>⏱ 本组训练 ${formatDurationCN(st.trainSec)}${st.restSec > 0 ? ` · 组间间歇 ${formatDurationCN(st.restSec)}` : ''}</span>
+                        <span class="text-emerald-600/75">${st.doneAt || ''}</span>
+                    </div>` : ''}
                 </div>
             `;
         }).join('');
@@ -4745,18 +5170,64 @@ function toggleFollowSetDone(sIdx) {
     const curItem = getFollowActiveItem();
     if (!curItem || !curItem.setsList[sIdx]) return;
     const st = curItem.setsList[sIdx];
+    const nowMs = Date.now();
     st.done = !st.done;
     if (st.done) {
-        lastCompletedSetIdx = sIdx;
         if (!followSession.stopwatchRunning) toggleWorkoutStopwatch();
-        let restSec = 90;
-        if (st.type === '热身') restSec = 45;
-        else if (st.type === '暂停') restSec = 20;
-        else if (curItem.part === 'warmup' || curItem.part === 'stretch') restSec = 30;
-        renderFollowView();
-        // 打卡后立即弹出单独的「正在休息」倒计时大弹窗！
-        startRestTimer(restSec, true);
+        if (!curItem.startedAtMs) {
+            curItem.startedAtMs = activeSetStartEpochMs > 0 ? activeSetStartEpochMs : nowMs;
+        }
+        // 计算本组训练耗时 & 结算上一组的实际间歇时间
+        const defaultEstTrain = curItem.unit === '秒' ? (Number(st.reps) || 30) : Math.max(15, (Number(st.reps) || 10) * 3);
+        if (activeRestStartEpochMs > 0 && activeRestItemExId === curItem.exId && curItem.setsList[lastCompletedSetIdx] && lastCompletedSetIdx !== sIdx) {
+            const totalGap = Math.max(1, Math.round((nowMs - activeRestStartEpochMs) / 1000));
+            const prevSt = curItem.setsList[lastCompletedSetIdx];
+            if (!prevSt.restSec || prevSt.restSec <= 0) {
+                if (totalGap > defaultEstTrain + 5) {
+                    prevSt.restSec = totalGap - defaultEstTrain;
+                    st.trainSec = defaultEstTrain;
+                } else {
+                    const estTrain = Math.max(1, Math.round(totalGap * 0.4));
+                    prevSt.restSec = Math.max(0, totalGap - estTrain);
+                    st.trainSec = estTrain;
+                }
+            } else {
+                st.trainSec = activeSetStartEpochMs > 0 ? Math.max(1, Math.min(300, Math.round((nowMs - activeSetStartEpochMs) / 1000))) : defaultEstTrain;
+            }
+            activeRestStartEpochMs = 0;
+        } else if (activeSetStartEpochMs > 0) {
+            const elapsed = Math.round((nowMs - activeSetStartEpochMs) / 1000);
+            st.trainSec = (elapsed >= 3 && elapsed <= 300) ? elapsed : defaultEstTrain;
+        } else {
+            st.trainSec = defaultEstTrain;
+        }
+        st.doneAt = formatHHMMSS(nowMs);
+        lastCompletedSetIdx = sIdx;
+
+        // 判断是否为最后一组未完成组，若还有下一组则开始记录组间间歇
+        const hasMoreUndone = curItem.setsList.some(s => !s.done);
+        let restTarget = 90;
+        if (st.type === '热身') restTarget = 45;
+        else if (st.type === '暂停') restTarget = 20;
+        else if (curItem.part === 'warmup' || curItem.part === 'stretch') restTarget = 30;
+
+        if (hasMoreUndone) {
+            activeRestStartEpochMs = nowMs;
+            activeRestItemExId = curItem.exId;
+            activeSetStartEpochMs = 0;
+            renderFollowView();
+            startRestTimer(restTarget, false);
+        } else {
+            activeRestStartEpochMs = 0;
+            activeRestItemExId = '';
+            activeSetStartEpochMs = nowMs;
+            stopRestTimer();
+            renderFollowView();
+        }
     } else {
+        st.trainSec = 0;
+        st.restSec = 0;
+        st.doneAt = '';
         renderFollowView();
     }
 }
@@ -4818,6 +5289,32 @@ function removeFollowSet(sIdx) {
     renderFollowView();
 }
 
+function buildExerciseTimingStats(item, setsSubset, nowMs) {
+    finalizeActiveRestDuration(nowMs);
+    const list = setsSubset || item.setsList || [];
+    const defaultRest = (item.part === 'warmup' || item.part === 'stretch') ? 30 : 90;
+    const setTimings = list.map((s, idx) => {
+        const estTrain = item.unit === '秒' ? (Number(s.reps) || 30) : Math.max(15, (Number(s.reps) || 10) * 3);
+        const trainSec = (Number(s.trainSec) > 0) ? Math.round(Number(s.trainSec)) : estTrain;
+        const restSec = (Number(s.restSec) > 0) ? Math.round(Number(s.restSec)) : (idx < list.length - 1 ? defaultRest : 0);
+        return {
+            setNo: idx + 1,
+            type: s.type || '正式',
+            weight: Number(s.weight) || 0,
+            reps: Number(s.reps) || 0,
+            trainSec,
+            restSec,
+            doneAt: s.doneAt || formatHHMMSS(nowMs)
+        };
+    });
+    const totalTrainSec = setTimings.reduce((acc, s) => acc + s.trainSec, 0);
+    const totalRestSec = setTimings.reduce((acc, s) => acc + s.restSec, 0);
+    const wallExSec = item.startedAtMs ? Math.max(0, Math.round((nowMs - item.startedAtMs) / 1000)) : 0;
+    const exerciseDurationSec = Math.max(totalTrainSec + totalRestSec, wallExSec > 0 && wallExSec <= 3600 ? wallExSec : 0);
+    const sessionTotalSec = Math.max(followSession.elapsedSec || 0, exerciseDurationSec);
+    return { setTimings, totalTrainSec, totalRestSec, exerciseDurationSec, sessionTotalSec };
+}
+
 async function finishCurrentFollowExercise(ev) {
     const curItem = getFollowActiveItem();
     if (!curItem) return;
@@ -4826,61 +5323,82 @@ async function finishCurrentFollowExercise(ev) {
         if (followSession.currentIdx < followSession.items.length - 1) {
             followSession.currentIdx++;
             renderFollowView();
-            openActiveTrainingModal(0);
         } else {
             openFollowSummaryModal();
         }
         return;
     }
 
-    curItem.setsList.forEach(s => { s.done = true; });
-    renderFollowView();
+    const cleanName = cleanDisplayExName(curItem.name);
+    await withBlockingSave(`正在保存「${cleanName}」...`, '正在写入本地并上传至 GitHub 云端，请稍候', async () => {
+        curItem.setsList.forEach(s => { s.done = true; });
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        const nowMs = Date.now();
+        const targetDate = todayStr;
 
-    // v10.0 乐观UI秒存：0ms 写入本地并切下一项，后台防抖队列静默同步 GitHub
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-    const nowMs = Date.now();
-    const setsCount = curItem.setsList.length;
-    const maxW = Math.max(...curItem.setsList.map(s => Number(s.weight) || 0));
-    const avgReps = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.reps) || 0), 0) / setsCount);
-    const totalVol = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
-    const setDetailsStr = curItem.setsList.map((s, i) => `${s.type}${i + 1}:${s.weight}kg×${s.reps}(${s.rpe})`).join(' / ');
-    const userNote = (curItem.note || '').trim();
-    const finalNote = userNote ? `${userNote} [${setDetailsStr}]` : setDetailsStr;
+        if (!curItem.savedLocally) {
+            const setsCount = curItem.setsList.length;
+            const maxW = Math.max(...curItem.setsList.map(s => Number(s.weight) || 0));
+            const avgReps = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.reps) || 0), 0) / setsCount);
+            const totalVol = Math.round(curItem.setsList.reduce((acc, s) => acc + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
+            const timing = buildExerciseTimingStats(curItem, curItem.setsList, nowMs);
+            const setDetailsStr = timing.setTimings.map(s => `${s.type}${s.setNo}:${s.weight}kg×${s.reps}(练${s.trainSec}s${s.restSec > 0 ? '/休' + s.restSec + 's' : ''})`).join(' / ');
+            const userNote = (curItem.note || '').trim();
+            const finalNote = userNote ? `${userNote} [${setDetailsStr}]` : setDetailsStr;
 
-    const newRec = {
-        id: `rec_${nowMs}`,
-        time: nowMs,
-        date: document.getElementById('logDateInput').value || todayStr,
-        part: curItem.part,
-        exerciseId: curItem.exId,
-        exerciseName: curItem.name,
-        unit: curItem.unit || '次',
-        sets: setsCount,
-        reps: avgReps,
-        weight: maxW,
-        volume: totalVol,
-        note: finalNote,
-        author: myIdentity
-    };
+            const newRec = {
+                id: `rec_${nowMs}`,
+                time: nowMs,
+                date: targetDate,
+                part: curItem.part,
+                exerciseId: curItem.exId,
+                exerciseName: curItem.name,
+                unit: curItem.unit || '次',
+                sets: setsCount,
+                reps: avgReps,
+                weight: maxW,
+                volume: totalVol,
+                totalTrainSec: timing.totalTrainSec,
+                totalRestSec: timing.totalRestSec,
+                exerciseDurationSec: timing.exerciseDurationSec,
+                sessionTotalSec: timing.sessionTotalSec,
+                setTimings: timing.setTimings,
+                planTitle: followSession.planName || '',
+                note: finalNote,
+                author: myIdentity
+            };
 
-    myData.records.unshift(newRec);
-    myData.dailyUpdatedAt = nowMs;
-    myData.updatedAt = nowMs;
-    curItem.savedToCloud = true;
+            myData.records.unshift(newRec);
+            myData.dailyUpdatedAt = nowMs;
+            myData.updatedAt = nowMs;
+            curItem.savedLocally = true;
+            if (!myData.dateIndex) myData.dateIndex = {};
+            const dayRecsNow = myData.records.filter(r => r.date === targetDate);
+            myData.dateIndex[targetDate] = buildDateIndexMeta(dayRecsNow, followSession.planName || '');
+            saveLocalCache();
+        }
 
-    saveLocalCache();
-    renderRecordsView();
-    queueCloudSync('daily', myIdentity);
-    showToast(`⚡已秒存！「${cleanDisplayExName(curItem.name)}」后台同步云端中`);
-
-    if (followSession.currentIdx < followSession.items.length - 1) {
-        followSession.currentIdx++;
+        const syncOk = await commitSingleRoleSync('daily', myIdentity, targetDate);
+        if (syncOk) {
+            curItem.savedToCloud = true;
+            // 同次训练中此前仅存本地的项也已随当日文件一并上传云端
+            (followSession.items || []).forEach(it => { if (it.savedLocally) it.savedToCloud = true; });
+        }
+        renderRecordsView();
+        if (followSession.currentIdx < followSession.items.length - 1) {
+            followSession.currentIdx++;
+            activeSetStartEpochMs = Date.now();
+            const nextIt = getFollowActiveItem();
+            if (nextIt && !nextIt.startedAtMs) nextIt.startedAtMs = activeSetStartEpochMs;
+        }
         renderFollowView();
-        openActiveTrainingModal(0);
-    } else {
-        renderFollowView();
-        openFollowSummaryModal();
-    }
+        if (syncOk) {
+            showToast(`✅ 已保存「${cleanName}」并上传云端`);
+        } else {
+            const reason = lastCloudSyncError ? `（${lastCloudSyncError.shortReason}）` : '';
+            showToast(`⚠️ 「${cleanName}」已存本地，云端上传失败${reason}`);
+        }
+    });
 }
 
 function openFollowAddExModal() {
@@ -4939,7 +5457,7 @@ function startFollowByExerciseObj(ex) {
         followSession.currentIdx = followSession.items.length - 1;
     }
     switchMainTab('follow');
-    openActiveTrainingModal(0);
+    renderFollowView();
 }
 
 function startFollowSingleExercise() {
@@ -4953,7 +5471,7 @@ function startFollowFromModalPlan() {
     initFollowSessionFromPlan(editingPlanObj.id);
     closePlanDetailModal();
     switchMainTab('follow');
-    openActiveTrainingModal(0);
+    renderFollowView();
 }
 
 function openFollowSummaryModal() {
@@ -4988,8 +5506,8 @@ function openFollowSummaryModal() {
                     <div class="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-2 whitespace-nowrap">
                         <span onclick="closeFollowSummaryModal(); openExerciseAnimModal('${it.exId}')" class="font-bold text-slate-800 truncate flex-1 cursor-pointer hover:text-blue-600 underline decoration-dotted">${i + 1}. ${cleanDisplayExName(it.name)}</span>
                         <span class="text-[11px] text-slate-500 shrink-0">${dCnt}/${it.setsList.length}组</span>
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${it.savedToCloud ? 'bg-emerald-100 text-emerald-700' : (dCnt > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600')}">
-                            ${it.savedToCloud ? '已归档' : (dCnt > 0 ? '待归档' : '未开始')}
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${it.savedToCloud ? 'bg-emerald-100 text-emerald-700' : (it.savedLocally ? 'bg-amber-100 text-amber-700' : (dCnt > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-600'))}">
+                            ${it.savedToCloud ? '已上传云端' : (it.savedLocally ? '待上传云端' : (dCnt > 0 ? '待归档' : '未开始'))}
                         </span>
                     </div>
                 `;
@@ -5004,51 +5522,83 @@ function closeFollowSummaryModal() {
 }
 
 async function saveRemainingFollowAndFinish(ev) {
-    const unsaved = (followSession.items || []).filter(it => !it.savedToCloud && it.setsList.some(s => s.done));
-    if (!unsaved.length) {
+    const needLocalAdd = (followSession.items || []).filter(it => !it.savedLocally && !it.savedToCloud && it.setsList.some(s => s.done));
+    const needCloudRetry = (followSession.items || []).filter(it => it.savedLocally && !it.savedToCloud);
+    const hasDirty = hasPendingDirtySync();
+    if (!needLocalAdd.length && !needCloudRetry.length && !hasDirty) {
         closeFollowSummaryModal();
-        showToast('所有已打卡动作均已归档至云端');
+        showToast('✅ 所有已打卡动作均已同步至云端');
         return;
     }
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-    const nowMs = Date.now();
-    const dateStr = document.getElementById('logDateInput').value || todayStr;
+    const actionLabel = needLocalAdd.length > 0
+        ? `正在归档 ${needLocalAdd.length} 项记录...`
+        : '正在补传未同步记录到云端...';
+    await withBlockingSave(actionLabel, '正在上传至 GitHub 云端，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        const nowMs = Date.now();
+        const dateStr = todayStr;
 
-    const added = unsaved.map((it, idx) => {
-        const doneList = it.setsList.filter(s => s.done);
-        const setsCount = doneList.length;
-        const maxW = Math.max(...doneList.map(s => Number(s.weight) || 0));
-        const avgReps = Math.round(doneList.reduce((a, s) => a + (Number(s.reps) || 0), 0) / setsCount);
-        const totalVol = Math.round(doneList.reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
-        const details = doneList.map((s, i) => `${s.type}${i + 1}:${s.weight}kg×${s.reps}`).join('/');
-        return {
-            id: `rec_${nowMs}_${idx}`,
-            time: nowMs + idx,
-            date: dateStr,
-            part: it.part,
-            exerciseId: it.exId,
-            exerciseName: it.name,
-            unit: it.unit || '次',
-            sets: setsCount,
-            reps: avgReps,
-            weight: maxW,
-            volume: totalVol,
-            note: it.note ? `${it.note} [${details}]` : `跟练归档 [${details}]`,
-            author: myIdentity
-        };
+        if (needLocalAdd.length > 0) {
+            const added = needLocalAdd.map((it, idx) => {
+                const doneList = it.setsList.filter(s => s.done);
+                const setsCount = doneList.length;
+                const maxW = Math.max(...doneList.map(s => Number(s.weight) || 0));
+                const avgReps = Math.round(doneList.reduce((a, s) => a + (Number(s.reps) || 0), 0) / setsCount);
+                const totalVol = Math.round(doneList.reduce((a, s) => a + (Number(s.weight) || 0) * (Number(s.reps) || 0), 0) * 10) / 10;
+                const timing = buildExerciseTimingStats(it, doneList, nowMs);
+                const details = timing.setTimings.map(s => `${s.type}${s.setNo}:${s.weight}kg×${s.reps}(练${s.trainSec}s${s.restSec > 0 ? '/休' + s.restSec + 's' : ''})`).join('/');
+                return {
+                    id: `rec_${nowMs}_${idx}`,
+                    time: nowMs + idx,
+                    date: dateStr,
+                    part: it.part,
+                    exerciseId: it.exId,
+                    exerciseName: it.name,
+                    unit: it.unit || '次',
+                    sets: setsCount,
+                    reps: avgReps,
+                    weight: maxW,
+                    volume: totalVol,
+                    totalTrainSec: timing.totalTrainSec,
+                    totalRestSec: timing.totalRestSec,
+                    exerciseDurationSec: timing.exerciseDurationSec,
+                    sessionTotalSec: timing.sessionTotalSec,
+                    setTimings: timing.setTimings,
+                    planTitle: followSession.planName || '',
+                    note: it.note ? `${it.note} [${details}]` : `跟练归档 [${details}]`,
+                    author: myIdentity
+                };
+            });
+
+            myData.records.unshift(...added);
+            myData.dailyUpdatedAt = nowMs;
+            myData.updatedAt = nowMs;
+            needLocalAdd.forEach(it => { it.savedLocally = true; });
+            if (!myData.dateIndex) myData.dateIndex = {};
+            const dayRecsNow = myData.records.filter(r => r.date === dateStr);
+            myData.dateIndex[dateStr] = buildDateIndexMeta(dayRecsNow, followSession.planName || '');
+            saveLocalCache();
+        }
+
+        const syncOk = await commitSingleRoleSync('daily', myIdentity, dateStr);
+        if (syncOk) {
+            (followSession.items || []).forEach(it => {
+                if (it.savedLocally) it.savedToCloud = true;
+            });
+            if (hasPendingDirtySync()) {
+                await flushCloudSyncQueue(false);
+            }
+        }
+        renderFollowView();
+        renderRecordsView();
+        closeFollowSummaryModal();
+        if (syncOk) {
+            showToast(`✅ 今日训练记录已成功上传至 GitHub 云端！`);
+        } else {
+            const reason = lastCloudSyncError ? `（${lastCloudSyncError.shortReason}）` : '';
+            showToast(`⚠️ 已存本地，云端上传失败${reason}，点右上角可重试`);
+        }
     });
-
-    myData.records.unshift(...added);
-    myData.dailyUpdatedAt = nowMs;
-    myData.updatedAt = nowMs;
-    unsaved.forEach(it => { it.savedToCloud = true; });
-
-    saveLocalCache();
-    renderFollowView();
-    renderRecordsView();
-    closeFollowSummaryModal();
-    queueCloudSync('daily', myIdentity);
-    showToast(`⚡已秒存归档 ${added.length} 项记录，后台同步云端中`);
 }
 
 // ============================================================================
@@ -5508,29 +6058,24 @@ async function importScientificTemplate(tplIdx) {
     const tpl = templates[tplIdx];
     if (!tpl) return;
 
-    await fetchAllData(true);
-    const myData = getMyData();
-    if (!myData.plans) myData.plans = [];
-
-    const newPlan = {
-        id: `plan_${myIdentity}_${Date.now()}`,
-        name: tpl.name,
-        items: JSON.parse(JSON.stringify(tpl.items))
-    };
-    myData.plans.unshift(newPlan);
-    myData.updatedAt = Date.now();
-
-    const upRes = await syncRolePlanToCloud(myIdentity);
-    if (upRes.success || !GITHUB_TOKEN) {
+    await withBlockingSave('正在导入科学模板...', '正在保存并同步云端，请稍候', async () => {
+        const myData = getMyData();
+        if (!myData.plans) myData.plans = [];
+        const newPlan = {
+            id: `plan_${myIdentity}_${Date.now()}`,
+            name: tpl.name,
+            items: JSON.parse(JSON.stringify(tpl.items))
+        };
+        myData.plans.unshift(newPlan);
+        myData.updatedAt = Date.now();
         saveLocalCache();
+
+        const syncOk = await commitSingleRoleSync('plan', myIdentity);
         renderPlansSubView();
         initFollowSessionFromPlan(newPlan.id);
         closePlanTemplatesModal();
-        showToast(`已导入「${newPlan.name}」并同步云端`);
-    } else {
-        myData.plans.shift();
-        showToast('导入同步失败，请重试');
-    }
+        showToast(syncOk ? `✅ 已导入「${newPlan.name}」并同步云端` : `⚡ 已导入「${newPlan.name}」到本地`);
+    });
 }
 
 function renderWeightProgressionCard() {
@@ -5765,29 +6310,31 @@ async function saveBodyMetricToCloud(ev) {
         showToast('请输入有效的今日体重 (kg)');
         return;
     }
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-    if (!myData.bodyMetrics) myData.bodyMetrics = [];
-    const existingIdx = myData.bodyMetrics.findIndex(m => m.date === todayStr);
-    const entry = {
-        id: Date.now(),
-        date: todayStr,
-        weight: Number(wVal.toFixed(1)),
-        arm: armVal,
-        waist: waistVal
-    };
-    if (existingIdx >= 0) myData.bodyMetrics[existingIdx] = entry;
-    else myData.bodyMetrics.unshift(entry);
+    await withBlockingSave(`正在保存体重 ${wVal.toFixed(1)}kg...`, '正在联动自重配重并同步云端，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        if (!myData.bodyMetrics) myData.bodyMetrics = [];
+        const existingIdx = myData.bodyMetrics.findIndex(m => m.date === todayStr);
+        const entry = {
+            id: Date.now(),
+            date: todayStr,
+            weight: Number(wVal.toFixed(1)),
+            arm: armVal,
+            waist: waistVal
+        };
+        if (existingIdx >= 0) myData.bodyMetrics[existingIdx] = entry;
+        else myData.bodyMetrics.unshift(entry);
 
-    myData.dailyUpdatedAt = Date.now();
-    myData.updatedAt = Date.now();
+        myData.dailyUpdatedAt = Date.now();
+        myData.updatedAt = Date.now();
 
-    syncBodyweightToExercises(true);
-    saveLocalCache();
-    renderAnalyticsSubView();
-    renderFollowView();
-    queueCloudSync('daily', myIdentity);
-    queueCloudSync('plan', myIdentity);
-    showToast(`⚡已保存今日体重 ${entry.weight}kg 并自动联动自重动作配重！`);
+        syncBodyweightToExercises(true);
+        saveLocalCache();
+        const ok1 = await commitSingleRoleSync('daily', myIdentity);
+        await commitSingleRoleSync('plan', myIdentity);
+        renderAnalyticsSubView();
+        renderFollowView();
+        showToast(ok1 ? `✅ 已保存体重 ${entry.weight}kg 并同步云端` : `⚡ 已保存体重 ${entry.weight}kg 到本地`);
+    });
 }
 
 function renderBodyMetricsList() {
@@ -5827,11 +6374,57 @@ function switchAnalyticsChartTab(tabKey) {
     }
 }
 
+let githubAuthScheme = 'Bearer';
+let lastCloudSyncError = null;
+
+function recordCloudSyncError(filePath, status, rawMsg) {
+    let shortReason = rawMsg || '网络请求失败';
+    if (status === 401) shortReason = 'Token 无效或已过期 (401)';
+    else if (status === 403) shortReason = 'Token 缺少仓库写入权限 (403)';
+    else if (status === 404) shortReason = '仓库或分支路径不可访问 (404)';
+    else if (status === 409) shortReason = '云端文件冲突 (409)';
+    else if (status === 422) shortReason = '提交参数校验失败 (422)';
+    else if (status) shortReason = `HTTP ${status}: ${rawMsg || '请求被拒绝'}`;
+    lastCloudSyncError = {
+        time: formatHHMMSS(Date.now()),
+        filePath: filePath || '',
+        status: status || 0,
+        rawMsg: rawMsg || '',
+        shortReason
+    };
+}
+
+function clearCloudSyncError() {
+    lastCloudSyncError = null;
+}
+
+async function githubApiFetch(url, options = {}, tokenOverride = null) {
+    const tk = tokenOverride || GITHUB_TOKEN;
+    const makeHeaders = (scheme) => ({
+        'Accept': 'application/vnd.github+json',
+        ...(options.headers || {}),
+        'Authorization': `${scheme} ${tk}`
+    });
+    const reqOpts = { ...options, cache: 'no-store', headers: makeHeaders(githubAuthScheme) };
+    let res = await fetch(url, reqOpts);
+    if (res.status === 401) {
+        const altScheme = (githubAuthScheme === 'Bearer') ? 'token' : 'Bearer';
+        const altRes = await fetch(url, { ...options, cache: 'no-store', headers: makeHeaders(altScheme) });
+        if (altRes.status !== 401) {
+            githubAuthScheme = altScheme;
+            res = altRes;
+        }
+    }
+    return res;
+}
+
 function onSyncBadgeClick() {
     const badgeEl = document.getElementById('syncStatusIndicator');
     const txt = badgeEl ? badgeEl.innerText : '';
-    if (!GITHUB_TOKEN || txt.includes('重连') || txt.includes('失效') || txt.includes('本地')) {
+    if (!GITHUB_TOKEN || txt.includes('失效') || txt.includes('权限')) {
         openTokenModal();
+    } else if (hasPendingDirtySync() || txt.includes('待补传') || txt.includes('连接失败')) {
+        flushCloudSyncQueue(true);
     } else {
         flushCloudSyncQueue(true);
     }
@@ -5848,6 +6441,14 @@ function openTokenModal(reasonMsg) {
         subEl.innerText = '独立云端同步配置 · 仅保存在本机缓存';
         subEl.className = 'text-[10.5px] text-slate-400';
     }
+    const statusBox = document.getElementById('tokenConnStatusBox');
+    if (statusBox) {
+        if (lastCloudSyncError) {
+            statusBox.innerHTML = `⚠️ <strong class="text-amber-400">最近一次上传失败 (${lastCloudSyncError.time})：</strong>${lastCloudSyncError.shortReason}${lastCloudSyncError.filePath ? `<br><span class="text-[10px] text-slate-400">目标文件：${lastCloudSyncError.filePath}</span>` : ''}${lastCloudSyncError.rawMsg ? `<br><span class="text-[10px] text-slate-400">GitHub 返回：${lastCloudSyncError.rawMsg}</span>` : ''}`;
+        } else if (GITHUB_TOKEN) {
+            statusBox.innerHTML = '✅ 当前已保存 GitHub Token，可点击下方按钮重新检测并同步云端。';
+        }
+    }
     document.getElementById('tokenModal').classList.remove('hidden');
 }
 
@@ -5856,55 +6457,79 @@ function closeTokenModal() {
 }
 
 async function saveAndTestToken() {
-    const inputToken = (document.getElementById('githubTokenInput').value || '').trim();
+    const rawVal = (document.getElementById('githubTokenInput').value || '');
+    const inputToken = sanitizeTokenStr(rawVal);
     if (!inputToken) {
-        showToast('请输入有效的 GitHub Token');
+        showToast('请输入有效的 GitHub Token（仅支持英文与数字字符）');
         return;
     }
     const btn = document.getElementById('tokenSubmitBtn');
     const statusBox = document.getElementById('tokenConnStatusBox');
     if (btn) { btn.innerText = '🔄 正在验证 GitHub 连接...'; btn.disabled = true; }
 
+    let response = null;
+    let netErrMsg = '';
     try {
-        const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}?t=${Date.now()}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${inputToken}`,
-                'Accept': 'application/vnd.github.v3+json'
-            }
-        });
-        if (response.ok) {
-            GITHUB_TOKEN = inputToken;
-            localStorage.setItem('loveGacha_githubToken', inputToken);
-            if (statusBox) {
-                statusBox.innerHTML = '✅ <strong class="text-emerald-400">GitHub 云端仓库连接成功！</strong> 正在同步数据...';
-            }
-            showToast('🎉 GitHub 云端重连成功！');
-            closeTokenModal();
-            if (hasPendingDirtySync()) {
-                await flushCloudSyncQueue(false);
-            }
-            await fetchAllData(false);
-            refreshRoleDynamicMeta();
-            lockReadonlyIdentityUI();
-            initFollowSessionFromPlan('');
-            renderFollowView();
-            renderRecordsView();
-            renderPlansSubView();
-            if (!localStorage.getItem('loveGacha_myIdentity')) {
-                openIdentityModal();
-            }
-        } else {
-            if (statusBox) {
-                statusBox.innerHTML = `❌ <strong class="text-rose-400">连接失败 (HTTP ${response.status})</strong>：请检查 Token 权限或是否过期。`;
-            }
-            showToast('连接失败，请检查 Token 是否正确');
-        }
+        const reqUrl = `https://api.github.com/repos/${OWNER_REPO}?t=${Date.now()}`;
+        response = await githubApiFetch(reqUrl, { method: 'GET' }, inputToken);
     } catch (err) {
+        netErrMsg = (err && err.message) ? err.message : 'NetworkError';
+    }
+
+    if (!response) {
         if (statusBox) {
-            statusBox.innerHTML = '📴 <strong class="text-amber-400">网络请求失败</strong>：当前网络无法访问 GitHub API，可先用离线模式训练。';
+            statusBox.innerHTML = `📴 <strong class="text-amber-400">无法连接到 api.github.com</strong>（${netErrMsg}）。请检查当前网络是否可直连 GitHub 或开启代理后重试。`;
         }
-        showToast('网络请求失败，请检查网络或稍后重试');
+        showToast('无法连接 GitHub API，请检查网络/代理');
+        if (btn) { btn.innerText = '⚡ 连接验证并同步云端'; btn.disabled = false; }
+        return;
+    }
+
+    if (!response.ok) {
+        if (statusBox) {
+            statusBox.innerHTML = `❌ <strong class="text-rose-400">GitHub 拒绝连接 (HTTP ${response.status})</strong>：请检查 Token 是否过期或拼写完整。`;
+        }
+        showToast(`连接失败 (HTTP ${response.status})，请检查 Token`);
+        if (btn) { btn.innerText = '⚡ 连接验证并同步云端'; btn.disabled = false; }
+        return;
+    }
+
+    const repoInfo = await response.json().catch(() => ({}));
+    const canPush = !(repoInfo && repoInfo.permissions && repoInfo.permissions.push === false);
+    if (!canPush) {
+        if (statusBox) {
+            statusBox.innerHTML = '⚠️ <strong class="text-amber-400">Token 仅有只读权限</strong>：请使用具备 <code>repo</code> / <code>Contents: Read and write</code> 权限的 Token。';
+        }
+        showToast('Token 缺少写入权限，无法上传数据');
+        if (btn) { btn.innerText = '⚡ 连接验证并同步云端'; btn.disabled = false; }
+        return;
+    }
+
+    // 验证通过：保存 Token 并同步数据（UI 刷新单独隔离，绝不误报网络失败）
+    GITHUB_TOKEN = inputToken;
+    localStorage.setItem('loveGacha_githubToken', inputToken);
+    if (statusBox) {
+        statusBox.innerHTML = '✅ <strong class="text-emerald-400">GitHub 云端读写连接验证通过！</strong> 正在同步数据...';
+    }
+    showToast('🎉 GitHub 云端连接成功！');
+    closeTokenModal();
+
+    try {
+        if (hasPendingDirtySync()) {
+            await flushCloudSyncQueue(false);
+        }
+        await fetchAllData(false);
+        refreshRoleDynamicMeta();
+        lockReadonlyIdentityUI();
+        initFollowSessionFromPlan('');
+        renderFollowView();
+        renderRecordsView();
+        renderPlansSubView();
+        if (!localStorage.getItem('loveGacha_myIdentity')) {
+            openIdentityModal();
+        }
+    } catch (uiErr) {
+        console.error('Post-connect sync UI error:', uiErr);
     } finally {
         if (btn) { btn.innerText = '⚡ 连接验证并同步云端'; btn.disabled = false; }
     }
@@ -6027,8 +6652,13 @@ function importStandaloneBackupJSON(ev) {
     reader.readAsText(file);
 }
 
-window.onload = async function() {
-    document.getElementById('logDateInput').value = todayStr;
+let appBooted = false;
+async function bootFitnessApp() {
+    if (appBooted) return;
+    appBooted = true;
+    const dateIn = document.getElementById('logDateInput');
+    if (dateIn) dateIn.value = todayStr;
+    GITHUB_TOKEN = loadSavedGithubToken();
     loadDirtySyncFlags();
     loadLocalCache();
     refreshRoleDynamicMeta();
@@ -6042,59 +6672,125 @@ window.onload = async function() {
     renderPlansSubView();
     renderCustomExSubView();
     renderSingleActionView();
-    if (hasPendingDirtySync()) {
-        await flushCloudSyncQueue(false);
+
+    if (GITHUB_TOKEN) {
+        updateSyncBadgeUI('syncing', '⚡自动连接中...');
+        if (hasPendingDirtySync()) {
+            await flushCloudSyncQueue(false);
+        }
+        // 自动连接最多重试 2 次，防止移动端刚唤醒时的瞬时断网
+        let ok = await fetchAllData(true);
+        if (!ok) {
+            await new Promise(r => setTimeout(r, 1200));
+            ok = await fetchAllData(true);
+        }
+        refreshRoleDynamicMeta();
+        lockReadonlyIdentityUI();
+        renderFollowView();
+        renderRecordsView();
+        renderPlansSubView();
     }
-    await fetchAllData(true);
-    refreshRoleDynamicMeta();
-    lockReadonlyIdentityUI();
-    renderFollowView();
-    renderRecordsView();
-    renderPlansSubView();
     startPolling();
     if (!GITHUB_TOKEN) {
-        openTokenModal('首次使用或未配置 Token，连接 GitHub 即可开启双人云端同步');
+        updateSyncBadgeUI('offline', '🔐点此连接GitHub');
+        openTokenModal('当前环境尚未保存 GitHub Token，输入后即可自动连接并同步云端');
     } else if (!localStorage.getItem('loveGacha_myIdentity')) {
         openIdentityModal();
     }
-};
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootFitnessApp);
+} else {
+    bootFitnessApp();
+}
+
+function encodeBase64UTF8(str) {
+    if (typeof TextEncoder !== 'undefined') {
+        const bytes = new TextEncoder().encode(str);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        return btoa(bin);
+    }
+    return btoa(unescape(encodeURIComponent(str)));
+}
+
+function decodeBase64UTF8(b64) {
+    const bin = atob((b64 || '').replace(/\s/g, ''));
+    if (typeof TextDecoder !== 'undefined') {
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new TextDecoder('utf-8').decode(bytes);
+    }
+    return decodeURIComponent(escape(bin));
+}
 
 async function fetchFile(filePath) {
-    if (!GITHUB_TOKEN) return { error: true };
+    if (!GITHUB_TOKEN) return { error: true, message: '未配置 GitHub Token' };
     try {
         const timestamp = new Date().getTime();
-        const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
-            method: 'GET',
-            headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}` }
+        const response = await githubApiFetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}?t=${timestamp}`, {
+            method: 'GET'
         });
-        if (response.status === 401 || response.status === 403) return { authError: true };
-        if (response.status === 404) return { data: {}, sha: null };
-        if (!response.ok) return { error: true };
+        if (response.status === 404) return { data: {}, sha: null, notFound: true };
+        if (response.status === 401 || response.status === 403) {
+            const errJson = await response.json().catch(() => ({}));
+            const msg = errJson.message || `HTTP ${response.status}`;
+            recordCloudSyncError(filePath, response.status, msg);
+            return { authError: true, status: response.status, message: msg };
+        }
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            const msg = errJson.message || `HTTP ${response.status}`;
+            recordCloudSyncError(filePath, response.status, msg);
+            return { error: true, status: response.status, message: msg };
+        }
 
         const result = await response.json();
-        const contentStr = decodeURIComponent(escape(atob(result.content.replace(/\s/g, ''))));
+        const contentStr = decodeBase64UTF8(result.content || '');
         return { data: JSON.parse(contentStr || '{}'), sha: result.sha };
-    } catch (error) { return { error: true }; }
+    } catch (error) {
+        const msg = (error && error.message) ? error.message : 'NetworkError';
+        recordCloudSyncError(filePath, 0, msg);
+        return { error: true, networkError: true, message: msg };
+    }
 }
 
 async function updateFile(filePath, newData, sha) {
-    if (!GITHUB_TOKEN) return { success: false, sha: sha };
+    if (!GITHUB_TOKEN) {
+        recordCloudSyncError(filePath, 0, '未配置 GitHub Token');
+        return { success: false, sha: sha, offline: true, message: '未配置 GitHub Token' };
+    }
     try {
-        const encodedContent = btoa(unescape(encodeURIComponent(JSON.stringify(newData, null, 2))));
-        const body = { message: `Update data`, content: encodedContent };
+        const encodedContent = encodeBase64UTF8(JSON.stringify(newData, null, 2));
+        const body = { message: `Update ${filePath}`, content: encodedContent };
         if (sha) body.sha = sha;
 
-        const response = await fetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
+        const response = await githubApiFetch(`https://api.github.com/repos/${OWNER_REPO}/contents/${filePath}`, {
             method: 'PUT',
-            headers: { 'Accept': 'application/vnd.github.v3+json', 'Authorization': `Bearer ${GITHUB_TOKEN}`, 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (response.status === 401 || response.status === 403) return { authError: true };
-        if (!response.ok) return { success: false, sha: sha };
+        if (response.status === 401 || response.status === 403) {
+            const errJson = await response.json().catch(() => ({}));
+            const msg = errJson.message || `HTTP ${response.status}`;
+            recordCloudSyncError(filePath, response.status, msg);
+            return { success: false, authError: true, status: response.status, message: msg };
+        }
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            const msg = errJson.message || `HTTP ${response.status}`;
+            recordCloudSyncError(filePath, response.status, msg);
+            return { success: false, sha: sha, status: response.status, message: msg };
+        }
 
         const result = await response.json();
-        return { success: true, sha: result.content.sha };
-    } catch (error) { return { success: false, sha: sha }; }
+        clearCloudSyncError();
+        return { success: true, sha: result && result.content ? result.content.sha : sha };
+    } catch (error) {
+        const msg = (error && error.message) ? error.message : 'NetworkError';
+        recordCloudSyncError(filePath, 0, msg);
+        return { success: false, sha: sha, networkError: true, message: msg };
+    }
 }
 
 function normalizeRoleData(rawPlan, roleName, rawDaily) {
@@ -6118,6 +6814,21 @@ function normalizeRoleData(rawPlan, roleName, rawDaily) {
     });
     const mergedMetrics = Array.from(bmMap.values());
 
+    // 构建轻量日期索引 dateIndex（兼容历史旧数据，供月历瞬时展示每天的计划标题）
+    const dateIndex = (dObj.dateIndex && typeof dObj.dateIndex === 'object') ? { ...dObj.dateIndex } : {};
+    const byDateTmp = {};
+    mergedRecords.forEach(r => {
+        const d = r.date || todayStr;
+        if (!byDateTmp[d]) byDateTmp[d] = [];
+        byDateTmp[d].push(r);
+    });
+    Object.keys(byDateTmp).forEach(d => {
+        if (!dateIndex[d]) {
+            const list = byDateTmp[d];
+            dateIndex[d] = buildDateIndexMeta(list, list[0].planTitle || '');
+        }
+    });
+
     return {
         role: roleName,
         height: defaults.height,
@@ -6125,6 +6836,7 @@ function normalizeRoleData(rawPlan, roleName, rawDaily) {
         plans: (Array.isArray(pObj.plans) && pObj.plans.length > 0) ? pObj.plans : getDefaultPlansForRole(roleName),
         customExercises: Array.isArray(pObj.customExercises) ? pObj.customExercises : [],
         records: mergedRecords,
+        dateIndex: dateIndex,
         bodyMetrics: mergedMetrics,
         dailyHabits: (dObj.dailyHabits && typeof dObj.dailyHabits === 'object') ? dObj.dailyHabits : {},
         readinessLogs: (dObj.readinessLogs && typeof dObj.readinessLogs === 'object') ? dObj.readinessLogs : {},
@@ -6132,6 +6844,77 @@ function normalizeRoleData(rawPlan, roleName, rawDaily) {
         dailyUpdatedAt: dObj.updatedAt || 0,
         updatedAt: Math.max(pObj.updatedAt || 0, dObj.updatedAt || 0)
     };
+}
+
+function getDailyDateFilePath(roleName, dateStr) {
+    const code = (roleName === '亲亲') ? 'Q' : 'H';
+    return `data/fitness/${code}/${dateStr}.json`;
+}
+
+function shortenPlanTitle(title, fallbackPart) {
+    if (title) {
+        const cleaned = String(title)
+            .replace(/^哼哼\s*[·•\-]\s*/, '')
+            .replace(/^亲亲\s*[·•\-]\s*/, '')
+            .replace(/（.*?）/g, '')
+            .replace(/\(.*?\)/g, '')
+            .replace(/计划$/, '')
+            .trim();
+        if (cleaned) return cleaned.slice(0, 6);
+    }
+    const map = { back: '拉日背', legs: '腿臀日', chest: '推日胸', core: '核心日', warmup: '激活', stretch: '恢复日' };
+    return map[fallbackPart] || '训练日';
+}
+
+function buildDateIndexMeta(dayRecs, explicitPlanTitle) {
+    const list = Array.isArray(dayRecs) ? dayRecs : [];
+    const totalSets = list.reduce((s, r) => s + (Number(r.sets) || 0), 0);
+    const totalVolume = Math.round(list.reduce((s, r) => s + (Number(r.volume) || 0), 0));
+    const sumExSec = list.reduce((s, r) => s + (Number(r.exerciseDurationSec) || 0), 0);
+    const sumRestSec = list.reduce((s, r) => s + (Number(r.totalRestSec) || 0), 0);
+    const maxSessSec = Math.max(0, ...list.map(r => Number(r.sessionTotalSec) || 0));
+    const totalDurationSec = Math.max(maxSessSec, sumExSec);
+
+    // 推断当日计划标题
+    let fullPlan = explicitPlanTitle || (list[0] && list[0].planTitle) || '';
+    let topPart = 'back';
+    if (!fullPlan && list.length > 0) {
+        const partCnt = {};
+        list.forEach(r => {
+            if (r.part && r.part !== 'warmup' && r.part !== 'stretch') {
+                partCnt[r.part] = (partCnt[r.part] || 0) + (Number(r.sets) || 1);
+            }
+        });
+        topPart = Object.keys(partCnt).sort((a, b) => partCnt[b] - partCnt[a])[0] || (list[0].part || 'back');
+        const mapFull = { back: '拉日计划', legs: '腿日计划', chest: '推日计划', core: '核心训练', warmup: '主动恢复', stretch: '拉伸恢复' };
+        fullPlan = mapFull[topPart] || '力量训练';
+    }
+    return {
+        planTitle: fullPlan,
+        shortTitle: shortenPlanTitle(fullPlan, topPart),
+        count: list.length,
+        totalSets,
+        totalVolume,
+        totalDurationSec,
+        totalRestSec: sumRestSec,
+        updatedAt: Date.now()
+    };
+}
+
+function getScheduledPlanTitleForDate(dateStr, roleName) {
+    const r = (roleName === '亲亲') ? '亲亲' : '哼哼';
+    const rData = (r === '亲亲') ? dataQ : dataH;
+    const idxEntry = rData.dateIndex && rData.dateIndex[dateStr];
+    if (idxEntry && idxEntry.count > 0) {
+        return {
+            title: idxEntry.shortTitle || shortenPlanTitle(idxEntry.planTitle),
+            fullTitle: idxEntry.planTitle || '',
+            completed: true,
+            meta: idxEntry
+        };
+    }
+    // 仅展示云端已保存的真实训练记录标题，未训练日期不显示预设排期
+    return { title: '', fullTitle: '', completed: false, meta: null };
 }
 
 function buildPlanPayload(roleData) {
@@ -6145,20 +6928,14 @@ function buildPlanPayload(roleData) {
     };
 }
 
+// 轻量元数据与月历索引文件（不含臃肿的历史动作全量记录，详细记录按 YYYY-MM-DD.json 独立分片存储）
 function buildDailyPayload(roleData) {
-    const recs = Array.isArray(roleData.records) ? roleData.records : [];
-    const dailyRecords = {};
-    recs.forEach(r => {
-        const d = r.date || todayStr;
-        if (!dailyRecords[d]) dailyRecords[d] = [];
-        dailyRecords[d].push(r);
-    });
     return {
+        storageMode: 'by-date-v1',
         role: roleData.role,
         height: roleData.height,
         weight: roleData.weight,
-        records: recs,
-        dailyRecords: dailyRecords,
+        dateIndex: (roleData.dateIndex && typeof roleData.dateIndex === 'object') ? roleData.dateIndex : {},
         bodyMetrics: Array.isArray(roleData.bodyMetrics) ? roleData.bodyMetrics : [],
         dailyHabits: roleData.dailyHabits || {},
         readinessLogs: roleData.readinessLogs || {},
@@ -6166,10 +6943,105 @@ function buildDailyPayload(roleData) {
     };
 }
 
+function buildSingleDatePayload(roleName, dateStr) {
+    const isHeng = (roleName !== '亲亲');
+    const targetData = isHeng ? dataH : dataQ;
+    const dayRecs = (targetData.records || []).filter(r => r.date === dateStr);
+    const meta = buildDateIndexMeta(dayRecs, (targetData.dateIndex && targetData.dateIndex[dateStr] && targetData.dateIndex[dateStr].planTitle) || '');
+    return {
+        role: roleName,
+        date: dateStr,
+        planTitle: meta.planTitle,
+        shortTitle: meta.shortTitle,
+        records: dayRecs,
+        totalSets: meta.totalSets,
+        totalVolume: meta.totalVolume,
+        totalDurationSec: meta.totalDurationSec,
+        totalRestSec: meta.totalRestSec,
+        updatedAt: Date.now()
+    };
+}
+
+async function syncRoleDailyDateToCloud(roleName, dateStr) {
+    const isHeng = (roleName !== '亲亲');
+    const targetData = isHeng ? dataH : dataQ;
+    const dStr = dateStr || todayStr;
+    const dayRecs = (targetData.records || []).filter(r => r.date === dStr);
+    if (!targetData.dateIndex) targetData.dateIndex = {};
+    if (dayRecs.length > 0) {
+        targetData.dateIndex[dStr] = buildDateIndexMeta(dayRecs, (dayRecs[0] && dayRecs[0].planTitle) || (targetData.dateIndex[dStr] && targetData.dateIndex[dStr].planTitle) || followSession.planName || '');
+    } else {
+        delete targetData.dateIndex[dStr];
+    }
+
+    const filePath = getDailyDateFilePath(roleName, dStr);
+    const datePayload = buildSingleDatePayload(roleName, dStr);
+    let curSha = dailyFileShas[filePath] || null;
+    if (!curSha) {
+        const meta = await fetchFile(filePath);
+        if (meta.authError) return { success: false, authError: true };
+        if (!meta.error && meta.sha) curSha = meta.sha;
+    }
+    let upDateRes = await updateFile(filePath, datePayload, curSha);
+    if (!upDateRes.success && !upDateRes.authError && (upDateRes.status === 409 || upDateRes.status === 422)) {
+        const latestMeta = await fetchFile(filePath);
+        if (latestMeta.authError) return { success: false, authError: true };
+        if (!latestMeta.error) {
+            curSha = latestMeta.sha;
+            upDateRes = await updateFile(filePath, datePayload, curSha);
+        }
+    }
+    if (upDateRes.success) {
+        dailyFileShas[filePath] = upDateRes.sha;
+        loadedDateKeys.add(`${roleName}|${dStr}`);
+        // 同步更新轻量索引文件（供日历展示每天计划标题）
+        const idxRes = await syncRoleDailyToCloud(roleName);
+        if (!idxRes || !idxRes.success) {
+            return {
+                success: false,
+                partialDateSaved: true,
+                authError: !!(idxRes && idxRes.authError),
+                status: idxRes && idxRes.status,
+                message: (idxRes && idxRes.message) || '日历索引同步失败'
+            };
+        }
+    }
+    return upDateRes;
+}
+
+async function fetchRoleDateFromCloud(roleName, dateStr, force = false) {
+    const key = `${roleName}|${dateStr}`;
+    if (!GITHUB_TOKEN) return { ok: true, localOnly: true };
+    if (!force && loadedDateKeys.has(key)) return { ok: true, cached: true };
+
+    const filePath = getDailyDateFilePath(roleName, dateStr);
+    const res = await fetchFile(filePath);
+    if (res.authError) return { ok: false, authError: true };
+    if (res.error) return { ok: false, error: true };
+
+    const isHeng = (roleName !== '亲亲');
+    const targetData = isHeng ? dataH : dataQ;
+    if (res.sha) dailyFileShas[filePath] = res.sha;
+
+    if (res.data && Array.isArray(res.data.records)) {
+        // 用云端该日期文件更新本地内存中该日期的记录
+        const others = (targetData.records || []).filter(r => r.date !== dateStr);
+        const incoming = res.data.records.map(r => ({ ...r, author: roleName, date: r.date || dateStr }));
+        targetData.records = [...incoming, ...others].sort((a, b) => (b.time || 0) - (a.time || 0));
+        if (!targetData.dateIndex) targetData.dateIndex = {};
+        if (incoming.length > 0) {
+            targetData.dateIndex[dateStr] = buildDateIndexMeta(incoming, res.data.planTitle || (incoming[0] && incoming[0].planTitle) || '');
+        }
+        saveLocalCache();
+    }
+    loadedDateKeys.add(key);
+    return { ok: true };
+}
+
 // ============================================================================
 // v10.0 核心引擎 5：健身房乐观 UI 防抖脏数据队列云同步引擎
 // ============================================================================
-let dirtySyncFlags = { dailyH: false, dailyQ: false, planH: false, planQ: false };
+let dirtySyncFlags = { dailyH: false, dailyQ: false, planH: false, planQ: false, dirtyDates: [] };
 let cloudSyncTimer = null;
 let isFlushingCloud = false;
 
@@ -6182,7 +7054,8 @@ function loadDirtySyncFlags() {
                 dailyH: !!parsed.dailyH,
                 dailyQ: !!parsed.dailyQ,
                 planH: !!parsed.planH,
-                planQ: !!parsed.planQ
+                planQ: !!parsed.planQ,
+                dirtyDates: Array.isArray(parsed.dirtyDates) ? parsed.dirtyDates : []
             };
         }
     } catch (e) {}
@@ -6194,8 +7067,21 @@ function saveDirtySyncFlags() {
     } catch (e) {}
 }
 
+function addDirtyDateFlag(roleName, dateStr) {
+    if (!dateStr) return;
+    if (!Array.isArray(dirtySyncFlags.dirtyDates)) dirtySyncFlags.dirtyDates = [];
+    const k = `${roleName}|${dateStr}`;
+    if (!dirtySyncFlags.dirtyDates.includes(k)) dirtySyncFlags.dirtyDates.push(k);
+}
+
+function removeDirtyDateFlag(roleName, dateStr) {
+    if (!Array.isArray(dirtySyncFlags.dirtyDates)) return;
+    const k = `${roleName}|${dateStr}`;
+    dirtySyncFlags.dirtyDates = dirtySyncFlags.dirtyDates.filter(x => x !== k);
+}
+
 function hasPendingDirtySync() {
-    return dirtySyncFlags.dailyH || dirtySyncFlags.dailyQ || dirtySyncFlags.planH || dirtySyncFlags.planQ;
+    return dirtySyncFlags.dailyH || dirtySyncFlags.dailyQ || dirtySyncFlags.planH || dirtySyncFlags.planQ || (Array.isArray(dirtySyncFlags.dirtyDates) && dirtySyncFlags.dirtyDates.length > 0);
 }
 
 function updateSyncBadgeUI(state, text) {
@@ -6251,6 +7137,17 @@ async function flushCloudSyncQueue(manualTrigger = false) {
     let allOk = true;
 
     try {
+        if (Array.isArray(dirtySyncFlags.dirtyDates) && dirtySyncFlags.dirtyDates.length > 0) {
+            const pendingList = [...dirtySyncFlags.dirtyDates];
+            for (const entryKey of pendingList) {
+                const [rName, dStr] = entryKey.split('|');
+                if (rName && dStr) {
+                    const res = await syncRoleDailyDateToCloud(rName, dStr);
+                    if (res && res.success) removeDirtyDateFlag(rName, dStr);
+                    else allOk = false;
+                }
+            }
+        }
         if (dirtySyncFlags.dailyH) {
             const res = await syncRoleDailyToCloud('哼哼');
             if (res.success) dirtySyncFlags.dailyH = false; else allOk = false;
@@ -6283,12 +7180,21 @@ async function flushCloudSyncQueue(manualTrigger = false) {
     }
 
     if (allOk && !hasPendingDirtySync()) {
-        updateSyncBadgeUI('synced', '☁️云端v10已同步');
+        clearCloudSyncError();
+        updateSyncBadgeUI('synced', '☁️云端已同步');
         if (manualTrigger) showToast('☁️ 云端数据已最新同步完成！');
         return true;
     } else {
-        updateSyncBadgeUI('offline', '📴离线已存(点此重连)');
-        if (manualTrigger) showToast('网络暂不可用，数据已安全保存在本地，联网后自动重传');
+        const isAuth = lastCloudSyncError && (lastCloudSyncError.status === 401 || lastCloudSyncError.status === 403);
+        updateSyncBadgeUI('offline', isAuth ? '🔐权限/Token异常(点此处理)' : '📴待补传(点此重试)');
+        if (manualTrigger) {
+            if (isAuth) {
+                openTokenModal(lastCloudSyncError.shortReason + '，请检查 Token 写入权限后重连');
+            } else {
+                const reason = lastCloudSyncError ? `（${lastCloudSyncError.shortReason}）` : '';
+                showToast(`云端同步失败${reason}，数据已安全保存在本地`);
+            }
+        }
         return false;
     }
 }
@@ -6297,18 +7203,117 @@ window.addEventListener('online', () => {
     if (hasPendingDirtySync()) flushCloudSyncQueue(false);
 });
 
+let isBlockingActionRunning = false;
+
+function showBlockingSaveModal(title, sub) {
+    const modal = document.getElementById('blockingSaveModal');
+    const tEl = document.getElementById('blockingSaveTitle');
+    const sEl = document.getElementById('blockingSaveSub');
+    if (tEl) tEl.innerText = title || '正在保存中...';
+    if (sEl) sEl.innerText = sub || '请稍候，保存完成前请勿操作';
+    if (modal) modal.classList.remove('hidden');
+}
+
+function hideBlockingSaveModal() {
+    const modal = document.getElementById('blockingSaveModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+async function withBlockingSave(title, sub, taskFn) {
+    if (isBlockingActionRunning) return;
+    isBlockingActionRunning = true;
+    showBlockingSaveModal(title, sub);
+    const startTs = Date.now();
+    try {
+        await taskFn();
+    } catch (err) {
+        console.error('withBlockingSave error:', err);
+        showToast(`⚠️ 保存过程发生异常：${(err && err.message) ? err.message : '未知错误'}`);
+    } finally {
+        const elapsed = Date.now() - startTs;
+        if (elapsed < 220) {
+            await new Promise(r => setTimeout(r, 220 - elapsed));
+        }
+        hideBlockingSaveModal();
+        isBlockingActionRunning = false;
+    }
+}
+
+async function commitSingleRoleSync(kind, roleName, dateStr) {
+    const isHeng = (roleName !== '亲亲');
+    const flagKey = (kind === 'plan') ? (isHeng ? 'planH' : 'planQ') : (isHeng ? 'dailyH' : 'dailyQ');
+    if (cloudSyncTimer) {
+        clearTimeout(cloudSyncTimer);
+        cloudSyncTimer = null;
+    }
+    if (!GITHUB_TOKEN) {
+        dirtySyncFlags[flagKey] = true;
+        if (dateStr) addDirtyDateFlag(roleName, dateStr);
+        saveDirtySyncFlags();
+        updateSyncBadgeUI('offline', '⚡本地已保存');
+        return false;
+    }
+    updateSyncBadgeUI('syncing', dateStr ? `⚡写入 ${dateStr}.json...` : '⚡同步云端中...');
+    let res;
+    if (kind === 'plan') {
+        res = await syncRolePlanToCloud(roleName);
+    } else if (dateStr) {
+        res = await syncRoleDailyDateToCloud(roleName, dateStr);
+    } else {
+        res = await syncRoleDailyToCloud(roleName);
+    }
+
+    if (res && res.success) {
+        dirtySyncFlags[flagKey] = false;
+        if (dateStr) removeDirtyDateFlag(roleName, dateStr);
+        saveDirtySyncFlags();
+        clearCloudSyncError();
+        updateSyncBadgeUI('synced', '☁️云端已同步');
+        return true;
+    } else if (res && res.authError) {
+        dirtySyncFlags[flagKey] = true;
+        if (dateStr && !res.partialDateSaved) addDirtyDateFlag(roleName, dateStr);
+        if (dateStr && res.partialDateSaved) removeDirtyDateFlag(roleName, dateStr);
+        saveDirtySyncFlags();
+        const isPerm = (res.status === 403);
+        updateSyncBadgeUI('offline', isPerm ? '🔐缺少写入权限(点此配置)' : '🔐Token失效(点此重连)');
+        openTokenModal(isPerm
+            ? 'GitHub 返回 403：当前 Token 缺少写入权限（请开启 repo 或 Contents: Read and write），数据已暂存本地'
+            : 'GitHub Token 已失效或过期 (401)，数据已暂存本地，请重新连接');
+        return false;
+    } else {
+        dirtySyncFlags[flagKey] = true;
+        if (dateStr && !res.partialDateSaved) addDirtyDateFlag(roleName, dateStr);
+        if (dateStr && res.partialDateSaved) removeDirtyDateFlag(roleName, dateStr);
+        saveDirtySyncFlags();
+        updateSyncBadgeUI('offline', '📴待补传(点此重试)');
+        return false;
+    }
+}
+
 async function syncRolePlanToCloud(roleName) {
     const isHeng = (roleName !== '亲亲');
     const targetData = isHeng ? dataH : dataQ;
     const planPath = isHeng ? FILE_PLAN_H : FILE_PLAN_Q;
-    // 先拉取最新 SHA 防止多端 409 冲突
-    const latestMeta = await fetchFile(planPath);
-    if (!latestMeta.error && !latestMeta.authError && latestMeta.sha) {
-        if (isHeng) shaPlanH = latestMeta.sha; else shaPlanQ = latestMeta.sha;
-    }
-    const curSha = isHeng ? shaPlanH : shaPlanQ;
+    let curSha = isHeng ? shaPlanH : shaPlanQ;
     const payload = buildPlanPayload(targetData);
-    const upRes = await updateFile(planPath, payload, curSha);
+
+    // 优先使用缓存 SHA 直接写入（省去一次网络往返，速度提升一倍）
+    if (!curSha) {
+        const meta = await fetchFile(planPath);
+        if (meta.authError) return { success: false, authError: true };
+        if (!meta.error && meta.sha) curSha = meta.sha;
+    }
+    let upRes = await updateFile(planPath, payload, curSha);
+    // 若遇 409/422 冲突，自动拉取最新 SHA 重试一次
+    if (!upRes.success && !upRes.authError && (upRes.status === 409 || upRes.status === 422)) {
+        const latestMeta = await fetchFile(planPath);
+        if (latestMeta.authError) return { success: false, authError: true };
+        if (!latestMeta.error) {
+            curSha = latestMeta.sha;
+            upRes = await updateFile(planPath, payload, curSha);
+        }
+    }
     if (upRes.success) {
         if (isHeng) shaPlanH = upRes.sha; else shaPlanQ = upRes.sha;
     }
@@ -6319,14 +7324,25 @@ async function syncRoleDailyToCloud(roleName) {
     const isHeng = (roleName !== '亲亲');
     const targetData = isHeng ? dataH : dataQ;
     const dailyPath = isHeng ? FILE_DAILY_H : FILE_DAILY_Q;
-    // 先拉取最新 SHA 防止多端 409 冲突
-    const latestMeta = await fetchFile(dailyPath);
-    if (!latestMeta.error && !latestMeta.authError && latestMeta.sha) {
-        if (isHeng) shaDailyH = latestMeta.sha; else shaDailyQ = latestMeta.sha;
-    }
-    const curSha = isHeng ? shaDailyH : shaDailyQ;
+    let curSha = isHeng ? shaDailyH : shaDailyQ;
     const payload = buildDailyPayload(targetData);
-    const upRes = await updateFile(dailyPath, payload, curSha);
+
+    // 优先使用缓存 SHA 直接写入（省去一次网络往返，速度提升一倍）
+    if (!curSha) {
+        const meta = await fetchFile(dailyPath);
+        if (meta.authError) return { success: false, authError: true };
+        if (!meta.error && meta.sha) curSha = meta.sha;
+    }
+    let upRes = await updateFile(dailyPath, payload, curSha);
+    // 若遇 409/422 冲突，自动拉取最新 SHA 重试一次
+    if (!upRes.success && !upRes.authError && (upRes.status === 409 || upRes.status === 422)) {
+        const latestMeta = await fetchFile(dailyPath);
+        if (latestMeta.authError) return { success: false, authError: true };
+        if (!latestMeta.error) {
+            curSha = latestMeta.sha;
+            upRes = await updateFile(dailyPath, payload, curSha);
+        }
+    }
     if (upRes.success) {
         if (isHeng) shaDailyH = upRes.sha; else shaDailyQ = upRes.sha;
     }
@@ -6359,20 +7375,50 @@ async function fetchAllData(isBg = false) {
         if (!isBg) openTokenModal('GitHub Token 已失效或过期，请重新输入并连接');
         return false;
     }
-    if (resPlanH.error || resPlanQ.error || resDailyH.error || resDailyQ.error) {
+    const curIsQ = (myIdentity === '亲亲');
+    const myRoleFailed = curIsQ ? (resPlanQ.error && resDailyQ.error) : (resPlanH.error && resDailyH.error);
+    if (myRoleFailed) {
         if (!isBg) showToast("云端连接暂不可用，已启用本地缓存（点右上角可重连）");
         isLoading = false;
         updateSyncBadgeUI('offline', '📴连接失败(点此重连)');
         return false;
     }
 
-    shaPlanH = resPlanH.sha;
-    shaPlanQ = resPlanQ.sha;
-    shaDailyH = resDailyH.sha;
-    shaDailyQ = resDailyQ.sha;
+    if (!resPlanH.error) shaPlanH = resPlanH.sha;
+    if (!resPlanQ.error) shaPlanQ = resPlanQ.sha;
+    if (!resDailyH.error) shaDailyH = resDailyH.sha;
+    if (!resDailyQ.error) shaDailyQ = resDailyQ.sha;
+
+    const prevRecsH = Array.isArray(dataH.records) ? dataH.records : [];
+    const prevRecsQ = Array.isArray(dataQ.records) ? dataQ.records : [];
+    const prevIdxH = (dataH.dateIndex && typeof dataH.dateIndex === 'object') ? { ...dataH.dateIndex } : {};
+    const prevIdxQ = (dataQ.dateIndex && typeof dataQ.dateIndex === 'object') ? { ...dataQ.dateIndex } : {};
+    const dirtyDateSet = new Set(Array.isArray(dirtySyncFlags.dirtyDates) ? dirtySyncFlags.dirtyDates : []);
 
     dataH = normalizeRoleData(resPlanH.data, '哼哼', resDailyH.data);
     dataQ = normalizeRoleData(resPlanQ.data, '亲亲', resDailyQ.data);
+
+    // 保留内存中已按日期拉取过或待补传的分片记录，防止刷新或轮询覆盖本地未上传数据
+    const mergePreserved = (freshRecs, prevRecs, roleName) => {
+        const map = new Map();
+        freshRecs.forEach(r => {
+            if (r) map.set(String(r.id || r.time), r);
+        });
+        prevRecs.forEach(r => {
+            const k = `${roleName}|${r && r.date}`;
+            if (r && (loadedDateKeys.has(k) || dirtyDateSet.has(k))) {
+                map.set(String(r.id || r.time), r);
+            }
+        });
+        return Array.from(map.values()).sort((a, b) => (b.time || 0) - (a.time || 0));
+    };
+    dataH.records = mergePreserved(dataH.records, prevRecsH, '哼哼');
+    dataQ.records = mergePreserved(dataQ.records, prevRecsQ, '亲亲');
+    dirtyDateSet.forEach(k => {
+        const [rName, dStr] = k.split('|');
+        if (rName === '哼哼' && prevIdxH[dStr]) dataH.dateIndex[dStr] = prevIdxH[dStr];
+        if (rName === '亲亲' && prevIdxQ[dStr]) dataQ.dateIndex[dStr] = prevIdxQ[dStr];
+    });
 
     const storedId = localStorage.getItem('loveGacha_myIdentity');
     if (storedId === '哼哼' || storedId === '亲亲') {
@@ -6382,15 +7428,26 @@ async function fetchAllData(isBg = false) {
         localStorage.setItem('loveGacha_myIdentity', myIdentity);
     }
 
+    // 启动时按日期自动加载今天与当前选中日期的分片文件（防止全量下载过大）
+    const activeDateToFetch = (document.getElementById('logDateInput') && document.getElementById('logDateInput').value) || todayStr;
+    await Promise.all([
+        fetchRoleDateFromCloud(myIdentity, todayStr, !isBg),
+        activeDateToFetch !== todayStr ? fetchRoleDateFromCloud(myIdentity, activeDateToFetch, false) : Promise.resolve(),
+        (logbookSelectedDate && logbookSelectedDate !== todayStr && logbookSelectedDate !== activeDateToFetch)
+            ? fetchRoleDateFromCloud(myIdentity, logbookSelectedDate, false)
+            : Promise.resolve()
+    ]);
+
     saveLocalCache();
     isLoading = false;
-    updateSyncBadgeUI('synced', '☁️云端v10已同步');
+    updateSyncBadgeUI('synced', '☁️云端按日期已同步');
     return true;
 }
 
 function startPolling() {
     if (pollInterval) clearInterval(pollInterval);
     pollInterval = setInterval(async () => {
+        if (isBlockingActionRunning || isFlushingCloud || hasPendingDirtySync()) return;
         if (await fetchAllData(true)) {
             lockReadonlyIdentityUI();
             renderFollowView();
@@ -6559,25 +7616,41 @@ function toggleRoleViewMode() {
 }
 
 async function deleteRecord(recId, author, modalDateStr) {
-    await fetchAllData(true);
-    const isHeng = (author !== '亲亲');
-    const targetData = isHeng ? dataH : dataQ;
+    if (!confirm('确定要删除这条训练记录吗？')) return;
+    await withBlockingSave('正在删除记录...', '正在更新本地并同步云端，请稍候', async () => {
+        const isHeng = (author !== '亲亲');
+        const roleName = isHeng ? '哼哼' : '亲亲';
+        const targetData = isHeng ? dataH : dataQ;
+        const removedRec = (targetData.records || []).find(r => String(r.id || r.time) === String(recId));
 
-    const backup = [...(targetData.records || [])];
-    targetData.records = (targetData.records || []).filter(r => String(r.id || r.time) !== String(recId));
-    targetData.updatedAt = Date.now();
+        targetData.records = (targetData.records || []).filter(r => String(r.id || r.time) !== String(recId));
+        targetData.dailyUpdatedAt = Date.now();
+        targetData.updatedAt = Date.now();
 
-    const upRes = await syncRoleDailyToCloud(isHeng ? '哼哼' : '亲亲');
-    if (upRes.success || !GITHUB_TOKEN) {
+        // 若删的是今天跟练列表中的动作，允许重新保存
+        if (removedRec && removedRec.date === (document.getElementById('logDateInput').value || todayStr)) {
+            (followSession.items || []).forEach(it => {
+                if (it.exId === removedRec.exerciseId) it.savedToCloud = false;
+            });
+        }
         saveLocalCache();
+
+        const delDate = (removedRec && removedRec.date) || modalDateStr || logbookSelectedDate || todayStr;
+        if (!targetData.dateIndex) targetData.dateIndex = {};
+        const leftDayRecs = (targetData.records || []).filter(r => r.date === delDate);
+        if (leftDayRecs.length > 0) targetData.dateIndex[delDate] = buildDateIndexMeta(leftDayRecs, '');
+        else delete targetData.dateIndex[delDate];
+        saveLocalCache();
+        const syncOk = await commitSingleRoleSync('daily', roleName, delDate);
         renderFollowView();
         renderRecordsView();
-        if (modalDateStr) showDayDetail(modalDateStr);
-        showToast("已删除该条记录");
-    } else {
-        targetData.records = backup;
-        showToast("删除失败，请重试");
-    }
+        if (modalDateStr) {
+            const left = getAllMergedRecords().filter(r => r.date === modalDateStr && (!showOnlyCurrentRoleInLog || r.author === myIdentity));
+            if (left.length > 0) showDayDetail(modalDateStr);
+            else closeDayDetailModal();
+        }
+        showToast(syncOk ? '✅ 已删除该条记录并同步云端' : '⚡ 已在本地删除（联网后自动同步）');
+    });
 }
 
 function getAllMergedRecords() {
@@ -6591,6 +7664,200 @@ function getAllMergedRecords() {
 // ============================================================================
 // 15. 打卡记录本：以天为单位聚合展示 + 点击打开当天详情弹窗
 // ============================================================================
+function shiftLogbookMonth(delta) {
+    if (delta === 0) {
+        const d = new Date();
+        logbookCalYear = d.getFullYear();
+        logbookCalMonth = d.getMonth();
+        selectLogbookCalendarDate(todayStr, false);
+        return;
+    }
+    logbookCalMonth += delta;
+    if (logbookCalMonth < 0) { logbookCalMonth = 11; logbookCalYear--; }
+    else if (logbookCalMonth > 11) { logbookCalMonth = 0; logbookCalYear++; }
+    renderMonthlyFitnessCalendar();
+}
+
+async function selectLogbookCalendarDate(dateStr, forceCloud = false) {
+    logbookSelectedDate = dateStr;
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+        logbookCalYear = parseInt(parts[0], 10);
+        logbookCalMonth = parseInt(parts[1], 10) - 1;
+    }
+    renderMonthlyFitnessCalendar();
+
+    const box = document.getElementById('dailyRecordsListContainer');
+    const titleEl = document.getElementById('logbookSelectedDateTitle');
+    const fileTagEl = document.getElementById('logbookCloudFileTag');
+    if (titleEl) titleEl.innerText = `${dateStr} 训练记录`;
+    if (fileTagEl) fileTagEl.innerText = getDailyDateFilePath(myIdentity, dateStr);
+
+    if (GITHUB_TOKEN && (forceCloud || !loadedDateKeys.has(`${myIdentity}|${dateStr}`) || (!showOnlyCurrentRoleInLog && !loadedDateKeys.has(`${myIdentity === '亲亲' ? '哼哼' : '亲亲'}|${dateStr}`)))) {
+        isLogbookDateLoading = true;
+        if (box) {
+            box.innerHTML = `<div class="py-6 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+                <div class="w-6 h-6 rounded-full border-2 border-slate-200 border-t-blue-600 animate-spin"></div>
+                <span>正在按日期从云端读取 ${dateStr}.json...</span>
+            </div>`;
+        }
+        const rolesToLoad = showOnlyCurrentRoleInLog ? [myIdentity] : ['哼哼', '亲亲'];
+        await Promise.all(rolesToLoad.map(r => fetchRoleDateFromCloud(r, dateStr, forceCloud)));
+        isLogbookDateLoading = false;
+    }
+
+    renderMonthlyFitnessCalendar();
+    renderLogbookSelectedDateRecords();
+}
+
+function renderMonthlyFitnessCalendar() {
+    const grid = document.getElementById('monthlyFitnessCalendarGrid');
+    const titleEl = document.getElementById('logbookMonthTitle');
+    if (!grid) return;
+
+    if (titleEl) titleEl.innerText = `${logbookCalYear}年${logbookCalMonth + 1}月`;
+
+    const firstDay = new Date(logbookCalYear, logbookCalMonth, 1);
+    const startOffset = (firstDay.getDay() + 6) % 7; // 周一=0 ... 周日=6
+    const daysInMonth = new Date(logbookCalYear, logbookCalMonth + 1, 0).getDate();
+
+    const cells = [];
+    for (let i = 0; i < startOffset; i++) {
+        cells.push('<div class="h-11 rounded-xl bg-slate-50/40"></div>');
+    }
+
+    let trainedDaysInMonth = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dStr = `${logbookCalYear}-${String(logbookCalMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const isToday = (dStr === todayStr);
+        const isSel = (dStr === logbookSelectedDate);
+        const info = getScheduledPlanTitleForDate(dStr, myIdentity);
+        if (info.completed) trainedDaysInMonth++;
+
+        let cellCls = 'bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-blue-50/50';
+        let labelCls = 'text-slate-400';
+        if (isSel) {
+            cellCls = 'bg-slate-900 border-slate-900 text-white shadow-sm ring-2 ring-blue-400/60';
+            labelCls = info.completed ? 'text-emerald-300 font-bold' : 'text-blue-200';
+        } else if (info.completed) {
+            cellCls = 'bg-emerald-50 border-emerald-300 text-emerald-900 font-bold';
+            labelCls = 'text-emerald-700 font-extrabold';
+        } else if (isToday) {
+            cellCls = 'bg-blue-50 border-blue-300 text-blue-900 font-bold';
+            labelCls = 'text-blue-600 font-bold';
+        }
+
+        const isPast = (dStr < todayStr);
+        const shortTag = info.completed ? (info.title || '已练').slice(0, 4) : (isPast ? '当日无训练' : '');
+        const tagSizeCls = info.completed ? 'text-[8.5px]' : 'text-[7.5px] tracking-tighter';
+        cells.push(`
+            <button type="button" onclick="selectLogbookCalendarDate('${dStr}', false)"
+                class="h-11 px-0.5 py-1 rounded-xl border flex flex-col items-center ${shortTag ? 'justify-between' : 'justify-center'} transition active:scale-95 overflow-hidden ${cellCls}">
+                <span class="text-[10.5px] leading-none font-bold">${d}${isToday ? '·今' : ''}</span>
+                ${shortTag ? `<span class="${tagSizeCls} leading-tight truncate w-full text-center ${labelCls}">${shortTag}</span>` : ''}
+            </button>
+        `);
+    }
+
+    grid.innerHTML = cells.join('');
+    const statEl = document.getElementById('statSummaryText');
+    if (statEl) {
+        statEl.innerText = `${logbookCalYear}年${logbookCalMonth + 1}月已打卡 ${trainedDaysInMonth} 天 · 点击日期按需读取`;
+    }
+}
+
+function renderLogbookSelectedDateRecords() {
+    const dateStr = logbookSelectedDate || todayStr;
+    const titleEl = document.getElementById('logbookSelectedDateTitle');
+    const subEl = document.getElementById('logbookSelectedDateSub');
+    const fileTagEl = document.getElementById('logbookCloudFileTag');
+    const box = document.getElementById('dailyRecordsListContainer');
+    if (!box) return;
+
+    if (titleEl) titleEl.innerText = `${dateStr} 训练记录`;
+    if (fileTagEl) fileTagEl.innerText = getDailyDateFilePath(myIdentity, dateStr);
+
+    const all = getAllMergedRecords().filter(r => r.date === dateStr);
+    const list = showOnlyCurrentRoleInLog ? all.filter(r => r.author === myIdentity) : all;
+    const planInfo = getScheduledPlanTitleForDate(dateStr, myIdentity);
+
+    if (!list.length) {
+        const isPastSel = (dateStr < todayStr);
+        const isTodaySel = (dateStr === todayStr);
+        if (subEl) subEl.innerText = isPastSel ? `${dateStr} 当日无训练` : `${dateStr} 暂无训练记录`;
+        box.innerHTML = `
+            <div class="text-center py-5 space-y-2 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                <div class="text-xs font-bold text-slate-500">${dateStr} ${isPastSel ? '当日无训练' : '尚无训练记录'}</div>
+                <div class="text-[10.5px] text-slate-400">${isTodaySel ? '今天还未开始训练，可前往跟练页开启今日训练' : '非今天日期仅支持查看历史记录，无法补练或提前训练'}</div>
+                ${isTodaySel ? `
+                <button type="button" onclick="selectWeekDate('${todayStr}'); switchMainTab('follow');" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white text-[11px] font-bold active:scale-95">
+                    前往今天开始训练 →
+                </button>` : ''}
+            </div>
+        `;
+        return;
+    }
+
+    const totalSets = list.reduce((s, r) => s + (Number(r.sets) || 0), 0);
+    const totalVol = list.reduce((s, r) => s + (Number(r.volume) || 0), 0);
+    const sumExSec = list.reduce((s, r) => s + (Number(r.exerciseDurationSec) || 0), 0);
+    const sumRestSec = list.reduce((s, r) => s + (Number(r.totalRestSec) || 0), 0);
+    const maxSessSec = Math.max(0, ...list.map(r => Number(r.sessionTotalSec) || 0));
+    const dayTotalSec = Math.max(maxSessSec, sumExSec);
+
+    if (subEl) {
+        subEl.innerText = `${planInfo.fullTitle ? planInfo.fullTitle + ' · ' : ''}${list.length}项 · ${totalSets}组 · ${Math.round(totalVol)}kg${dayTotalSec > 0 ? ` · 总时${formatDurationCN(dayTotalSec)}` : ''}${sumRestSec > 0 ? ` · 间歇${formatDurationCN(sumRestSec)}` : ''}`;
+    }
+
+    box.innerHTML = list.map((r, i) => {
+        const isQin = (r.author === '亲亲');
+        const tagCls = isQin ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-600 border-blue-200';
+        const u = r.unit || '次';
+        const hasTimings = Array.isArray(r.setTimings) && r.setTimings.length > 0;
+        const timeBadgesHtml = (r.exerciseDurationSec > 0 || r.totalRestSec > 0 || r.sessionTotalSec > 0) ? `
+            <div class="flex flex-wrap items-center gap-1 mt-1 text-[10px]">
+                ${r.exerciseDurationSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">动作耗时 ${formatDurationCN(r.exerciseDurationSec)}</span>` : ''}
+                ${r.totalRestSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold">间歇 ${formatDurationCN(r.totalRestSec)}</span>` : ''}
+                ${r.sessionTotalSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-medium">总计时 ${formatDurationCN(r.sessionTotalSec)}</span>` : ''}
+            </div>
+        ` : '';
+
+        const setTimingsHtml = hasTimings ? `
+            <div class="mt-1.5 pt-1.5 border-t border-slate-200/80 space-y-1">
+                ${r.setTimings.map(st => `
+                    <div class="flex items-center justify-between text-[10px] bg-white px-2 py-1 rounded-lg border border-slate-200/70">
+                        <span class="font-bold text-slate-700">${st.type}${st.setNo} · ${st.weight > 0 ? st.weight + 'kg' : '自重'}×${st.reps}${u}</span>
+                        <span class="text-slate-500">练<strong class="text-emerald-600">${formatDurationCN(st.trainSec)}</strong>${st.restSec > 0 ? ` · 休<strong class="text-amber-600">${formatDurationCN(st.restSec)}</strong>` : ''}</span>
+                    </div>
+                `).join('')}
+            </div>
+        ` : (r.note ? `<div class="text-[11px] text-slate-500 mt-0.5 truncate">明细：${r.note}</div>` : '');
+
+        return `
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="flex items-start justify-between gap-2">
+                    <div onclick="openExerciseAnimModal('${r.exerciseId}')" class="min-w-0 flex-1 cursor-pointer overflow-hidden">
+                        <div class="flex items-center gap-1 whitespace-nowrap">
+                            <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold shrink-0 ${tagCls}">${r.author}</span>
+                            <span class="text-xs font-bold text-slate-900 hover:text-blue-600 underline decoration-dotted truncate">${i + 1}. ${cleanDisplayExName(r.exerciseName)}</span>
+                        </div>
+                        <div class="text-xs font-bold text-blue-700 mt-1 whitespace-nowrap">
+                            ${r.sets} 组 × ${r.reps} ${u} × ${r.weight > 0 ? r.weight + ' kg' : '自重'}
+                            ${r.volume > 0 ? `<span class="text-[10px] font-normal text-slate-400 ml-1">(容量 ${r.volume}kg)</span>` : ''}
+                        </div>
+                        ${timeBadgesHtml}
+                    </div>
+                    ${r.author === myIdentity ? `
+                    <button type="button" onclick="event.stopPropagation(); deleteRecord('${r.id || r.time}', '${r.author}', '${dateStr}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-xs shrink-0 active:scale-95 transition">
+                        删除
+                    </button>` : ''}
+                </div>
+                ${setTimingsHtml}
+            </div>
+        `;
+    }).join('');
+}
+
 function renderRecordsView() {
     updateWeeklyVolumeDashboard();
     const all = getAllMergedRecords();
@@ -6598,60 +7865,18 @@ function renderRecordsView() {
 
     const todayCnt = roleFiltered.filter(r => r.date === todayStr).length;
     const badge = document.getElementById('todayCountBadge');
-    badge.innerText = todayCnt;
-    badge.classList.toggle('hidden', todayCnt === 0);
-
-    const dayMap = new Map();
-    roleFiltered.forEach(r => {
-        const d = r.date || todayStr;
-        if (!dayMap.has(d)) {
-            dayMap.set(d, { date: d, items: [], totalSets: 0, totalVolume: 0, authors: new Set() });
-        }
-        const g = dayMap.get(d);
-        g.items.push(r);
-        g.totalSets += (Number(r.sets) || 0);
-        g.totalVolume += (Number(r.volume) || 0);
-        g.authors.add(r.author);
-    });
-
-    const daysArr = Array.from(dayMap.values()).sort((a, b) => b.date.localeCompare(a.date));
-    document.getElementById('statSummaryText').innerText =
-        `累计 ${daysArr.length} 天 · 共 ${roleFiltered.length} 项记录（点击日期查看详情）`;
-
-    const box = document.getElementById('dailyRecordsListContainer');
-    if (daysArr.length === 0) {
-        box.innerHTML = `<div class="text-center py-6 text-xs text-slate-400">暂无打卡记录，请在「跟练打卡」页完成训练打卡</div>`;
-        return;
+    if (badge) {
+        badge.innerText = todayCnt;
+        badge.classList.toggle('hidden', todayCnt === 0);
     }
 
-    box.innerHTML = daysArr.map(dayGroup => {
-        const isToday = (dayGroup.date === todayStr);
-        const sampleNames = dayGroup.items.slice(0, 2).map(i => cleanDisplayExName(i.exerciseName)).join('、');
-        const authorBadges = Array.from(dayGroup.authors).map(au =>
-            `<span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${au === '亲亲' ? 'bg-rose-50 text-rose-600' : 'bg-blue-50 text-blue-600'}">${au}</span>`
-        ).join(' ');
-
-        return `
-            <div onclick="showDayDetail('${dayGroup.date}')" class="p-2.5 rounded-xl bg-slate-50 hover:bg-blue-50/40 border border-slate-200 cursor-pointer transition flex items-center justify-between gap-2 whitespace-nowrap">
-                <div class="min-w-0 flex-1 overflow-hidden">
-                    <div class="flex items-center gap-1">
-                        <span class="text-xs font-bold text-slate-900">${dayGroup.date}</span>
-                        ${isToday ? '<span class="px-1.5 py-0.2 bg-blue-600 text-white rounded text-[10px] font-bold">今天</span>' : ''}
-                        ${authorBadges}
-                    </div>
-                    <div class="text-[11px] text-slate-500 mt-0.5 truncate">
-                        ${sampleNames}${dayGroup.items.length > 2 ? ` 等 ${dayGroup.items.length} 项` : ''}
-                    </div>
-                </div>
-                <div class="text-right shrink-0">
-                    <div class="text-xs font-bold text-slate-800">${dayGroup.items.length}项 · ${dayGroup.totalSets}组</div>
-                    <div class="text-[10px] text-blue-600 font-medium">容量 ${Math.round(dayGroup.totalVolume)}kg &rarr;</div>
-                </div>
-            </div>
-        `;
-    }).join('');
+    renderMonthlyFitnessCalendar();
+    if (!isLogbookDateLoading) {
+        renderLogbookSelectedDateRecords();
+    }
 }
 
+function openDayDetailModal(dateStr) { showDayDetail(dateStr); }
 function showDayDetail(dateStr) {
     const all = getAllMergedRecords().filter(r => r.date === dateStr);
     const list = showOnlyCurrentRoleInLog ? all.filter(r => r.author === myIdentity) : all;
@@ -6665,33 +7890,60 @@ function showDayDetail(dateStr) {
 
     const totalSets = list.reduce((s, r) => s + (Number(r.sets) || 0), 0);
     const totalVol = list.reduce((s, r) => s + (Number(r.volume) || 0), 0);
+    const sumExSec = list.reduce((s, r) => s + (Number(r.exerciseDurationSec) || 0), 0);
+    const sumRestSec = list.reduce((s, r) => s + (Number(r.totalRestSec) || 0), 0);
+    const maxSessSec = Math.max(0, ...list.map(r => Number(r.sessionTotalSec) || 0));
+    const dayTotalSec = Math.max(maxSessSec, sumExSec);
 
     document.getElementById('dayDetailModalTitle').innerText = `${dateStr} 训练记录详情`;
     document.getElementById('dayDetailModalSub').innerText =
-        `共完成 ${list.length} 个动作 · 合计 ${totalSets} 组 · 总容量 ${Math.round(totalVol)} kg`;
+        `${list.length}动作 · ${totalSets}组 · ${Math.round(totalVol)}kg${dayTotalSec > 0 ? ` · 总时${formatDurationCN(dayTotalSec)}` : ''}${sumRestSec > 0 ? ` · 间歇${formatDurationCN(sumRestSec)}` : ''}`;
 
     const bodyEl = document.getElementById('dayDetailModalBody');
     bodyEl.innerHTML = list.map((r, i) => {
         const isQin = (r.author === '亲亲');
         const tagCls = isQin ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-blue-50 text-blue-600 border-blue-200';
         const u = r.unit || '次';
+        const hasTimings = Array.isArray(r.setTimings) && r.setTimings.length > 0;
+        const timeBadgesHtml = (r.exerciseDurationSec > 0 || r.totalRestSec > 0 || r.sessionTotalSec > 0) ? `
+            <div class="flex flex-wrap items-center gap-1 mt-1 text-[10px]">
+                ${r.exerciseDurationSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-bold">动作耗时 ${formatDurationCN(r.exerciseDurationSec)}</span>` : ''}
+                ${r.totalRestSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 font-bold">间歇 ${formatDurationCN(r.totalRestSec)}</span>` : ''}
+                ${r.sessionTotalSec > 0 ? `<span class="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200 font-medium">总计时 ${formatDurationCN(r.sessionTotalSec)}</span>` : ''}
+            </div>
+        ` : '';
+
+        const setTimingsHtml = hasTimings ? `
+            <div class="mt-1.5 pt-1.5 border-t border-slate-200/80 space-y-1">
+                ${r.setTimings.map(st => `
+                    <div class="flex items-center justify-between text-[10px] bg-white px-2 py-1 rounded-lg border border-slate-200/70">
+                        <span class="font-bold text-slate-700">${st.type}${st.setNo} · ${st.weight > 0 ? st.weight + 'kg' : '自重'}×${st.reps}${u}</span>
+                        <span class="text-slate-500">练<strong class="text-emerald-600">${formatDurationCN(st.trainSec)}</strong>${st.restSec > 0 ? ` · 休<strong class="text-amber-600">${formatDurationCN(st.restSec)}</strong>` : ''}</span>
+                    </div>
+                `).join('')}
+            </div>
+        ` : (r.note ? `<div class="text-[11px] text-slate-500 mt-0.5 truncate">明细：${r.note}</div>` : '');
+
         return `
-            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-2">
-                <div onclick="closeDayDetailModal(); openExerciseAnimModal('${r.exerciseId}')" class="min-w-0 flex-1 cursor-pointer overflow-hidden">
-                    <div class="flex items-center gap-1 whitespace-nowrap">
-                        <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold shrink-0 ${tagCls}">${r.author}</span>
-                        <span class="text-xs font-bold text-slate-900 hover:text-blue-600 underline decoration-dotted truncate">${i + 1}. ${cleanDisplayExName(r.exerciseName)}</span>
+            <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                <div class="flex items-start justify-between gap-2">
+                    <div onclick="closeDayDetailModal(); openExerciseAnimModal('${r.exerciseId}')" class="min-w-0 flex-1 cursor-pointer overflow-hidden">
+                        <div class="flex items-center gap-1 whitespace-nowrap">
+                            <span class="px-1.5 py-0.5 rounded border text-[10px] font-bold shrink-0 ${tagCls}">${r.author}</span>
+                            <span class="text-xs font-bold text-slate-900 hover:text-blue-600 underline decoration-dotted truncate">${i + 1}. ${cleanDisplayExName(r.exerciseName)}</span>
+                        </div>
+                        <div class="text-xs font-bold text-blue-700 mt-1 whitespace-nowrap">
+                            ${r.sets} 组 × ${r.reps} ${u} × ${r.weight > 0 ? r.weight + ' kg' : '自重'}
+                            ${r.volume > 0 ? `<span class="text-[10px] font-normal text-slate-400 ml-1">(容量 ${r.volume}kg)</span>` : ''}
+                        </div>
+                        ${timeBadgesHtml}
                     </div>
-                    <div class="text-xs font-bold text-blue-700 mt-1 whitespace-nowrap">
-                        ${r.sets} 组 × ${r.reps} ${u} × ${r.weight > 0 ? r.weight + ' kg' : '自重'}
-                        ${r.volume > 0 ? `<span class="text-[10px] font-normal text-slate-400 ml-1">(容量 ${r.volume}kg)</span>` : ''}
-                    </div>
-                    ${r.note ? `<div class="text-[11px] text-slate-500 mt-0.5 truncate">明细：${r.note}</div>` : ''}
+                    ${r.author === myIdentity ? `
+                    <button type="button" onclick="event.stopPropagation(); deleteRecord('${r.id || r.time}', '${r.author}', '${dateStr}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-600 font-bold text-xs shrink-0 active:scale-95 transition">
+                        删除
+                    </button>` : ''}
                 </div>
-                ${r.author === myIdentity ? `
-                <button onclick="deleteRecord('${r.id || r.time}', '${r.author}', '${dateStr}')" class="px-2 py-1 rounded bg-white border border-slate-200 text-slate-400 hover:text-rose-500 text-xs shrink-0">
-                    删除
-                </button>` : ''}
+                ${setTimingsHtml}
             </div>
         `;
     }).join('');
@@ -6926,57 +8178,44 @@ async function saveModalPlanToCloud(event) {
     if (!nameVal) { showToast('请输入计划名称'); return; }
     if (!editingPlanObj.items.length) { showToast('请至少添加 1 个动作'); return; }
 
-    const btn = document.getElementById('saveModalPlanBtn');
-    if (btn) { btn.innerText = '保存中...'; btn.disabled = true; }
-
     const planToSave = JSON.parse(JSON.stringify(editingPlanObj));
     planToSave.name = nameVal;
 
-    await fetchAllData(true);
-
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-
-    if (!myData.plans) myData.plans = [];
-    const existingIdx = myData.plans.findIndex(p => p.id === planToSave.id);
-    if (existingIdx >= 0) myData.plans[existingIdx] = planToSave;
-    else myData.plans.unshift(planToSave);
-    myData.updatedAt = Date.now();
-
-    const upRes = await syncRolePlanToCloud(myIdentity);
-    if (upRes.success || !GITHUB_TOKEN) {
+    await withBlockingSave('正在保存训练计划...', '正在同步至云端，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        if (!myData.plans) myData.plans = [];
+        const existingIdx = myData.plans.findIndex(p => p.id === planToSave.id);
+        if (existingIdx >= 0) myData.plans[existingIdx] = planToSave;
+        else myData.plans.unshift(planToSave);
+        myData.updatedAt = Date.now();
         saveLocalCache();
+
+        const syncOk = await commitSingleRoleSync('plan', myIdentity);
         closePlanDetailModal();
         renderPlansSubView();
         initFollowSessionFromPlan(planToSave.id);
-        showToast("计划已保存至云端");
-    } else {
-        showToast("保存失败，请重试");
-    }
-    if (btn) { btn.innerText = '保存计划到云端'; btn.disabled = false; }
+        showToast(syncOk ? '✅ 计划已保存并同步云端' : '⚡ 计划已保存至本地');
+    });
 }
 
 async function deletePlan(planId) {
-    await fetchAllData(true);
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-
-    myData.plans = (myData.plans || []).filter(p => p.id !== planId);
-    myData.updatedAt = Date.now();
-
-    const upRes = await syncRolePlanToCloud(myIdentity);
-    if (upRes.success || !GITHUB_TOKEN) {
+    if (!confirm('确定要删除这个训练计划吗？')) return;
+    await withBlockingSave('正在删除训练计划...', '正在同步至云端，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        myData.plans = (myData.plans || []).filter(p => p.id !== planId);
+        myData.updatedAt = Date.now();
         saveLocalCache();
+
+        const syncOk = await commitSingleRoleSync('plan', myIdentity);
         renderPlansSubView();
         initFollowSessionFromPlan('');
-        showToast("计划已删除并同步云端");
-    } else {
-        showToast("删除失败，请重试");
-    }
+        showToast(syncOk ? '✅ 计划已删除并同步云端' : '⚡ 计划已在本地删除');
+    });
 }
 
 async function addCurrentExToMyPlanQuick() {
     const ex = getCurrentEx();
     if (!ex) return;
-    await fetchAllData(true);
 
     const myData = myIdentity === '哼哼' ? dataH : dataQ;
 
@@ -7034,49 +8273,43 @@ async function saveCustomExerciseToCloud(event) {
 
     if (!name) { showToast('请输入动作名称'); return; }
 
-    const btn = event && event.currentTarget ? event.currentTarget : null;
-    if (btn) { btn.innerText = '保存中...'; btn.disabled = true; }
+    await withBlockingSave(`正在保存动作「${name}」...`, '正在同步至动作库，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        const defaultAnimMap = { warmup: 'warmup_open_chest', back: 'cable_row', legs: 'smith_squat', chest: 'chest_press', core: 'plank', stretch: 'stretch_chest' };
+        const chosenAnim = (animSelEl && animSelEl.value) ? animSelEl.value : (defaultAnimMap[part] || 'cable_row');
 
-    await fetchAllData(true);
+        const newEx = {
+            id: `custom_${Date.now()}`,
+            isCustom: true,
+            creator: myIdentity,
+            part,
+            animType: chosenAnim,
+            shortTab: name,
+            name: name,
+            target,
+            defaultSets: sets,
+            defaultReps: reps,
+            unit: '次',
+            weightHeng: weight,
+            weightQin: weight,
+            hintHeng: `哼哼推荐：${weight > 0 ? weight + ' kg' : '自重'} × ${reps}次（共${sets}组）`,
+            hintQin: `亲亲推荐：${weight > 0 ? weight + ' kg' : '自重'} × ${reps}次（共${sets}组）`,
+            steps: [
+                `准备姿势：调整器械与站坐姿，稳定核心，使 ${target} 预先建立张力。`,
+                `向心发力：吐气发力带动负重移动，专注感受 ${target} 主动收缩。`,
+                `顶峰收缩：在动作终点停顿 1 秒挤压目标肌群。`,
+                `离心回放：吸气用 2~3 秒缓慢控制还原，保持肌肉持续张力。`
+            ],
+            explanation: desc,
+            precautions: prec
+        };
 
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-
-    const defaultAnimMap = { warmup: 'warmup_open_chest', back: 'cable_row', legs: 'smith_squat', chest: 'chest_press', core: 'plank', stretch: 'stretch_chest' };
-    const chosenAnim = (animSelEl && animSelEl.value) ? animSelEl.value : (defaultAnimMap[part] || 'cable_row');
-
-    const newEx = {
-        id: `custom_${Date.now()}`,
-        isCustom: true,
-        creator: myIdentity,
-        part,
-        animType: chosenAnim,
-        shortTab: name,
-        name: name,
-        target,
-        defaultSets: sets,
-        defaultReps: reps,
-        unit: '次',
-        weightHeng: weight,
-        weightQin: weight,
-        hintHeng: `哼哼推荐：${weight > 0 ? weight + ' kg' : '自重'} × ${reps}次（共${sets}组）`,
-        hintQin: `亲亲推荐：${weight > 0 ? weight + ' kg' : '自重'} × ${reps}次（共${sets}组）`,
-        steps: [
-            `准备姿势：调整器械与站坐姿，稳定核心，使 ${target} 预先建立张力。`,
-            `向心发力：吐气发力带动负重移动，专注感受 ${target} 主动收缩。`,
-            `顶峰收缩：在动作终点停顿 1 秒挤压目标肌群。`,
-            `离心回放：吸气用 2~3 秒缓慢控制还原，保持肌肉持续张力。`
-        ],
-        explanation: desc,
-        precautions: prec
-    };
-
-    if (!myData.customExercises) myData.customExercises = [];
-    myData.customExercises.push(newEx);
-    myData.updatedAt = Date.now();
-
-    const upRes = await syncRolePlanToCloud(myIdentity);
-    if (upRes.success || !GITHUB_TOKEN) {
+        if (!myData.customExercises) myData.customExercises = [];
+        myData.customExercises.push(newEx);
+        myData.updatedAt = Date.now();
         saveLocalCache();
+
+        const syncOk = await commitSingleRoleSync('plan', myIdentity);
         document.getElementById('custExName').value = '';
         document.getElementById('custExTarget').value = '';
         document.getElementById('custExDesc').value = '';
@@ -7084,12 +8317,8 @@ async function saveCustomExerciseToCloud(event) {
         selectedExByPart[part] = newEx.id;
         renderCustomExSubView();
         renderSingleActionView();
-        showToast(`已将动作「${name}」存入云端计划库`);
-    } else {
-        myData.customExercises.pop();
-        showToast("保存失败，请重试");
-    }
-    if (btn) { btn.innerText = '加入动作库并保存云端'; btn.disabled = false; }
+        showToast(syncOk ? `✅ 已将动作「${name}」存入云端` : `⚡ 已将动作「${name}」存入本地`);
+    });
 }
 
 function renderCustomExSubView() {
@@ -7109,21 +8338,18 @@ function renderCustomExSubView() {
 }
 
 async function deleteCustomEx(exId) {
-    await fetchAllData(true);
-    const myData = myIdentity === '哼哼' ? dataH : dataQ;
-
-    myData.customExercises = (myData.customExercises || []).filter(e => e.id !== exId);
-    myData.updatedAt = Date.now();
-
-    const upRes = await syncRolePlanToCloud(myIdentity);
-    if (upRes.success || !GITHUB_TOKEN) {
+    if (!confirm('确定要删除这个自建动作吗？')) return;
+    await withBlockingSave('正在删除自建动作...', '正在同步至云端，请稍候', async () => {
+        const myData = myIdentity === '哼哼' ? dataH : dataQ;
+        myData.customExercises = (myData.customExercises || []).filter(e => e.id !== exId);
+        myData.updatedAt = Date.now();
         saveLocalCache();
+
+        const syncOk = await commitSingleRoleSync('plan', myIdentity);
         renderCustomExSubView();
         renderSingleActionView();
-        showToast('已删除该自建动作');
-    } else {
-        showToast('删除失败，请重试');
-    }
+        showToast(syncOk ? '✅ 已删除该自建动作并同步云端' : '⚡ 已在本地删除该自建动作');
+    });
 }
 
 // ============================================================================
@@ -9438,11 +10664,18 @@ function startAnimationLoop() {
 function exportRecordsCSV() {
     const all = getAllMergedRecords();
     if (!all.length) { showToast('当前暂无打卡记录可导出'); return; }
-    const headers = ['日期', '打卡人', '部位', '动作名称', '组数', '次数或时长', '单位', '配重(kg)', '总容量(kg)', '训练备注'];
-    const rows = all.map(r => [
-        r.date, r.author, PART_NAMES[r.part] || r.part, `"${(r.exerciseName || '').replace(/"/g, '""')}"`,
-        r.sets, r.reps, r.unit || '次', r.weight, r.volume, `"${(r.note || '').replace(/"/g, '""')}"`
-    ]);
+    const headers = ['日期', '打卡人', '部位', '动作名称', '组数', '次数或时长', '单位', '配重(kg)', '总容量(kg)', '动作耗时(秒)', '纯训练时间(秒)', '累计间歇(秒)', '当次总时间(秒)', '每组时间明细', '训练备注'];
+    const rows = all.map(r => {
+        const stStr = Array.isArray(r.setTimings)
+            ? r.setTimings.map(s => `${s.type}${s.setNo}:${s.weight}kgx${s.reps}(练${s.trainSec}s/休${s.restSec}s)`).join(' | ')
+            : '';
+        return [
+            r.date, r.author, PART_NAMES[r.part] || r.part, `"${(r.exerciseName || '').replace(/"/g, '""')}"`,
+            r.sets, r.reps, r.unit || '次', r.weight, r.volume,
+            r.exerciseDurationSec || 0, r.totalTrainSec || 0, r.totalRestSec || 0, r.sessionTotalSec || 0,
+            `"${stStr.replace(/"/g, '""')}"`, `"${(r.note || '').replace(/"/g, '""')}"`
+        ];
+    });
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
