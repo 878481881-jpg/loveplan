@@ -337,6 +337,46 @@
         body > main::-webkit-scrollbar {
             display: none;
         }
+        @keyframes replayPop {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.14); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .replay-pulse-pin {
+            animation: replayPop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes replayRipple {
+            0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0.85; }
+            100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+        }
+        .replay-ripple-ring {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 34px;
+            height: 34px;
+            border-radius: 9999px;
+            border: 2.5px solid #f43f5e;
+            background: rgba(251, 113, 133, 0.22);
+            pointer-events: none;
+            animation: replayRipple 1.6s ease-out infinite;
+        }
+        .replay-dot-btn {
+            width: 7px;
+            height: 7px;
+            border-radius: 9999px;
+            background: #fecdd3;
+            transition: all 0.25s ease;
+            flex-shrink: 0;
+            cursor: pointer;
+        }
+        .replay-dot-btn.passed {
+            background: #fb7185;
+        }
+        .replay-dot-btn.active {
+            width: 18px;
+            background: linear-gradient(90deg, #0284c7, #f43f5e);
+        }
     </style>
 </head>
 
@@ -446,13 +486,22 @@
                     </div>
                 </div>
 
-                <!-- 地图右上角：显示城市按钮（省 / 省会 / 地级市）+ 奔赴航线 + 市界 -->
+                <!-- 地图右上角：显示城市按钮（省 / 省会 / 地级市）+ 时光回放 + 总结海报 + 航线/市界 -->
                 <div class="absolute top-2 right-2 z-20 flex flex-col items-end gap-1.5">
                     <div class="bg-white/95 backdrop-blur-md p-0.5 rounded-full shadow-sm border border-rose-100 flex items-center gap-0.5">
                         <span class="text-[10px] text-rose-400 font-bold pl-1.5 pr-0.5">城市</span>
                         <button id="lblBtnProv" onclick="toggleLabelMode('province')" class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all bg-rose-500 text-white shadow-xs">省</button>
                         <button id="lblBtnCap" onclick="toggleLabelMode('capital')" class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all text-gray-500 hover:bg-rose-50">省会</button>
                         <button id="lblBtnCity" onclick="toggleLabelMode('city')" class="px-2 py-0.5 rounded-full text-[10px] font-bold transition-all text-gray-500 hover:bg-rose-50">地级市</button>
+                    </div>
+
+                    <div class="flex items-center gap-1">
+                        <button onclick="startFootprintReplay()" class="px-2 py-1 bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-full shadow-xs flex items-center gap-1 font-bold text-[10px] active:scale-95 transition-all">
+                            <span>▶</span><span>回放足迹</span>
+                        </button>
+                        <button onclick="openAnnualReportModal()" class="px-2 py-1 bg-white/92 backdrop-blur-md rounded-full shadow-xs border border-rose-100 flex items-center gap-1 text-rose-500 font-bold text-[10px] active:scale-95 transition-all">
+                            <span>🎞️</span><span>海报</span>
+                        </button>
                     </div>
 
                     <div class="flex items-center gap-1">
@@ -472,11 +521,80 @@
                 </div>
 
                 <!-- 地图左下角快速搜索任意地级市定位 -->
-                <div class="absolute bottom-2.5 left-2.5 z-20">
+                <div id="mapSearchBoxWrap" class="absolute bottom-2.5 left-2.5 z-20">
                     <div class="relative flex items-center">
                         <input id="mapCitySearch" type="text" placeholder="🔍 搜地级市定位/打卡..." oninput="handleMapCitySearch(this.value)" class="w-36 focus:w-48 transition-all text-[11px] bg-white/95 backdrop-blur-md text-gray-700 placeholder-gray-400 rounded-full pl-2.5 pr-6 py-1.5 shadow-md border border-rose-100 focus:outline-none focus:border-rose-300">
                         <button id="clearMapSearchBtn" onclick="clearMapCitySearch()" class="hidden absolute right-2 text-gray-400 hover:text-rose-500 text-xs font-bold">×</button>
                         <div id="mapSearchDropdown" class="hidden absolute bottom-9 left-0 w-52 max-h-44 overflow-y-auto custom-scrollbar bg-white/98 backdrop-blur-md rounded-xl shadow-lg border border-rose-100 p-1 z-30"></div>
+                    </div>
+                </div>
+
+                <!-- 双向奔赴「时光回放」电影感悬浮控制 HUD -->
+                <div id="replayHud" class="hidden absolute bottom-2.5 left-2.5 right-2.5 z-30 bg-white/95 backdrop-blur-md rounded-2xl p-2.5 shadow-xl border-2 border-rose-200 animate-fade-in">
+                    <!-- 顶部：年份筛选 + 视角切换 + 退出 -->
+                    <div class="flex items-center justify-between gap-1.5 mb-1.5">
+                        <div id="replayYearTabs" class="flex items-center gap-1 overflow-x-auto custom-scrollbar flex-1"></div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button id="replayCamModeBtn" onclick="toggleReplayCameraMode()" title="切换全局/跟随视角" class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100 text-[10px] font-bold active:scale-95">🎯 跟随</button>
+                            <button onclick="stopFootprintReplay(true)" title="退出回放" class="w-5 h-5 rounded-full bg-gray-100 text-gray-500 text-xs font-bold flex items-center justify-center active:scale-90">×</button>
+                        </div>
+                    </div>
+
+                    <!-- 可点击跳转的站点进度条 -->
+                    <div class="w-full h-1 bg-rose-100 rounded-full overflow-hidden mb-1.5">
+                        <div id="replayProgressBar" class="h-full bg-gradient-to-r from-sky-400 via-rose-400 to-pink-500 transition-all duration-500 w-0"></div>
+                    </div>
+                    <div id="replayStepDots" class="flex items-center gap-1 overflow-x-auto custom-scrollbar mb-2 px-0.5"></div>
+
+                    <!-- 当前站照片 + 城市 + 本次奔赴里程 + 快捷相册 -->
+                    <div class="flex items-center gap-2.5">
+                        <img id="replayThumbImg" onclick="openReplayCurrentImage()" src="" title="点击查看大图" class="w-14 h-14 rounded-xl object-cover shrink-0 border-2 border-rose-100 shadow-xs cursor-zoom-in hidden">
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-1">
+                                <div class="flex items-center gap-1 min-w-0">
+                                    <span id="replayStepBadge" class="text-[10px] font-bold bg-rose-500 text-white px-2 py-0.5 rounded-full shrink-0">1/1</span>
+                                    <span id="replayCityTitle" class="text-xs font-extrabold text-rose-500 truncate">城市</span>
+                                </div>
+                                <span id="replayDateText" class="text-[10px] text-gray-400 font-mono shrink-0">2026-01-01</span>
+                            </div>
+                            <div id="replayTripDelta" class="flex items-center gap-1.5 mt-0.5 text-[10px] font-bold">
+                                <span class="text-sky-600">永安 +0km</span>
+                                <span class="text-gray-300">·</span>
+                                <span class="text-rose-500">东莞 +0km</span>
+                            </div>
+                            <div class="flex items-center justify-between gap-1 mt-0.5">
+                                <div id="replayStoryText" class="text-[10px] text-gray-500 truncate flex-1">回忆故事...</div>
+                                <button onclick="openReplayCityAlbum()" class="text-[10px] bg-rose-50 text-rose-500 border border-rose-100 px-1.5 py-0.5 rounded-full font-bold shrink-0 active:scale-95">📍 相册</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 底部：累计总奔赴里程 + 播放控制 -->
+                    <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-rose-50 gap-1.5">
+                        <div class="flex items-center gap-1.5 text-[10px] font-bold min-w-0">
+                            <span class="text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full truncate">👦 <span id="replayHengKm">0</span> km</span>
+                            <span class="text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full truncate">👧 <span id="replayQinKm">0</span> km</span>
+                        </div>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <button onclick="stepReplay(-1)" class="w-6 h-6 rounded-full bg-rose-50 text-rose-500 text-[11px] font-bold flex items-center justify-center active:scale-90">⏮</button>
+                            <button id="replayPauseBtn" onclick="toggleReplayPause()" class="w-7 h-6 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center active:scale-90">⏸</button>
+                            <button onclick="stepReplay(1)" class="w-6 h-6 rounded-full bg-rose-50 text-rose-500 text-[11px] font-bold flex items-center justify-center active:scale-90">⏭</button>
+                            <button id="replaySpeedBtn" onclick="toggleReplaySpeed()" class="px-1.5 h-6 rounded-full bg-rose-50 text-rose-500 text-[10px] font-bold flex items-center justify-center">1x</button>
+                        </div>
+                    </div>
+                </div>
+                    <div class="flex items-center justify-between mt-2 pt-1.5 border-t border-rose-50 gap-2">
+                        <div class="flex items-center gap-2 text-[10px] font-bold">
+                            <span class="text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">👦 <span id="replayHengKm">0</span> km</span>
+                            <span class="text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">👧 <span id="replayQinKm">0</span> km</span>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="stepReplay(-1)" class="w-6 h-6 rounded-full bg-rose-50 text-rose-500 text-[11px] font-bold flex items-center justify-center active:scale-90">⏮</button>
+                            <button id="replayPauseBtn" onclick="toggleReplayPause()" class="w-7 h-6 rounded-full bg-rose-500 text-white text-[11px] font-bold flex items-center justify-center active:scale-90">⏸</button>
+                            <button onclick="stepReplay(1)" class="w-6 h-6 rounded-full bg-rose-50 text-rose-500 text-[11px] font-bold flex items-center justify-center active:scale-90">⏭</button>
+                            <button id="replaySpeedBtn" onclick="toggleReplaySpeed()" class="px-1.5 h-6 rounded-full bg-rose-50 text-rose-500 text-[10px] font-bold flex items-center justify-center">1x</button>
+                            <button onclick="stopFootprintReplay(true)" class="w-6 h-6 rounded-full bg-gray-100 text-gray-500 text-xs font-bold flex items-center justify-center active:scale-90">×</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -487,7 +605,7 @@
 
         <!-- ==================== 视图 2：旅行手账（图文列表） ==================== -->
         <div id="wallView" class="w-full flex-1 min-h-0 flex flex-col hidden transition-opacity duration-300">
-            <div class="flex justify-between items-center mb-2.5 w-full bg-white/90 p-2 rounded-xl shadow-sm border border-rose-100 backdrop-blur-sm shrink-0 gap-2">
+            <div class="flex justify-between items-center mb-1.5 w-full bg-white/90 p-2 rounded-xl shadow-sm border border-rose-100 backdrop-blur-sm shrink-0 gap-2">
                 <div class="flex space-x-1 overflow-x-auto custom-scrollbar flex-1" id="provinceFilterTabs"></div>
 
                 <select id="sortSelect" onchange="renderWall()" class="text-xs bg-rose-50 border border-rose-100 text-rose-500 rounded-lg px-2 py-1.5 focus:outline-none focus:border-rose-300 shadow-sm shrink-0 font-medium">
@@ -495,6 +613,8 @@
                     <option value="likes">最多喜欢</option>
                 </select>
             </div>
+
+            <div id="wallTagFilterBar" class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar mb-2 px-0.5 shrink-0"></div>
 
             <div class="w-full flex-1 min-h-0 bg-white/60 p-2.5 rounded-2xl shadow-sm border border-rose-100/60 backdrop-blur-md overflow-y-auto custom-scrollbar">
                 <div id="photoGrid" class="w-full pb-6"></div>
@@ -505,16 +625,19 @@
         <div id="uploadView" class="w-full flex-1 min-h-0 flex flex-col hidden transition-opacity duration-300 overflow-y-auto custom-scrollbar pb-6">
             <div class="w-full bg-white/90 backdrop-blur-sm rounded-2xl p-4 sm:p-5 shadow-sm border-2 border-rose-100 shrink-0">
 
-                <div id="uploadArea" class="w-full h-44 border-2 border-dashed border-rose-300 rounded-xl bg-rose-50 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100 transition-colors mb-4 relative overflow-hidden" onclick="document.getElementById('imageInput').click()">
-                    <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none">
-                        <span class="text-3xl mb-1.5">📸</span>
-                        <span class="text-sm font-bold text-rose-400">点击选择旅行照片</span>
-                        <span class="text-[11px] text-rose-300 mt-0.5">自动生成苹果地图缩略图与高清原图</span>
-                    </div>
-                    <img id="imagePreview" class="hidden absolute inset-0 w-full h-full object-cover z-10">
-                    <button id="clearImageBtn" onclick="clearImage(event)" class="hidden absolute top-2 right-2 bg-white/90 text-rose-500 rounded-full w-8 h-8 flex items-center justify-center shadow-md font-bold z-20 hover:bg-rose-500 hover:text-white transition-colors backdrop-blur-sm">×</button>
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-xs font-bold text-gray-600">旅行照片（支持一次多选，最多9张）</span>
+                    <span id="uploadPhotoCountLabel" class="text-[11px] font-bold text-rose-400">0/9 张</span>
                 </div>
-                <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="handleImageSelect(event)">
+                <div id="uploadArea" class="w-full min-h-[148px] border-2 border-dashed border-rose-300 rounded-xl bg-rose-50/70 flex flex-col items-center justify-center cursor-pointer hover:bg-rose-100/70 transition-colors mb-4 relative overflow-hidden p-2.5" onclick="document.getElementById('imageInput').click()">
+                    <div id="uploadPlaceholder" class="flex flex-col items-center pointer-events-none py-6">
+                        <span class="text-3xl mb-1.5">📸</span>
+                        <span class="text-sm font-bold text-rose-400">点击选择旅行照片（支持多选）</span>
+                        <span class="text-[11px] text-rose-300 mt-0.5">第 1 张作为封面，自动生成地图缩略图与高清原图</span>
+                    </div>
+                    <div id="uploadPreviewGrid" class="hidden w-full grid grid-cols-3 gap-2"></div>
+                </div>
+                <input type="file" id="imageInput" accept="image/*" multiple class="hidden" onchange="handleImageSelect(event)">
 
                 <div class="space-y-3.5">
                     <div class="flex items-center justify-between border-b border-rose-100 pb-2.5">
@@ -548,12 +671,22 @@
                         <input type="date" id="formTripDate" class="text-xs sm:text-sm bg-rose-50 border border-rose-200 text-rose-500 rounded-lg px-2.5 py-1 focus:outline-none focus:border-rose-400 font-bold">
                     </div>
 
+                    <div class="border-b border-rose-100 pb-2.5">
+                        <span class="text-sm font-bold text-gray-600 block mb-1.5">城市私藏标签 🏷️（可多选）</span>
+                        <div id="uploadTagsWrap" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
                     <div>
                         <div class="flex items-center justify-between mb-1">
                             <span class="text-sm font-bold text-gray-600">旅行故事 / 文字描述 ✍️</span>
                             <span id="descCount" class="text-[11px] text-gray-400">0/300</span>
                         </div>
                         <textarea id="formDescription" rows="3" maxlength="300" oninput="document.getElementById('descCount').innerText = this.value.length + '/300'" placeholder="写下在这里发生的美好故事、吃到的美食或难忘瞬间吧~" class="w-full text-xs sm:text-sm bg-rose-50/60 border border-rose-200 text-gray-700 placeholder-rose-300 rounded-xl p-2.5 focus:outline-none focus:border-rose-400 resize-none leading-relaxed select-text"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 block mb-1">💬 顺手留一句我的碎碎念（可选）</label>
+                        <input type="text" id="formInitialNote" maxlength="120" placeholder="比如：这家海鲜超鲜，下次一定二刷！" class="w-full text-xs bg-sky-50/50 border border-rose-200 text-gray-700 placeholder-gray-400 rounded-xl px-3 py-2 focus:outline-none focus:border-rose-400 select-text">
                     </div>
                 </div>
 
@@ -681,13 +814,17 @@
         </div>
     </div>
 
-    <!-- ==================== 弹窗 4：全屏高清图片双指缩放查看器 ==================== -->
+    <!-- ==================== 弹窗 4：全屏高清图片双指缩放 + 多图轮播查看器 ==================== -->
     <div id="imageViewerModal" class="fixed inset-0 bg-black/95 z-50 hidden flex items-center justify-center p-0 transition-opacity opacity-0" onclick="closeImageViewer()">
         <div id="imageViewerLoader" class="absolute inset-0 flex items-center justify-center z-40 hidden pointer-events-none">
             <div class="w-10 h-10 border-4 border-rose-500 border-t-transparent rounded-full animate-spin"></div>
         </div>
 
+        <span id="viewerCounterBadge" class="hidden absolute top-7 left-6 text-white text-xs font-bold z-50 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/15">1 / 1</span>
         <button class="absolute top-6 right-6 text-white hover:text-rose-400 text-3xl font-bold z-50 bg-black/40 rounded-full w-11 h-11 flex items-center justify-center backdrop-blur-sm" onclick="closeImageViewer(event)">×</button>
+
+        <button id="viewerPrevBtn" onclick="viewerPrevImage(event)" class="hidden absolute left-3 top-1/2 -translate-y-1/2 z-50 w-10 h-10 rounded-full bg-black/45 text-white text-xl font-bold flex items-center justify-center backdrop-blur-sm border border-white/15 active:scale-90">‹</button>
+        <button id="viewerNextBtn" onclick="viewerNextImage(event)" class="hidden absolute right-3 top-1/2 -translate-y-1/2 z-50 w-10 h-10 rounded-full bg-black/45 text-white text-xl font-bold flex items-center justify-center backdrop-blur-sm border border-white/15 active:scale-90">›</button>
 
         <div id="imageContainer" class="w-full h-full flex items-center justify-center overflow-hidden">
             <img id="fullSizeImage" src="" class="max-w-none max-h-none object-contain transform transition-transform duration-100 ease-out relative z-30" onclick="event.stopPropagation()">
@@ -699,6 +836,159 @@
                 <span id="viewerMetaText" class="text-[11px] text-gray-300 font-mono"></span>
             </div>
             <p id="viewerDescText" class="text-xs text-gray-100 leading-relaxed mt-1 max-h-24 overflow-y-auto custom-scrollbar"></p>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗 5：年度 / 周年旅行总结卡 & 长图海报导出 ==================== -->
+    <div id="annualReportModal" class="fixed inset-0 bg-black/55 backdrop-blur-xs z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="closeAnnualReportModal()">
+        <div class="w-full max-w-md bg-[#fdf2f8] rounded-t-3xl sm:rounded-3xl max-h-[88dvh] flex flex-col shadow-2xl border-t-2 border-rose-100 overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
+            <div class="px-4 py-3 bg-white border-b border-rose-100 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">🎞️</span>
+                    <div>
+                        <h3 class="text-sm sm:text-base font-bold text-rose-500 leading-tight">旅行年度 / 周年总结卡</h3>
+                        <p id="repModeHint" class="text-[11px] text-gray-400">单程奔赴里程模式</p>
+                    </div>
+                </div>
+                <button onclick="closeAnnualReportModal()" class="w-8 h-8 rounded-full bg-rose-50 text-rose-500 font-bold text-lg flex items-center justify-center">×</button>
+            </div>
+
+            <div class="p-3.5 overflow-y-auto custom-scrollbar space-y-3 flex-1">
+                <div id="reportYearTabs" class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-0.5"></div>
+
+                <!-- 总结卡片预览 -->
+                <div class="bg-gradient-to-br from-rose-50 via-white to-sky-50 rounded-3xl p-4 border-2 border-rose-100 shadow-sm space-y-3">
+                    <div class="text-center">
+                        <h4 id="repTitle" class="text-base font-black text-rose-500">我们的双向奔赴足迹总览</h4>
+                        <p class="text-[10px] text-gray-400 mt-0.5">哼哼（福建永安） ⇄ 亲亲（广东东莞）</p>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-1.5 text-center">
+                        <div class="bg-white/95 rounded-2xl py-2 px-1 border border-rose-100">
+                            <div class="text-[10px] text-gray-400">省份</div>
+                            <div class="text-sm font-black text-rose-500" id="repProvCount">0</div>
+                        </div>
+                        <div class="bg-white/95 rounded-2xl py-2 px-1 border border-rose-100">
+                            <div class="text-[10px] text-gray-400">城市</div>
+                            <div class="text-sm font-black text-rose-500" id="repCityCount">0</div>
+                        </div>
+                        <div class="bg-white/95 rounded-2xl py-2 px-1 border border-rose-100">
+                            <div class="text-[10px] text-gray-400">赴约</div>
+                            <div class="text-sm font-black text-rose-500" id="repTripCount">0</div>
+                        </div>
+                        <div class="bg-white/95 rounded-2xl py-2 px-1 border border-rose-100">
+                            <div class="text-[10px] text-gray-400">照片</div>
+                            <div class="text-sm font-black text-rose-500" id="repPhotoCount">0</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="bg-sky-50/90 rounded-2xl p-2.5 border border-sky-100">
+                            <div class="text-[10px] font-bold text-sky-700">👦 哼哼 · 永安出发</div>
+                            <div class="text-lg font-black text-sky-600 mt-0.5"><span id="repHengKm">0</span><span class="text-[10px] font-normal ml-0.5">km</span></div>
+                        </div>
+                        <div class="bg-rose-50/90 rounded-2xl p-2.5 border border-rose-100">
+                            <div class="text-[10px] font-bold text-rose-600">👧 亲亲 · 东莞出发</div>
+                            <div class="text-lg font-black text-rose-500 mt-0.5"><span id="repQinKm">0</span><span class="text-[10px] font-normal ml-0.5">km</span></div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white/95 rounded-2xl px-3 py-2 border border-rose-100 text-center">
+                        <span class="text-[10px] text-gray-400">两人合计双向奔赴：</span>
+                        <span id="repCombinedKm" class="text-xs font-extrabold text-rose-500">0 km</span>
+                    </div>
+
+                    <div class="bg-white/95 rounded-2xl p-3 border border-rose-100 space-y-1.5 text-xs">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-500 shrink-0">🌟 最远一次赴约</span>
+                            <span id="repFarthest" class="font-bold text-rose-500 truncate">暂无记录</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-gray-500 shrink-0">❤️ 最常打卡城市</span>
+                            <span id="repMostCity" class="font-bold text-rose-500 truncate">暂无记录</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="text-[10px] font-bold text-rose-400 mb-1.5">📍 点亮城市足迹</div>
+                        <div id="repCitiesList" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+                </div>
+
+                <button onclick="exportAnnualPoster()" class="w-full py-3 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-sm font-bold rounded-2xl shadow-md active:scale-98 transition-all">
+                    📥 一键生成并导出高清长图海报
+                </button>
+
+                <div id="posterExportPreviewBox" class="hidden bg-white rounded-2xl p-3 border border-rose-100 space-y-2 text-center">
+                    <p class="text-[11px] font-bold text-rose-500">📱 海报已生成！手机端长按下方图片即可保存到相册</p>
+                    <img id="posterExportImg" src="" class="w-full rounded-xl shadow-sm border border-rose-100">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗 6：编辑旅行足迹弹窗 ==================== -->
+    <div id="editPostModal" class="fixed inset-0 bg-black/55 backdrop-blur-xs z-50 hidden flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="closeEditPostModal()">
+        <div class="w-full max-w-md bg-[#fdf2f8] rounded-t-3xl sm:rounded-3xl max-h-[86dvh] flex flex-col shadow-2xl border-t-2 border-rose-100 overflow-hidden animate-fade-in" onclick="event.stopPropagation()">
+            <div class="px-4 py-3 bg-white border-b border-rose-100 flex items-center justify-between shrink-0">
+                <h3 class="text-sm sm:text-base font-bold text-rose-500">✏️ 编辑旅行足迹</h3>
+                <button onclick="closeEditPostModal()" class="w-8 h-8 rounded-full bg-rose-50 text-rose-500 font-bold text-lg flex items-center justify-center">×</button>
+            </div>
+            <div class="p-4 overflow-y-auto custom-scrollbar space-y-3 flex-1">
+                <div>
+                    <label class="text-xs font-bold text-gray-600 block mb-1.5">已上传照片（可点 × 删减，至少留1张）</label>
+                    <div id="editImagesWrap" class="grid grid-cols-3 gap-2"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-500 block mb-1">省份</label>
+                        <select id="editFormProvince" onchange="onEditProvinceChange()" class="w-full text-xs bg-white border border-rose-200 text-rose-600 rounded-xl px-2 py-2 font-bold"></select>
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-500 block mb-1">地级市</label>
+                        <select id="editFormCity" class="w-full text-xs bg-white border border-rose-200 text-rose-600 rounded-xl px-2 py-2 font-bold"></select>
+                    </div>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-gray-500 block mb-1">旅行日期</label>
+                    <input type="date" id="editFormDate" class="w-full text-xs bg-white border border-rose-200 text-rose-500 rounded-xl px-3 py-2 font-bold">
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-gray-500 block mb-1.5">私藏标签（可多选）</label>
+                    <div id="editTagsWrap" class="flex flex-wrap gap-1.5"></div>
+                </div>
+                <div>
+                    <label class="text-[11px] font-bold text-gray-500 block mb-1">旅行故事</label>
+                    <textarea id="editFormDesc" rows="3" maxlength="300" class="w-full text-xs bg-white border border-rose-200 text-gray-700 rounded-xl p-2.5 resize-none select-text"></textarea>
+                </div>
+                <div class="grid grid-cols-1 gap-2">
+                    <div>
+                        <label class="text-[11px] font-bold text-sky-600 block mb-1">👦 哼哼碎碎念</label>
+                        <input type="text" id="editNoteHeng" maxlength="120" placeholder="哼哼对这里的评价或回忆..." class="w-full text-xs bg-sky-50/70 border border-sky-200 text-gray-700 rounded-xl px-3 py-2 select-text">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-rose-500 block mb-1">👧 亲亲碎碎念</label>
+                        <input type="text" id="editNoteQin" maxlength="120" placeholder="亲亲对这里的评价或回忆..." class="w-full text-xs bg-rose-50/70 border border-rose-200 text-gray-700 rounded-xl px-3 py-2 select-text">
+                    </div>
+                </div>
+                <button id="saveEditPostBtn" onclick="saveEditedPost()" class="w-full py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-sm font-bold rounded-xl shadow-md active:scale-98 transition-all">保存修改 ✨</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗 7：双人碎碎念快捷互评弹窗 ==================== -->
+    <div id="quickNoteModal" class="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4" onclick="closeQuickNoteModal()">
+        <div class="w-full max-w-sm bg-white rounded-3xl p-4 shadow-2xl border-2 border-rose-100 space-y-3 animate-fade-in" onclick="event.stopPropagation()">
+            <div class="flex items-center justify-between">
+                <h3 id="quickNoteTitle" class="text-sm font-bold text-rose-500">💬 双人碎碎念</h3>
+                <button onclick="closeQuickNoteModal()" class="w-7 h-7 rounded-full bg-rose-50 text-rose-500 font-bold flex items-center justify-center">×</button>
+            </div>
+            <div class="flex bg-rose-50/70 p-1 rounded-full border border-rose-100 gap-1">
+                <button id="qnBtnHeng" onclick="selectQuickNoteAuthor('heng')" class="flex-1 py-1.5 rounded-full text-xs font-bold bg-sky-500 text-white shadow-xs">👦 哼哼说</button>
+                <button id="qnBtnQin" onclick="selectQuickNoteAuthor('qin')" class="flex-1 py-1.5 rounded-full text-xs font-bold text-rose-500">👧 亲亲说</button>
+            </div>
+            <textarea id="quickNoteInput" rows="3" maxlength="120" placeholder="写下你对这座城市或这次见面的悄悄话吧~" class="w-full text-xs bg-rose-50/40 border border-rose-200 text-gray-700 rounded-2xl p-3 focus:outline-none focus:border-rose-400 resize-none select-text"></textarea>
+            <button id="saveQuickNoteBtn" onclick="saveQuickNote()" class="w-full py-2.5 bg-gradient-to-r from-rose-400 to-pink-500 text-white text-xs font-bold rounded-xl shadow-md">保存碎碎念 💌</button>
         </div>
     </div>
 
@@ -1257,10 +1547,30 @@
         let pollInterval = null;
         let isLikingSyncing = false;
 
+        const TAG_OPTIONS = [
+            { key: '美食', icon: '🍜' },
+            { key: '拍照', icon: '📸' },
+            { key: '住宿', icon: '🏨' },
+            { key: '风景', icon: '🌄' },
+            { key: '踩雷', icon: '⚡' },
+            { key: '二刷', icon: '💖' }
+        ];
+
+        function getPostImages(post) {
+            if (!post) return [];
+            if (Array.isArray(post.images) && post.images.length > 0) return post.images;
+            if (post.url || post.thumbUrl) return [{ url: post.url || post.thumbUrl, thumbUrl: post.thumbUrl || post.url }];
+            return [];
+        }
+
         let currentProvinceFilter = '全部';
-        let currentImageDataUrl = null;
-        let currentImageBase64 = null;
-        let currentImageExt = 'jpg';
+        let currentWallTagFilter = '全部';
+        let currentAlbumTagFilter = '全部';
+        let currentAlbumCluster = null;
+        let selectedUploadImages = [];
+        let selectedUploadTags = [];
+        let viewerImages = [];
+        let viewerIndex = 0;
 
         // 地图实例与图层
         let map = null;
@@ -1269,6 +1579,7 @@
         let cityGeoLayerGroup = null;
         let labelLayerGroup = null;
         let routeLayerGroup = null;
+        let replayLayerGroup = null;
         let markerLayerGroup = null;
 
         let currentLabelMode = localStorage.getItem('loveGacha_mapLabelMode') || 'province';
@@ -1288,7 +1599,7 @@
         let lastDistance = 0;
 
         // =========================================================================
-        // 5. 极速初始化入口（DOMContentLoaded 立即并行启动 + 缓存秒开）
+        // 5. 极速初始化入口（三路并行预热 + 本地缓存 0ms 首屏）
         // =========================================================================
         let chinaGeoPreloadPromise = null;
 
@@ -1302,6 +1613,7 @@
 
         document.addEventListener('DOMContentLoaded', async function() {
             initProvinceCitySelects();
+            renderUploadTagsUI();
             document.getElementById('formTripDate').value = new Date().toISOString().split('T')[0];
             updateLabelModeButtons();
             updateRouteButtonUI();
@@ -2209,11 +2521,17 @@
             });
         }
 
+        function switchAlbumTagFilter(tagKey) {
+            currentAlbumTagFilter = tagKey;
+            if (currentAlbumCluster) renderClusterAlbumPosts(currentAlbumCluster);
+        }
+
         function openClusterAlbumModal(cluster) {
+            currentAlbumCluster = cluster;
+            currentAlbumTagFilter = '全部';
             const modal = document.getElementById('cityAlbumModal');
             const titleEl = document.getElementById('modalCityTitle');
             const subEl = document.getElementById('modalCitySub');
-            const listEl = document.getElementById('modalCityPostsList');
             const quickBtn = document.getElementById('modalQuickUploadBtn');
 
             const primaryCity = cluster.cities[0];
@@ -2230,6 +2548,16 @@
                 jumpToUploadWithCity(primaryProv, primaryCity);
             };
 
+            renderClusterAlbumPosts(cluster);
+            modal.classList.remove('hidden');
+        }
+
+        function renderClusterAlbumPosts(cluster) {
+            const listEl = document.getElementById('modalCityPostsList');
+            const primaryCity = cluster.cities[0];
+            const cityMeta = CITY_MAP_BY_NAME[primaryCity];
+            const primaryProv = cluster.province || (cityMeta ? cityMeta.province : '中国');
+
             if (cluster.posts.length === 0) {
                 listEl.innerHTML = `
                     <div class="text-center py-7 bg-white rounded-2xl border border-rose-100 p-4">
@@ -2241,37 +2569,66 @@
                         </button>
                     </div>
                 `;
-            } else {
-                const localLikes = JSON.parse(localStorage.getItem('loveGacha_myTravelLikes') || '[]');
-                listEl.innerHTML = cluster.posts.map(post => {
-                    const thumb = post.thumbUrl || post.url;
-                    const dateStr = post.tripDate || new Date(post.time).toLocaleDateString();
-                    const isLiked = localLikes.includes(post.id);
-                    const likesCount = post.likes || 0;
-                    const escapedDesc = escapeHtml(post.description || '在这里留下了美好的足迹~');
-                    return `
-                        <div class="bg-white rounded-2xl p-3 shadow-sm border border-rose-100 flex gap-3 items-start">
-                            <img src="${thumb}" onclick="openImageViewer('${thumb}', '${post.url}', ${post.id})" class="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover shrink-0 cursor-zoom-in border border-rose-50 shadow-xs">
+                return;
+            }
+
+            const filterItems = [{ key: '全部', icon: '✨' }, ...TAG_OPTIONS];
+            const filterBarHtml = `<div class="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1">
+                ${filterItems.map(t => `<button onclick="switchAlbumTagFilter('${t.key}')" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap border ${currentAlbumTagFilter === t.key ? 'bg-rose-500 text-white border-rose-500' : 'bg-white text-gray-500 border-rose-100'}">${t.icon} ${t.key}</button>`).join('')}
+            </div>`;
+
+            const filtered = currentAlbumTagFilter === '全部'
+                ? cluster.posts
+                : cluster.posts.filter(p => Array.isArray(p.tags) && p.tags.includes(currentAlbumTagFilter));
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = filterBarHtml + `<div class="bg-white rounded-2xl p-6 text-center text-xs text-gray-400 border border-rose-100">该标签下还没有【${primaryCity}】的记录哦 🍃</div>`;
+                return;
+            }
+
+            const localLikes = JSON.parse(localStorage.getItem('loveGacha_myTravelLikes') || '[]');
+            const cardsHtml = filtered.map(post => {
+                const imgs = getPostImages(post);
+                const thumb = imgs[0] ? (imgs[0].thumbUrl || imgs[0].url) : '';
+                const fullUrl = imgs[0] ? imgs[0].url : '';
+                const dateStr = post.tripDate || new Date(post.time).toLocaleDateString();
+                const isLiked = localLikes.includes(post.id);
+                const likesCount = post.likes || 0;
+                const escapedDesc = escapeHtml(post.description || '在这里留下了美好的足迹~');
+                return `
+                    <div class="bg-white rounded-2xl p-3 shadow-sm border border-rose-100 space-y-2">
+                        <div class="flex gap-3 items-start">
+                            <div class="relative w-20 h-20 sm:w-24 sm:h-24 shrink-0 cursor-zoom-in" onclick="openImageViewer('${thumb}', '${fullUrl}', ${post.id}, 0)">
+                                <img src="${thumb}" class="w-full h-full rounded-xl object-cover border border-rose-50 shadow-xs">
+                                ${imgs.length > 1 ? `<span class="absolute bottom-1 right-1 bg-black/60 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">📷 ${imgs.length}</span>` : ''}
+                            </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between mb-1">
                                     <span class="text-[11px] font-bold text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full truncate">📍 ${post.city}</span>
                                     <span class="text-[10px] text-gray-400 font-mono shrink-0 ml-1">${dateStr}</span>
                                 </div>
+                                ${buildTagsHtml(post.tags)}
                                 <p class="text-xs text-gray-700 leading-relaxed break-words line-clamp-3 my-1">${escapedDesc}</p>
-                                <div class="flex items-center justify-between mt-1.5 pt-1 border-t border-rose-50">
-                                    <span class="text-[11px] text-gray-500 font-medium">👦 ${escapeHtml(post.uploader || '我们')}</span>
-                                    <button onclick="toggleLike(${post.id}, event)" class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${isLiked ? 'bg-rose-50 text-rose-500' : 'bg-gray-50 text-gray-500'} border ${isLiked ? 'border-rose-200' : 'border-gray-200'}">
-                                        <span>${isLiked ? '❤️' : '🤍'}</span>
-                                        <span class="font-bold text-[11px]">${likesCount}</span>
-                                    </button>
-                                </div>
                             </div>
                         </div>
-                    `;
-                }).join('');
-            }
+                        ${buildDualNotesHtml(post.notes)}
+                        <div class="flex items-center justify-between pt-1.5 border-t border-rose-50">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-[11px] text-gray-500 font-medium">👦 ${escapeHtml(post.uploader || '我们')}</span>
+                                <button onclick="openQuickNoteModal(${post.id}, event)" class="text-[10px] bg-sky-50 text-sky-600 px-2 py-0.5 rounded-full font-bold">💬 碎碎念</button>
+                                <button onclick="openEditPostModal(${post.id}, event)" class="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-full font-bold">✏️ 编辑</button>
+                                <button onclick="deleteTravelPost(${post.id}, event)" class="text-[10px] bg-gray-50 text-gray-400 px-1.5 py-0.5 rounded-full font-bold">🗑️</button>
+                            </div>
+                            <button onclick="toggleLike(${post.id}, event)" class="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${isLiked ? 'bg-rose-50 text-rose-500' : 'bg-gray-50 text-gray-500'} border ${isLiked ? 'border-rose-200' : 'border-gray-200'}">
+                                <span>${isLiked ? '❤️' : '🤍'}</span>
+                                <span class="font-bold text-[11px]">${likesCount}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
 
-            modal.classList.remove('hidden');
+            listEl.innerHTML = filterBarHtml + cardsHtml;
         }
 
         function closeCityAlbumModal() {
@@ -2294,10 +2651,12 @@
             const posts = travelData.posts || [];
             const visitedCitiesSet = new Set();
             const visitedProvsSet = new Set();
+            let totalPhotos = 0;
 
             posts.forEach(p => {
                 const canonicalCity = normalizeCityName(p.city);
                 visitedCitiesSet.add(canonicalCity);
+                totalPhotos += getPostImages(p).length;
                 const meta = CITY_MAP_BY_NAME[canonicalCity];
                 if (meta) visitedProvsSet.add(meta.province);
                 else if (p.province) visitedProvsSet.add(p.province);
@@ -2305,7 +2664,7 @@
 
             document.getElementById('statProvCount').innerText = visitedProvsSet.size;
             document.getElementById('statCityCount').innerText = visitedCitiesSet.size;
-            document.getElementById('statPhotoCount').innerText = posts.length;
+            document.getElementById('statPhotoCount').innerText = totalPhotos;
 
             updateDistanceUI();
 
@@ -2447,7 +2806,43 @@
             renderWall();
         }
 
+        function renderWallTagFilterBar() {
+            const bar = document.getElementById('wallTagFilterBar');
+            if (!bar) return;
+            const items = [{ key: '全部', icon: '✨' }, ...TAG_OPTIONS];
+            bar.innerHTML = items.map(t => {
+                const active = currentWallTagFilter === t.key;
+                return `<button onclick="switchWallTagFilter('${t.key}')" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold whitespace-nowrap transition-all border ${active ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-white text-gray-500 border-rose-100'}">${t.icon} ${t.key}</button>`;
+            }).join('');
+        }
+
+        function switchWallTagFilter(tagKey) {
+            currentWallTagFilter = tagKey;
+            renderWallTagFilterBar();
+            renderWall();
+        }
+
+        function buildTagsHtml(tags) {
+            if (!tags || tags.length === 0) return '';
+            return `<div class="flex flex-wrap gap-1 mb-1.5">${tags.map(t => {
+                const opt = TAG_OPTIONS.find(o => o.key === t);
+                return `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-50 text-rose-500 border border-rose-100">${opt ? opt.icon + ' ' : '#'}${escapeHtml(t)}</span>`;
+            }).join('')}</div>`;
+        }
+
+        function buildDualNotesHtml(notes) {
+            if (!notes) return '';
+            const h = (notes.heng || '').trim();
+            const q = (notes.qin || '').trim();
+            if (!h && !q) return '';
+            return `<div class="space-y-1 mb-1.5">
+                ${h ? `<div class="text-[10px] bg-sky-50/90 text-sky-700 px-2 py-1 rounded-lg border border-sky-100 leading-snug break-words"><span class="font-bold">👦 哼哼：</span>${escapeHtml(h)}</div>` : ''}
+                ${q ? `<div class="text-[10px] bg-rose-50/90 text-rose-600 px-2 py-1 rounded-lg border border-rose-100 leading-snug break-words"><span class="font-bold">👧 亲亲：</span>${escapeHtml(q)}</div>` : ''}
+            </div>`;
+        }
+
         function renderWall() {
+            renderWallTagFilterBar();
             const container = document.getElementById('photoGrid');
             const sortMode = document.getElementById('sortSelect').value;
 
@@ -2460,6 +2855,9 @@
             if (currentProvinceFilter !== '全部') {
                 displayList = displayList.filter(p => normalizeCityName(p.city) === currentProvinceFilter);
             }
+            if (currentWallTagFilter !== '全部') {
+                displayList = displayList.filter(p => Array.isArray(p.tags) && p.tags.includes(currentWallTagFilter));
+            }
 
             if (sortMode === 'time') {
                 displayList.sort((a, b) => b.time - a.time);
@@ -2468,7 +2866,7 @@
             }
 
             if (displayList.length === 0) {
-                container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10">这座城市还没有记录哦~ 🍃</div>`;
+                container.innerHTML = `<div class="w-full text-center text-sm text-gray-400 py-10">当前筛选条件下还没有记录哦~ 🍃</div>`;
                 return;
             }
 
@@ -2478,11 +2876,15 @@
 
             displayList.forEach((item, index) => {
                 const dateStr = item.tripDate || new Date(item.time).toLocaleDateString();
-                const displayThumb = item.thumbUrl || item.url;
+                const imgs = getPostImages(item);
+                const displayThumb = imgs[0] ? (imgs[0].thumbUrl || imgs[0].url) : '';
+                const fullUrl = imgs[0] ? imgs[0].url : '';
                 const likesCount = item.likes || 0;
                 const isLiked = localLikes.includes(item.id);
                 const shortCity = (item.city || '未知城市').replace(/(市|自治州|地区|盟|特别行政区)$/g, '');
-                const descHtml = item.description ? `<p class="text-xs text-gray-600 leading-relaxed line-clamp-3 mb-2 break-words">${escapeHtml(item.description)}</p>` : '';
+                const descHtml = item.description ? `<p class="text-xs text-gray-600 leading-relaxed line-clamp-3 mb-1.5 break-words">${escapeHtml(item.description)}</p>` : '';
+                const tagsHtml = buildTagsHtml(item.tags);
+                const notesHtml = buildDualNotesHtml(item.notes);
 
                 const heartSvg = `<svg class="w-3.5 h-3.5 ${isLiked ? 'text-rose-500 fill-current' : 'text-gray-400 stroke-current fill-transparent'} transition-colors" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
@@ -2490,7 +2892,7 @@
 
                 const cardHtml = `
                     <div class="bg-white rounded-xl shadow-sm border border-rose-100/60 animate-fade-in relative overflow-hidden group w-full mb-2.5">
-                        <div class="cursor-zoom-in relative w-full overflow-hidden" onclick="openImageViewer('${displayThumb}', '${item.url}', ${item.id})">
+                        <div class="cursor-zoom-in relative w-full overflow-hidden" onclick="openImageViewer('${displayThumb}', '${fullUrl}', ${item.id}, 0)">
                             <img src="${displayThumb}" loading="lazy" class="w-full h-auto block object-cover">
                             <div class="absolute top-1.5 left-1.5 bg-white/92 backdrop-blur-md text-rose-500 text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm flex items-center gap-0.5">
                                 <span>📍</span><span>${shortCity}</span>
@@ -2498,19 +2900,21 @@
                             <div class="absolute top-1.5 right-1.5 bg-black/45 backdrop-blur-md text-white/95 text-[9px] font-mono px-1.5 py-0.5 rounded-full shadow-sm">
                                 ${dateStr}
                             </div>
+                            ${imgs.length > 1 ? `<div class="absolute bottom-1.5 right-1.5 bg-black/55 backdrop-blur-md text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">📷 1/${imgs.length}</div>` : ''}
                         </div>
 
                         <div class="p-2.5">
+                            ${tagsHtml}
                             ${descHtml}
-                            <div class="flex items-center justify-between pt-1 border-t border-rose-50">
+                            ${notesHtml}
+                            <div class="flex items-center justify-between pt-1.5 border-t border-rose-50 gap-1">
                                 <div class="flex items-center gap-1">
-                                    <span class="text-xs">👦</span>
-                                    <span class="text-[11px] font-bold text-gray-600 truncate max-w-[65px]">${escapeHtml(item.uploader || '我们')}</span>
+                                    <button onclick="openQuickNoteModal(${item.id}, event)" title="写碎碎念" class="text-[10px] bg-sky-50 text-sky-600 px-1.5 py-0.5 rounded-md font-bold">💬</button>
+                                    <button onclick="openEditPostModal(${item.id}, event)" title="编辑" class="text-[10px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-md font-bold">✏️</button>
+                                    <button onclick="deleteTravelPost(${item.id}, event)" title="删除" class="text-[10px] bg-gray-50 text-gray-400 hover:text-rose-500 px-1.5 py-0.5 rounded-md font-bold">🗑️</button>
                                 </div>
                                 <div class="flex items-center gap-1">
-                                    <button onclick="locatePostOnMap('${item.province || ''}', '${item.city}')" class="text-[10px] bg-rose-50 text-rose-500 px-1.5 py-0.5 rounded-md font-bold">
-                                        地图
-                                    </button>
+                                    <button onclick="locatePostOnMap('${item.province || ''}', '${item.city}')" class="text-[10px] bg-rose-50 text-rose-500 px-1.5 py-0.5 rounded-md font-bold">地图</button>
                                     <button onclick="toggleLike(${item.id}, event)" class="flex items-center gap-0.5 bg-rose-50/70 px-1.5 py-0.5 rounded-md border border-rose-100">
                                         ${heartSvg}
                                         <span class="text-[10px] font-bold ${isLiked ? 'text-rose-500' : 'text-gray-500'} ml-0.5">${likesCount}</span>
@@ -2545,46 +2949,104 @@
         }
 
         // =========================================================================
-        // 12. 上传图片、缩略图生成、GitHub API 同步
+        // 12. 多图上传（最多9张）、缩略图生成、GitHub API 同步
         // =========================================================================
         function handleImageSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+            const files = Array.from(event.target.files || []);
+            if (files.length === 0) return;
 
-            if (file.size > 10 * 1024 * 1024) {
-                showToast("图片不能超过10MB哦~");
+            const remain = 9 - selectedUploadImages.length;
+            if (remain <= 0) {
+                showToast("每次打卡最多上传 9 张照片哦 📸");
                 event.target.value = '';
                 return;
             }
+            const toProcess = files.slice(0, remain);
+            if (files.length > remain) {
+                showToast(`最多支持 9 张，已选取前 ${remain} 张`);
+            }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                currentImageDataUrl = e.target.result;
-                currentImageBase64 = currentImageDataUrl.split(',')[1];
-                currentImageExt = file.name.split('.').pop() || 'jpg';
+            toProcess.forEach(file => {
+                if (file.size > 10 * 1024 * 1024) {
+                    showToast(`${file.name} 超过 10MB，已跳过`);
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const dataUrl = e.target.result;
+                    selectedUploadImages.push({
+                        dataUrl,
+                        base64: dataUrl.split(',')[1],
+                        ext: file.name.split('.').pop() || 'jpg'
+                    });
+                    renderUploadPreviewGrid();
+                };
+                reader.readAsDataURL(file);
+            });
+            event.target.value = '';
+        }
 
-                document.getElementById('uploadPlaceholder').classList.add('hidden');
-                document.getElementById('clearImageBtn').classList.remove('hidden');
+        function renderUploadPreviewGrid() {
+            const placeholder = document.getElementById('uploadPlaceholder');
+            const grid = document.getElementById('uploadPreviewGrid');
+            const countLabel = document.getElementById('uploadPhotoCountLabel');
+            if (countLabel) countLabel.innerText = `${selectedUploadImages.length}/9 张`;
 
-                const imgEl = document.getElementById('imagePreview');
-                imgEl.src = currentImageDataUrl;
-                imgEl.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
+            if (selectedUploadImages.length === 0) {
+                placeholder.classList.remove('hidden');
+                grid.classList.add('hidden');
+                grid.innerHTML = '';
+                return;
+            }
+
+            placeholder.classList.add('hidden');
+            grid.classList.remove('hidden');
+
+            let html = selectedUploadImages.map((img, idx) => `
+                <div class="relative aspect-square rounded-xl overflow-hidden border border-rose-200 bg-white shadow-xs" onclick="event.stopPropagation()">
+                    <img src="${img.dataUrl}" class="w-full h-full object-cover">
+                    ${idx === 0 ? '<span class="absolute bottom-1 left-1 bg-rose-500/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">封面</span>' : ''}
+                    <button type="button" onclick="removeUploadImage(${idx}, event)" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs font-bold flex items-center justify-center">×</button>
+                </div>
+            `).join('');
+
+            if (selectedUploadImages.length < 9) {
+                html += `
+                    <div onclick="event.stopPropagation(); document.getElementById('imageInput').click()" class="aspect-square rounded-xl border-2 border-dashed border-rose-300 bg-rose-50/70 flex flex-col items-center justify-center cursor-pointer active:bg-rose-100 text-rose-400">
+                        <span class="text-xl leading-none font-bold">+</span>
+                        <span class="text-[10px] mt-0.5 font-bold">继续添加</span>
+                    </div>
+                `;
+            }
+            grid.innerHTML = html;
+        }
+
+        function removeUploadImage(idx, event) {
+            if (event) event.stopPropagation();
+            selectedUploadImages.splice(idx, 1);
+            renderUploadPreviewGrid();
         }
 
         function clearImage(event) {
             if (event) event.stopPropagation();
-            currentImageBase64 = null;
-            currentImageDataUrl = null;
+            selectedUploadImages = [];
             document.getElementById('imageInput').value = '';
+            renderUploadPreviewGrid();
+        }
 
-            const imgEl = document.getElementById('imagePreview');
-            imgEl.src = '';
-            imgEl.classList.add('hidden');
+        function renderUploadTagsUI() {
+            const wrap = document.getElementById('uploadTagsWrap');
+            if (!wrap) return;
+            wrap.innerHTML = TAG_OPTIONS.map(t => {
+                const active = selectedUploadTags.includes(t.key);
+                return `<button type="button" onclick="toggleUploadTag('${t.key}')" class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${active ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-rose-50/60 text-gray-500 border-rose-100'}">${t.icon} ${t.key}</button>`;
+            }).join('');
+        }
 
-            document.getElementById('clearImageBtn').classList.add('hidden');
-            document.getElementById('uploadPlaceholder').classList.remove('hidden');
+        function toggleUploadTag(tagKey) {
+            if (selectedUploadTags.includes(tagKey)) selectedUploadTags = selectedUploadTags.filter(t => t !== tagKey);
+            else selectedUploadTags.push(tagKey);
+            renderUploadTagsUI();
         }
 
         async function fetchTravelData() {
@@ -2711,8 +3173,8 @@
         }
 
         async function submitTravelPost() {
-            if (!currentImageBase64 || !currentImageDataUrl) {
-                showToast("请先选择一张旅行照片哦！📸");
+            if (!selectedUploadImages || selectedUploadImages.length === 0) {
+                showToast("请至少选择一张旅行照片哦！📸");
                 return;
             }
             if (!GITHUB_TOKEN) {
@@ -2724,6 +3186,7 @@
             const city = document.getElementById('formCity').value;
             const tripDate = document.getElementById('formTripDate').value;
             const description = document.getElementById('formDescription').value.trim();
+            const noteText = (document.getElementById('formInitialNote') ? document.getElementById('formInitialNote').value.trim() : '');
 
             if (!city) {
                 showToast("请选择打卡的地级市哦 📍");
@@ -2743,27 +3206,43 @@
             document.getElementById('progressText').innerText = '0%';
 
             try {
-                btn.innerText = "生成地图缩略图中...";
-                const thumbBase64 = await generateThumbnailBase64(currentImageDataUrl);
+                const uploadedImages = [];
+                const total = selectedUploadImages.length;
 
-                btn.innerText = "上传缩略图中...";
-                progressTitle.innerText = "🚀 正在上传地图缩略图...";
-                const uploadedThumbUrl = await uploadMediaToGithubWithProgress(thumbBase64, 'jpg', 'travel', 'thumb');
+                for (let i = 0; i < total; i++) {
+                    const imgItem = selectedUploadImages[i];
+                    btn.innerText = `正在处理第 ${i + 1}/${total} 张...`;
+                    progressTitle.innerText = `🚀 上传第 ${i + 1}/${total} 张缩略图...`;
+                    document.getElementById('progressBar').style.width = '0%';
+                    document.getElementById('progressText').innerText = '0%';
 
-                btn.innerText = "上传高清原图中...";
-                progressTitle.innerText = "🚀 正在上传高清原图...";
-                document.getElementById('progressBar').style.width = '0%';
-                document.getElementById('progressText').innerText = '0%';
-                const uploadedImageUrl = await uploadMediaToGithubWithProgress(currentImageBase64, currentImageExt, 'travel', 'origin');
+                    const thumbBase64 = await generateThumbnailBase64(imgItem.dataUrl);
+                    const uploadedThumbUrl = await uploadMediaToGithubWithProgress(thumbBase64, 'jpg', 'travel', `thumb_${i}`);
 
-                if (!uploadedImageUrl) throw new Error("Upload URL is empty");
+                    progressTitle.innerText = `🚀 上传第 ${i + 1}/${total} 张高清原图...`;
+                    document.getElementById('progressBar').style.width = '0%';
+                    document.getElementById('progressText').innerText = '0%';
+                    const uploadedImageUrl = await uploadMediaToGithubWithProgress(imgItem.base64, imgItem.ext, 'travel', `origin_${i}`);
+                    if (!uploadedImageUrl) throw new Error("Upload URL is empty");
+
+                    uploadedImages.push({ url: uploadedImageUrl, thumbUrl: uploadedThumbUrl });
+                }
 
                 btn.innerText = "正在点亮城市并同步...";
 
+                const notesObj = {};
+                if (noteText) {
+                    const authorKey = myIdentity.includes('亲') ? 'qin' : 'heng';
+                    notesObj[authorKey] = noteText;
+                }
+
                 const newPost = {
                     id: Date.now(),
-                    url: uploadedImageUrl,
-                    thumbUrl: uploadedThumbUrl,
+                    url: uploadedImages[0].url,
+                    thumbUrl: uploadedImages[0].thumbUrl,
+                    images: uploadedImages,
+                    tags: [...selectedUploadTags],
+                    notes: notesObj,
                     uploader: myIdentity,
                     province: province,
                     city: city,
@@ -2783,10 +3262,13 @@
                 if (upRes.success) {
                     travelSha = upRes.sha;
                     try { localStorage.setItem(TRAVEL_CACHE_KEY, JSON.stringify(travelData)); } catch (e) {}
-                    showToast(`🎉 成功点亮【${city}】！`);
+                    showToast(`🎉 成功点亮【${city}】(${uploadedImages.length}张照片)！`);
                     clearImage();
+                    selectedUploadTags = [];
+                    renderUploadTagsUI();
                     document.getElementById('formDescription').value = '';
                     document.getElementById('descCount').innerText = '0/300';
+                    if (document.getElementById('formInitialNote')) document.getElementById('formInitialNote').value = '';
 
                     await loadVisitedProvincesCityGeo();
                     refreshAllViews();
@@ -2878,31 +3360,64 @@
         }
 
         // =========================================================================
-        // 13. 全屏高清图片双指缩放查看器
+        // 13. 全屏高清图片双指缩放 + 多图轮播查看器
         // =========================================================================
-        function openImageViewer(thumbUrl, fullUrl, postId) {
+        function openImageViewer(thumbUrl, fullUrl, postId, startIdx = 0) {
             const modal = document.getElementById('imageViewerModal');
+            const captionBar = document.getElementById('viewerCaptionBar');
+            const post = (travelData.posts || []).find(p => p.id === postId);
+
+            if (post) {
+                viewerImages = getPostImages(post);
+                viewerIndex = Math.max(0, Math.min(startIdx || 0, viewerImages.length - 1));
+                captionBar.classList.remove('hidden');
+                document.getElementById('viewerCityBadge').innerText = `📍 ${post.province || ''} · ${post.city}`;
+                document.getElementById('viewerMetaText').innerText = `👦 ${post.uploader || '我们'} · ${post.tripDate || new Date(post.time).toLocaleDateString()}`;
+                document.getElementById('viewerDescText').innerText = post.description || '在这里留下了美好的旅行足迹 ✨';
+            } else {
+                viewerImages = [{ thumbUrl: thumbUrl || fullUrl, url: fullUrl || thumbUrl }];
+                viewerIndex = 0;
+                captionBar.classList.add('hidden');
+            }
+
+            renderViewerCurrentImage();
+
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+            });
+
+            setupZoomAndPan();
+        }
+
+        function renderViewerCurrentImage() {
             const img = document.getElementById('fullSizeImage');
             const loader = document.getElementById('imageViewerLoader');
-            const captionBar = document.getElementById('viewerCaptionBar');
+            const prevBtn = document.getElementById('viewerPrevBtn');
+            const nextBtn = document.getElementById('viewerNextBtn');
+            const counterEl = document.getElementById('viewerCounterBadge');
+
+            const item = viewerImages[viewerIndex] || { thumbUrl: '', url: '' };
+            const thumbUrl = item.thumbUrl || item.url;
+            const fullUrl = item.url || item.thumbUrl;
 
             scale = 1;
             pointX = 0;
             pointY = 0;
             setTransform();
 
-            img.src = thumbUrl || fullUrl;
-
-            const post = (travelData.posts || []).find(p => p.id === postId);
-            if (post) {
-                captionBar.classList.remove('hidden');
-                document.getElementById('viewerCityBadge').innerText = `📍 ${post.province || ''} · ${post.city}`;
-                document.getElementById('viewerMetaText').innerText = `👦 ${post.uploader || '我们'} · ${post.tripDate || new Date(post.time).toLocaleDateString()}`;
-                document.getElementById('viewerDescText').innerText = post.description || '在这里留下了美好的旅行足迹 ✨';
+            if (viewerImages.length > 1) {
+                prevBtn.classList.remove('hidden');
+                nextBtn.classList.remove('hidden');
+                counterEl.classList.remove('hidden');
+                counterEl.innerText = `${viewerIndex + 1} / ${viewerImages.length}`;
             } else {
-                captionBar.classList.add('hidden');
+                prevBtn.classList.add('hidden');
+                nextBtn.classList.add('hidden');
+                counterEl.classList.add('hidden');
             }
 
+            img.src = thumbUrl;
             img.onload = function() {
                 const container = document.getElementById('imageContainer');
                 const ratioX = container.clientWidth / img.naturalWidth;
@@ -2916,25 +3431,34 @@
             if (thumbUrl && thumbUrl !== fullUrl) {
                 loader.classList.remove('hidden');
                 const highResImg = new Image();
+                const expectedIdx = viewerIndex;
                 highResImg.onload = () => {
-                    img.src = fullUrl;
-                    loader.classList.add('hidden');
+                    if (viewerIndex === expectedIdx) {
+                        img.src = fullUrl;
+                        loader.classList.add('hidden');
+                    }
                 };
                 highResImg.onerror = () => {
-                    loader.classList.add('hidden');
-                    showToast("原图加载失败");
+                    if (viewerIndex === expectedIdx) loader.classList.add('hidden');
                 };
                 highResImg.src = fullUrl;
             } else {
                 loader.classList.add('hidden');
             }
+        }
 
-            modal.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                modal.classList.remove('opacity-0');
-            });
+        function viewerPrevImage(event) {
+            if (event) event.stopPropagation();
+            if (viewerImages.length <= 1) return;
+            viewerIndex = (viewerIndex - 1 + viewerImages.length) % viewerImages.length;
+            renderViewerCurrentImage();
+        }
 
-            setupZoomAndPan();
+        function viewerNextImage(event) {
+            if (event) event.stopPropagation();
+            if (viewerImages.length <= 1) return;
+            viewerIndex = (viewerIndex + 1) % viewerImages.length;
+            renderViewerCurrentImage();
         }
 
         function closeImageViewer(event) {
@@ -2951,6 +3475,1065 @@
         function setTransform() {
             const img = document.getElementById('fullSizeImage');
             img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+
+        // =========================================================================
+        // 14. 双向奔赴「时光回放」引擎（SVG 零错位航线 + 双层流光 + 全局/跟随双视角 + 年份筛选）
+        // =========================================================================
+        let replaySvgRenderer = null;
+        let replayState = {
+            active: false,
+            paused: false,
+            allTrips: [],
+            trips: [],
+            yearFilter: 'ALL',
+            cameraMode: 'follow', // 'follow' 镜头跟随 | 'overview' 全国总览
+            index: -1,
+            speed: 1,
+            timer: null,
+            animFrames: [],
+            activeArcLines: [],
+            historyArcLines: [],
+            activeRippleMarker: null,
+            hengCum: 0,
+            qinCum: 0
+        };
+
+        function buildSmoothArcPoints(lat1, lng1, lat2, lng2, bend = 0.16, steps = 44) {
+            const pts = [];
+            const midLat = (lat1 + lat2) / 2;
+            const midLng = (lng1 + lng2) / 2;
+            const dx = lng2 - lng1;
+            const dy = lat2 - lat1;
+            const ctrlLat = midLat + dx * bend;
+            const ctrlLng = midLng - dy * bend;
+            for (let i = 0; i <= steps; i++) {
+                const t = i / steps;
+                const lat = (1 - t) * (1 - t) * lat1 + 2 * (1 - t) * t * ctrlLat + t * t * lat2;
+                const lng = (1 - t) * (1 - t) * lng1 + 2 * (1 - t) * t * ctrlLng + t * t * lng2;
+                pts.push([lat, lng]);
+            }
+            return pts;
+        }
+
+        function onReplayMapZoomEnd() {
+            if (!replayState.active) return;
+            // 缩放结束后清除行进动画残留的 strokeDashoffset，保证 SVG 航线在任何缩放级别下 100% 精准贴合城市坐标
+            (replayState.activeArcLines || []).forEach(item => {
+                if (item.line && item.line._path) {
+                    item.line._path.style.transition = 'none';
+                    item.line._path.style.strokeDasharray = item.dash || '';
+                    item.line._path.style.strokeDashoffset = '0';
+                }
+            });
+        }
+
+        function startFootprintReplay(yearFilter = 'ALL') {
+            const summary = computeTravelDistanceSummary();
+            if (!summary.trips || summary.trips.length === 0) {
+                showToast("还没有旅行记录可以回放哦，快去点亮第一座城市吧 ✈️");
+                return;
+            }
+            if (!map) return;
+
+            stopFootprintReplay(false);
+
+            const allPosts = travelData.posts || [];
+            const allChrono = [...summary.trips].sort((a, b) => a.startTs - b.startTs);
+            allChrono.forEach(t => {
+                const matched = allPosts.find(p => normalizeCityName(p.city) === t.city && (p.tripDate === t.dateStr || Math.abs((p.time || 0) - t.startTs) < 15 * 86400000))
+                    || allPosts.find(p => normalizeCityName(p.city) === t.city);
+                const imgs = matched ? getPostImages(matched) : [];
+                t.postId = matched ? matched.id : null;
+                t.coverThumb = imgs[0] ? (imgs[0].thumbUrl || imgs[0].url) : '';
+                t.coverFull = imgs[0] ? (imgs[0].url || imgs[0].thumbUrl) : '';
+                t.story = matched ? (matched.description || '在这里留下了美好的足迹 ✨') : '在这里留下了美好的足迹 ✨';
+            });
+
+            const filtered = yearFilter === 'ALL'
+                ? allChrono
+                : allChrono.filter(t => (t.dateStr || '').startsWith(yearFilter));
+            const tripsToPlay = filtered.length > 0 ? filtered : allChrono;
+            const actualYear = filtered.length > 0 ? yearFilter : 'ALL';
+
+            replayState = {
+                active: true,
+                paused: false,
+                allTrips: allChrono,
+                trips: tripsToPlay,
+                yearFilter: actualYear,
+                cameraMode: replayState.cameraMode || 'follow',
+                index: -1,
+                speed: replayState.speed || 1,
+                timer: null,
+                animFrames: [],
+                activeArcLines: [],
+                historyArcLines: [],
+                activeRippleMarker: null,
+                hengCum: 0,
+                qinCum: 0
+            };
+
+            // 隐藏常规标记与航线，切入回放专用 SVG 零错位图层
+            if (markerLayerGroup && map.hasLayer(markerLayerGroup)) map.removeLayer(markerLayerGroup);
+            if (routeLayerGroup && map.hasLayer(routeLayerGroup)) map.removeLayer(routeLayerGroup);
+            if (!replaySvgRenderer) replaySvgRenderer = L.svg({ padding: 0.6 });
+            if (!replayLayerGroup) replayLayerGroup = L.layerGroup().addTo(map);
+            else {
+                replayLayerGroup.clearLayers();
+                replayLayerGroup.addTo(map);
+            }
+
+            map.off('zoomend', onReplayMapZoomEnd);
+            map.on('zoomend', onReplayMapZoomEnd);
+
+            addReplayHomePins();
+            renderReplayYearTabs();
+            renderReplayStepDots(0);
+
+            document.getElementById('replayHud').classList.remove('hidden');
+            document.getElementById('mapSearchBoxWrap').classList.add('hidden');
+            document.getElementById('replayPauseBtn').innerText = '⏸';
+            document.getElementById('replaySpeedBtn').innerText = replayState.speed + 'x';
+            document.getElementById('replayCamModeBtn').innerText = replayState.cameraMode === 'overview' ? '🗺️ 全局' : '🎯 跟随';
+            document.getElementById('replayHengKm').innerText = '0';
+            document.getElementById('replayQinKm').innerText = '0';
+
+            if (replayState.cameraMode === 'overview') {
+                fitChinaBoundsOnMobile(true);
+            }
+
+            showToast(actualYear === 'ALL' ? "🎬 开始双向奔赴时光回放！" : `🎬 开始回放 ${actualYear} 年足迹！`);
+            playReplayStep(0);
+        }
+
+        function addReplayHomePins() {
+            if (!replayLayerGroup) return;
+            const hengIcon = L.divIcon({ className: 'geo-label-wrapper', html: `<span class="home-pin-badge home-pin-heng">👦 永安</span>`, iconSize: [0, 0] });
+            const qinIcon = L.divIcon({ className: 'geo-label-wrapper', html: `<span class="home-pin-badge home-pin-qin">👧 东莞</span>`, iconSize: [0, 0] });
+            L.marker([HOME_BASES.heng.lat, HOME_BASES.heng.lng], { icon: hengIcon, interactive: false, zIndexOffset: 300 }).addTo(replayLayerGroup);
+            L.marker([HOME_BASES.qin.lat, HOME_BASES.qin.lng], { icon: qinIcon, interactive: false, zIndexOffset: 300 }).addTo(replayLayerGroup);
+        }
+
+        function renderReplayYearTabs() {
+            const wrap = document.getElementById('replayYearTabs');
+            if (!wrap) return;
+            const years = Array.from(new Set((replayState.allTrips || []).map(t => (t.dateStr || '').slice(0, 4)).filter(y => /^\d{4}$/.test(y)))).sort((a, b) => b.localeCompare(a));
+            const items = [{ val: 'ALL', label: '全部' }, ...years.map(y => ({ val: y, label: y }))];
+            wrap.innerHTML = items.map(it => `
+                <button onclick="switchReplayYear('${it.val}')" class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap transition-all ${replayState.yearFilter === it.val ? 'bg-rose-500 text-white shadow-xs' : 'bg-rose-50 text-rose-500'}">${it.label}</button>
+            `).join('');
+        }
+
+        function switchReplayYear(y) {
+            if (!replayState.active) return;
+            startFootprintReplay(y);
+        }
+
+        function renderReplayStepDots(activeIdx) {
+            const wrap = document.getElementById('replayStepDots');
+            if (!wrap) return;
+            wrap.innerHTML = (replayState.trips || []).map((t, idx) => {
+                const cls = idx === activeIdx ? 'active' : (idx < activeIdx ? 'passed' : '');
+                return `<button type="button" onclick="jumpToReplayStep(${idx})" title="${t.dateStr} ${t.city}" class="replay-dot-btn ${cls}"></button>`;
+            }).join('');
+        }
+
+        function jumpToReplayStep(idx) {
+            if (!replayState.active) return;
+            clearTimeout(replayState.timer);
+            replayState.paused = true;
+            document.getElementById('replayPauseBtn').innerText = '▶';
+            playReplayStep(idx);
+        }
+
+        function toggleReplayCameraMode() {
+            if (!replayState.active) return;
+            replayState.cameraMode = replayState.cameraMode === 'follow' ? 'overview' : 'follow';
+            document.getElementById('replayCamModeBtn').innerText = replayState.cameraMode === 'overview' ? '🗺️ 全局' : '🎯 跟随';
+            if (replayState.cameraMode === 'overview') {
+                fitChinaBoundsOnMobile(true);
+                showToast("已切换至全国总览视角 🗺️");
+            } else {
+                const cur = replayState.trips[replayState.index];
+                if (cur && map) {
+                    const bounds = L.latLngBounds([
+                        [HOME_BASES.heng.lat, HOME_BASES.heng.lng],
+                        [HOME_BASES.qin.lat, HOME_BASES.qin.lng],
+                        [cur.lat, cur.lng]
+                    ]);
+                    map.flyToBounds(bounds.pad(0.28), { maxZoom: 6.2, duration: 0.65 });
+                }
+                showToast("已切换至镜头跟随视角 🎯");
+            }
+        }
+
+        function openReplayCurrentImage() {
+            const cur = replayState.trips && replayState.trips[replayState.index];
+            if (!cur || !cur.coverThumb) return;
+            if (!replayState.paused) toggleReplayPause();
+            openImageViewer(cur.coverThumb, cur.coverFull || cur.coverThumb, cur.postId, 0);
+        }
+
+        function openReplayCityAlbum() {
+            const cur = replayState.trips && replayState.trips[replayState.index];
+            if (!cur) return;
+            if (!replayState.paused) toggleReplayPause();
+            openCityInteraction(cur.province, cur.city);
+        }
+
+        function addAnimatedSvgArc(points, color, durationMs) {
+            if (!replayLayerGroup || !points.length) return;
+
+            // 1. 柔和外发光底层（SVG 原生投影，缩放绝不错位）
+            const glowLine = L.polyline(points, {
+                color,
+                weight: 6,
+                opacity: 0.2,
+                lineCap: 'round',
+                interactive: false,
+                renderer: replaySvgRenderer
+            }).addTo(replayLayerGroup);
+
+            // 2. 主流光实线（通过 SVG stroke-dashoffset 平滑生长，绝不调用 setLatLngs）
+            const mainLine = L.polyline(points, {
+                color,
+                weight: 2.6,
+                opacity: 0.94,
+                lineCap: 'round',
+                interactive: false,
+                renderer: replaySvgRenderer
+            }).addTo(replayLayerGroup);
+
+            const triggerStrokeAnim = () => {
+                if (!replayState.active || !mainLine._path) return;
+                try {
+                    const totalLen = mainLine._path.getTotalLength();
+                    if (totalLen > 0) {
+                        mainLine._path.style.transition = 'none';
+                        mainLine._path.style.strokeDasharray = `${totalLen} ${totalLen}`;
+                        mainLine._path.style.strokeDashoffset = `${totalLen}`;
+                        mainLine._path.getBoundingClientRect();
+                        mainLine._path.style.transition = `stroke-dashoffset ${durationMs}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+                        mainLine._path.style.strokeDashoffset = '0';
+                    }
+                    if (glowLine._path) {
+                        const glowLen = glowLine._path.getTotalLength();
+                        if (glowLen > 0) {
+                            glowLine._path.style.transition = 'none';
+                            glowLine._path.style.strokeDasharray = `${glowLen} ${glowLen}`;
+                            glowLine._path.style.strokeDashoffset = `${glowLen}`;
+                            glowLine._path.getBoundingClientRect();
+                            glowLine._path.style.transition = `stroke-dashoffset ${durationMs}ms cubic-bezier(0.22, 1, 0.36, 1)`;
+                            glowLine._path.style.strokeDashoffset = '0';
+                        }
+                    }
+                } catch (e) {}
+            };
+
+            requestAnimationFrame(triggerStrokeAnim);
+            replayState.activeArcLines.push({ line: mainLine, glow: glowLine, dash: '' });
+        }
+
+        function demoteActiveArcsToHistory() {
+            (replayState.activeArcLines || []).forEach(item => {
+                if (item.glow && replayLayerGroup) replayLayerGroup.removeLayer(item.glow);
+                if (item.line) {
+                    if (item.line._path) {
+                        item.line._path.style.transition = 'none';
+                        item.line._path.style.strokeDasharray = '4, 6';
+                        item.line._path.style.strokeDashoffset = '0';
+                    }
+                    item.line.setStyle({ weight: 1.4, opacity: 0.26, dashArray: '4, 6' });
+                    replayState.historyArcLines.push(item.line);
+                }
+            });
+            replayState.activeArcLines = [];
+            if (replayState.activeRippleMarker && replayLayerGroup) {
+                replayLayerGroup.removeLayer(replayState.activeRippleMarker);
+                replayState.activeRippleMarker = null;
+            }
+        }
+
+        function animateMileageCounter(elId, fromVal, toVal, durationMs = 700) {
+            const el = document.getElementById(elId);
+            if (!el) return;
+            const startTime = performance.now();
+            function tick(now) {
+                const p = Math.min(1, (now - startTime) / durationMs);
+                const eased = 1 - Math.pow(1 - p, 3);
+                const cur = Math.round(fromVal + (toVal - fromVal) * eased);
+                el.innerText = cur.toLocaleString();
+                if (p < 1) {
+                    const id = requestAnimationFrame(tick);
+                    replayState.animFrames.push(id);
+                }
+            }
+            const id = requestAnimationFrame(tick);
+            replayState.animFrames.push(id);
+        }
+
+        function rebuildReplayUpTo(stepIdx) {
+            replayLayerGroup.clearLayers();
+            replayState.activeArcLines = [];
+            replayState.historyArcLines = [];
+            replayState.activeRippleMarker = null;
+            addReplayHomePins();
+
+            replayState.hengCum = 0;
+            replayState.qinCum = 0;
+            for (let i = 0; i < stepIdx; i++) {
+                const pt = replayState.trips[i];
+                replayState.hengCum += pt.hengKm;
+                replayState.qinCum += pt.qinKm;
+                if (pt.hengKm > 0) {
+                    const lH = L.polyline(buildSmoothArcPoints(HOME_BASES.heng.lat, HOME_BASES.heng.lng, pt.lat, pt.lng, 0.16), {
+                        color: '#0284c7', weight: 1.4, opacity: 0.26, dashArray: '4, 6', interactive: false, renderer: replaySvgRenderer
+                    }).addTo(replayLayerGroup);
+                    replayState.historyArcLines.push(lH);
+                }
+                if (pt.qinKm > 0) {
+                    const lQ = L.polyline(buildSmoothArcPoints(HOME_BASES.qin.lat, HOME_BASES.qin.lng, pt.lat, pt.lng, -0.16), {
+                        color: '#e11d48', weight: 1.4, opacity: 0.26, dashArray: '4, 6', interactive: false, renderer: replaySvgRenderer
+                    }).addTo(replayLayerGroup);
+                    replayState.historyArcLines.push(lQ);
+                }
+                drawStaticReplayStop(pt, false);
+            }
+        }
+
+        function playReplayStep(stepIdx) {
+            if (!replayState.active) return;
+            clearTimeout(replayState.timer);
+
+            const trips = replayState.trips;
+            if (stepIdx < 0) stepIdx = 0;
+            if (stepIdx >= trips.length) {
+                replayState.paused = true;
+                document.getElementById('replayPauseBtn').innerText = '↻';
+                showToast("🎉 全部双向奔赴足迹回放完毕！");
+                return;
+            }
+
+            // 任意跳转或后退时重建历史轨迹，顺序前进时平滑把上一站降级为历史淡线
+            if (stepIdx !== replayState.index + 1) {
+                rebuildReplayUpTo(stepIdx);
+            } else {
+                demoteActiveArcsToHistory();
+            }
+
+            replayState.index = stepIdx;
+            const trip = trips[stepIdx];
+            const prevHeng = replayState.hengCum;
+            const prevQin = replayState.qinCum;
+            replayState.hengCum += trip.hengKm;
+            replayState.qinCum += trip.qinKm;
+
+            // 更新电影感 HUD 信息
+            document.getElementById('replayStepBadge').innerText = `${stepIdx + 1}/${trips.length}`;
+            document.getElementById('replayCityTitle').innerText = trip.city;
+            document.getElementById('replayDateText').innerText = trip.dateStr;
+            document.getElementById('replayStoryText').innerText = trip.story;
+            document.getElementById('replayTripDelta').innerHTML = `
+                <span class="text-sky-600">永安 +${trip.hengKm.toLocaleString()}km</span>
+                <span class="text-gray-300">·</span>
+                <span class="text-rose-500">东莞 +${trip.qinKm.toLocaleString()}km</span>
+            `;
+
+            const thumbEl = document.getElementById('replayThumbImg');
+            if (trip.coverThumb) {
+                if (typeof ThumbCacheDB !== 'undefined' && ThumbCacheDB.resolveUrl) {
+                    ThumbCacheDB.resolveUrl(trip.coverThumb).then(bUrl => {
+                        thumbEl.src = bUrl || trip.coverThumb;
+                    });
+                } else {
+                    thumbEl.src = trip.coverThumb;
+                }
+                thumbEl.classList.remove('hidden');
+            } else {
+                thumbEl.classList.add('hidden');
+            }
+
+            document.getElementById('replayProgressBar').style.width = `${Math.round(((stepIdx + 1) / trips.length) * 100)}%`;
+            renderReplayStepDots(stepIdx);
+
+            animateMileageCounter('replayHengKm', prevHeng, replayState.hengCum, 750);
+            animateMileageCounter('replayQinKm', prevQin, replayState.qinCum, 750);
+
+            // 视角控制（跟随模式平滑飞向包含永安、东莞、目标城市的视野；全局模式保持全国总览）
+            if (replayState.cameraMode === 'follow') {
+                const bounds = L.latLngBounds([
+                    [HOME_BASES.heng.lat, HOME_BASES.heng.lng],
+                    [HOME_BASES.qin.lat, HOME_BASES.qin.lng],
+                    [trip.lat, trip.lng]
+                ]);
+                map.flyToBounds(bounds.pad(0.28), { maxZoom: 6.2, duration: 0.75 / replayState.speed });
+            }
+
+            // 绘制双层流光 SVG 航线（与地图缩放完全锁定，零错位）
+            const arcDur = Math.round(950 / replayState.speed);
+            if (trip.hengKm > 0) {
+                addAnimatedSvgArc(buildSmoothArcPoints(HOME_BASES.heng.lat, HOME_BASES.heng.lng, trip.lat, trip.lng, 0.16), '#0284c7', arcDur);
+            }
+            if (trip.qinKm > 0) {
+                addAnimatedSvgArc(buildSmoothArcPoints(HOME_BASES.qin.lat, HOME_BASES.qin.lng, trip.lat, trip.lng, -0.16), '#e11d48', arcDur);
+            }
+
+            // 目的地汇合脉冲光圈 + 相册气泡
+            const rippleIcon = L.divIcon({
+                className: 'geo-label-wrapper',
+                html: `<div class="replay-ripple-ring"></div>`,
+                iconSize: [0, 0]
+            });
+            replayState.activeRippleMarker = L.marker([trip.lat, trip.lng], { icon: rippleIcon, interactive: false, zIndexOffset: 280 }).addTo(replayLayerGroup);
+            drawStaticReplayStop(trip, true);
+
+            if (!replayState.paused) {
+                replayState.timer = setTimeout(() => {
+                    playReplayStep(stepIdx + 1);
+                }, Math.round(3100 / replayState.speed));
+            }
+        }
+
+        function drawStaticReplayStop(trip, highlight = false) {
+            if (!replayLayerGroup) return;
+            const shortCity = trip.city.replace(/(市|自治州|地区|盟|特别行政区)$/g, '');
+            const imgTag = (typeof ThumbCacheDB !== 'undefined' && ThumbCacheDB.attr)
+                ? `<img ${ThumbCacheDB.attr(trip.coverThumb)} alt="${shortCity}">`
+                : `<img src="${trip.coverThumb}" alt="${shortCity}">`;
+            const html = trip.coverThumb
+                ? `<div class="apple-photo-marker ${highlight ? 'replay-pulse-pin' : ''}" style="--marker-size: ${highlight ? 42 : 34}px;">
+                        <div class="apple-photo-frame">${imgTag}</div>
+                        <div class="apple-photo-pointer"></div>
+                        <div class="apple-photo-city-label">${shortCity}</div>
+                   </div>`
+                : `<span class="geo-label-capital visited"><span class="dot"></span>${shortCity}</span>`;
+            const size = highlight ? 42 : 34;
+            const icon = L.divIcon({
+                className: 'apple-marker-wrapper',
+                html,
+                iconSize: trip.coverThumb ? [size, size] : [0, 0],
+                iconAnchor: trip.coverThumb ? [size / 2, size] : [0, 0]
+            });
+            const m = L.marker([trip.lat, trip.lng], { icon, zIndexOffset: highlight ? 500 : 320 });
+            m.on('click', (e) => {
+                L.DomEvent.stopPropagation(e);
+                if (!replayState.paused) toggleReplayPause();
+                openCityInteraction(trip.province, trip.city);
+            });
+            m.addTo(replayLayerGroup);
+        }
+
+        function toggleReplayPause() {
+            if (!replayState.active) return;
+            if (replayState.index >= replayState.trips.length - 1 && replayState.paused) {
+                startFootprintReplay(replayState.yearFilter);
+                return;
+            }
+            replayState.paused = !replayState.paused;
+            document.getElementById('replayPauseBtn').innerText = replayState.paused ? '▶' : '⏸';
+            if (replayState.paused) {
+                clearTimeout(replayState.timer);
+            } else {
+                playReplayStep(replayState.index + 1);
+            }
+        }
+
+        function stepReplay(delta) {
+            if (!replayState.active) return;
+            clearTimeout(replayState.timer);
+            const nextIdx = Math.max(0, Math.min(replayState.trips.length - 1, replayState.index + delta));
+            replayState.paused = true;
+            document.getElementById('replayPauseBtn').innerText = '▶';
+            playReplayStep(nextIdx);
+        }
+
+        function toggleReplaySpeed() {
+            replayState.speed = replayState.speed === 1 ? 1.5 : (replayState.speed === 1.5 ? 2 : 1);
+            document.getElementById('replaySpeedBtn').innerText = replayState.speed + 'x';
+        }
+
+        function stopFootprintReplay(restoreView = true) {
+            clearTimeout(replayState.timer);
+            (replayState.animFrames || []).forEach(id => cancelAnimationFrame(id));
+            replayState.active = false;
+            replayState.paused = false;
+            replayState.animFrames = [];
+            replayState.activeArcLines = [];
+            replayState.historyArcLines = [];
+            replayState.activeRippleMarker = null;
+
+            if (map) map.off('zoomend', onReplayMapZoomEnd);
+
+            const hud = document.getElementById('replayHud');
+            if (hud) hud.classList.add('hidden');
+            const searchWrap = document.getElementById('mapSearchBoxWrap');
+            if (searchWrap) searchWrap.classList.remove('hidden');
+
+            if (replayLayerGroup && map) {
+                replayLayerGroup.clearLayers();
+                if (map.hasLayer(replayLayerGroup)) map.removeLayer(replayLayerGroup);
+            }
+            if (map && restoreView) {
+                if (routeLayerGroup && !map.hasLayer(routeLayerGroup)) routeLayerGroup.addTo(map);
+                if (markerLayerGroup && !map.hasLayer(markerLayerGroup)) markerLayerGroup.addTo(map);
+                renderRouteLines();
+                renderApplePhotoMarkers();
+                fitChinaBoundsOnMobile(true);
+            }
+        }
+        // =========================================================================
+        // 15. 年度 / 周年旅行总结卡 & 高清 Canvas 长图海报一键导出
+        // =========================================================================
+        let selectedReportYear = 'ALL';
+        let lastReportStats = null;
+
+        function openAnnualReportModal() {
+            const posts = travelData.posts || [];
+            const yearsSet = new Set();
+            posts.forEach(p => {
+                const y = (p.tripDate || new Date(p.time || Date.now()).toISOString().split('T')[0]).slice(0, 4);
+                if (/^\d{4}$/.test(y)) yearsSet.add(y);
+            });
+            const years = Array.from(yearsSet).sort((a, b) => b.localeCompare(a));
+            if (selectedReportYear !== 'ALL' && !yearsSet.has(selectedReportYear)) {
+                selectedReportYear = years[0] || 'ALL';
+            }
+
+            const tabsEl = document.getElementById('reportYearTabs');
+            const tabItems = [{ val: 'ALL', label: '全部足迹' }, ...years.map(y => ({ val: y, label: y + '年' }))];
+            tabsEl.innerHTML = tabItems.map(item => `
+                <button onclick="selectReportYear('${item.val}')" class="px-3 py-1 rounded-full text-xs font-bold whitespace-nowrap transition-all ${selectedReportYear === item.val ? 'bg-rose-500 text-white shadow-xs' : 'bg-white text-rose-500 border border-rose-100'}">${item.label}</button>
+            `).join('');
+
+            document.getElementById('posterExportPreviewBox').classList.add('hidden');
+            renderAnnualReport();
+            document.getElementById('annualReportModal').classList.remove('hidden');
+        }
+
+        function closeAnnualReportModal() {
+            document.getElementById('annualReportModal').classList.add('hidden');
+        }
+
+        function selectReportYear(yearVal) {
+            selectedReportYear = yearVal;
+            openAnnualReportModal();
+        }
+
+        function computeReportStats(yearVal) {
+            const allPosts = travelData.posts || [];
+            const filteredPosts = yearVal === 'ALL'
+                ? allPosts
+                : allPosts.filter(p => (p.tripDate || new Date(p.time || Date.now()).toISOString().split('T')[0]).startsWith(yearVal));
+
+            const provSet = new Set();
+            const cityCounts = {};
+            const tagCounts = {};
+            let totalPhotos = 0;
+
+            filteredPosts.forEach(p => {
+                const c = normalizeCityName(p.city);
+                const meta = CITY_MAP_BY_NAME[c];
+                if (meta) provSet.add(meta.province);
+                else if (p.province) provSet.add(p.province);
+                cityCounts[c] = (cityCounts[c] || 0) + 1;
+                totalPhotos += getPostImages(p).length;
+                (p.tags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+            });
+
+            // 复用全量 trips 按年份筛选
+            const fullSummary = computeTravelDistanceSummary();
+            const trips = yearVal === 'ALL'
+                ? fullSummary.trips
+                : fullSummary.trips.filter(t => (t.dateStr || '').startsWith(yearVal));
+
+            let hengKm = 0, qinKm = 0;
+            let farthestTrip = null;
+            trips.forEach(t => {
+                hengKm += t.hengKm;
+                qinKm += t.qinKm;
+                const combined = t.hengKm + t.qinKm;
+                if (!farthestTrip || combined > (farthestTrip.hengKm + farthestTrip.qinKm)) {
+                    farthestTrip = t;
+                }
+            });
+
+            let mostVisitedCity = null;
+            let mostVisitedCount = 0;
+            Object.entries(cityCounts).forEach(([city, cnt]) => {
+                if (cnt > mostVisitedCount) {
+                    mostVisitedCount = cnt;
+                    mostVisitedCity = city;
+                }
+            });
+
+            const topTags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([t]) => t);
+
+            return {
+                yearVal,
+                title: yearVal === 'ALL' ? '我们的双向奔赴足迹总览' : `我们的 ${yearVal} 年度旅行报告`,
+                provCount: provSet.size,
+                cityCount: Object.keys(cityCounts).length,
+                tripCount: trips.length,
+                photoCount: totalPhotos,
+                hengKm,
+                qinKm,
+                combinedKm: hengKm + qinKm,
+                earthPct: (((hengKm + qinKm) / 40075) * 100).toFixed(2),
+                farthestTrip,
+                mostVisitedCity,
+                mostVisitedCount,
+                cities: Object.keys(cityCounts),
+                topTags
+            };
+        }
+
+        function renderAnnualReport() {
+            const s = computeReportStats(selectedReportYear);
+            lastReportStats = s;
+
+            document.getElementById('repTitle').innerText = s.title;
+            document.getElementById('repModeHint').innerText = isRoundTripMode ? '往返里程模式 (×2)' : '单程奔赴里程模式';
+            document.getElementById('repProvCount').innerText = s.provCount;
+            document.getElementById('repCityCount').innerText = s.cityCount;
+            document.getElementById('repTripCount').innerText = s.tripCount;
+            document.getElementById('repPhotoCount').innerText = s.photoCount;
+            document.getElementById('repHengKm').innerText = s.hengKm.toLocaleString();
+            document.getElementById('repQinKm').innerText = s.qinKm.toLocaleString();
+            document.getElementById('repCombinedKm').innerText = `${s.combinedKm.toLocaleString()} km（约绕赤道 ${s.earthPct}%）`;
+
+            document.getElementById('repFarthest').innerText = s.farthestTrip
+                ? `${s.farthestTrip.city}（合奔 ${(s.farthestTrip.hengKm + s.farthestTrip.qinKm).toLocaleString()} km）`
+                : '暂无记录';
+            document.getElementById('repMostCity').innerText = s.mostVisitedCity
+                ? `${s.mostVisitedCity}（${s.mostVisitedCount} 篇足迹）`
+                : '暂无记录';
+
+            const citiesWrap = document.getElementById('repCitiesList');
+            citiesWrap.innerHTML = s.cities.length > 0
+                ? s.cities.map(c => `<span class="px-2 py-0.5 rounded-full bg-white/90 text-rose-500 text-[10px] font-bold border border-rose-100">📍 ${c.replace(/(市|自治州|地区|盟|特别行政区)$/g, '')}</span>`).join('')
+                : `<span class="text-[11px] text-gray-400">该时段还没有点亮城市哦~</span>`;
+        }
+
+        function drawRoundedRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        function exportAnnualPoster() {
+            const s = lastReportStats || computeReportStats(selectedReportYear);
+            const W = 750;
+            const cityRows = Math.max(1, Math.ceil(s.cities.length / 5));
+            const H = 980 + cityRows * 46;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = W;
+            canvas.height = H;
+            const ctx = canvas.getContext('2d');
+
+            // 浪漫粉白渐变背景
+            const bgGrad = ctx.createLinearGradient(0, 0, W, H);
+            bgGrad.addColorStop(0, '#fff1f2');
+            bgGrad.addColorStop(0.5, '#fdf2f8');
+            bgGrad.addColorStop(1, '#f0f9ff');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, W, H);
+
+            // 柔和装饰圆斑
+            ctx.fillStyle = 'rgba(251, 113, 133, 0.12)';
+            ctx.beginPath(); ctx.arc(670, 90, 120, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.10)';
+            ctx.beginPath(); ctx.arc(90, H - 120, 130, 0, Math.PI * 2); ctx.fill();
+
+            // 标题区
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 40px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(s.title, W / 2, 105);
+
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '600 22px -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif';
+            ctx.fillText(`哼哼（福建永安） ⇄ 亲亲（广东东莞） · ${isRoundTripMode ? '往返总程' : '单程奔赴'}`, W / 2, 152);
+
+            // 4项核心指标卡片
+            const statsItems = [
+                { label: '点亮省份', val: `${s.provCount}`, unit: '/34' },
+                { label: '点亮城市', val: `${s.cityCount}`, unit: '城' },
+                { label: '赴约次数', val: `${s.tripCount}`, unit: '次' },
+                { label: '旅行照片', val: `${s.photoCount}`, unit: '张' }
+            ];
+            const cardY = 195, cardW = 152, cardH = 128, gap = 18;
+            const startX = (W - (cardW * 4 + gap * 3)) / 2;
+            statsItems.forEach((it, i) => {
+                const x = startX + i * (cardW + gap);
+                drawRoundedRect(ctx, x, cardY, cardW, cardH, 24);
+                ctx.fillStyle = 'rgba(255,255,255,0.94)';
+                ctx.fill();
+                ctx.strokeStyle = '#fecdd3';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '600 20px -apple-system, "PingFang SC", sans-serif';
+                ctx.fillText(it.label, x + cardW / 2, cardY + 42);
+
+                ctx.fillStyle = '#e11d48';
+                ctx.font = '800 42px -apple-system, "PingFang SC", sans-serif';
+                ctx.fillText(it.val, x + cardW / 2, cardY + 95);
+            });
+
+            // 双向奔赴里程大卡
+            const distY = 355, distH = 265;
+            drawRoundedRect(ctx, 44, distY, W - 88, distH, 30);
+            ctx.fillStyle = 'rgba(255,255,255,0.96)';
+            ctx.fill();
+            ctx.strokeStyle = '#fda4af';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#374151';
+            ctx.font = 'bold 26px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('✈️ 双向奔赴总里程', 78, distY + 52);
+
+            // 哼哼 & 亲亲分开展示
+            const halfW = (W - 88 - 68 - 22) / 2;
+            // 哼哼框
+            drawRoundedRect(ctx, 78, distY + 76, halfW, 118, 22);
+            ctx.fillStyle = '#f0f9ff';
+            ctx.fill();
+            ctx.fillStyle = '#0369a1';
+            ctx.font = 'bold 22px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('👦 哼哼 · 永安出发', 100, distY + 114);
+            ctx.fillStyle = '#0284c7';
+            ctx.font = '900 40px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(`${s.hengKm.toLocaleString()} km`, 100, distY + 168);
+
+            // 亲亲框
+            const qBoxX = 78 + halfW + 22;
+            drawRoundedRect(ctx, qBoxX, distY + 76, halfW, 118, 22);
+            ctx.fillStyle = '#fff1f2';
+            ctx.fill();
+            ctx.fillStyle = '#be123c';
+            ctx.font = 'bold 22px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('👧 亲亲 · 东莞出发', qBoxX + 22, distY + 114);
+            ctx.fillStyle = '#e11d48';
+            ctx.font = '900 40px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(`${s.qinKm.toLocaleString()} km`, qBoxX + 22, distY + 168);
+
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#f43f5e';
+            ctx.font = 'bold 24px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(`两人合计奔赴 ${s.combinedKm.toLocaleString()} km · 约绕地球赤道 ${s.earthPct}%`, W / 2, distY + 236);
+
+            // 亮点卡片（最远一次 & 最常去）
+            const hiY = 650, hiH = 165;
+            drawRoundedRect(ctx, 44, hiY, W - 88, hiH, 28);
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ctx.fill();
+            ctx.strokeStyle = '#fecdd3';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#6b7280';
+            ctx.font = 'bold 22px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('🌟 最远的一次赴约', 78, hiY + 52);
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 26px -apple-system, "PingFang SC", sans-serif';
+            const farTxt = s.farthestTrip ? `${s.farthestTrip.city}（合计 ${(s.farthestTrip.hengKm + s.farthestTrip.qinKm).toLocaleString()} km）` : '等待点亮第一座城';
+            ctx.fillText(farTxt, 310, hiY + 52);
+
+            ctx.fillStyle = '#6b7280';
+            ctx.font = 'bold 22px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText('❤️ 最常打卡的城市', 78, hiY + 118);
+            ctx.fillStyle = '#e11d48';
+            ctx.font = 'bold 26px -apple-system, "PingFang SC", sans-serif';
+            const mostTxt = s.mostVisitedCity ? `${s.mostVisitedCity}（${s.mostVisitedCount} 篇旅行手账）` : '等待点亮第一座城';
+            ctx.fillText(mostTxt, 310, hiY + 118);
+
+            // 点亮城市墙
+            const wallY = 845;
+            ctx.fillStyle = '#9d174d';
+            ctx.font = 'bold 24px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(`📍 已点亮城市足迹（${s.cities.length} 城）`, 56, wallY + 26);
+
+            let cx = 56, cy = wallY + 56;
+            ctx.font = 'bold 20px -apple-system, "PingFang SC", sans-serif';
+            s.cities.forEach(city => {
+                const label = city.replace(/(市|自治州|地区|盟|特别行政区)$/g, '');
+                const tw = ctx.measureText(label).width + 34;
+                if (cx + tw > W - 56) {
+                    cx = 56;
+                    cy += 44;
+                }
+                drawRoundedRect(ctx, cx, cy, tw, 34, 17);
+                ctx.fillStyle = '#ffe4e6';
+                ctx.fill();
+                ctx.fillStyle = '#e11d48';
+                ctx.textAlign = 'center';
+                ctx.fillText(label, cx + tw / 2, cy + 24);
+                cx += tw + 12;
+            });
+
+            // 底部落款
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#9ca3af';
+            ctx.font = '600 20px -apple-system, "PingFang SC", sans-serif';
+            ctx.fillText(`秘密基地 · 我们的旅游足迹 · 生成于 ${new Date().toISOString().split('T')[0]}`, W / 2, H - 36);
+
+            const dataUrl = canvas.toDataURL('image/png');
+            const previewBox = document.getElementById('posterExportPreviewBox');
+            const previewImg = document.getElementById('posterExportImg');
+            previewImg.src = dataUrl;
+            previewBox.classList.remove('hidden');
+
+            // 触发下载（桌面/安卓自动保存，iOS 可长按上方图片保存相册）
+            try {
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = `双向奔赴旅行报告_${s.yearVal}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            } catch (e) {}
+            showToast("🎉 高清总结海报已生成！iOS 可长按图片存相册");
+        }
+
+        // =========================================================================
+        // 16. 足迹编辑 / 删除 / 双人碎碎念快捷互评
+        // =========================================================================
+        let editingPostId = null;
+        let editingTags = [];
+        let editingImages = [];
+        let quickNotePostId = null;
+        let quickNoteAuthor = 'heng';
+
+        function openEditPostModal(postId, event) {
+            if (event) event.stopPropagation();
+            if (!GITHUB_TOKEN) {
+                showToast("未配置Token，预览模式无法编辑哦 💡");
+                return;
+            }
+            const post = (travelData.posts || []).find(p => p.id === postId);
+            if (!post) return;
+
+            editingPostId = postId;
+            editingTags = [...(post.tags || [])];
+            editingImages = getPostImages(post).map(img => ({ ...img }));
+
+            const provSel = document.getElementById('editFormProvince');
+            provSel.innerHTML = CHINA_REGIONS.map(p => `<option value="${p.prov}">${p.prov}</option>`).join('');
+            const normCity = normalizeCityName(post.city);
+            const meta = CITY_MAP_BY_NAME[normCity];
+            provSel.value = post.province || (meta ? meta.province : CHINA_REGIONS[0].prov);
+            onEditProvinceChange(normCity);
+
+            document.getElementById('editFormDate').value = post.tripDate || new Date(post.time || Date.now()).toISOString().split('T')[0];
+            document.getElementById('editFormDesc').value = post.description || '';
+            document.getElementById('editNoteHeng').value = (post.notes && post.notes.heng) || '';
+            document.getElementById('editNoteQin').value = (post.notes && post.notes.qin) || '';
+
+            renderEditTagsUI();
+            renderEditImagesUI();
+            document.getElementById('editPostModal').classList.remove('hidden');
+        }
+
+        function onEditProvinceChange(targetCity) {
+            const provName = document.getElementById('editFormProvince').value;
+            const provObj = CHINA_REGIONS.find(p => p.prov === provName) || CHINA_REGIONS[0];
+            const citySel = document.getElementById('editFormCity');
+            citySel.innerHTML = provObj.cities.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+            if (targetCity && provObj.cities.some(c => c.name === targetCity)) {
+                citySel.value = targetCity;
+            }
+        }
+
+        function renderEditTagsUI() {
+            const wrap = document.getElementById('editTagsWrap');
+            wrap.innerHTML = TAG_OPTIONS.map(t => {
+                const active = editingTags.includes(t.key);
+                return `<button type="button" onclick="toggleEditTag('${t.key}')" class="px-2.5 py-1 rounded-full text-[11px] font-bold transition-all border ${active ? 'bg-rose-500 text-white border-rose-500 shadow-xs' : 'bg-white text-gray-500 border-rose-100'}">${t.icon} ${t.key}</button>`;
+            }).join('');
+        }
+
+        function toggleEditTag(tagKey) {
+            if (editingTags.includes(tagKey)) editingTags = editingTags.filter(t => t !== tagKey);
+            else editingTags.push(tagKey);
+            renderEditTagsUI();
+        }
+
+        function renderEditImagesUI() {
+            const wrap = document.getElementById('editImagesWrap');
+            wrap.innerHTML = editingImages.map((img, idx) => `
+                <div class="relative aspect-square rounded-xl overflow-hidden border border-rose-100 bg-rose-50">
+                    <img src="${img.thumbUrl || img.url}" class="w-full h-full object-cover">
+                    ${idx === 0 ? '<span class="absolute bottom-1 left-1 bg-rose-500/90 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full">封面</span>' : ''}
+                    ${editingImages.length > 1 ? `<button type="button" onclick="removeEditPostImage(${idx})" class="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white text-xs font-bold flex items-center justify-center">×</button>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function removeEditPostImage(idx) {
+            if (editingImages.length <= 1) {
+                showToast("至少保留 1 张照片哦 📸");
+                return;
+            }
+            editingImages.splice(idx, 1);
+            renderEditImagesUI();
+        }
+
+        function closeEditPostModal() {
+            document.getElementById('editPostModal').classList.add('hidden');
+            editingPostId = null;
+        }
+
+        async function saveEditedPost() {
+            const post = (travelData.posts || []).find(p => p.id === editingPostId);
+            if (!post) return;
+
+            const btn = document.getElementById('saveEditPostBtn');
+            btn.disabled = true;
+            btn.innerText = '正在保存...';
+
+            const newProv = document.getElementById('editFormProvince').value;
+            const newCity = document.getElementById('editFormCity').value;
+            const meta = CITY_MAP_BY_NAME[newCity];
+
+            const backup = JSON.parse(JSON.stringify(post));
+            post.province = newProv;
+            post.city = newCity;
+            if (meta) { post.lat = meta.lat; post.lng = meta.lng; }
+            post.tripDate = document.getElementById('editFormDate').value || post.tripDate;
+            post.description = document.getElementById('editFormDesc').value.trim();
+            post.tags = [...editingTags];
+            post.notes = {
+                heng: document.getElementById('editNoteHeng').value.trim(),
+                qin: document.getElementById('editNoteQin').value.trim()
+            };
+            post.images = [...editingImages];
+            if (editingImages[0]) {
+                post.url = editingImages[0].url;
+                post.thumbUrl = editingImages[0].thumbUrl;
+            }
+
+            const upRes = await updateFile(FILE_TRAVEL, travelData, travelSha);
+            btn.disabled = false;
+            btn.innerText = '保存修改 ✨';
+
+            if (upRes.success) {
+                travelSha = upRes.sha;
+                try { localStorage.setItem(TRAVEL_CACHE_KEY, JSON.stringify(travelData)); } catch (e) {}
+                closeEditPostModal();
+                refreshAllViews();
+                if (!document.getElementById('cityAlbumModal').classList.contains('hidden') && currentAlbumCluster) {
+                    openCityInteraction(post.province, post.city);
+                }
+                showToast("足迹已更新并同步 ✨");
+            } else {
+                Object.assign(post, backup);
+                showToast("保存失败，请检查网络 ❌");
+            }
+        }
+
+        async function deleteTravelPost(postId, event) {
+            if (event) event.stopPropagation();
+            if (!GITHUB_TOKEN) {
+                showToast("未配置Token，预览模式无法删除哦 💡");
+                return;
+            }
+            if (!confirm("确定要删除这篇旅行足迹吗？删除后无法恢复哦~")) return;
+
+            const idx = (travelData.posts || []).findIndex(p => p.id === postId);
+            if (idx === -1) return;
+            const removed = travelData.posts.splice(idx, 1)[0];
+
+            showToast("正在删除并同步...");
+            const upRes = await updateFile(FILE_TRAVEL, travelData, travelSha);
+            if (upRes.success) {
+                travelSha = upRes.sha;
+                try { localStorage.setItem(TRAVEL_CACHE_KEY, JSON.stringify(travelData)); } catch (e) {}
+                refreshAllViews();
+                if (!document.getElementById('cityAlbumModal').classList.contains('hidden') && currentAlbumCluster) {
+                    openCityInteraction(currentAlbumCluster.province, currentAlbumCluster.cities[0]);
+                }
+                showToast("已删除该条旅行足迹 🗑️");
+            } else {
+                travelData.posts.splice(idx, 0, removed);
+                showToast("删除失败，请检查网络 ❌");
+            }
+        }
+
+        function openQuickNoteModal(postId, event) {
+            if (event) event.stopPropagation();
+            if (!GITHUB_TOKEN) {
+                showToast("未配置Token，预览模式无法留言哦 💡");
+                return;
+            }
+            const post = (travelData.posts || []).find(p => p.id === postId);
+            if (!post) return;
+
+            quickNotePostId = postId;
+            quickNoteAuthor = myIdentity.includes('亲') ? 'qin' : 'heng';
+            document.getElementById('quickNoteTitle').innerText = `📍 ${post.city} · 双人碎碎念`;
+            selectQuickNoteAuthor(quickNoteAuthor);
+            document.getElementById('quickNoteModal').classList.remove('hidden');
+        }
+
+        function selectQuickNoteAuthor(who) {
+            quickNoteAuthor = who;
+            const post = (travelData.posts || []).find(p => p.id === quickNotePostId);
+            const btnH = document.getElementById('qnBtnHeng');
+            const btnQ = document.getElementById('qnBtnQin');
+            if (who === 'heng') {
+                btnH.className = "flex-1 py-1.5 rounded-full text-xs font-bold bg-sky-500 text-white shadow-xs";
+                btnQ.className = "flex-1 py-1.5 rounded-full text-xs font-bold text-rose-500";
+            } else {
+                btnH.className = "flex-1 py-1.5 rounded-full text-xs font-bold text-sky-600";
+                btnQ.className = "flex-1 py-1.5 rounded-full text-xs font-bold bg-rose-500 text-white shadow-xs";
+            }
+            document.getElementById('quickNoteInput').value = (post && post.notes && post.notes[who]) || '';
+        }
+
+        function closeQuickNoteModal() {
+            document.getElementById('quickNoteModal').classList.add('hidden');
+            quickNotePostId = null;
+        }
+
+        async function saveQuickNote() {
+            const post = (travelData.posts || []).find(p => p.id === quickNotePostId);
+            if (!post) return;
+            const text = document.getElementById('quickNoteInput').value.trim();
+            const prevNotes = post.notes ? { ...post.notes } : {};
+            if (!post.notes) post.notes = {};
+            post.notes[quickNoteAuthor] = text;
+
+            const btn = document.getElementById('saveQuickNoteBtn');
+            btn.disabled = true;
+            btn.innerText = '保存中...';
+
+            const upRes = await updateFile(FILE_TRAVEL, travelData, travelSha);
+            btn.disabled = false;
+            btn.innerText = '保存碎碎念 💌';
+
+            if (upRes.success) {
+                travelSha = upRes.sha;
+                try { localStorage.setItem(TRAVEL_CACHE_KEY, JSON.stringify(travelData)); } catch (e) {}
+                closeQuickNoteModal();
+                refreshAllViews();
+                if (!document.getElementById('cityAlbumModal').classList.contains('hidden') && currentAlbumCluster) {
+                    openCityInteraction(currentAlbumCluster.province, currentAlbumCluster.cities[0]);
+                }
+                showToast(`${quickNoteAuthor === 'heng' ? '哼哼' : '亲亲'}的碎碎念已保存 💌`);
+            } else {
+                post.notes = prevNotes;
+                showToast("保存失败，请检查网络 ❌");
+            }
         }
 
         function handlePointerDown(e) {
